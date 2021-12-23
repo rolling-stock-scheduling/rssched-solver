@@ -1,4 +1,5 @@
 use crate::placeholder::{VehicleId, Location, DayTime};
+use std::fmt;
 
 pub(crate) struct StartNode {
     vehicle_id : VehicleId,
@@ -16,6 +17,11 @@ impl StartNode{
     }
 }
 
+impl fmt::Display for StartNode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f,"Start of {} at {} ({})", self.vehicle_id, self.location, self.time)
+    }
+}
 
 
 
@@ -32,5 +38,11 @@ impl EndNode{
             location,
             time
         }
+    }
+}
+
+impl fmt::Display for EndNode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f,"End of {} at {} ({})", self.vehicle_id, self.location, self.time)
     }
 }

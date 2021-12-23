@@ -9,7 +9,7 @@ use vehicle_nodes::{StartNode, EndNode};
 
 use crate::placeholder::{Location, DayTime, Distance, VehicleId};
 
-
+use std::fmt;
 
 
 pub(super) enum Node {
@@ -27,11 +27,12 @@ pub(super) enum Node {
 impl Node {
 
     // factory for creating a service trip
-    pub(super) fn create_service_node(start_station: Location, end_station: Location, departure_time: DayTime, length: Distance) -> Node {
+    pub(super) fn create_service_node(start_station: Location, end_station: Location, departure_time: DayTime, arrival_time: DayTime, length: Distance) -> Node {
         Node::Service(ServiceTrip::new( 
             start_station,
             end_station,
             departure_time,
+            arrival_time,
             length
         ))
     }
@@ -59,8 +60,17 @@ impl Node {
             end_time
         )))
     }
+
 }
 
-
-
+impl fmt::Display for Node {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Node::Service(service_trip) => service_trip.fmt(f),
+            Node::Maintenance(maintenance_slot) => maintenance_slot.fmt(f),
+            Node::Start(start_node) => start_node.fmt(f),
+            Node::End(end_node) => end_node.fmt(f)
+        }
+    }
+}
 
