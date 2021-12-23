@@ -7,7 +7,9 @@ use maintenance_slot::MaintenanceSlot;
 mod vehicle_nodes;
 use vehicle_nodes::{StartNode, EndNode};
 
-use crate::placeholder::{Location, DayTime, Distance, VehicleId};
+use crate::time::Time;
+use crate::placeholder::{Location, Distance, VehicleId};
+
 
 use std::fmt;
 
@@ -27,7 +29,7 @@ pub(super) enum Node {
 impl Node {
 
     // factory for creating a service trip
-    pub(super) fn create_service_node(start_station: Location, end_station: Location, departure_time: DayTime, arrival_time: DayTime, length: Distance) -> Node {
+    pub(super) fn create_service_node(start_station: Location, end_station: Location, departure_time: Time, arrival_time: Time, length: Distance) -> Node {
         Node::Service(ServiceTrip::new( 
             start_station,
             end_station,
@@ -38,7 +40,7 @@ impl Node {
     }
 
     // factory for creating a node for a maintenance slot
-    pub(super) fn create_maintenance_node(location: Location, start_time: DayTime, end_time: DayTime) -> Node {
+    pub(super) fn create_maintenance_node(location: Location, start_time: Time, end_time: Time) -> Node {
         Node::Maintenance(MaintenanceSlot::new(
             location,
             start_time,
@@ -48,7 +50,7 @@ impl Node {
 
 
     // factory for creating start and end node of a vehicle
-    pub(super) fn create_vehicle_nodes(vehicle_id: VehicleId, start_location: Location, start_time: DayTime, end_location: Location, end_time: DayTime) -> (Node, Node) {
+    pub(super) fn create_vehicle_nodes(vehicle_id: VehicleId, start_location: Location, start_time: Time, end_location: Location, end_time: Time) -> (Node, Node) {
         (Node::Start(StartNode::new(
             vehicle_id,
             start_location,

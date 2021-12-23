@@ -1,6 +1,8 @@
 mod network;
 use network::Network;
 
+mod time;
+
 mod placeholder;
 
 pub fn run() {
