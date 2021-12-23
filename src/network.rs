@@ -18,7 +18,9 @@ impl Network{
         nodes.push(start);
         nodes.push(end);
 
+        println!("{}", Time::new("2021-12-23 21:56")<Time::new("2021-12-23 22:56"));
         Network{nodes}
+
     }
 }
 
