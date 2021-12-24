@@ -1,7 +1,7 @@
 use std::fmt;
 
 
-#[derive(PartialEq, PartialOrd)] // care the ordering of the variants is important
+#[derive(Copy, Clone, PartialEq, PartialOrd)] // care the ordering of the variants is important
 pub(crate) enum Time {
     Earliest, // always earlier than all DateTimes
     Time(DateTime),
@@ -44,7 +44,7 @@ impl fmt::Display for Time {
 }
 
 
-#[derive(PartialEq, PartialOrd)] // care the ordering of attributes is important
+#[derive(Copy, Clone, PartialEq, PartialOrd)] // care the ordering of attributes is important
 pub(crate) struct DateTime {
     year: u32,
     month: u8,

@@ -1,25 +1,40 @@
-use crate::placeholder::{Location};
+use crate::location::Location;
 use crate::time::Time;
 use std::fmt;
 
-pub(crate) struct MaintenanceSlot {
-    location: Location,
-    start_time: Time,
-    end_time: Time,
+pub(crate) struct MaintenanceSlot<'a> {
+    location: &'a Location,
+    start: Time,
+    end: Time,
+}
+// methods
+impl<'a> MaintenanceSlot<'a> {
+    pub(crate) fn location(&self) -> &Location {
+        self.location
+    }
+
+    pub(crate) fn start(&self) -> Time {
+        self.start
+    }
+
+    pub(crate) fn end(&self) -> Time {
+        self.end
+    }
 }
 
-impl MaintenanceSlot {
-    pub(super) fn new(location: Location, start_time: Time, end_time: Time) -> MaintenanceSlot {
+// static functions:
+impl<'a> MaintenanceSlot<'a> {
+    pub(super) fn new(location: &'a Location, start: Time, end: Time) -> MaintenanceSlot {
         MaintenanceSlot{
             location,
-            start_time,
-            end_time
+            start,
+            end
         }
     }
 }
 
-impl fmt::Display for MaintenanceSlot {
+impl<'a> fmt::Display for MaintenanceSlot<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,"Maintenance at {} (from {} to {})", self.location, self.start_time, self.end_time)
+        write!(f,"Maintenance at {} (from {} to {})", self.location, self.start, self.end)
     }
 }

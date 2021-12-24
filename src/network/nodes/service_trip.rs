@@ -1,29 +1,54 @@
-use crate::placeholder::{Location, Distance};
+use crate::placeholder::Distance;
+use crate::location::Location;
 use crate::time::Time;
 use std::fmt;
 
-pub(crate) struct ServiceTrip {
-    start_station: Location,
-    end_station: Location,
-    departure_time: Time,
-    arrival_time: Time,
+pub(crate) struct ServiceTrip<'a> {
+    origin: &'a Location,
+    destination: &'a Location,
+    departure: Time,
+    arrival: Time,
     length: Distance,
 }
+// methods
+impl<'a> ServiceTrip<'a> {
+    pub(crate) fn origin(&self) -> &Location {
+        self.origin
+    }
 
-impl ServiceTrip {
-    pub(super) fn new(start_station: Location, end_station: Location, departure_time: Time, arrival_time: Time, length: Distance) -> ServiceTrip {
+    pub(crate) fn destination(&self) -> &Location {
+        self.destination
+    }
+
+    pub(crate) fn departure(&self) -> Time {
+        self.departure
+    }
+
+    pub(crate) fn arrival(&self) -> Time {
+        self.arrival
+    }
+
+    pub(crate) fn length(&self) -> Distance {
+        self.length
+    }
+
+}
+
+// static functions
+impl<'a> ServiceTrip<'a> {
+    pub(super) fn new(origin: &'a Location, destination: &'a Location, departure: Time, arrival: Time, length: Distance) -> ServiceTrip<'a> {
         ServiceTrip{
-            start_station,
-            end_station,
-            departure_time,
-            arrival_time,
+            origin,
+            destination,
+            departure,
+            arrival,
             length
         }
     }
 }
 
-impl fmt::Display for ServiceTrip {
+impl<'a> fmt::Display for ServiceTrip<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,"Service from {} ({}) to {} ({}), {}km", self.start_station, self.departure_time, self.end_station, self.arrival_time, self.length)
+        write!(f,"Service from {} ({}) to {} ({}), {}km", self.origin, self.departure, self.destination, self.arrival, self.length)
     }
 }

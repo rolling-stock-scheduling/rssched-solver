@@ -8,29 +8,69 @@ mod vehicle_nodes;
 use vehicle_nodes::{StartNode, EndNode};
 
 use crate::time::Time;
-use crate::placeholder::{Location, Distance, VehicleId};
+use crate::location::Location;
+use crate::placeholder::{Distance, VehicleId};
 
 
 use std::fmt;
 
 
-pub(super) enum Node {
-    Service(ServiceTrip),
-    Maintenance(MaintenanceSlot),
-    Start(StartNode),
-    End(EndNode)
+pub(super) enum Node<'a> {
+    Service(ServiceTrip<'a>),
+    Maintenance(MaintenanceSlot<'a>),
+    Start(StartNode<'a>),
+    End(EndNode<'a>)
+}
+
+
+// methods
+impl<'a> Node<'a> {
+    pub(crate) fn start_time(&self) -> Time {
+        match self {
+            Node::Service(s) => s.departure(),
+            Node::Maintenance(m) => m.start(),
+            Node::Start(_) => Time::Earliest,
+            Node::End(n) => n.time()
+        }
+    }
+
+    pub(crate) fn end_time(&self) -> Time {
+        match self {
+            Node::Service(s) => s.arrival(),
+            Node::Maintenance(m) => m.end(),
+            Node::Start(n) => n.time(),
+            Node::End(n) => Time::Latest
+        }
+    }
+
+    pub(crate) fn start_location(&self) -> &Location {
+        match self {
+            Node::Service(s) => s.origin(),
+            Node::Maintenance(m) => m.location(),
+            Node::Start(_) => &Location::Infinity,
+            Node::End(n) => n.location()
+        }
+    }
+
+    pub(crate) fn end_location(&self) -> &Location {
+        match self {
+            Node::Service(s) => s.destination(),
+            Node::Maintenance(m) => m.location(),
+            Node::Start(n) => n.location(),
+            Node::End(_) => &Location::Infinity
+        }
+    }
+
 }
 
 
 
-
-
-
-impl Node {
+// static functions:
+impl<'a> Node<'a> {
 
     // factory for creating a service trip
-    pub(super) fn create_service_node(start_station: Location, end_station: Location, departure_time: Time, arrival_time: Time, length: Distance) -> Node {
-        Node::Service(ServiceTrip::new( 
+    pub(super) fn create_service_node(start_station: &'a Location, end_station: &'a Location, departure_time: Time, arrival_time: Time, length: Distance) -> Node<'a> {
+        Node::Service(ServiceTrip::new(
             start_station,
             end_station,
             departure_time,
@@ -40,7 +80,7 @@ impl Node {
     }
 
     // factory for creating a node for a maintenance slot
-    pub(super) fn create_maintenance_node(location: Location, start_time: Time, end_time: Time) -> Node {
+    pub(super) fn create_maintenance_node(location: &'a Location, start_time: Time, end_time: Time) -> Node<'a> {
         Node::Maintenance(MaintenanceSlot::new(
             location,
             start_time,
@@ -50,7 +90,7 @@ impl Node {
 
 
     // factory for creating start and end node of a vehicle
-    pub(super) fn create_vehicle_nodes(vehicle_id: VehicleId, start_location: Location, start_time: Time, end_location: Location, end_time: Time) -> (Node, Node) {
+    pub(super) fn create_vehicle_nodes(vehicle_id: VehicleId, start_location: &'a Location, start_time: Time, end_location: &'a Location, end_time: Time) -> (Node<'a>, Node<'a>) {
         (Node::Start(StartNode::new(
             vehicle_id,
             start_location,
@@ -65,7 +105,7 @@ impl Node {
 
 }
 
-impl fmt::Display for Node {
+impl<'a> fmt::Display for Node<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Node::Service(service_trip) => service_trip.fmt(f),

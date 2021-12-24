@@ -1,15 +1,32 @@
-use crate::placeholder::{VehicleId, Location};
+use crate::placeholder::VehicleId;
+use crate::location::Location;
 use crate::time::Time;
 use std::fmt;
 
-pub(crate) struct StartNode {
+pub(crate) struct StartNode<'a> {
     vehicle_id : VehicleId,
-    location: Location,
+    location: &'a Location,
     time: Time,
 }
 
-impl StartNode{
-    pub(super) fn new(vehicle_id: VehicleId, location: Location, time: Time) -> StartNode {
+// methods
+impl<'a> StartNode<'a> {
+    pub(crate) fn vehicle_id(&self) -> VehicleId {
+        self.vehicle_id
+    }
+
+    pub(crate) fn location(&self) -> &Location {
+        self.location
+    }
+
+    pub(crate) fn time(&self) -> Time {
+        self.time
+    }
+}
+
+// static functions
+impl<'a> StartNode<'a> {
+    pub(super) fn new(vehicle_id: VehicleId, location: &'a Location, time: Time) -> StartNode {
         StartNode{
             vehicle_id,
             location,
@@ -18,7 +35,7 @@ impl StartNode{
     }
 }
 
-impl fmt::Display for StartNode {
+impl<'a> fmt::Display for StartNode<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,"Start of {} at {} ({})", self.vehicle_id, self.location, self.time)
     }
@@ -26,14 +43,30 @@ impl fmt::Display for StartNode {
 
 
 
-pub(crate) struct EndNode {
+pub(crate) struct EndNode<'a> {
     vehicle_id: VehicleId,
-    location: Location,
+    location: &'a Location,
     time: Time,
 }
 
-impl EndNode{
-    pub(super) fn new(vehicle_id: VehicleId, location: Location, time: Time) -> EndNode {
+// methods
+impl<'a> EndNode<'a> {
+    pub(crate) fn vehicle_id(&self) -> VehicleId {
+        self.vehicle_id
+    }
+
+    pub(crate) fn location(&self) -> &Location {
+        self.location
+    }
+
+    pub(crate) fn time(&self) -> Time {
+        self.time
+    }
+}
+
+// static functions
+impl<'a> EndNode<'a> {
+    pub(super) fn new(vehicle_id: VehicleId, location: &'a Location, time: Time) -> EndNode {
         EndNode{
             vehicle_id,
             location,
@@ -42,7 +75,7 @@ impl EndNode{
     }
 }
 
-impl fmt::Display for EndNode {
+impl<'a> fmt::Display for EndNode<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,"End of {} at {} ({})", self.vehicle_id, self.location, self.time)
     }
