@@ -12,7 +12,7 @@ impl Time {
     pub fn new(string: &str) -> Time { //"2009-06-15 13:45" or "06-15 13:45" (fills year 0)
         let splitted: Vec<&str> = string.split(&['-',' ',':'][..]).collect();
         let len = splitted.len();
-        assert!(len <= 5 || len >= 5, "Wrong time format."); 
+        assert!(len <= 5 || len >= 5, "Wrong time format.");
 
         let year: u32 = splitted[0].parse().expect("Error at year.");
         let month: u8 = splitted[1].parse().expect("Error at month.");

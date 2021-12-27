@@ -9,7 +9,8 @@ use vehicle_nodes::{StartNode, EndNode};
 
 use crate::time::Time;
 use crate::location::Location;
-use crate::placeholder::{Distance, VehicleId};
+use crate::vehicle::Vehicle;
+use crate::distance::Distance;
 
 
 use std::fmt;
@@ -90,14 +91,14 @@ impl<'a> Node<'a> {
 
 
     // factory for creating start and end node of a vehicle
-    pub(super) fn create_vehicle_nodes(vehicle_id: VehicleId, start_location: &'a Location, start_time: Time, end_location: &'a Location, end_time: Time) -> (Node<'a>, Node<'a>) {
+    pub(super) fn create_vehicle_nodes(vehicle: &'a Vehicle, start_location: &'a Location, start_time: Time, end_location: &'a Location, end_time: Time) -> (Node<'a>, Node<'a>) {
         (Node::Start(StartNode::new(
-            vehicle_id,
+            vehicle,
             start_location,
             start_time
         )),
         Node::End(EndNode::new(
-            vehicle_id,
+            vehicle,
             end_location,
             end_time
         )))
