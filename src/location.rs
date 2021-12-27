@@ -44,8 +44,15 @@ pub(crate) struct Station {
 
 
 
-
-
+/// a type for storing the pair-wise distances between all stations.
+/// These distances are stored as a Vec<Vec<Distance>>-matrix.
+/// The indices in the matrix equal the indices in the station vector equal the index stored in
+/// each station.
+/// The distance can be obtained by the dist function which has two &Location as input and provide
+/// a Distance.
+///
+/// A DeadHeadDistances instance can only be created together with the Vec<Distance> of wrapped
+/// stations. Use loactions::create_distances for that. Hence, the indices should always be consistent.
 pub(crate) struct DeadHeadDistances {
     distances: Vec<Vec<Distance>>
 }
