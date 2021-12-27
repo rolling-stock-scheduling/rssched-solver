@@ -16,7 +16,7 @@ use crate::distance::Distance;
 use std::fmt;
 
 
-pub(super) enum Node<'a> {
+pub(crate) enum Node<'a> {
     Service(ServiceTrip<'a>),
     Maintenance(MaintenanceSlot<'a>),
     Start(StartNode<'a>),
@@ -59,6 +59,13 @@ impl<'a> Node<'a> {
             Node::Maintenance(m) => m.location(),
             Node::Start(n) => n.location(),
             Node::End(_) => &Location::Infinity
+        }
+    }
+
+    pub(crate) fn length(&self) -> Distance {
+        match self {
+            Node::Service(s) => s.length(),
+            _ => Distance::zero()
         }
     }
 

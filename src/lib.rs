@@ -1,16 +1,23 @@
-mod network;
-use network::Network;
-
-
 mod time;
+mod distance;
 
 mod location;
-
 mod vehicle;
-use vehicle::{Vehicle, VehicleType};
 
-mod distance;
+mod network;
+
+mod schedule;
+
+
+
+use network::Network;
 use distance::Distance;
+use vehicle::{Vehicle, VehicleType};
+use schedule::Schedule;
+
+
+
+
 
 mod placeholder;
 
@@ -25,7 +32,12 @@ pub fn run() {
     println!("{}", network);
 
 
+
     println!("Deadhead-distance from {} to {}: {}.", stations[0], stations[1], dead_head_distances.dist(&stations[0], &stations[1]));
     println!("Deadhead-distance from {} to {}: {}.", stations[2], stations[1], dead_head_distances.dist(&stations[2], &stations[1]));
 
+    let first_schedule = Schedule::initialize(&vehicles, &network);
+
+    // println!("{}", first_schedule)
+    first_schedule.print(&dead_head_distances);
 }
