@@ -183,7 +183,7 @@ mod test {
         assert!(time + dur == sum, "Duration does not sum up correctly. time: {} + dur: {} is {}; but should be {}", time, dur, time + dur, sum);
     }
 
-    #[test] 
+    #[test]
     fn add_duration_to_time_leap_year() {
         let time = Time::new("2000-2-28T23:40");
         let dur = Duration::new("48:46");
@@ -191,7 +191,7 @@ mod test {
         assert!(time + dur == sum, "Duration does not sum up correctly. time: {} + dur: {} is {}; but should be {}", time, dur, time + dur, sum);
     }
 
-    #[test] 
+    #[test]
     fn add_long_duration_to_time() {
         let time = Time::new("1-01-01T00:00"); // jesus just got one year old ;)
         let dur = Duration::new("10000000:00");
@@ -199,12 +199,12 @@ mod test {
         assert!(time + dur == sum, "Duration does not sum up correctly. time: {} + dur: {} is {}; but should be {}", time, dur, time + dur, sum);
 
     }
-    #[test] 
+    #[test]
     fn add_duration_to_earliest_latest() {
         let earliest = Time::Earliest; // jesus just got one year old ;)
         let dur = Duration::new("50:00");
         assert!(earliest + dur == Time::Earliest, "Duration does not sum up correctly. time: {} + dur: {} is {}; but should be Time::Earliest", earliest, dur, earliest + dur);
-        
+
         let latest = Time::Latest; // jesus just got one year old ;)
         let dur = Duration::new("50:00");
         assert!(latest + dur == Time::Latest, "Duration does not sum up correctly. time: {} + dur: {} is {}; but should be Time::Latest", latest, dur, latest + dur);
