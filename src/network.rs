@@ -24,15 +24,15 @@ impl<'a> Network<'a> {
         service_nodes.push(Node::create_service_node(
                 &station[0],
                 &station[1],
-                Time::new("2021-12-23 21:56"),
-                Time::new("2021-12-23 22:56"),
+                Time::new("2021-12-23T21:56"),
+                Time::new("2021-12-23T22:56"),
                 Distance::from_km(200)));
 
         let mut maintenance_nodes: Vec<nodes::Node> = Vec::new();
         maintenance_nodes.push(Node::create_maintenance_node(
                 &station[2],
-                Time::new("2021-02-23 21:56"),
-                Time::new("2021-12-23 21:56") ));
+                Time::new("2021-02-23T21:56"),
+                Time::new("2021-12-23T21:56") ));
 
         let mut start_nodes: Vec<nodes::Node> = Vec::with_capacity(vehicles.len());
         let mut end_nodes: Vec<nodes::Node> = Vec::with_capacity(vehicles.len());
