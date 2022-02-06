@@ -2,7 +2,7 @@ use std::fmt;
 use crate::vehicle::Vehicle;
 use crate::network::nodes::Node;
 use crate::distance::Distance;
-use crate::location::DeadHeadDistances;
+use crate::location::DeadHeadMetrics;
 
 use itertools::Itertools;
 
@@ -12,7 +12,7 @@ pub(crate) struct Tour<'a> {
 }
 
 impl<'a> Tour<'a> {
-    pub(crate) fn length(&self, dhd: &DeadHeadDistances) -> Distance {
+    pub(crate) fn length(&self, dhd: &DeadHeadMetrics) -> Distance {
         let service_length: Distance = self.nodes.iter().map(|&n| n.length()).sum();
 
         let dead_head_length = self.nodes.iter().tuple_windows().map(|(a,b)| dhd.dist(a.end_location(),b.start_location())).sum();

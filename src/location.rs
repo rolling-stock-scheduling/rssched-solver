@@ -1,5 +1,6 @@
 use std::fmt;
 use crate::distance::Distance;
+use crate::time::Duration;
 
 type StationIdx = usize; // connecting the station to the index in the DeadHeadDistance-matrix
 
@@ -44,21 +45,27 @@ pub(crate) struct Station {
 
 
 
-/// a type for storing the pair-wise distances between all stations.
-/// These distances are stored as a Vec<Vec<Distance>>-matrix.
+/// a type for storing the pair-wise distances and travel times between all stations.
+/// Distances are stored as a Vec<Vec<Distance>>-matrix.
+/// Travel times are stored as a Vec<Vec<Duration>>-matrix.
 /// The indices in the matrix equal the indices in the station vector equal the index stored in
 /// each station.
-/// The distance can be obtained by the dist function which has two &Location as input and provide
+/// The distance can be obtained by the dist function which has two &Location as input and provides
 /// a Distance.
+/// The travel time can be obtained by the tt function which has two &Location as input and
+/// provides a Duration.
 ///
-/// A DeadHeadDistances instance can only be created together with the Vec<Distance> of wrapped
-/// stations. Use loactions::create_distances for that. Hence, the indices should always be consistent.
-pub(crate) struct DeadHeadDistances {
-    distances: Vec<Vec<Distance>>
+/// Distances and travel times should satisfy the triangle-inequality. This is not asserted.
+///
+/// A DeadHeadMetrics instance can only be created together with the Vec<Distance> of wrapped
+/// stations. Use loactions::create_locations for that. Hence, the indices should always be consistent.
+pub(crate) struct DeadHeadMetrics {
+    distances: Vec<Vec<Distance>>,
+    travel_times: Vec<Vec<Duration>>
 }
 
 // methods:
-impl DeadHeadDistances {
+impl DeadHeadMetrics {
     pub(crate) fn dist(&self, a: &Location, b: &Location) -> Distance {
         match a {
             Location::Infinity => Distance::Infinity,
@@ -70,9 +77,23 @@ impl DeadHeadDistances {
                 }
         }
     }
+
+    pub(crate) fn tt(&self, a: &Location, b: &Location) -> Duration {
+        match a {
+            Location::Infinity => Duration::Infinity,
+            Location::Location(station_a) =>
+                match b {
+                    Location::Infinity => Duration::Infinity,
+                    Location::Location(station_b) =>
+                        *self.travel_times.get(station_a.idx).unwrap().get(station_b.idx).unwrap()
+                }
+        }
+
+
+    }
 }
 
-pub(crate) fn create_locations() -> (Vec<Location>, DeadHeadDistances) {
+pub(crate) fn create_locations() -> (Vec<Location>, DeadHeadMetrics) {
     // TODO: Read stations and distance matrix from file (?)
 
     let stations = vec!(Location::new(0, "Zuerich"),
@@ -85,6 +106,13 @@ pub(crate) fn create_locations() -> (Vec<Location>, DeadHeadDistances) {
 
     let distances = vec!(from_zuerich, from_basel, from_altstetten);
 
-    (stations, DeadHeadDistances{ distances })
+    let tt_zuerich = vec!(Duration::new("0:00"), Duration::new("0:00"), Duration::new("0:00"));
+    let tt_basel = vec!(Duration::new("0:00"), Duration::new("0:00"), Duration::new("0:00"));
+    let tt_altstetten = vec!(Duration::new("0:00"), Duration::new("0:00"), Duration::new("0:00"));
+
+    let travel_times = vec!(tt_zuerich, tt_basel, tt_altstetten);
+
+
+    (stations, DeadHeadMetrics{ distances, travel_times})
 
 }
