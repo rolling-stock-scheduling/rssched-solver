@@ -39,7 +39,7 @@ pub(crate) struct DurationLength {
 ////////////////////////////////////////////////////////////////////
 
 impl Time {
-    pub fn new(string: &str) -> Time { //"2009-06-15T13:45" or "06-15 13:45" (fills year 0)
+    pub(crate) fn new(string: &str) -> Time { //"2009-06-15T13:45" or "06-15 13:45" (fills year 0)
         let splitted: Vec<&str> = string.split(&['T','-',' ',':'][..]).collect();
         let len = splitted.len();
         assert!(len <= 5 && len >= 5, "Wrong time format.");
@@ -70,7 +70,7 @@ impl Add<Duration> for Time {
     fn add(self, other: Duration) -> Self {
         match other {
             Duration::Infinity => Time::Latest, //note that Earliest + Infinity = Latest
-            Duration::Length(t) => {
+            Duration::Length(_) => {
                 match self {
                     Time::Earliest => Time::Earliest,
                     Time::Point(t) => Time::Point(t + other),
@@ -87,8 +87,6 @@ impl Sub for Time {
 
     fn sub(self, other: Self) -> Duration {
         assert!(other <= self, "Cannot subtract {} from {}, as it is a later point in time (no negative durations allowed)", other, self);
-        // assert!(self != Time::Earliest && self != Time::Latest, "Time must be actual point in time before subtracting other Time.");
-        // assert!(other != Time::Earliest && other != Time::Latest, "Time must be actual point in time before it can be subtract from other time.");
         match self {
             Time::Earliest => {
                 Duration::Length(DurationLength{hours: 0, minutes: 0}) // Earliest - Earliest
@@ -227,7 +225,7 @@ impl fmt::Display for TimePoint {
 ////////////////////////////////////////////////////////////////////
 
 impl Duration {
-    pub fn new(string: &str) -> Duration { //"13:45"
+    pub(crate) fn new(string: &str) -> Duration { //"13:45"
         let splitted: Vec<&str> = string.split(&[':'][..]).collect();
         assert!(splitted.len() == 2, "Wrong time format.");
 
@@ -241,16 +239,15 @@ impl Duration {
         })
     }
 
+    pub(crate) fn zero() -> Duration {
+        Duration::Length(DurationLength{
+            hours:0,
+            minutes:0
+        })
+    }
+
 }
 
-impl fmt::Display for Duration {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Duration::Length(l) => write!(f, "{:02}:{:02}", l.hours, l.minutes),
-            Duration::Infinity => write!(f, "Inf")
-        }
-    }
-}
 
 impl Add for Duration {
     type Output = Self;
@@ -264,6 +261,24 @@ impl Add for Duration {
                     Duration::Length(l2) => Duration::Length(l1 + l2)
                 }
             }
+        }
+    }
+}
+
+impl std::iter::Sum<Self> for Duration {
+    fn sum<I>(iter: I) -> Self
+    where
+        I: Iterator<Item = Self>,
+    {
+        iter.fold(Duration::zero(), |a, b| a + b)
+    }
+}
+
+impl fmt::Display for Duration {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Duration::Length(l) => write!(f, "{:02}:{:02}h", l.hours, l.minutes),
+            Duration::Infinity => write!(f, "Inf")
         }
     }
 }

@@ -3,7 +3,7 @@ use tour::Tour;
 
 use crate::network::Network;
 use crate::vehicle::Vehicle;
-use crate::location::DeadHeadMetrics;
+use crate::locations::Locations;
 
 use std::fmt;
 
@@ -24,10 +24,10 @@ impl<'a> Schedule<'a> {
         Schedule{tours}
     }
 
-    pub(crate) fn print(&self, dhd: &DeadHeadMetrics) {
+    pub(crate) fn print(&self, locations: &Locations) {
         println!("** Schedule with {} tours:", self.tours.len());
         for tour in self.tours.iter() {
-            println!("\t{} of length {}", tour, tour.length(dhd));
+            println!("\t{} of length {} and travel time: {}", tour, tour.length(locations), tour.travel_time(locations));
         }
     }
 }

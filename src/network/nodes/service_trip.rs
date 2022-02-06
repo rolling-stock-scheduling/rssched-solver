@@ -1,6 +1,6 @@
 use crate::distance::Distance;
-use crate::location::Location;
-use crate::time::Time;
+use crate::locations::Location;
+use crate::time::{Time,Duration};
 use std::fmt;
 
 pub(crate) struct ServiceTrip<'a> {
@@ -30,6 +30,10 @@ impl<'a> ServiceTrip<'a> {
 
     pub(crate) fn length(&self) -> Distance {
         self.length
+    }
+
+    pub(crate) fn travel_time(&self) -> Duration {
+        self.arrival - self.departure //could in principle also be something else if there are long stops
     }
 
 }

@@ -4,7 +4,7 @@ use nodes::Node;
 
 use crate::time::Time;
 use crate::distance::Distance;
-use crate::location::Location;
+use crate::locations::Location;
 use crate::vehicle::Vehicle;
 use std::fmt;
 

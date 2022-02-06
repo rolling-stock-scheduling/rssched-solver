@@ -7,8 +7,8 @@ use maintenance_slot::MaintenanceSlot;
 mod vehicle_nodes;
 use vehicle_nodes::{StartNode, EndNode};
 
-use crate::time::Time;
-use crate::location::Location;
+use crate::time::{Time,Duration};
+use crate::locations::Location;
 use crate::vehicle::Vehicle;
 use crate::distance::Distance;
 
@@ -66,6 +66,13 @@ impl<'a> Node<'a> {
         match self {
             Node::Service(s) => s.length(),
             _ => Distance::zero()
+        }
+    }
+
+    pub(crate) fn travel_time(&self) -> Duration {
+        match self {
+            Node::Service(s) => s.travel_time(),
+            _ => Duration::zero()
         }
     }
 

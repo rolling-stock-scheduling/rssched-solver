@@ -45,9 +45,9 @@ impl Add for Distance {
 }
 
 impl std::iter::Sum<Self> for Distance {
-    fn sum<I>(iter: I) -> Self 
-    where 
-        I: Iterator<Item = Self>, 
+    fn sum<I>(iter: I) -> Self
+    where
+        I: Iterator<Item = Self>,
     {
         iter.fold(Distance::zero(), |a, b| a + b)
     }

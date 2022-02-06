@@ -1,4 +1,4 @@
-use crate::location::Location;
+use crate::locations::Location;
 use crate::time::Time;
 use std::fmt;
 
