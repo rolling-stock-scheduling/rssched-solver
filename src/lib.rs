@@ -37,16 +37,16 @@ pub fn run() {
     let network: Network = Network::initialize(stations, &vehicles);
     println!("{}", network);
 
-    for node in network.all_nodes_iter() {
-        println!("node: {}", node);
-        println!("start_time: {}", node.start_time());
-        println!("end_time: {}", node.end_time());
-    }
+    // for node in network.all_nodes_iter() {
+        // println!("node: {}", node);
+        // println!("start_time: {}", node.start_time());
+        // println!("end_time: {}", node.end_time());
+    // }
 
 
 
-    println!("Deadhead-measures from {} to {}: distance: {}; travel_time: {}.", stations[0], stations[1], locations.distance(&stations[0], &stations[1]), locations.travel_time(&stations[0], &stations[1]));
-    println!("Deadhead-measures from {} to {}: distance: {}; travel_time: {}.", stations[2], stations[1], locations.distance(&stations[2], &stations[1]), locations.travel_time(&stations[2], &stations[1]));
+    // println!("Deadhead-measures from {} to {}: distance: {}; travel_time: {}.", stations[0], stations[1], locations.distance(&stations[0], &stations[1]), locations.travel_time(&stations[0], &stations[1]));
+    // println!("Deadhead-measures from {} to {}: distance: {}; travel_time: {}.", stations[2], stations[1], locations.distance(&stations[2], &stations[1]), locations.travel_time(&stations[2], &stations[1]));
 
     let first_schedule = Schedule::initialize(&vehicles, &network);
 

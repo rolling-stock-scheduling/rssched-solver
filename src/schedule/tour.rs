@@ -25,6 +25,13 @@ impl<'a> Tour<'a> {
         let dead_head_tt = self.nodes.iter().tuple_windows().map(|(a,b)| locations.travel_time(a.end_location(), b.start_location())).sum();
         service_tt + dead_head_tt
     }
+
+    pub(crate) fn print(&self, locations: &Locations) {
+        println!("tour with {} of length {} and travel time {}:", self.nodes.len(), self.length(locations), self.travel_time(locations));
+        for node in self.nodes.iter() {
+            println!("\t\t* {}", node);
+        }
+    }
 }
 
 impl<'a> Tour<'a> {
@@ -36,6 +43,6 @@ impl<'a> Tour<'a> {
 
 impl<'a> fmt::Display for Tour<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Tour of {} with {} nodes.", self.vehicle, self.nodes.len())
+        write!(f, "tour of {} with {} nodes", self.vehicle, self.nodes.len())
     }
 }

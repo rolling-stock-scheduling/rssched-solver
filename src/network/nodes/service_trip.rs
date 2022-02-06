@@ -53,6 +53,6 @@ impl<'a> ServiceTrip<'a> {
 
 impl<'a> fmt::Display for ServiceTrip<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,"Service from {} ({}) to {} ({}), {}km", self.origin, self.departure, self.destination, self.arrival, self.length)
+        write!(f,"service from {} ({}) to {} ({}), {}km", self.origin, self.departure, self.destination, self.arrival, self.length)
     }
 }

@@ -17,6 +17,7 @@ pub(crate) struct Network<'a> {
     maintenance_nodes: Vec<Node<'a>>
 }
 
+// static functions
 impl<'a> Network<'a> {
     pub(crate) fn initialize(station: &'a Vec<Location>, vehicles: &'a Vec<Vehicle>) -> Network<'a> {
 
@@ -49,11 +50,11 @@ impl<'a> Network<'a> {
         }
 
         Network{service_nodes,maintenance_nodes,start_nodes,end_nodes}
-
-
-
     }
+}
 
+// methods
+impl<'a> Network<'a> {
     pub(crate) fn all_nodes_iter(&self) -> impl Iterator<Item=&Node<'_>> + '_ {
         self.service_nodes.iter()
             .chain(self.start_nodes.iter())
@@ -72,7 +73,7 @@ impl<'a> Network<'a> {
 
 impl<'a> fmt::Display for Network<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,"** Network with {} nodes:\n", self.num_nodes())?;
+        write!(f,"** network with {} nodes:\n", self.num_nodes())?;
         for (i,v) in self.all_nodes_iter().enumerate() {
             write!(f,"\t{}: {}\n", i, v)?;
         }

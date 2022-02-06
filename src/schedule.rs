@@ -25,9 +25,10 @@ impl<'a> Schedule<'a> {
     }
 
     pub(crate) fn print(&self, locations: &Locations) {
-        println!("** Schedule with {} tours:", self.tours.len());
-        for tour in self.tours.iter() {
-            println!("\t{} of length {} and travel time: {}", tour, tour.length(locations), tour.travel_time(locations));
+        println!("** schedule with {} tours:", self.tours.len());
+        for (i, tour) in self.tours.iter().enumerate() {
+            print!("\t{}. ", i);
+            tour.print(locations);
         }
     }
 }
@@ -35,11 +36,10 @@ impl<'a> Schedule<'a> {
 
 impl<'a> fmt::Display for Schedule<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "** Schedule with {} tours:", self.tours.len())?;
+        writeln!(f, "** schedule with {} tours:", self.tours.len())?;
         for tour in self.tours.iter() {
             writeln!(f, "\t{}", tour)?;
         }
         Ok(())
     }
-
 }
