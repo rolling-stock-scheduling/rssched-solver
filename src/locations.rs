@@ -54,9 +54,9 @@ impl Locations {
 
         let distances = vec!(from_zuerich, from_basel, from_altstetten);
 
-        let tt_zuerich = vec!(Duration::new("0:00"), Duration::new("100:00"), Duration::new("3:00"));
-        let tt_basel = vec!(Duration::new("100:00"), Duration::new("0:00"), Duration::new("90:00"));
-        let tt_altstetten = vec!(Duration::new("3:00"), Duration::new("90:00"), Duration::new("0:00"));
+        let tt_zuerich = vec!(Duration::new("0:00"), Duration::new("1:40"), Duration::new("0:03"));
+        let tt_basel = vec!(Duration::new("1:40"), Duration::new("0:00"), Duration::new("1:30"));
+        let tt_altstetten = vec!(Duration::new("0:03"), Duration::new("1:30"), Duration::new("0:00"));
 
         let travel_times = vec!(tt_zuerich, tt_basel, tt_altstetten);
 

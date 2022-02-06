@@ -19,8 +19,6 @@ use locations::Locations;
 
 
 
-use time::Time;
-
 mod placeholder;
 
 pub fn run() {
@@ -32,16 +30,23 @@ pub fn run() {
                         Vehicle::new(2, VehicleType::Astoro, Distance::from_km(0), Duration::new("30000:00")));
     let locations = Locations::create();
 
-    let stations = locations.get_stations();
-
-    let network: Network = Network::initialize(stations, &vehicles);
+    let network: Network = Network::initialize(&locations, &vehicles);
     println!("{}", network);
 
-    // for node in network.all_nodes_iter() {
-        // println!("node: {}", node);
-        // println!("start_time: {}", node.start_time());
-        // println!("end_time: {}", node.end_time());
-    // }
+    for node in network.all_nodes_iter() {
+        println!("node: {}", node);
+        println!("start_time: {}", node.start_time());
+        println!("end_time: {}", node.end_time());
+        println!("successor: ");
+        for succ in network.all_successors(node) {
+            println!("\tin {}: {}", locations.travel_time(node.end_location(), succ.start_location()), succ);
+        }
+        println!("predecessor:");
+        for pred in network.all_predecessors(node) {
+            println!("\tin {}: {}", locations.travel_time(node.end_location(), pred.start_location()), pred);
+        }
+        println!("");
+    }
 
 
 

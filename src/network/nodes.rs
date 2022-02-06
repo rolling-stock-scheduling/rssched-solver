@@ -4,8 +4,8 @@ use service_trip::ServiceTrip;
 mod maintenance_slot;
 use maintenance_slot::MaintenanceSlot;
 
-mod vehicle_nodes;
-use vehicle_nodes::{StartNode, EndNode};
+mod terminal_nodes;
+use terminal_nodes::{StartNode, EndNode};
 
 use crate::time::{Time,Duration};
 use crate::locations::Location;
