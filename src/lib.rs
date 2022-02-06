@@ -18,11 +18,17 @@ use time::Duration;
 
 
 
-
+use time::Time;
 
 mod placeholder;
 
 pub fn run() {
+
+    let first = Time::new("2021-02-05T16:32");
+    let second = Time::new("2022-02-06T16:03");
+
+    println!("time between first and second: {}", second - first);
+
 
     let vehicles = vec!(Vehicle::new(0, VehicleType::Giruno, Distance::from_km(300), Duration::new("500:00")),
                         Vehicle::new(1, VehicleType::FVDosto, Distance::from_km(25000), Duration::new("50:00")),

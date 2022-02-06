@@ -1,6 +1,9 @@
 use std::fmt;
 use std::ops::Add;
+use std::ops::Sub;
 
+
+// Important: Leap year are integrated. But no daylight-saving.
 
 #[derive(Copy, Clone, PartialEq, PartialOrd)] // care the ordering of the variants is important
 pub(crate) enum Time {
@@ -38,11 +41,30 @@ impl fmt::Display for Time {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Time::Earliest => write!(f, "Earliest"),
-            Time::Time(t) => write!(f, "{:02}.{:02}.{}_{:02}:{:02}", t.day, t.month, t.year, t.hour, t.minute),
+            Time::Time(t) => write!(f, "{}", t),
             Time::Latest => write!(f, "Latest")
         }
     }
 }
+
+
+impl Sub for Time {
+    type Output = Duration;
+
+    fn sub(self, other: Self) -> Duration {
+        assert!(other <= self, "Cannot subtract {} from {}, as it is a later point in time (no negative durations allowed)", other, self);
+        assert!(self != Time::Earliest && self != Time::Latest, "Time must be actual point in time before subtracting other Time.");
+        assert!(other != Time::Earliest && other != Time::Latest, "Time must be actual point in time before it can be subtract from other time.");
+
+        if let Time::Time(t1) = self {
+            if let Time::Time(t2) = other {
+                return t1 - t2
+            }
+        }
+        Duration{hours: 0, minutes: 0}
+    }
+}
+
 
 
 #[derive(Copy, Clone, PartialEq, PartialOrd)] // care the ordering of attributes is important
@@ -52,6 +74,42 @@ pub(crate) struct DateTime {
     day: u8,
     hour: u8,
     minute: u8
+}
+
+impl Sub for DateTime {
+    type Output = Duration;
+
+    fn sub(self, other: Self) -> Duration {
+        assert!(other <= self, "Cannot subtract {} from {}, as it is a later point in time (no negative durations allowed)", other, self);
+
+        let mut hours = (if self.hour >= other.hour {self.hour - other.hour} else {self.hour + 24 - other.hour}) as u32;
+        let minutes = if self.minute >= other.minute {
+            self.minute - other.minute
+        } else {
+            hours = if hours > 0 {hours - 1} else {23}; // subtract one of the hours
+            self.minute + 60 - other.minute};
+
+
+        let mut temp_date = other + Duration{hours, minutes};
+        while self != temp_date {
+            let days_diff = if self.day > temp_date.day {self.day - temp_date.day} else {self.day + DateTime::get_days_of_month(temp_date.year, temp_date.month) - temp_date.day};
+            let hours_diff = 24 * days_diff as u32;
+            temp_date = temp_date + Duration{hours: hours_diff, minutes: 0};
+            hours += hours_diff;
+        }
+
+        Duration{
+            hours,
+            minutes
+        }
+    }
+}
+
+
+impl fmt::Display for DateTime {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:02}.{:02}.{}_{:02}:{:02}", self.day, self.month, self.year, self.hour, self.minute)
+    }
 }
 
 impl DateTime {
@@ -209,5 +267,26 @@ mod test {
         let dur = Duration::new("50:00");
         assert!(latest + dur == Time::Latest, "Duration does not sum up correctly. time: {} + dur: {} is {}; but should be Time::Latest", latest, dur, latest + dur);
 
+    }
+
+    #[test]
+    fn test_difference_of_two_times() {
+        let earlier = Time::new("2022-02-06T16:32");
+        let later = Time::new("2022-02-06T16:32");
+        let duration = Duration::new("0:00");
+        assert!(later - earlier == duration, "Subtracting {} from {} gives {} but should give {}", earlier, later, later - earlier, duration);
+        assert!(earlier + (later - earlier) == later, "Adding (later - earlier) to earlier should give later; earlier: {}, later: {}", earlier, later);
+
+        let earlier = Time::new("2022-02-06T16:32");
+        let later = Time::new("2022-02-06T17:31");
+        let duration = Duration::new("0:59");
+        assert!(later - earlier == duration, "Subtracting {} from {} gives {} but should give {}", earlier, later, later - earlier, duration);
+        assert!(earlier + (later - earlier) == later, "Adding (later - earlier) to earlier should give later; earlier: {}, later: {}", earlier, later);
+
+        let earlier = Time::new("1989-10-01T02:25");
+        let later = Time::new("2022-02-06T17:31");
+        let duration = Duration::new("283599:06");
+        assert!(later - earlier == duration, "Subtracting {} from {} gives {} but should give {}", earlier, later, later - earlier, duration);
+        assert!(earlier + (later - earlier) == later, "Adding (later - earlier) to earlier should give later; earlier: {}, later: {}", earlier, later);
     }
 }
