@@ -43,7 +43,7 @@ pub fn run() {
         }
         println!("predecessor:");
         for pred in network.all_predecessors(node) {
-            println!("\tin {}: {}", locations.travel_time(node.end_location(), pred.start_location()), pred);
+            println!("\tin {}: {}", locations.travel_time(pred.end_location(), node.start_location()), pred);
         }
         println!("");
     }

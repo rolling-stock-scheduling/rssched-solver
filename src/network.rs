@@ -86,14 +86,17 @@ impl<'a> Network<'a> {
         (&self.start_nodes, &self.end_nodes)
     }
 
+    /// returns True iff node1 can reach node2
+    pub(crate) fn can_reach(&self, node1: &Node, node2: &Node) -> bool {
+        node1.end_time() + self.locations.travel_time(node1.end_location(), node2.start_location()) < node2.start_time()
+    }
+
     pub(crate) fn all_successors(&self, node: &'a Node) -> impl Iterator<Item=&Node<'_>> + '_ {
-        self.all_nodes_iter().filter(|other|
-            node.end_time() + self.locations.travel_time(node.end_location(), other.start_location()) < other.start_time())
+        self.all_nodes_iter().filter(|other| self.can_reach(node, other))
     }
 
     pub(crate) fn all_predecessors(&self, node: &'a Node) -> impl Iterator<Item=&Node<'_>> + '_ {
-        self.all_nodes_iter().filter(|other|
-            other.end_time() + self.locations.travel_time(other.end_location(), node.start_location()) < node.start_time())
+        self.all_nodes_iter().filter(|other| self.can_reach(other, node))
     }
 }
 
