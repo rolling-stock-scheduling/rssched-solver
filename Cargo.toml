@@ -16,3 +16,4 @@ path = "src/main.rs"
 
 [dependencies]
 itertools = "0.10"
+csv = "1.1"

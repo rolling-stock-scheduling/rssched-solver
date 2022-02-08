@@ -1,15 +1,17 @@
 use std::fmt;
 use std::ops::Add;
 
+type Kilometer = f32;
+
 #[derive(Copy, Clone, PartialEq, PartialOrd)]
 pub(crate) enum Distance {
-    Distance(u64),
+    Distance(Kilometer),
     Infinity
 }
 
 // methods:
 impl Distance {
-    pub fn as_km(&self) -> u64 {
+    pub fn as_km(&self) -> Kilometer {
         match self {
             Distance::Distance(d) => *d,
             Distance::Infinity => {panic!("Distance is infinity")},
@@ -19,12 +21,12 @@ impl Distance {
 
 // static functions:
 impl Distance {
-    pub fn from_km(d: u64) -> Distance {
+    pub fn from_km(d: Kilometer) -> Distance {
         Distance::Distance(d)
     }
 
     pub fn zero() -> Distance {
-        Distance::Distance(0)
+        Distance::Distance(0.0)
     }
 }
 

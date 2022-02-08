@@ -1,7 +1,7 @@
-mod service_trip;
+pub(crate) mod service_trip;
 use service_trip::ServiceTrip;
 
-mod maintenance_slot;
+pub(crate) mod maintenance_slot;
 use maintenance_slot::MaintenanceSlot;
 
 mod terminal_nodes;

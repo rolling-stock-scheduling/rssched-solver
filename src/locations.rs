@@ -1,8 +1,11 @@
 use std::fmt;
+use std::collections::HashMap;
+use std::collections::HashSet;
+
 use crate::distance::Distance;
 use crate::time::Duration;
 
-type StationIdx = usize; // connecting the station to the index in the DeadHeadDistance-matrix
+type Station = String; // Stations are represented by String codes of length 2 to 4.
 
 /// a type for storing the pair-wise distances and travel times between all stations.
 /// Distances are stored as a Vec<Vec<Distance>>-matrix.
@@ -19,21 +22,17 @@ type StationIdx = usize; // connecting the station to the index in the DeadHeadD
 /// A DeadHeadMetrics instance can only be created together with the Vec<Distance> of wrapped
 /// stations. Use loactions::create_locations for that. Hence, the indices should always be consistent.
 pub(crate) struct Locations {
-    stations: Vec<Location>,
-    distances: Vec<Vec<Distance>>,
-    travel_times: Vec<Vec<Duration>>
+    stations: HashSet<Location>,
+    distances: HashMap<Station,HashMap<Station,Distance>>,
+    travel_times: HashMap<Station,HashMap<Station,Duration>>
 }
 
+#[derive(Hash,Eq,PartialEq)]
 pub(crate) enum Location {
     Location(Station),
     Infinity // distance to Infinity is always infinity
 }
 
-#[derive(Hash, PartialEq, Eq)]
-pub(crate) struct Station {
-    idx: StationIdx,
-    name: String
-}
 
 /////////////////////////////////////////////////////////////////////
 ////////////////////////////// Locations ////////////////////////////
@@ -41,24 +40,71 @@ pub(crate) struct Station {
 
 // static functions
 impl Locations {
+
+    pub(crate) fn load_from_csv(path: String) -> Locations {
+        let mut stations: HashSet<Location> = HashSet::new();
+        let mut distances: HashMap<Station,HashMap<Station,Distance>> = HashMap::new();
+        let mut travel_times: HashMap<Station,HashMap<Station,Duration>> = HashMap::new();
+        let mut reader = csv::ReaderBuilder::new().delimiter(b';').from_path(path).expect("csv-file for loading locations not found");
+        for result in reader.records() {
+            let record = result.expect("Some recond cannot be read while reading locations");
+            let origin = String::from(record.get(0).unwrap());
+            let destination = String::from(record.get(1).unwrap());
+            
+            let travel_time_string = String::from(record.get(2).unwrap());
+            let travel_time_formatted = travel_time_string.split('T').last().unwrap().split('M').next().unwrap().replace("H",":");
+            let travel_time = Duration::new(&travel_time_formatted);
+
+            let distance_string = String::from(record.get(3).unwrap());
+            let distance = Distance::from_km(distance_string.parse().unwrap());
+
+            fn insert<A>(distances: &mut HashMap<Station,HashMap<Station,A>>, origin: &Station, destination: &Station, value: A) {
+                match distances.get_mut(origin){
+                    Some(hm) => hm,
+                    None => {distances.insert(origin.clone(),HashMap::new());
+                             distances.get_mut(origin).unwrap()}
+                }.insert(destination.clone(), value);
+            }
+
+            stations.insert(Location::of(&origin));
+            stations.insert(Location::of(&destination));
+
+            insert(&mut distances,&origin,&destination, distance);
+            insert(&mut distances,&destination,&origin, distance);
+            insert(&mut distances,&origin,&origin, Distance::zero());
+            insert(&mut distances,&destination,&destination, Distance::zero());
+            
+            insert(&mut travel_times,&origin,&destination, travel_time);
+            insert(&mut travel_times,&destination,&origin, travel_time);
+            insert(&mut travel_times,&origin,&origin, Duration::zero());
+            insert(&mut travel_times,&destination,&destination, Duration::zero());
+            
+
+        }
+        Locations{stations, distances, travel_times}
+
+    }
+
     pub(crate) fn create() -> Locations {
         // TODO: Read stations and distance matrix from file (?)
 
-        let stations = vec!(Location::new(0, "Zuerich"),
-                            Location::new(1, "Basel"),
-                            Location::new(2, "Altstetten"));
+        let zue = String::from("ZUE");
+        let bs = String::from("BS");
+        let zas = String::from("ZAS");
 
-        let from_zuerich = vec!(Distance::from_km(0), Distance::from_km(150), Distance::from_km(5));
-        let from_basel = vec!(Distance::from_km(150), Distance::from_km(0), Distance::from_km(145));
-        let from_altstetten = vec!(Distance::from_km(5), Distance::from_km(145), Distance::from_km(0));
+        let stations = HashSet::from([Location::of(&zue), Location::of(&bs), Location::of(&zas)]);
 
-        let distances = vec!(from_zuerich, from_basel, from_altstetten);
+        let from_zuerich = HashMap::from([(zue.clone(), Distance::from_km(0.0)), (bs.clone(), Distance::from_km(150.0)), (zas.clone(), Distance::from_km(5.0))]);
+        let from_basel = HashMap::from([(zue.clone(), Distance::from_km(150.0)), (bs.clone(), Distance::from_km(0.0)), (zas.clone(), Distance::from_km(145.0))]);
+        let from_altstetten = HashMap::from([(zue.clone(), Distance::from_km(5.0)), (bs.clone(), Distance::from_km(145.0)), (zas.clone(), Distance::from_km(0.0))]);
 
-        let tt_zuerich = vec!(Duration::new("0:00"), Duration::new("1:40"), Duration::new("0:03"));
-        let tt_basel = vec!(Duration::new("1:40"), Duration::new("0:00"), Duration::new("1:30"));
-        let tt_altstetten = vec!(Duration::new("0:03"), Duration::new("1:30"), Duration::new("0:00"));
+        let distances = HashMap::from([(zue.clone(), from_zuerich), (bs.clone(), from_basel), (zas.clone(), from_altstetten)]);
 
-        let travel_times = vec!(tt_zuerich, tt_basel, tt_altstetten);
+        let tt_zuerich = HashMap::from([(zue.clone(), Duration::new("0:00")), (bs.clone(), Duration::new("1:40")), (zas.clone(), Duration::new("0:03"))]);
+        let tt_basel = HashMap::from([(zue.clone(), Duration::new("1:40")), (bs.clone(), Duration::new("0:00")), (zas.clone(), Duration::new("1:30"))]);
+        let tt_altstetten = HashMap::from([(zue.clone(), Duration::new("0:03")), (bs.clone(), Duration::new("1:30")), (zas.clone(), Duration::new("0:00"))]);
+
+        let travel_times = HashMap::from([(zue.clone(), tt_zuerich), (bs.clone(), tt_basel), (zas.clone(), tt_altstetten)]);
 
 
         Locations{stations, distances, travel_times}
@@ -68,8 +114,8 @@ impl Locations {
 
 // methods
 impl Locations {
-    pub(crate) fn get_stations(&self) -> &Vec<Location> {
-        &self.stations
+    pub(crate) fn get_all_stations(&self) -> Vec<&Location> {
+        self.stations.iter().collect()
     }
 
     pub(crate) fn distance(&self, a: &Location, b: &Location) -> Distance {
@@ -79,7 +125,7 @@ impl Locations {
                 match b {
                     Location::Infinity => Distance::Infinity,
                     Location::Location(station_b) =>
-                        *self.distances.get(station_a.idx).unwrap().get(station_b.idx).unwrap()
+                        *self.distances.get(station_a).unwrap().get(station_b).unwrap()
                 }
         }
     }
@@ -91,7 +137,7 @@ impl Locations {
                 match b {
                     Location::Infinity => Duration::Infinity,
                     Location::Location(station_b) =>
-                        *self.travel_times.get(station_a.idx).unwrap().get(station_b.idx).unwrap()
+                        *self.travel_times.get(station_a).unwrap().get(station_b).unwrap()
                 }
             }
         }
@@ -104,18 +150,15 @@ impl Locations {
 /////////////////////////////////////////////////////////////////////
 
 impl Location {
-    fn new(idx: StationIdx, name: &str) -> Location {
-        Location::Location(Station{
-            idx,
-            name : String::from(name)
-        })
+    fn of(station: &str) -> Location {
+        Location::Location(String::from(station))
     }
 }
 
 impl Location {
-    fn as_station(&self) -> &Station {
+    fn as_station(&self) -> Station {
         match self {
-            Location::Location(s) => s,
+            Location::Location(s) => s.clone(),
             Location::Infinity => {panic!("Location is infinity!")},
         }
     }
@@ -124,7 +167,7 @@ impl Location {
 impl fmt::Display for Location {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Location::Location(s) => write!(f, "{}", s.name),
+            Location::Location(s) => write!(f, "{}", s),
             Location::Infinity => write!(f, "INFINITY!"),
         }
     }
