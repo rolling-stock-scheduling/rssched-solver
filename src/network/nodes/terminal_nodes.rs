@@ -1,18 +1,18 @@
 use crate::locations::Location;
-use crate::vehicle::{Vehicle,VehicleType};
+use crate::unit::{Unit,UnitType};
 use crate::time::Time;
 use std::fmt;
 
 pub(crate) struct StartNode<'a> {
-    vehicle : &'a Vehicle,
+    unit : &'a Unit,
     location: &'a Location,
     time: Time,
 }
 
 // methods
 impl<'a> StartNode<'a> {
-    pub(crate) fn vehicle(&self) -> &Vehicle {
-        self.vehicle
+    pub(crate) fn unit(&self) -> &Unit {
+        self.unit
     }
 
     pub(crate) fn location(&self) -> &Location {
@@ -26,9 +26,9 @@ impl<'a> StartNode<'a> {
 
 // static functions
 impl<'a> StartNode<'a> {
-    pub(super) fn new(vehicle: &'a Vehicle, location: &'a Location, time: Time) -> StartNode<'a> {
+    pub(super) fn new(unit: &'a Unit, location: &'a Location, time: Time) -> StartNode<'a> {
         StartNode{
-            vehicle,
+            unit,
             location,
             time
         }
@@ -37,22 +37,22 @@ impl<'a> StartNode<'a> {
 
 impl<'a> fmt::Display for StartNode<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,"start of {} at {} ({})", self.vehicle, self.location, self.time)
+        write!(f,"start of {} at {} ({})", self.unit, self.location, self.time)
     }
 }
 
 
 
 pub(crate) struct EndNode<'a> {
-    vehicle_type: VehicleType,
+    unit_type: UnitType,
     location: &'a Location,
     time: Time,
 }
 
 // methods
 impl<'a> EndNode<'a> {
-    pub(crate) fn vehicle_type(&self) -> VehicleType {
-        self.vehicle_type
+    pub(crate) fn unit_type(&self) -> UnitType {
+        self.unit_type
     }
 
     pub(crate) fn location(&self) -> &Location {
@@ -66,9 +66,9 @@ impl<'a> EndNode<'a> {
 
 // static functions
 impl<'a> EndNode<'a> {
-    pub(super) fn new(vehicle: &'a Vehicle, location: &'a Location, time: Time) -> EndNode<'a> {
+    pub(super) fn new(unit: &'a Unit, location: &'a Location, time: Time) -> EndNode<'a> {
         EndNode{
-            vehicle_type:vehicle.get_type(),
+            unit_type:unit.get_type(),
             location,
             time
         }
@@ -77,6 +77,6 @@ impl<'a> EndNode<'a> {
 
 impl<'a> fmt::Display for EndNode<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,"end for {:?} at {} ({})", self.vehicle_type, self.location, self.time)
+        write!(f,"end for {:?} at {} ({})", self.unit_type, self.location, self.time)
     }
 }

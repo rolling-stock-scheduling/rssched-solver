@@ -1,2 +1,2 @@
 
-pub(crate) type VehicleId = usize;
+pub(crate) type UnitId = usize;

@@ -5,7 +5,7 @@ use nodes::Node;
 use crate::time::Time;
 use crate::distance::Distance;
 use crate::locations::Locations;
-use crate::vehicle::Vehicle;
+use crate::unit::Unit;
 use std::fmt;
 
 use std::iter::Iterator;
@@ -20,7 +20,7 @@ pub(crate) struct Network<'a> {
 
 // static functions
 impl<'a> Network<'a> {
-    pub(crate) fn initialize(locations: &'a Locations, vehicles: &'a Vec<Vehicle>) -> Network<'a> {
+    pub(crate) fn initialize(locations: &'a Locations, units: &'a Vec<Unit>) -> Network<'a> {
         // TODO: replace by reading in some files
         let station = locations.get_stations();
         let mut service_nodes: Vec<nodes::Node> = Vec::new();
@@ -50,13 +50,13 @@ impl<'a> Network<'a> {
                 Time::new("2021-12-23T11:56"),
                 Time::new("2021-12-23T13:56") ));
 
-        let mut start_nodes: Vec<nodes::Node> = Vec::with_capacity(vehicles.len());
-        let mut end_nodes: Vec<nodes::Node> = Vec::with_capacity(vehicles.len());
-        for (i, vehicle) in vehicles.iter().enumerate() {
+        let mut start_nodes: Vec<nodes::Node> = Vec::with_capacity(units.len());
+        let mut end_nodes: Vec<nodes::Node> = Vec::with_capacity(units.len());
+        for (i, unit) in units.iter().enumerate() {
 
-            let (start, end) = Node::create_vehicle_nodes(
-                vehicle,
-                &station[i % vehicles.len()],
+            let (start, end) = Node::create_unit_nodes(
+                unit,
+                &station[i % units.len()],
                 Time::new("2021-12-10 08:00"),
                 &station[1],
                 Time::new("2021-12-26 00:00"));

@@ -9,7 +9,7 @@ use terminal_nodes::{StartNode, EndNode};
 
 use crate::time::{Time,Duration};
 use crate::locations::Location;
-use crate::vehicle::Vehicle;
+use crate::unit::Unit;
 use crate::distance::Distance;
 
 
@@ -104,15 +104,15 @@ impl<'a> Node<'a> {
     }
 
 
-    // factory for creating start and end node of a vehicle
-    pub(super) fn create_vehicle_nodes(vehicle: &'a Vehicle, start_location: &'a Location, start_time: Time, end_location: &'a Location, end_time: Time) -> (Node<'a>, Node<'a>) {
+    // factory for creating start and end node of a unit
+    pub(super) fn create_unit_nodes(unit: &'a Unit, start_location: &'a Location, start_time: Time, end_location: &'a Location, end_time: Time) -> (Node<'a>, Node<'a>) {
         (Node::Start(StartNode::new(
-            vehicle,
+            unit,
             start_location,
             start_time
         )),
         Node::End(EndNode::new(
-            vehicle,
+            unit,
             end_location,
             end_time
         )))
