@@ -2,7 +2,7 @@ mod tour;
 use tour::Tour;
 
 use crate::network::Network;
-use crate::unit::Unit;
+use crate::units::Units;
 use crate::locations::Locations;
 
 use std::fmt;
@@ -13,7 +13,7 @@ pub(crate) struct Schedule<'a> {
 
 
 impl<'a> Schedule<'a> {
-    pub(crate) fn initialize(units: &'a Vec<Unit>, network: &'a Network<'a>) -> Schedule<'a> {
+    pub(crate) fn initialize(units: &'a Units, network: &'a Network<'a>) -> Schedule<'a> {
         let (start_nodes, end_nodes) = network.terminal_nodes();
 
         let mut tours : Vec<Tour<'a>> = Vec::with_capacity(units.len());

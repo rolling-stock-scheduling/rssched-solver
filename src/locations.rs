@@ -6,13 +6,10 @@ use crate::distance::Distance;
 use crate::time::Duration;
 use crate::base_types::StationSide;
 
-// type Station = s4; // Stations are represented by String codes of length 2 to 4.
+use crate::utilities::CopyStr;
 
-#[derive(Hash,Eq,PartialEq,Copy,Clone)]
-pub(crate) struct Station {
-    code: [u8;4],
-    len: usize
-}
+type Station = CopyStr<4>; // Stations are represented by String codes of length 2 to 4.
+
 
 
 /// a type for storing the pair-wise distances and travel times between all stations.
@@ -212,31 +209,3 @@ impl fmt::Display for Location {
 
 
 
-/////////////////////////////////////////////////////////////////////
-////////////////////////////// Station //////////////////////////////
-/////////////////////////////////////////////////////////////////////
-
-
-impl Station {
-    fn from(string: &str) -> Self {
-        let raw = string.as_bytes();
-        let len = raw.len();
-        if len > 4 {
-            panic!("station code string is too long");
-        }
-
-        let mut writable: [u8; 4] = [0; 4];
-        let (writearea, _) = writable.split_at_mut(len);
-        writearea.copy_from_slice(&raw);
-
-        Station{code: writable, len}
-    }
-}
-
-impl fmt::Display for Station {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let (s, _) = self.code.split_at(self.len);
-        let as_str = std::str::from_utf8(s).expect("Invalid UTF8.");
-        write!(f, "{}", as_str)
-    }
-}

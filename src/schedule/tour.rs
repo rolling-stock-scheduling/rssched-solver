@@ -1,5 +1,5 @@
 use std::fmt;
-use crate::unit::Unit;
+use crate::units::Unit;
 use crate::network::nodes::Node;
 use crate::distance::Distance;
 use crate::time::Duration;
@@ -9,7 +9,7 @@ use itertools::Itertools;
 
 pub(crate) struct Tour<'a> {
     unit: &'a Unit,
-    nodes: Vec<&'a Node<'a>>
+    nodes: Vec<&'a Node>
 }
 
 impl<'a> Tour<'a> {
@@ -35,7 +35,7 @@ impl<'a> Tour<'a> {
 }
 
 impl<'a> Tour<'a> {
-    pub(super) fn new(unit: &'a Unit, nodes: Vec<&'a Node<'a>>) -> Tour<'a> {
+    pub(super) fn new(unit: &'a Unit, nodes: Vec<&'a Node>) -> Tour<'a> {
         Tour{unit, nodes}
     }
 }

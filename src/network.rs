@@ -5,22 +5,22 @@ use nodes::Node;
 use crate::time::Time;
 use crate::distance::Distance;
 use crate::locations::Locations;
-use crate::unit::Unit;
+use crate::units::Units;
 use std::fmt;
 
 use std::iter::Iterator;
 
 pub(crate) struct Network<'a> {
-    service_nodes: Vec<Node<'a>>,
-    start_nodes: Vec<Node<'a>>,
-    end_nodes: Vec<Node<'a>>,
-    maintenance_nodes: Vec<Node<'a>>,
+    service_nodes: Vec<Node>,
+    start_nodes: Vec<Node>,
+    end_nodes: Vec<Node>,
+    maintenance_nodes: Vec<Node>,
     locations: &'a Locations
 }
 
 // static functions
 impl<'a> Network<'a> {
-    pub(crate) fn initialize(locations: &'a Locations, units: &'a Vec<Unit>) -> Network<'a> {
+    pub(crate) fn initialize(locations: &'a Locations, units: &Units) -> Network<'a> {
         // TODO: replace by reading in some files
         let location = locations.get_all_locations();
         let mut service_nodes: Vec<nodes::Node> = Vec::new();
@@ -56,8 +56,8 @@ impl<'a> Network<'a> {
 
             let (start, end) = Node::create_unit_nodes(
                 unit,
-                location[i % units.len()],
-                Time::new("2021-12-10 08:00"),
+                unit.get_start_location(),
+                unit.get_start_time(),
                 location[1],
                 Time::new("2021-12-26 00:00"));
             start_nodes.push(start);
@@ -70,7 +70,7 @@ impl<'a> Network<'a> {
 
 // methods
 impl<'a> Network<'a> {
-    pub(crate) fn all_nodes_iter(&self) -> impl Iterator<Item=&Node<'_>> + '_ {
+    pub(crate) fn all_nodes_iter(&self) -> impl Iterator<Item=&Node> + '_ {
         self.service_nodes.iter()
             .chain(self.start_nodes.iter())
             .chain(self.end_nodes.iter())
@@ -82,7 +82,7 @@ impl<'a> Network<'a> {
         self.service_nodes.len() + self.start_nodes.len() + self.end_nodes.len() + self.maintenance_nodes.len()
     }
 
-    pub(crate) fn terminal_nodes(&self) -> (&Vec<Node<'a>>,&Vec<Node<'a>>) {
+    pub(crate) fn terminal_nodes(&self) -> (&Vec<Node>,&Vec<Node>) {
         (&self.start_nodes, &self.end_nodes)
     }
 
@@ -91,11 +91,11 @@ impl<'a> Network<'a> {
         node1.end_time() + self.locations.travel_time(node1.end_location(), node2.start_location()) < node2.start_time()
     }
 
-    pub(crate) fn all_successors(&self, node: &'a Node) -> impl Iterator<Item=&Node<'_>> + '_ {
+    pub(crate) fn all_successors(&self, node: &'a Node) -> impl Iterator<Item=&Node> + '_ {
         self.all_nodes_iter().filter(|other| self.can_reach(node, other))
     }
 
-    pub(crate) fn all_predecessors(&self, node: &'a Node) -> impl Iterator<Item=&Node<'_>> + '_ {
+    pub(crate) fn all_predecessors(&self, node: &'a Node) -> impl Iterator<Item=&Node> + '_ {
         self.all_nodes_iter().filter(|other| self.can_reach(other, node))
     }
 }

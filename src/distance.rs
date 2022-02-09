@@ -1,7 +1,6 @@
 use std::fmt;
 use std::ops::Add;
-
-type Kilometer = f32;
+use crate::base_types::Kilometer;
 
 #[derive(Copy, Clone, PartialEq, PartialOrd)]
 pub(crate) enum Distance {

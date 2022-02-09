@@ -9,23 +9,23 @@ use terminal_nodes::{StartNode, EndNode};
 
 use crate::time::{Time,Duration};
 use crate::locations::Location;
-use crate::unit::Unit;
+use crate::units::Unit;
 use crate::distance::Distance;
 
 
 use std::fmt;
 
 
-pub(crate) enum Node<'a> {
+pub(crate) enum Node {
     Service(ServiceTrip),
     Maintenance(MaintenanceSlot),
-    Start(StartNode<'a>),
+    Start(StartNode),
     End(EndNode)
 }
 
 
 // methods
-impl<'a> Node<'a> {
+impl Node {
     pub(crate) fn start_time(&self) -> Time {
         match self {
             Node::Service(s) => s.departure(),
@@ -81,10 +81,10 @@ impl<'a> Node<'a> {
 
 
 // static functions:
-impl<'a> Node<'a> {
+impl Node {
 
     // factory for creating a service trip
-    pub(super) fn create_service_node(start_station: Location, end_station: Location, departure_time: Time, arrival_time: Time, length: Distance) -> Node<'a> {
+    pub(super) fn create_service_node(start_station: Location, end_station: Location, departure_time: Time, arrival_time: Time, length: Distance) -> Node {
         Node::Service(ServiceTrip::new(
             start_station,
             end_station,
@@ -95,7 +95,7 @@ impl<'a> Node<'a> {
     }
 
     // factory for creating a node for a maintenance slot
-    pub(super) fn create_maintenance_node(location: Location, start_time: Time, end_time: Time) -> Node<'a> {
+    pub(super) fn create_maintenance_node(location: Location, start_time: Time, end_time: Time) -> Node {
         Node::Maintenance(MaintenanceSlot::new(
             location,
             start_time,
@@ -105,9 +105,9 @@ impl<'a> Node<'a> {
 
 
     // factory for creating start and end node of a unit
-    pub(super) fn create_unit_nodes(unit: &'a Unit, start_location: Location, start_time: Time, end_location: Location, end_time: Time) -> (Node<'a>, Node<'a>) {
+    pub(super) fn create_unit_nodes(unit: &Unit, start_location: Location, start_time: Time, end_location: Location, end_time: Time) -> (Node, Node) {
         (Node::Start(StartNode::new(
-            unit,
+            unit.get_id(),
             start_location,
             start_time
         )),
@@ -120,7 +120,7 @@ impl<'a> Node<'a> {
 
 }
 
-impl<'a> fmt::Display for Node<'a> {
+impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Node::Service(service_trip) => service_trip.fmt(f),

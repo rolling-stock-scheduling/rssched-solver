@@ -39,10 +39,11 @@ pub(crate) struct DurationLength {
 ////////////////////////////////////////////////////////////////////
 
 impl Time {
-    pub(crate) fn new(string: &str) -> Time { //"2009-06-15T13:45" or "06-15 13:45" (fills year 0)
-        let splitted: Vec<&str> = string.split(&['T','-',' ',':'][..]).collect();
+    pub(crate) fn new(string: &str) -> Time { //"2009-06-15T13:45:00Z" or "2009-4-15T12:1"
+        let shortened = string.replace("Z","");
+        let splitted: Vec<&str> = shortened.split(&['T','-',' ',':'][..]).collect();
         let len = splitted.len();
-        assert!(len <= 5 && len >= 5, "Wrong time format.");
+        assert!(len <= 6 && len >= 5, "Wrong time format.");
 
         let year: u32 = splitted[0].parse().expect("Error at year.");
         let month: u8 = splitted[1].parse().expect("Error at month.");
@@ -225,9 +226,9 @@ impl fmt::Display for TimePoint {
 ////////////////////////////////////////////////////////////////////
 
 impl Duration {
-    pub(crate) fn new(string: &str) -> Duration { //"13:45"
+    pub(crate) fn new(string: &str) -> Duration { // "hh:mm:
         let splitted: Vec<&str> = string.split(&[':'][..]).collect();
-        assert!(splitted.len() == 2, "Wrong time format.");
+        assert!(splitted.len() == 2, "Wrong duration format! string: {}", string);
 
         let hours: u32 = splitted[0].parse().expect("Error at hour.");
         let minutes: u8 = splitted[1].parse().expect("Error at minute.");
@@ -235,6 +236,21 @@ impl Duration {
 
         Duration::Length(DurationLength{
             hours,
+            minutes
+        })
+    }
+
+    pub(crate) fn from_iso(string: &str) -> Duration { //"P10DT0H31M0S"
+        let splitted: Vec<&str> = string.split(&['P','D','T','H','M','S'][..]).collect();
+        assert!(splitted.len() == 7, "Wrong duration format! string: {}", string);
+
+        let days: u32 = splitted[1].parse().expect("Error at days.");
+        let hours: u32 = splitted[3].parse().expect("Error at hour.");
+        let minutes: u8 = splitted[4].parse().expect("Error at minute.");
+        assert!(minutes < 60, "Wrong minute format.");
+
+        Duration::Length(DurationLength{
+            hours: hours + 24 * days,
             minutes
         })
     }
