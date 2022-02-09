@@ -4,8 +4,11 @@ use std::collections::HashSet;
 
 use crate::distance::Distance;
 use crate::time::Duration;
+use crate::base_types::StationSide;
 
-type Station = String; // Stations are represented by String codes of length 2 to 4.
+use copystr::s4;
+
+type Station = s4; // Stations are represented by String codes of length 2 to 4.
 
 /// a type for storing the pair-wise distances and travel times between all stations.
 /// Distances are stored as a Vec<Vec<Distance>>-matrix.
@@ -23,16 +26,21 @@ type Station = String; // Stations are represented by String codes of length 2 t
 /// stations. Use loactions::create_locations for that. Hence, the indices should always be consistent.
 pub(crate) struct Locations {
     stations: HashSet<Location>,
-    distances: HashMap<Station,HashMap<Station,Distance>>,
-    travel_times: HashMap<Station,HashMap<Station,Duration>>
+    dead_head_trips: HashMap<Station,HashMap<Station,DeadHeadTrip>>,
 }
 
-#[derive(Hash,Eq,PartialEq)]
+#[derive(Hash,Eq,PartialEq,Copy,Clone)]
 pub(crate) enum Location {
     Location(Station),
     Infinity // distance to Infinity is always infinity
 }
 
+struct DeadHeadTrip{
+    distance: Distance,
+    travel_time: Duration,
+    origin_side: StationSide,
+    destination_side: StationSide
+}
 
 /////////////////////////////////////////////////////////////////////
 ////////////////////////////// Locations ////////////////////////////
@@ -43,104 +51,115 @@ impl Locations {
 
     pub(crate) fn load_from_csv(path: String) -> Locations {
         let mut stations: HashSet<Location> = HashSet::new();
-        let mut distances: HashMap<Station,HashMap<Station,Distance>> = HashMap::new();
-        let mut travel_times: HashMap<Station,HashMap<Station,Duration>> = HashMap::new();
+        let mut dead_head_trips: HashMap<Station,HashMap<Station,DeadHeadTrip>> = HashMap::new();
         let mut reader = csv::ReaderBuilder::new().delimiter(b';').from_path(path).expect("csv-file for loading locations not found");
         for result in reader.records() {
             let record = result.expect("Some recond cannot be read while reading locations");
-            let origin = String::from(record.get(0).unwrap());
-            let destination = String::from(record.get(1).unwrap());
-            
-            let travel_time_string = String::from(record.get(2).unwrap());
-            let travel_time_formatted = travel_time_string.split('T').last().unwrap().split('M').next().unwrap().replace("H",":");
+            let first_station_code = record.get(0).unwrap();
+            let second_station_code = record.get(1).unwrap();
+
+            let travel_time_formatted = record.get(2).unwrap().split('T').last().unwrap().split('M').next().unwrap().replace("H",":");
             let travel_time = Duration::new(&travel_time_formatted);
 
-            let distance_string = String::from(record.get(3).unwrap());
-            let distance = Distance::from_km(distance_string.parse().unwrap());
+            let distance = Distance::from_km(record.get(3).unwrap().parse().unwrap());
 
-            fn insert<A>(distances: &mut HashMap<Station,HashMap<Station,A>>, origin: &Station, destination: &Station, value: A) {
+            let first_side = match String::from(record.get(4).unwrap()).as_str(){
+                "0" => StationSide::Back,
+                "1" => StationSide::Front,
+                _ => panic!("StationSide is neither '0' nor '1'")
+            };
+
+            let second_side = match record.get(5).unwrap(){
+                "0" => StationSide::Back,
+                "1" => StationSide::Front,
+                _ => panic!("StationSide is neither '0' nor '1'")
+            };
+
+
+            fn insert(distances: &mut HashMap<Station,HashMap<Station,DeadHeadTrip>>, origin: &Station, destination: &Station, dead_head_trip: DeadHeadTrip) {
                 match distances.get_mut(origin){
                     Some(hm) => hm,
                     None => {distances.insert(origin.clone(),HashMap::new());
                              distances.get_mut(origin).unwrap()}
-                }.insert(destination.clone(), value);
+                }.insert(destination.clone(), dead_head_trip);
             }
 
-            stations.insert(Location::of(&origin));
-            stations.insert(Location::of(&destination));
+            stations.insert(Location::from(first_station_code));
+            stations.insert(Location::from(second_station_code));
 
-            insert(&mut distances,&origin,&destination, distance);
-            insert(&mut distances,&destination,&origin, distance);
-            insert(&mut distances,&origin,&origin, Distance::zero());
-            insert(&mut distances,&destination,&destination, Distance::zero());
-            
-            insert(&mut travel_times,&origin,&destination, travel_time);
-            insert(&mut travel_times,&destination,&origin, travel_time);
-            insert(&mut travel_times,&origin,&origin, Duration::zero());
-            insert(&mut travel_times,&destination,&destination, Duration::zero());
-            
+            let first_station = Station::new(first_station_code).unwrap();
+            let second_station = Station::new(second_station_code).unwrap();
+
+
+            insert(&mut dead_head_trips,
+                   &first_station,
+                   &second_station,
+                   DeadHeadTrip{distance,travel_time,origin_side:first_side,destination_side:second_side});
+
+            insert(&mut dead_head_trips,
+                   &second_station,
+                   &first_station,
+                   DeadHeadTrip{distance,travel_time,origin_side:second_side,destination_side:first_side});
+
+            insert(&mut dead_head_trips,
+                   &first_station,
+                   &first_station,
+                   DeadHeadTrip{distance:Distance::zero(),
+                   travel_time: Duration::zero(),origin_side:StationSide::Front,destination_side:StationSide::Back});
+
+            insert(&mut dead_head_trips,
+                   &second_station,
+                   &second_station,
+                   DeadHeadTrip{distance:Distance::zero(), travel_time: Duration::zero(),origin_side:StationSide::Front,destination_side:StationSide::Back});
+
 
         }
-        Locations{stations, distances, travel_times}
+        Locations{stations, dead_head_trips}
 
     }
 
-    pub(crate) fn create() -> Locations {
-        // TODO: Read stations and distance matrix from file (?)
-
-        let zue = String::from("ZUE");
-        let bs = String::from("BS");
-        let zas = String::from("ZAS");
-
-        let stations = HashSet::from([Location::of(&zue), Location::of(&bs), Location::of(&zas)]);
-
-        let from_zuerich = HashMap::from([(zue.clone(), Distance::from_km(0.0)), (bs.clone(), Distance::from_km(150.0)), (zas.clone(), Distance::from_km(5.0))]);
-        let from_basel = HashMap::from([(zue.clone(), Distance::from_km(150.0)), (bs.clone(), Distance::from_km(0.0)), (zas.clone(), Distance::from_km(145.0))]);
-        let from_altstetten = HashMap::from([(zue.clone(), Distance::from_km(5.0)), (bs.clone(), Distance::from_km(145.0)), (zas.clone(), Distance::from_km(0.0))]);
-
-        let distances = HashMap::from([(zue.clone(), from_zuerich), (bs.clone(), from_basel), (zas.clone(), from_altstetten)]);
-
-        let tt_zuerich = HashMap::from([(zue.clone(), Duration::new("0:00")), (bs.clone(), Duration::new("1:40")), (zas.clone(), Duration::new("0:03"))]);
-        let tt_basel = HashMap::from([(zue.clone(), Duration::new("1:40")), (bs.clone(), Duration::new("0:00")), (zas.clone(), Duration::new("1:30"))]);
-        let tt_altstetten = HashMap::from([(zue.clone(), Duration::new("0:03")), (bs.clone(), Duration::new("1:30")), (zas.clone(), Duration::new("0:00"))]);
-
-        let travel_times = HashMap::from([(zue.clone(), tt_zuerich), (bs.clone(), tt_basel), (zas.clone(), tt_altstetten)]);
-
-
-        Locations{stations, distances, travel_times}
-
-    }
 }
 
 // methods
 impl Locations {
-    pub(crate) fn get_all_stations(&self) -> Vec<&Location> {
-        self.stations.iter().collect()
+    pub(crate) fn get_all_stations(&self) -> Vec<Location> {
+        self.stations.iter().map(|l| *l).collect()
     }
 
-    pub(crate) fn distance(&self, a: &Location, b: &Location) -> Distance {
+    pub(crate) fn distance(&self, a: Location, b: Location) -> Distance {
+        match self.get_dead_head_trip(a,b) {
+            None => Distance::zero(),
+            Some(d) => d.distance
+        }
+    }
+
+    pub(crate) fn travel_time(&self, a: Location, b: Location) -> Duration {
+        match self.get_dead_head_trip(a,b) {
+            None => Duration::zero(),
+            Some(d) => d.travel_time
+        }
+    }
+
+    /// returns the StationSides of a dead-head trip. First entry is on which side the unit leaves
+    /// the origin, second entry is on which side the unit enters the destination
+    pub(crate) fn station_sides(&self, a: Location, b:Location) -> (StationSide, StationSide) {
+        match self.get_dead_head_trip(a,b) {
+            None => (StationSide::Front, StationSide::Back), // if some of the locations are Infinity, sides should not play any role
+            Some(d) => (d.origin_side, d.destination_side)
+        }
+    }
+
+    fn get_dead_head_trip(&self, a: Location, b: Location) -> Option<&DeadHeadTrip> {
         match a {
-            Location::Infinity => Distance::Infinity,
+            Location::Infinity => None,
             Location::Location(station_a) =>
                 match b {
-                    Location::Infinity => Distance::Infinity,
+                    Location::Infinity => None,
                     Location::Location(station_b) =>
-                        *self.distances.get(station_a).unwrap().get(station_b).unwrap()
+                        Some(self.dead_head_trips.get(&station_a).unwrap().get(&station_b).unwrap())
                 }
         }
-    }
 
-    pub(crate) fn travel_time(&self, a: &Location, b: &Location) -> Duration {
-        match a {
-            Location::Infinity => Duration::Infinity,
-            Location::Location(station_a) => {
-                match b {
-                    Location::Infinity => Duration::Infinity,
-                    Location::Location(station_b) =>
-                        *self.travel_times.get(station_a).unwrap().get(station_b).unwrap()
-                }
-            }
-        }
     }
 }
 
@@ -150,8 +169,12 @@ impl Locations {
 /////////////////////////////////////////////////////////////////////
 
 impl Location {
-    fn of(station: &str) -> Location {
-        Location::Location(String::from(station))
+    fn from(station_code: &str) -> Location {
+        Location::Location(Station::new(station_code).unwrap())
+    }
+
+    fn of(station: Station) -> Location {
+        Location::Location(station)
     }
 }
 

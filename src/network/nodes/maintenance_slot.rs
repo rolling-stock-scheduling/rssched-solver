@@ -2,14 +2,15 @@ use crate::locations::Location;
 use crate::time::Time;
 use std::fmt;
 
-pub(crate) struct MaintenanceSlot<'a> {
-    location: &'a Location,
+pub(crate) struct MaintenanceSlot {
+    location: Location,
     start: Time,
     end: Time,
+    // used_by: UnitIdx
 }
 // methods
-impl<'a> MaintenanceSlot<'a> {
-    pub(crate) fn location(&self) -> &Location {
+impl MaintenanceSlot {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
@@ -23,8 +24,8 @@ impl<'a> MaintenanceSlot<'a> {
 }
 
 // static functions:
-impl<'a> MaintenanceSlot<'a> {
-    pub(super) fn new(location: &'a Location, start: Time, end: Time) -> MaintenanceSlot {
+impl MaintenanceSlot {
+    pub(super) fn new(location: Location, start: Time, end: Time) -> MaintenanceSlot {
         MaintenanceSlot{
             location,
             start,
@@ -33,7 +34,7 @@ impl<'a> MaintenanceSlot<'a> {
     }
 }
 
-impl<'a> fmt::Display for MaintenanceSlot<'a> {
+impl fmt::Display for MaintenanceSlot {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,"maintenance at {} (from {} to {})", self.location, self.start, self.end)
     }

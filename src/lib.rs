@@ -1,5 +1,6 @@
 mod time;
 mod distance;
+mod base_types;
 
 mod locations;
 mod unit;

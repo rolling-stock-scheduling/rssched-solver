@@ -5,7 +5,7 @@ use std::fmt;
 
 pub(crate) struct StartNode<'a> {
     unit : &'a Unit,
-    location: &'a Location,
+    location: Location,
     time: Time,
 }
 
@@ -15,7 +15,7 @@ impl<'a> StartNode<'a> {
         self.unit
     }
 
-    pub(crate) fn location(&self) -> &Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
@@ -26,7 +26,7 @@ impl<'a> StartNode<'a> {
 
 // static functions
 impl<'a> StartNode<'a> {
-    pub(super) fn new(unit: &'a Unit, location: &'a Location, time: Time) -> StartNode<'a> {
+    pub(super) fn new(unit: &'a Unit, location: Location, time: Time) -> StartNode {
         StartNode{
             unit,
             location,
@@ -43,19 +43,20 @@ impl<'a> fmt::Display for StartNode<'a> {
 
 
 
-pub(crate) struct EndNode<'a> {
+pub(crate) struct EndNode {
     unit_type: UnitType,
-    location: &'a Location,
+    location: Location,
     time: Time,
+    //covered_by: UnitIdx
 }
 
 // methods
-impl<'a> EndNode<'a> {
+impl EndNode {
     pub(crate) fn unit_type(&self) -> UnitType {
         self.unit_type
     }
 
-    pub(crate) fn location(&self) -> &Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
@@ -65,17 +66,17 @@ impl<'a> EndNode<'a> {
 }
 
 // static functions
-impl<'a> EndNode<'a> {
-    pub(super) fn new(unit: &'a Unit, location: &'a Location, time: Time) -> EndNode<'a> {
+impl EndNode {
+    pub(super) fn new(unit_type: UnitType , location: Location, time: Time) -> EndNode {
         EndNode{
-            unit_type:unit.get_type(),
+            unit_type,
             location,
             time
         }
     }
 }
 
-impl<'a> fmt::Display for EndNode<'a> {
+impl fmt::Display for EndNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,"end for {:?} at {} ({})", self.unit_type, self.location, self.time)
     }

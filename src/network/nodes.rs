@@ -17,10 +17,10 @@ use std::fmt;
 
 
 pub(crate) enum Node<'a> {
-    Service(ServiceTrip<'a>),
-    Maintenance(MaintenanceSlot<'a>),
+    Service(ServiceTrip),
+    Maintenance(MaintenanceSlot),
     Start(StartNode<'a>),
-    End(EndNode<'a>)
+    End(EndNode)
 }
 
 
@@ -44,21 +44,21 @@ impl<'a> Node<'a> {
         }
     }
 
-    pub(crate) fn start_location(&self) -> &Location {
+    pub(crate) fn start_location(&self) -> Location {
         match self {
             Node::Service(s) => s.origin(),
             Node::Maintenance(m) => m.location(),
-            Node::Start(_) => &Location::Infinity,
+            Node::Start(_) => Location::Infinity,
             Node::End(n) => n.location()
         }
     }
 
-    pub(crate) fn end_location(&self) -> &Location {
+    pub(crate) fn end_location(&self) -> Location {
         match self {
             Node::Service(s) => s.destination(),
             Node::Maintenance(m) => m.location(),
             Node::Start(n) => n.location(),
-            Node::End(_) => &Location::Infinity
+            Node::End(_) => Location::Infinity
         }
     }
 
@@ -84,7 +84,7 @@ impl<'a> Node<'a> {
 impl<'a> Node<'a> {
 
     // factory for creating a service trip
-    pub(super) fn create_service_node(start_station: &'a Location, end_station: &'a Location, departure_time: Time, arrival_time: Time, length: Distance) -> Node<'a> {
+    pub(super) fn create_service_node(start_station: Location, end_station: Location, departure_time: Time, arrival_time: Time, length: Distance) -> Node<'a> {
         Node::Service(ServiceTrip::new(
             start_station,
             end_station,
@@ -95,7 +95,7 @@ impl<'a> Node<'a> {
     }
 
     // factory for creating a node for a maintenance slot
-    pub(super) fn create_maintenance_node(location: &'a Location, start_time: Time, end_time: Time) -> Node<'a> {
+    pub(super) fn create_maintenance_node(location: Location, start_time: Time, end_time: Time) -> Node<'a> {
         Node::Maintenance(MaintenanceSlot::new(
             location,
             start_time,
@@ -105,14 +105,14 @@ impl<'a> Node<'a> {
 
 
     // factory for creating start and end node of a unit
-    pub(super) fn create_unit_nodes(unit: &'a Unit, start_location: &'a Location, start_time: Time, end_location: &'a Location, end_time: Time) -> (Node<'a>, Node<'a>) {
+    pub(super) fn create_unit_nodes(unit: &'a Unit, start_location: Location, start_time: Time, end_location: Location, end_time: Time) -> (Node<'a>, Node<'a>) {
         (Node::Start(StartNode::new(
             unit,
             start_location,
             start_time
         )),
         Node::End(EndNode::new(
-            unit,
+            unit.get_type(),
             end_location,
             end_time
         )))

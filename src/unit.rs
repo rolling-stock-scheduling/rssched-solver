@@ -4,6 +4,7 @@ use crate::time::Duration;
 use crate::placeholder::UnitId;
 
 pub(crate) struct Unit {
+    //idx: UnitIndex (as they appear in the main vector)
     id: UnitId,
     unit_type: UnitType,
     initial_dist_counter: Distance, // distance since last maintenance (at start_node)

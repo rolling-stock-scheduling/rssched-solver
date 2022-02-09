@@ -3,20 +3,22 @@ use crate::locations::Location;
 use crate::time::{Time,Duration};
 use std::fmt;
 
-pub(crate) struct ServiceTrip<'a> {
-    origin: &'a Location,
-    destination: &'a Location,
+pub(crate) struct ServiceTrip {
+    origin: Location,
+    destination: Location,
     departure: Time,
     arrival: Time,
     length: Distance,
+
+    // covered_by: TrainComposition (ordered list of unit indices)
 }
 // methods
-impl<'a> ServiceTrip<'a> {
-    pub(crate) fn origin(&self) -> &Location {
+impl ServiceTrip {
+    pub(crate) fn origin(&self) -> Location {
         self.origin
     }
 
-    pub(crate) fn destination(&self) -> &Location {
+    pub(crate) fn destination(&self) -> Location {
         self.destination
     }
 
@@ -39,8 +41,8 @@ impl<'a> ServiceTrip<'a> {
 }
 
 // static functions
-impl<'a> ServiceTrip<'a> {
-    pub(super) fn new(origin: &'a Location, destination: &'a Location, departure: Time, arrival: Time, length: Distance) -> ServiceTrip<'a> {
+impl ServiceTrip {
+    pub(super) fn new(origin: Location, destination: Location, departure: Time, arrival: Time, length: Distance) -> ServiceTrip {
         ServiceTrip{
             origin,
             destination,
@@ -51,7 +53,7 @@ impl<'a> ServiceTrip<'a> {
     }
 }
 
-impl<'a> fmt::Display for ServiceTrip<'a> {
+impl fmt::Display for ServiceTrip {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,"service from {} ({}) to {} ({}), {}", self.origin, self.departure, self.destination, self.arrival, self.length)
     }
