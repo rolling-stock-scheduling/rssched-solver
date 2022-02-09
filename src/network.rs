@@ -22,31 +22,31 @@ pub(crate) struct Network<'a> {
 impl<'a> Network<'a> {
     pub(crate) fn initialize(locations: &'a Locations, units: &'a Vec<Unit>) -> Network<'a> {
         // TODO: replace by reading in some files
-        let station = locations.get_all_stations();
+        let location = locations.get_all_locations();
         let mut service_nodes: Vec<nodes::Node> = Vec::new();
         service_nodes.push(Node::create_service_node(
-                station[0],
-                station[1],
+                location[0],
+                location[1],
                 Time::new("2021-12-23T21:56"),
                 Time::new("2021-12-23T22:56"),
                 Distance::from_km(200.0)));
 
         service_nodes.push(Node::create_service_node(
-                station[1],
-                station[0],
+                location[1],
+                location[0],
                 Time::new("2021-12-24T21:56"),
                 Time::new("2021-12-24T22:56"),
                 Distance::from_km(200.0)));
 
         let mut maintenance_nodes: Vec<nodes::Node> = Vec::new();
         maintenance_nodes.push(Node::create_maintenance_node(
-                station[2],
+                location[2],
                 Time::new("2021-12-23T21:56"),
                 Time::new("2021-12-23T23:56") ));
 
         let mut maintenance_nodes: Vec<nodes::Node> = Vec::new();
         maintenance_nodes.push(Node::create_maintenance_node(
-                station[2],
+                location[2],
                 Time::new("2021-12-23T11:56"),
                 Time::new("2021-12-23T13:56") ));
 
@@ -56,9 +56,9 @@ impl<'a> Network<'a> {
 
             let (start, end) = Node::create_unit_nodes(
                 unit,
-                station[i % units.len()],
+                location[i % units.len()],
                 Time::new("2021-12-10 08:00"),
-                station[1],
+                location[1],
                 Time::new("2021-12-26 00:00"));
             start_nodes.push(start);
             end_nodes.push(end);

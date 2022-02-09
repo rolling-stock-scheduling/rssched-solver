@@ -6,9 +6,14 @@ use crate::distance::Distance;
 use crate::time::Duration;
 use crate::base_types::StationSide;
 
-use copystr::s4;
+// type Station = s4; // Stations are represented by String codes of length 2 to 4.
 
-type Station = s4; // Stations are represented by String codes of length 2 to 4.
+#[derive(Hash,Eq,PartialEq,Copy,Clone)]
+pub(crate) struct Station {
+    code: [u8;4],
+    len: usize
+}
+
 
 /// a type for storing the pair-wise distances and travel times between all stations.
 /// Distances are stored as a Vec<Vec<Distance>>-matrix.
@@ -25,7 +30,7 @@ type Station = s4; // Stations are represented by String codes of length 2 to 4.
 /// A DeadHeadMetrics instance can only be created together with the Vec<Distance> of wrapped
 /// stations. Use loactions::create_locations for that. Hence, the indices should always be consistent.
 pub(crate) struct Locations {
-    stations: HashSet<Location>,
+    stations: HashSet<Station>,
     dead_head_trips: HashMap<Station,HashMap<Station,DeadHeadTrip>>,
 }
 
@@ -50,7 +55,7 @@ struct DeadHeadTrip{
 impl Locations {
 
     pub(crate) fn load_from_csv(path: String) -> Locations {
-        let mut stations: HashSet<Location> = HashSet::new();
+        let mut stations: HashSet<Station> = HashSet::new();
         let mut dead_head_trips: HashMap<Station,HashMap<Station,DeadHeadTrip>> = HashMap::new();
         let mut reader = csv::ReaderBuilder::new().delimiter(b';').from_path(path).expect("csv-file for loading locations not found");
         for result in reader.records() {
@@ -84,11 +89,11 @@ impl Locations {
                 }.insert(destination.clone(), dead_head_trip);
             }
 
-            stations.insert(Location::from(first_station_code));
-            stations.insert(Location::from(second_station_code));
+            stations.insert(Station::from(first_station_code));
+            stations.insert(Station::from(second_station_code));
 
-            let first_station = Station::new(first_station_code).unwrap();
-            let second_station = Station::new(second_station_code).unwrap();
+            let first_station = Station::from(first_station_code);
+            let second_station = Station::from(second_station_code);
 
 
             insert(&mut dead_head_trips,
@@ -122,8 +127,17 @@ impl Locations {
 
 // methods
 impl Locations {
-    pub(crate) fn get_all_stations(&self) -> Vec<Location> {
-        self.stations.iter().map(|l| *l).collect()
+    pub(crate) fn get_all_locations(&self) -> Vec<Location> {
+        self.stations.iter().map(|s| Location::of(*s)).collect()
+    }
+
+    pub(crate) fn get_location(&self, code: &str) -> Location {
+        let station = Station::from(code);
+        if self.stations.contains(&station) {
+            Location::of(station)
+        } else {
+            panic!("Station code is invalid.");
+        }
     }
 
     pub(crate) fn distance(&self, a: Location, b: Location) -> Distance {
@@ -169,9 +183,9 @@ impl Locations {
 /////////////////////////////////////////////////////////////////////
 
 impl Location {
-    fn from(station_code: &str) -> Location {
-        Location::Location(Station::new(station_code).unwrap())
-    }
+    // fn from(station_code: &str) -> Location {
+        // Location::Location(Station::from(station_code))
+    // }
 
     fn of(station: Station) -> Location {
         Location::Location(station)
@@ -196,3 +210,33 @@ impl fmt::Display for Location {
     }
 }
 
+
+
+/////////////////////////////////////////////////////////////////////
+////////////////////////////// Station //////////////////////////////
+/////////////////////////////////////////////////////////////////////
+
+
+impl Station {
+    fn from(string: &str) -> Self {
+        let raw = string.as_bytes();
+        let len = raw.len();
+        if len > 4 {
+            panic!("station code string is too long");
+        }
+
+        let mut writable: [u8; 4] = [0; 4];
+        let (writearea, _) = writable.split_at_mut(len);
+        writearea.copy_from_slice(&raw);
+
+        Station{code: writable, len}
+    }
+}
+
+impl fmt::Display for Station {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let (s, _) = self.code.split_at(self.len);
+        let as_str = std::str::from_utf8(s).expect("Invalid UTF8.");
+        write!(f, "{}", as_str)
+    }
+}

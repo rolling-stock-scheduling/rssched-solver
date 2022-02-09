@@ -29,8 +29,8 @@ pub fn run() {
                         Unit::new(2, UnitType::Astoro, Distance::from_km(0.0), Duration::new("30000:00")));
     let locations = Locations::load_from_csv(String::from("relationen.csv"));
 
-    for station in locations.get_all_stations() {
-        println!("{}", station);
+    for location in locations.get_all_locations() {
+        println!("{}", location);
     }
 
     let network: Network = Network::initialize(&locations, &units);
