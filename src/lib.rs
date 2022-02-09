@@ -19,18 +19,17 @@ use locations::Locations;
 
 pub fn run() {
 
+    // load instance: All the objects are static and are multiple times referenced;
+    // network also references locations
+    let locations = Locations::load_from_csv("relationen.csv");
+    let units = Units::load_from_csv("fahrzeuggruppen.csv", &locations);
+    let network: Network = Network::initialize(&locations, &units, "kundenfahrten.csv", "wartungsfenster.csv","endpunkte.csv");
 
 
-    // let units = vec!(Unit::new(0, UnitType::Giruno, Distance::from_km(300.0), Duration::new("500:00")),
-                        // Unit::new(1, UnitType::FVDosto, Distance::from_km(25000.0), Duration::new("50:00")),
-                        // Unit::new(2, UnitType::Astoro, Distance::from_km(0.0), Duration::new("30000:00")));
-    let locations = Locations::load_from_csv(String::from("relationen.csv"));
-    let units = Units::load_from_csv(String::from("fahrzeuggruppen.csv"), &locations);
+
     for location in locations.get_all_locations() {
         println!("{}", location);
     }
-
-    let network: Network = Network::initialize(&locations, &units);
     println!("{}", network);
 
     for node in network.all_nodes_iter() {
@@ -53,8 +52,8 @@ pub fn run() {
     // println!("Deadhead-measures from {} to {}: distance: {}; travel_time: {}.", stations[0], stations[1], locations.distance(&stations[0], &stations[1]), locations.travel_time(&stations[0], &stations[1]));
     // println!("Deadhead-measures from {} to {}: distance: {}; travel_time: {}.", stations[2], stations[1], locations.distance(&stations[2], &stations[1]), locations.travel_time(&stations[2], &stations[1]));
 
-    let first_schedule = Schedule::initialize(&units, &network);
+    let first_schedule = Schedule::initialize(&locations, &units, &network);
 
     // println!("{}", first_schedule)
-    first_schedule.print(&locations);
+    first_schedule.print();
 }

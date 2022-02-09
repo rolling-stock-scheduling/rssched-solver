@@ -51,7 +51,7 @@ struct DeadHeadTrip{
 // static functions
 impl Locations {
 
-    pub(crate) fn load_from_csv(path: String) -> Locations {
+    pub(crate) fn load_from_csv(path: &str) -> Locations {
         let mut stations: HashSet<Station> = HashSet::new();
         let mut dead_head_trips: HashMap<Station,HashMap<Station,DeadHeadTrip>> = HashMap::new();
         let mut reader = csv::ReaderBuilder::new().delimiter(b';').from_path(path).expect("csv-file for loading locations not found");
@@ -65,17 +65,9 @@ impl Locations {
 
             let distance = Distance::from_km(record.get(3).unwrap().parse().unwrap());
 
-            let first_side = match String::from(record.get(4).unwrap()).as_str(){
-                "0" => StationSide::Back,
-                "1" => StationSide::Front,
-                _ => panic!("StationSide is neither '0' nor '1'")
-            };
+            let first_side = StationSide::from(record.get(4).unwrap());
 
-            let second_side = match record.get(5).unwrap(){
-                "0" => StationSide::Back,
-                "1" => StationSide::Front,
-                _ => panic!("StationSide is neither '0' nor '1'")
-            };
+            let second_side = StationSide::from(record.get(5).unwrap());
 
 
             fn insert(distances: &mut HashMap<Station,HashMap<Station,DeadHeadTrip>>, origin: &Station, destination: &Station, dead_head_trip: DeadHeadTrip) {

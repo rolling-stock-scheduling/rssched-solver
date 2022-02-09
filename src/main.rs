@@ -3,5 +3,5 @@ use sbb::run;
 
 
 fn main() {
-    run(); 
+    run();
 }

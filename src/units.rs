@@ -33,7 +33,7 @@ pub(crate) enum UnitType {
 /////////////////////////////////////////////////////////////////////
 
 impl Units {
-    pub(crate) fn load_from_csv(path: String, locations: &Locations) -> Units {
+    pub(crate) fn load_from_csv(path: &str, locations: &Locations) -> Units {
         let mut units: HashMap<UnitId, Unit> = HashMap::new();
         let mut reader = csv::ReaderBuilder::new().delimiter(b';').from_path(path).expect("csv-file for loading units not found");
         for result in reader.records() {
