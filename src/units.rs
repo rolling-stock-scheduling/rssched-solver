@@ -20,7 +20,7 @@ pub(crate) struct Unit {
     initial_dist_counter: Distance, // distance since last maintenance (at start_node)
 }
 
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug,Clone,Copy,PartialEq,Eq)]
 pub(crate) enum UnitType {
     Standard,
     Giruno,

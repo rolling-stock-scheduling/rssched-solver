@@ -11,8 +11,8 @@ use std::fmt;
 pub(crate) enum Node {
     Service(ServiceTrip),
     Maintenance(MaintenanceSlot),
-    Start(StartNode),
-    End(EndNode)
+    Start(StartPoint),
+    End(EndPoint)
 }
 
 pub(crate) struct ServiceTrip {
@@ -33,14 +33,14 @@ pub(crate) struct MaintenanceSlot {
     // used_by: UnitIdx
 }
 
-pub(crate) struct StartNode {
-    node_id : NodeId,
-    unit_id : UnitId,
+pub(crate) struct StartPoint {
+    node_id: NodeId,
+    unit_id: UnitId,
     location: Location,
     time: Time,
 }
 
-pub(crate) struct EndNode {
+pub(crate) struct EndPoint {
     id: NodeId,
     unit_type: UnitType,
     location: Location,
@@ -104,6 +104,13 @@ impl Node {
         }
     }
 
+    pub(crate) fn unit_type(&self) -> UnitType {
+        match self {
+            Node::End(e) => e.unit_type,
+            _ => panic!("Node is not an EndPoint.")
+        }
+    }
+
     pub(crate) fn travel_time(&self) -> Duration {
         match self {
             Node::Service(s) => s.arrival - s.departure,
@@ -143,7 +150,7 @@ impl Node {
 
     // factory for creating start and end node of a unit
     pub(super) fn create_start_node(node_id: NodeId, unit_id: UnitId, location: Location, time: Time) -> Node {
-        Node::Start(StartNode{
+        Node::Start(StartPoint{
             node_id,
             unit_id,
             location,
@@ -152,7 +159,7 @@ impl Node {
     }
 
     pub(super) fn create_end_node(id: NodeId, unit_type: UnitType, location: Location, time: Time, duration_till_maintenance: Duration, dist_till_maintenance: Distance) -> Node {
-        Node::End(EndNode{
+        Node::End(EndPoint{
             id,
             unit_type,
             location,
@@ -168,13 +175,13 @@ impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Node::Service(s) =>
-                write!(f,"service from {} ({}) to {} ({}), {}", s.origin, s.departure, s.destination, s.arrival, s.length),
+                write!(f,"{} from {} ({}) to {} ({}), {}", s.id, s.origin, s.departure, s.destination, s.arrival, s.length),
             Node::Maintenance(m) =>
-                write!(f,"maintenance at {} (from {} to {})", m.location, m.start, m.end),
+                write!(f,"{} at {} (from {} to {})", m.id, m.location, m.start, m.end),
             Node::Start(s) =>
-                write!(f,"start of {} at {} ({})", s.unit_id, s.location, s.time),
+                write!(f,"{} of {} at {} ({})", s.node_id, s.unit_id, s.location, s.time),
             Node::End(e) =>
-                write!(f,"end for {:?} at {} ({})", e.unit_type, e.location, e.time)
+                write!(f,"{} for {:?} at {} ({})", e.id, e.unit_type, e.location, e.time)
         }
     }
 }

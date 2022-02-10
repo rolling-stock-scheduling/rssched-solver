@@ -7,6 +7,7 @@ mod units;
 
 mod network;
 
+mod objective;
 mod schedule;
 
 mod utilities;

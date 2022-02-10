@@ -5,14 +5,14 @@ use std::ops::Sub;
 
 // Important: Leap year are integrated. But no daylight-saving.
 
-#[derive(Copy, Clone, PartialEq, PartialOrd)] // care the ordering of the variants is important
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)] // care the ordering of the variants is important
 pub(crate) enum Time {
     Earliest, // always earlier than all TimePoints
     Point(TimePoint),
     Latest, // always later than all TimePoints
 }
 
-#[derive(Copy, Clone, PartialEq, PartialOrd)] // care the ordering of attributes is important
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)] // care the ordering of attributes is important
 pub(crate) struct TimePoint {
     year: u32,
     month: u8,
@@ -21,13 +21,13 @@ pub(crate) struct TimePoint {
     minute: u8
 }
 
-#[derive(Copy, Clone, PartialEq, PartialOrd)] // care the ordering of the variants is important
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)] // care the ordering of the variants is important
 pub(crate) enum Duration {
     Length(DurationLength),
     Infinity, // always longer than all other Durations
 }
 
-#[derive(Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct DurationLength {
     hours: u32,
     minutes: u8
