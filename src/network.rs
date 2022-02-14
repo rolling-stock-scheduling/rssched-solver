@@ -116,9 +116,6 @@ impl<'a> Network<'a> {
 
 // methods
 impl<'a> Network<'a> {
-    pub(crate) fn all_nodes_iter(&self) -> impl Iterator<Item=&Node> + '_ {
-        self.nodes.values()
-    }
 
     pub(crate) fn node(&self, id: NodeId) -> &Node {
         self.nodes.get(&id).unwrap()
@@ -129,44 +126,54 @@ impl<'a> Network<'a> {
         self.nodes.len()
     }
 
-    pub(crate) fn service_nodes_iter(&self) -> impl Iterator<Item=&Node> + '_ {
-        self.service_nodes.iter().map(|id| self.nodes.get(id).unwrap())
+    pub(crate) fn service_nodes_ids(&self) -> impl Iterator<Item=NodeId> + '_ {
+        self.service_nodes.iter().map(|&n| n)
     }
 
-    pub(crate) fn maintenance_nodes_iter(&self) -> impl Iterator<Item=&Node> + '_ {
-        self.maintenance_nodes.iter().map(|id| self.nodes.get(id).unwrap())
+    pub(crate) fn maintenance_nodes_ids(&self) -> impl Iterator<Item=NodeId> + '_ {
+        self.maintenance_nodes.iter().map(|&n| n)
+
     }
 
-    pub(crate) fn start_nodes_iter(&self) -> impl Iterator<Item=&Node> + '_ {
-        self.start_nodes.values().map(|id| self.nodes.get(id).unwrap())
+    pub(crate) fn start_nodes_ids(&self) -> impl Iterator<Item=NodeId> + '_ {
+        self.start_nodes.values().map(|&n| n)
+
     }
 
-    pub(crate) fn end_nodes_iter(&self) -> impl Iterator<Item=&Node> + '_ {
-        self.end_nodes.iter().map(|id| self.nodes.get(id).unwrap())
+    pub(crate) fn end_nodes_ids(&self) -> impl Iterator<Item=NodeId> + '_ {
+        self.end_nodes.iter().map(|&n| n)
+
     }
 
-    pub(crate) fn start_node_of(&self, unit_id: UnitId) -> &Node {
-        self.nodes.get(self.start_nodes.get(&unit_id).unwrap()).unwrap()
+    pub(crate) fn start_node_id_of(&self, unit_id: UnitId) -> NodeId {
+        self.nodes.get(self.start_nodes.get(&unit_id).unwrap()).unwrap().id()
     }
 
     /// returns True iff node1 can reach node2
-    pub(crate) fn can_reach(&self, node1: &Node, node2: &Node) -> bool {
-        node1.end_time() + self.locations.travel_time(node1.end_location(), node2.start_location()) < node2.start_time()
+    pub(crate) fn can_reach(&self, node1: NodeId, node2: NodeId) -> bool {
+        let n1 = self.nodes.get(&node1).unwrap();
+        let n2 = self.nodes.get(&node2).unwrap();
+        n1.end_time() + self.locations.travel_time(n1.end_location(), n2.start_location()) < n2.start_time()
     }
 
-    pub(crate) fn all_successors(&self, node: &'a Node) -> impl Iterator<Item=&Node> + '_ {
-        self.all_nodes_iter().filter(|other| self.can_reach(node, other))
+    pub(crate) fn all_successors(&self, node: NodeId) -> impl Iterator<Item=NodeId> + '_ {
+        self.all_nodes_ids().filter(move |&n| self.can_reach(node,n))
+        // self.all_nodes_iter().filter(|&other| self.can_reach(node, other)).map(|&n| n)
     }
 
-    pub(crate) fn all_predecessors(&self, node: &'a Node) -> impl Iterator<Item=&Node> + '_ {
-        self.all_nodes_iter().filter(|other| self.can_reach(other, node))
+    pub(crate) fn all_predecessors(&self, node: NodeId) -> impl Iterator<Item=NodeId> + '_ {
+        self.all_nodes_ids().filter(move |&n| self.can_reach(n, node))
+    }
+
+    pub(crate) fn all_nodes_ids(&self) -> impl Iterator<Item=NodeId> + '_ {
+        self.nodes.values().map(|n| n.id())
     }
 }
 
 impl<'a> fmt::Display for Network<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,"** network with {} nodes:\n", self.size())?;
-        for (i,v) in self.all_nodes_iter().enumerate() {
+        for (i,v) in self.nodes.values().enumerate() {
             write!(f,"\t{}: {}\n", i, v)?;
         }
         Ok(())

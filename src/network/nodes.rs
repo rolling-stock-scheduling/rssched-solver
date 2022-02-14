@@ -22,7 +22,7 @@ pub(crate) struct ServiceTrip {
     departure: Time,
     arrival: Time,
     length: Distance,
-    // covered_by: TrainComposition (ordered list of unit indices)
+    // demand: Vec<UnitType>
 }
 
 pub(crate) struct MaintenanceSlot {
@@ -30,7 +30,6 @@ pub(crate) struct MaintenanceSlot {
     location: Location,
     start: Time,
     end: Time,
-    // used_by: UnitIdx
 }
 
 pub(crate) struct StartPoint {
@@ -47,7 +46,6 @@ pub(crate) struct EndPoint {
     time: Time,
     duration_till_maintenance: Duration,
     dist_till_maintenance: Distance,
-    // covered_by: Option<UnitId>
 }
 
 // methods

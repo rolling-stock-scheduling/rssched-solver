@@ -33,10 +33,11 @@ pub fn run() {
     }
     println!("{}", network);
 
-    for node in network.all_nodes_iter() {
-        println!("node: {}", node);
-        println!("start_time: {}", node.start_time());
-        println!("end_time: {}", node.end_time());
+    // for id in network.all_nodes_ids() {
+        // let node = network.node(id);
+        // println!("node: {}", node);
+        // println!("start_time: {}", node.start_time());
+        // println!("end_time: {}", node.end_time());
         // println!("successor: ");
         // for succ in network.all_successors(node) {
             // println!("\tin {}: {}", locations.travel_time(node.end_location(), succ.start_location()), succ);
@@ -45,16 +46,22 @@ pub fn run() {
         // for pred in network.all_predecessors(node) {
             // println!("\tin {}: {}", locations.travel_time(pred.end_location(), node.start_location()), pred);
         // }
-        println!("");
+        // println!("");
+    // }
+
+
+
+    let mut first_schedule = Schedule::initialize(&locations, &units, &network);
+
+    let unit_id = units.iter().next().unwrap().get_id();
+    println!("Unit: {}", unit_id);
+    for node_id in network.service_nodes_ids() {
+        if network.can_reach(network.start_node_id_of(unit_id),node_id) && network.can_reach(node_id,first_schedule.get_tour_of(unit_id).last_node()) {
+            first_schedule.assign(unit_id, vec!(node_id));
+            first_schedule.get_tour_of(unit_id).print();
+        }
     }
 
-
-
-    // println!("Deadhead-measures from {} to {}: distance: {}; travel_time: {}.", stations[0], stations[1], locations.distance(&stations[0], &stations[1]), locations.travel_time(&stations[0], &stations[1]));
-    // println!("Deadhead-measures from {} to {}: distance: {}; travel_time: {}.", stations[2], stations[1], locations.distance(&stations[2], &stations[1]), locations.travel_time(&stations[2], &stations[1]));
-
-    let first_schedule = Schedule::initialize(&locations, &units, &network);
-
     // println!("{}", first_schedule)
-    first_schedule.print();
+    // first_schedule.print();
 }
