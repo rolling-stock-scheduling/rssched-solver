@@ -2,11 +2,14 @@ use crate::time::{Time,Duration};
 use crate::locations::Location;
 use crate::units::{Unit,UnitType};
 use crate::distance::Distance;
-use crate::base_types::{NodeId,UnitId};
+use crate::base_types::{NodeId,UnitId,Penalty};
+use super::demand::Demand;
+use crate::train_formation::TrainFormation;
 
 
 use std::fmt;
 
+use crate::base_types::{PENALTY_ZERO, PENALTY_UNUSED_MAINTENANCE,PENALTY_INF};
 
 pub(crate) enum Node {
     Service(ServiceTrip),
@@ -22,7 +25,7 @@ pub(crate) struct ServiceTrip {
     departure: Time,
     arrival: Time,
     length: Distance,
-    // demand: Vec<UnitType>
+    demand: Demand,
 }
 
 pub(crate) struct MaintenanceSlot {
@@ -116,6 +119,15 @@ impl Node {
         }
     }
 
+    pub(crate) fn cover_penalty(&self, train: &TrainFormation) -> Penalty {
+        match self {
+            Node::Service(s) => s.demand.compute_penalty(train),
+            Node::Maintenance(m) => if train.len() == 1 {PENALTY_ZERO} else {PENALTY_UNUSED_MAINTENANCE},
+            Node::Start(s) => if train.len() == 1 && *train.get().first().unwrap() == s.unit_id {PENALTY_ZERO} else {PENALTY_INF},
+            Node::End(e) => if train.len() == 1 && train.get_as_units().first().unwrap().get_type() == e.unit_type {PENALTY_ZERO} else {PENALTY_INF}
+        }
+    }
+
 }
 
 
@@ -124,14 +136,15 @@ impl Node {
 impl Node {
 
     // factory for creating a service trip
-    pub(super) fn create_service_node(id: NodeId, origin: Location, destination: Location, departure: Time, arrival: Time, length: Distance) -> Node {
+    pub(super) fn create_service_node(id: NodeId, origin: Location, destination: Location, departure: Time, arrival: Time, length: Distance, demand: Demand) -> Node {
         Node::Service(ServiceTrip{
             id,
             origin,
             destination,
             departure,
             arrival,
-            length}
+            length,
+            demand}
         )
     }
 

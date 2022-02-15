@@ -1,6 +1,8 @@
 pub(crate) mod nodes;
 use nodes::Node;
 
+mod demand;
+use demand::Demand;
 
 use crate::time::{Time,Duration};
 use crate::distance::Distance;
@@ -40,7 +42,7 @@ impl<'a> Network<'a> {
             let end_location = locations.get_location(record.get(6).unwrap());
             let end_side = StationSide::from(record.get(7).unwrap());
             let length =  Distance::from_km(record.get(8).unwrap().parse().unwrap());
-            let _demand: u8 = record.get(9).unwrap().parse().unwrap();
+            let demand_amount: u8 = record.get(9).unwrap().parse().unwrap();
             let id_string = &format!("ST:{}",(record.get(10).unwrap()));
             let id = NodeId::from(&id_string);
 
@@ -51,6 +53,7 @@ impl<'a> Network<'a> {
                 start_time,
                 end_time,
                 length,
+                Demand::new(demand_amount)
                 );
             nodes.insert(id,service_trip);
             service_nodes.push(id);
@@ -127,21 +130,21 @@ impl<'a> Network<'a> {
     }
 
     pub(crate) fn service_nodes_ids(&self) -> impl Iterator<Item=NodeId> + '_ {
-        self.service_nodes.iter().map(|&n| n)
+        self.service_nodes.iter().copied()
     }
 
     pub(crate) fn maintenance_nodes_ids(&self) -> impl Iterator<Item=NodeId> + '_ {
-        self.maintenance_nodes.iter().map(|&n| n)
+        self.maintenance_nodes.iter().copied()
 
     }
 
     pub(crate) fn start_nodes_ids(&self) -> impl Iterator<Item=NodeId> + '_ {
-        self.start_nodes.values().map(|&n| n)
+        self.start_nodes.values().copied()
 
     }
 
     pub(crate) fn end_nodes_ids(&self) -> impl Iterator<Item=NodeId> + '_ {
-        self.end_nodes.iter().map(|&n| n)
+        self.end_nodes.iter().copied()
 
     }
 
@@ -158,7 +161,6 @@ impl<'a> Network<'a> {
 
     pub(crate) fn all_successors(&self, node: NodeId) -> impl Iterator<Item=NodeId> + '_ {
         self.all_nodes_ids().filter(move |&n| self.can_reach(node,n))
-        // self.all_nodes_iter().filter(|&other| self.can_reach(node, other)).map(|&n| n)
     }
 
     pub(crate) fn all_predecessors(&self, node: NodeId) -> impl Iterator<Item=NodeId> + '_ {

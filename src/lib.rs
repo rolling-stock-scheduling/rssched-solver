@@ -12,6 +12,8 @@ mod schedule;
 
 mod utilities;
 
+mod train_formation;
+
 use network::Network;
 use units::Units;
 use schedule::Schedule;
@@ -58,9 +60,15 @@ pub fn run() {
     for node_id in network.service_nodes_ids() {
         if network.can_reach(network.start_node_id_of(unit_id),node_id) && network.can_reach(node_id,first_schedule.get_tour_of(unit_id).last_node()) {
             first_schedule.assign(unit_id, vec!(node_id));
-            first_schedule.get_tour_of(unit_id).print();
         }
     }
+    first_schedule.print();
+
+    println!("penalty: {}", first_schedule.total_cover_penalty());
+
+    // for node in network.all_nodes_ids() {
+        // println!("{}: \t{}", node, first_schedule.covered_by.get(&node).unwrap());
+    // }
 
     // println!("{}", first_schedule)
     // first_schedule.print();

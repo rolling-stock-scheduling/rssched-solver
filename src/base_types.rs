@@ -22,3 +22,9 @@ pub(crate) type UnitId = CopyStr<10>;
 pub(crate) type Kilometer = f32;
 
 pub(crate) type NodeId = CopyStr<32>;
+
+pub(crate) type Penalty = u32;
+// TODO: Integrate this into the Penalty type
+pub(crate) const PENALTY_ZERO: Penalty = 0;
+pub(crate) const PENALTY_INF: Penalty = 100000;
+pub(crate) const PENALTY_UNUSED_MAINTENANCE: Penalty = 1;
