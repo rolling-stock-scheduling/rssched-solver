@@ -31,16 +31,16 @@ pub(crate) struct Schedule<'a> {
 
 // methods
 impl<'a> Schedule <'a> {
-    pub(crate) fn get_tour_of(&self, unit: UnitId) -> &Tour {
+    pub(crate) fn tour_of(&self, unit: UnitId) -> &Tour {
         self.tours.get(&unit).unwrap()
     }
 
-    pub(crate) fn assign(&mut self, unit: UnitId, node_sequence: Vec<NodeId>) {
+    pub(crate) fn assign(&mut self, unit: UnitId, node_sequence: Vec<NodeId>) -> Result<(),String> {
         let tour = self.tours.get_mut(&unit).unwrap();
         let new_nodes = node_sequence.clone();
 
         // insert sequence into tour
-        let removed_nodes = tour.insert(node_sequence);
+        let removed_nodes = tour.insert(node_sequence)?;
 
         // update covered_by:
         for node in removed_nodes.iter() {
@@ -61,6 +61,15 @@ impl<'a> Schedule <'a> {
                 self.uncovered_nodes.remove(node);
             }
         }
+        Ok(())
+    }
+
+    /// simulates inserting the node_sequence into the tour of unit. Return all nodes that would
+    /// have been removed from the tour.
+    pub(crate) fn assign_test(&self, unit: UnitId, node_sequence: Vec<NodeId>) -> Result<Vec<NodeId>,String> {
+        let mut tour: Tour = self.tours.get(&unit).unwrap().clone();
+        tour.insert(node_sequence)
+
     }
 
     fn cover_penalty_of(&self, node: NodeId) -> Penalty {
@@ -69,6 +78,18 @@ impl<'a> Schedule <'a> {
 
     pub(crate) fn total_cover_penalty(&self) -> Penalty {
         self.uncovered_nodes.iter().map(|&n| self.cover_penalty_of(n)).sum()
+    }
+
+    pub(crate) fn uncovered_iter(&self) -> impl Iterator<Item = NodeId> + '_{
+        self.uncovered_nodes.iter().copied()
+    }
+
+    pub(crate) fn has_uncovered_nodes(&self) -> bool {
+        self.uncovered_nodes.len() > 0
+    }
+
+    pub(crate) fn uncovered_successors(&self, node: NodeId) -> impl Iterator<Item = NodeId> + '_ {
+        self.nw.all_successors(node).filter(|n| self.uncovered_nodes.contains(n))
     }
 
     pub(crate) fn print(&self) {
@@ -104,9 +125,9 @@ impl<'a> Schedule<'a> {
         end_nodes.make_contiguous().sort_by(|&e1,&e2| nw.node(e1).start_time().cmp(&nw.node(e2).start_time()));
 
         for unit in units.iter() {
-            let unit_id = unit.get_id();
+            let unit_id = unit.id();
             let start_node = nw.start_node_id_of(unit_id);
-            let pos = end_nodes.iter().position(|&e| nw.node(e).unit_type() == unit.get_type() && nw.can_reach(start_node, e)).expect(format!("No suitable end_node found for start_node: {}", start_node).as_str());
+            let pos = end_nodes.iter().position(|&e| nw.node(e).unit_type() == unit.unit_type() && nw.can_reach(start_node, e)).expect(format!("No suitable end_node found for start_node: {}", start_node).as_str());
             let end_node = end_nodes.remove(pos).unwrap();
 
             tours.insert(unit_id, Tour::new(unit_id, vec!(start_node, end_node),loc,nw));

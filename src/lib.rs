@@ -18,6 +18,7 @@ use network::Network;
 use units::Units;
 use schedule::Schedule;
 use locations::Locations;
+use base_types::NodeId;
 
 
 pub fn run() {
@@ -35,41 +36,61 @@ pub fn run() {
     }
     println!("{}", network);
 
-    // for id in network.all_nodes_ids() {
+    // for id in network.service_nodes_ids() {
         // let node = network.node(id);
         // println!("node: {}", node);
         // println!("start_time: {}", node.start_time());
         // println!("end_time: {}", node.end_time());
         // println!("successor: ");
-        // for succ in network.all_successors(node) {
-            // println!("\tin {}: {}", locations.travel_time(node.end_location(), succ.start_location()), succ);
+        // for succ in network.all_successors(id) {
+            // println!("\tin {}: {} start {}", locations.travel_time(node.end_location(), network.node(succ).start_location()), succ, network.node(succ).start_time());
         // }
         // println!("predecessor:");
-        // for pred in network.all_predecessors(node) {
-            // println!("\tin {}: {}", locations.travel_time(pred.end_location(), node.start_location()), pred);
+        // for pred in network.all_predecessors(id) {
+            // println!("\tin {}: {} end: {}", locations.travel_time(network.node(pred).end_location(), node.start_location()), pred, network.node(pred).end_time());
         // }
         // println!("");
     // }
 
 
 
-    let mut first_schedule = Schedule::initialize(&locations, &units, &network);
+    // let mut schedule = Schedule::initialize(&locations, &units, &network);
+    // let mut counter = 0;
 
-    let unit_id = units.iter().next().unwrap().get_id();
-    println!("Unit: {}", unit_id);
-    for node_id in network.service_nodes_ids() {
-        if network.can_reach(network.start_node_id_of(unit_id),node_id) && network.can_reach(node_id,first_schedule.get_tour_of(unit_id).last_node()) {
-            first_schedule.assign(unit_id, vec!(node_id));
+    // while schedule.has_uncovered_nodes() {
+        // let node_id : NodeId = schedule.uncovered_iter().next().unwrap();
+
+        // for unit in units.iter() {
+            // let unit_id = unit.id();
+            // if let Ok(replacement) = schedule.assign_test(unit_id, vec!(node_id)) {
+                // if replacement.is_empty() {
+                    // schedule.assign(unit_id, vec!(node_id)).unwrap();
+                    // break;
+                // }
+            // }
+        // }
+        // if counter == 1000 {
+            // break;
+        // }
+        // counter += 1;
+    // }
+    // schedule.print();
+
+
+    let mut schedule = Schedule::initialize(&locations, &units, &network);
+    for unit in units.iter() {
+        let unit_id = unit.id();
+        let mut node = network.start_node_id_of(unit_id);
+        let mut new_node_opt = schedule.uncovered_successors(node).find(|&n| schedule.assign_test(unit_id,vec!(n)).is_ok());
+        while new_node_opt.is_some() {
+            node = new_node_opt.unwrap();
+            schedule.assign(unit_id, vec!(node)).unwrap();
+            new_node_opt = schedule.uncovered_successors(node).find(|&n| schedule.assign_test(unit_id,vec!(n)).is_ok());
         }
     }
-    first_schedule.print();
+    schedule.print();
 
-    println!("penalty: {}", first_schedule.total_cover_penalty());
 
-    // for node in network.all_nodes_ids() {
-        // println!("{}: \t{}", node, first_schedule.covered_by.get(&node).unwrap());
-    // }
+    println!("penalty: {}", schedule.total_cover_penalty());
 
-    // println!("{}", first_schedule)
-    // first_schedule.print();
 }

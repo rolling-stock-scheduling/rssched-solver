@@ -71,27 +71,27 @@ impl Units {
 
 // methods
 impl Unit {
-    pub(crate) fn get_id(&self) -> UnitId {
+    pub(crate) fn id(&self) -> UnitId {
         self.id
     }
 
-    pub(crate) fn get_type(&self) -> UnitType {
+    pub(crate) fn unit_type(&self) -> UnitType {
         self.unit_type
     }
 
-    pub(crate) fn get_start_time(&self) -> Time {
+    pub(crate) fn start_time(&self) -> Time {
         self.start_time
     }
 
-    pub(crate) fn get_start_location(&self) -> Location {
+    pub(crate) fn start_location(&self) -> Location {
         self.start_location
     }
 
-    pub(crate) fn get_initial_time_counter(&self) -> Duration {
+    pub(crate) fn initial_time_counter(&self) -> Duration {
         self.initial_time_counter
     }
 
-    pub(crate) fn get_initial_dist_counter(&self) -> Distance {
+    pub(crate) fn initial_dist_counter(&self) -> Distance {
         self.initial_dist_counter
     }
 }

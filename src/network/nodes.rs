@@ -124,7 +124,7 @@ impl Node {
             Node::Service(s) => s.demand.compute_penalty(train),
             Node::Maintenance(m) => if train.len() == 1 {PENALTY_ZERO} else {PENALTY_UNUSED_MAINTENANCE},
             Node::Start(s) => if train.len() == 1 && *train.get().first().unwrap() == s.unit_id {PENALTY_ZERO} else {PENALTY_INF},
-            Node::End(e) => if train.len() == 1 && train.get_as_units().first().unwrap().get_type() == e.unit_type {PENALTY_ZERO} else {PENALTY_INF}
+            Node::End(e) => if train.len() == 1 && train.get_as_units().first().unwrap().unit_type() == e.unit_type {PENALTY_ZERO} else {PENALTY_INF}
         }
     }
 

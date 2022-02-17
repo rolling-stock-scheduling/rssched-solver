@@ -9,6 +9,7 @@ use itertools::Itertools;
 
 type Position = usize; // the position within the tour from 0 to nodes.len()-1
 
+#[derive(Clone)]
 pub(crate) struct Tour<'a> {
     unit: UnitId,
     nodes: Vec<NodeId>, // nodes will always be sorted by start_time
@@ -40,16 +41,16 @@ impl<'a> Tour<'a> {
     /// Assumes that provided node sequence is feasible.
     /// Panics if sequence is not reachable from the start node, and if end_node cannot be reached,
     /// sequence must itself end with a end_node
-    pub(super) fn insert(&mut self, node_sequence: Vec<NodeId>) -> Vec<NodeId> {
+    pub(super) fn insert(&mut self, node_sequence: Vec<NodeId>) -> Result<Vec<NodeId>,String> {
         let first = node_sequence[0];
         let last = node_sequence[node_sequence.len()-1];
 
-        let start_pos = self.latest_node_reaching(first).expect(format!("Unit {}, cannot reach node {}", self.unit, first).as_str());
-        let end_pos = self.earliest_node_reached_by(last).expect(format!("Cannot insert sequence to path of unit {}, as the end_point cannot be reached!", self.unit).as_str());
+        let start_pos = self.latest_node_reaching(first).ok_or_else(|| format!("Unit, cannot reach node"))?;
+        let end_pos = self.earliest_node_reached_by(last).ok_or_else(|| format!("Cannot insert sequence to path of unit {}, as the end_point cannot be reached!", self.unit))?;
 
         // remove all elements strictly between start_pos and end_pos and replace them by
         // node_sequence. Removed nodes are returned.
-        self.nodes.splice(start_pos+1..end_pos,node_sequence).collect()
+        Ok(self.nodes.splice(start_pos+1..end_pos,node_sequence).collect())
     }
 
     fn latest_node_reaching(&self, node: NodeId) -> Option<Position>{
@@ -119,7 +120,7 @@ impl<'a> Tour<'a> {
     pub(crate) fn print(&self) {
         println!("tour with {} nodes of length {} and travel time {}:", self.nodes.len(), self.length(), self.travel_time());
         for node in self.nodes.iter() {
-            println!("\t\t* {}", node);
+            println!("\t\t* {}", self.nw.node(*node));
         }
     }
 }
