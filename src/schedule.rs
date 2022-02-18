@@ -4,6 +4,7 @@ use tour::Tour;
 use crate::train_formation::TrainFormation;
 
 use crate::network::Network;
+use crate::network::nodes::Node;
 use crate::units::Units;
 use crate::locations::Locations;
 use crate::distance::Distance;
@@ -13,6 +14,7 @@ use crate::objective::Objective;
 use std::collections::{HashMap,HashSet,VecDeque};
 
 use std::fmt;
+use std::error::Error;
 use crate::base_types::PENALTY_ZERO;
 
 pub(crate) struct Schedule<'a> {
@@ -97,6 +99,50 @@ impl<'a> Schedule <'a> {
 
     pub(crate) fn uncovered_successors(&self, node: NodeId) -> impl Iterator<Item = NodeId> + '_ {
         self.nw.all_successors(node).filter(|n| self.uncovered_nodes.contains(n))
+    }
+
+    pub(crate) fn write_to_csv(&self, path: &str) -> Result<(), Box<dyn Error>> {
+        let mut writer = csv::WriterBuilder::new().delimiter(b';').from_path(path)?;
+        writer.write_record(&["fahrzeuggruppeId","sortierZeit","typ","bpAb","bpAn","kundenfahrtId","endpunktId","wartungsfensterId"])?;
+        for unit in self.units.get_all() {
+            let tour = self.tours.get(&unit).unwrap();
+            for node_id in tour.nodes_iter() {
+                let node = self.nw.node(*node_id);
+                if let Node::Start(_) = node {
+                    continue;
+                }
+                let fahrzeuggruppen_id = format!("{}",unit);
+                let sortier_zeit = node.start_time().as_iso();
+                let typ = String::from(match node {
+                    Node::Service(_) => "KUNDENFAHRT",
+                    Node::Maintenance(_) => "WARTUNG",
+                    Node::End(_) => {"ENDPUNKT"},
+                    _ => ""
+                });
+
+                let bp_ab = format!("{}", node.start_location());
+                let bp_an = format!("{}", node.start_location());
+
+                let long_id = format!("{}", node.id());
+                let id: &str = long_id.split(':').collect::<Vec<_>>().get(1).unwrap(); // remove the "ST:", "MS:", "EP:"
+                let kundenfahrt_id = String::from(match node {
+                    Node::Service(_) => id,
+                    _ => ""
+                });
+                let endpunkt_id = String::from(match node {
+                    Node::End(_) => id,
+                    _ => ""
+                });
+                let wartungsfenster_id = String::from(match node {
+                    Node::Maintenance(_) => id,
+                    _ => ""
+                });
+                writer.write_record(&[fahrzeuggruppen_id,sortier_zeit,typ,bp_ab,bp_an,kundenfahrt_id,endpunkt_id,wartungsfenster_id])?;
+            }
+        }
+
+        Ok(())
+
     }
 
     pub(crate) fn print(&self) {

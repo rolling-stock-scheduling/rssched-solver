@@ -85,7 +85,7 @@ impl<'a> Network<'a> {
 
 // static functions
 impl<'a> Network<'a> {
-    pub(crate) fn initialize(locations: &'a Locations, units: &Units, path_service: &str, path_maintenance: &str, path_endpoints: &str) -> Network<'a> {
+    pub(crate) fn load_from_csv(path_service: &str, path_maintenance: &str, path_endpoints: &str, locations: &'a Locations, units: &Units) -> Network<'a> {
         let mut nodes: HashMap<NodeId, Node> = HashMap::new();
 
         let mut service_nodes: Vec<NodeId> = Vec::new();

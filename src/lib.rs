@@ -27,7 +27,7 @@ pub fn run() {
     // network also references locations
     let locations = Locations::load_from_csv("relationen.csv");
     let units = Units::load_from_csv("fahrzeuggruppen.csv", &locations);
-    let network: Network = Network::initialize(&locations, &units, "kundenfahrten.csv", "wartungsfenster.csv","endpunkte.csv");
+    let network: Network = Network::load_from_csv("kundenfahrten.csv", "wartungsfenster.csv","endpunkte.csv", &locations, &units);
 
 
 
@@ -97,4 +97,6 @@ pub fn run() {
     for node in schedule.uncovered_nodes(){
         println!("\t{}", network.node(node));
     }
+
+    schedule.write_to_csv("leistungsketten.csv").unwrap();
 }

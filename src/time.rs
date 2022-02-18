@@ -64,6 +64,17 @@ impl Time {
     }
 }
 
+impl Time {
+    pub(crate) fn as_iso(&self) -> String {
+        match self {
+            Time::Earliest => String::from("EARLIEST"),
+            Time::Point(t) => format!("{:#04}-{:#02}-{:#02}T{:#02}:{:#02}:00Z",t.year,t.month,t.day,t.hour,t.minute),
+            Time::Latest => String::from("LATEST")
+        }
+    }
+}
+
+
 
 impl Add<Duration> for Time {
     type Output = Self;

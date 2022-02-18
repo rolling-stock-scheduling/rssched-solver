@@ -18,6 +18,10 @@ pub(crate) struct Tour<'a> {
 }
 
 impl<'a> Tour<'a> {
+    pub(crate) fn nodes_iter(&self) -> impl Iterator<Item=&NodeId> +'_{
+        self.nodes.iter()
+    }
+
     pub(crate) fn last_node(&self) -> NodeId {
         *self.nodes.last().unwrap()
     }
