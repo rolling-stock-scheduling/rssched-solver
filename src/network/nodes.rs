@@ -6,6 +6,8 @@ use crate::base_types::{NodeId,UnitId,Penalty};
 use super::demand::Demand;
 use crate::train_formation::TrainFormation;
 
+use core::cmp::Ordering;
+
 
 use std::fmt;
 
@@ -17,6 +19,7 @@ pub(crate) enum Node {
     Start(StartPoint),
     End(EndPoint)
 }
+
 
 pub(crate) struct ServiceTrip {
     id: NodeId,
@@ -128,7 +131,33 @@ impl Node {
         }
     }
 
+    /// compare to nodes according to the start_time (ties are broken by end_time and then id)
+    pub(crate) fn cmp_start_time(&self, other: &Node)  -> Ordering {
+        match self.start_time().partial_cmp(&other.start_time()) {
+            Some(Ordering::Equal) =>
+                match self.end_time().partial_cmp(&other.end_time()) {
+                    Some(Ordering::Equal) => self.id().partial_cmp(&other.id()),
+                    other => other
+                }
+            other => other
+        }.unwrap()
+    }
+
+    /// compare to nodes according to the end_time (ties are broken by start_time and then id)
+    pub(crate) fn cmp_end_time(&self, other: &Node)  -> Ordering {
+        match self.end_time().partial_cmp(&other.end_time()) {
+            Some(Ordering::Equal) =>
+                match self.start_time().partial_cmp(&other.start_time()) {
+                    Some(Ordering::Equal) => self.id().partial_cmp(&other.id()),
+                    other => other
+                }
+            other => other
+        }.unwrap()
+    }
+
 }
+
+
 
 
 

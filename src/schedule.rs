@@ -6,6 +6,7 @@ use crate::train_formation::TrainFormation;
 use crate::network::Network;
 use crate::units::Units;
 use crate::locations::Locations;
+use crate::distance::Distance;
 use crate::base_types::{NodeId,UnitId,Penalty};
 use crate::objective::Objective;
 
@@ -80,8 +81,14 @@ impl<'a> Schedule <'a> {
         self.uncovered_nodes.iter().map(|&n| self.cover_penalty_of(n)).sum()
     }
 
-    pub(crate) fn uncovered_iter(&self) -> impl Iterator<Item = NodeId> + '_{
-        self.uncovered_nodes.iter().copied()
+    pub(crate) fn total_distance(&self) -> Distance {
+        self.tours.values().map(|t| t.distance()).sum()
+    }
+
+    pub(crate) fn uncovered_nodes(&self) -> Vec<NodeId> {
+        let mut list: Vec<NodeId> = self.uncovered_nodes.iter().cloned().collect();
+        list.sort_by(|&n1,&n2| self.nw.node(n1).cmp_start_time(self.nw.node(n2)));
+        list
     }
 
     pub(crate) fn has_uncovered_nodes(&self) -> bool {
@@ -94,9 +101,9 @@ impl<'a> Schedule <'a> {
 
     pub(crate) fn print(&self) {
         println!("** schedule with {} tours:", self.tours.len());
-        for (unit, tour) in self.tours.iter() {
+        for unit in self.units.get_all() {
             print!("\ttour of {}:", unit);
-            tour.print();
+            self.tours.get(&unit).unwrap().print();
         }
     }
 }
@@ -105,8 +112,8 @@ impl<'a> Schedule <'a> {
 impl<'a> fmt::Display for Schedule<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "** schedule with {} tours:", self.tours.len())?;
-        for tour in self.tours.values() {
-            writeln!(f, "\t{}", tour)?;
+        for unit in self.units.get_all() {
+            writeln!(f, "\t{}", self.tours.get(&unit).unwrap())?;
         }
         Ok(())
     }
@@ -121,12 +128,12 @@ impl<'a> Schedule<'a> {
 
         // create trivial tours from start_point directly to end point
         // end_ponints are picked greedily from earliest to latest (unit_type must fit)
-        let mut end_nodes: VecDeque<NodeId> = nw.end_nodes_ids().collect();
+        let mut end_nodes: VecDeque<NodeId> = nw.end_nodes().collect();
         end_nodes.make_contiguous().sort_by(|&e1,&e2| nw.node(e1).start_time().cmp(&nw.node(e2).start_time()));
 
-        for unit in units.iter() {
-            let unit_id = unit.id();
-            let start_node = nw.start_node_id_of(unit_id);
+        for unit_id in units.get_all() {
+            let unit = units.get_unit(unit_id);
+            let start_node = nw.start_node_of(unit_id);
             let pos = end_nodes.iter().position(|&e| nw.node(e).unit_type() == unit.unit_type() && nw.can_reach(start_node, e)).expect(format!("No suitable end_node found for start_node: {}", start_node).as_str());
             let end_node = end_nodes.remove(pos).unwrap();
 
@@ -136,17 +143,17 @@ impl<'a> Schedule<'a> {
             covered_by.insert(end_node, TrainFormation::new(vec!(unit_id), units));
         }
 
-        for node in nw.service_nodes_ids() {
+        for node in nw.service_nodes() {
             covered_by.insert(node, TrainFormation::new(vec!(), units));
         }
-        for node in nw.maintenance_nodes_ids() {
+        for node in nw.maintenance_nodes() {
             covered_by.insert(node, TrainFormation::new(vec!(), units));
         }
 
         assert!(end_nodes.is_empty(), "There are more end_nodes than units!");
         let mut uncovered_nodes: HashSet<NodeId> = HashSet::new();
-        uncovered_nodes.extend(nw.service_nodes_ids());
-        uncovered_nodes.extend(nw.maintenance_nodes_ids());
+        uncovered_nodes.extend(nw.service_nodes());
+        uncovered_nodes.extend(nw.maintenance_nodes());
 
 
         Schedule{tours, covered_by, uncovered_nodes, objective_value:None, loc, units, nw}

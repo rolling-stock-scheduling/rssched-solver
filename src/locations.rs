@@ -117,7 +117,9 @@ impl Locations {
 // methods
 impl Locations {
     pub(crate) fn get_all_locations(&self) -> Vec<Location> {
-        self.stations.iter().map(|s| Location::of(*s)).collect()
+        let mut stations: Vec<Station> = self.stations.iter().cloned().collect();
+        stations.sort();
+        stations.iter().map(|s| Location::of(*s)).collect()
     }
 
     pub(crate) fn get_location(&self, code: &str) -> Location {

@@ -22,7 +22,7 @@ impl<'a> Tour<'a> {
         *self.nodes.last().unwrap()
     }
 
-    pub(crate) fn length(&self) -> Distance {
+    pub(crate) fn distance(&self) -> Distance {
         let service_length: Distance = self.nodes.iter().map(|&n| self.nw.node(n).length()).sum();
 
         let dead_head_length = self.nodes.iter().tuple_windows().map(
@@ -118,7 +118,7 @@ impl<'a> Tour<'a> {
     }
 
     pub(crate) fn print(&self) {
-        println!("tour with {} nodes of length {} and travel time {}:", self.nodes.len(), self.length(), self.travel_time());
+        println!("tour with {} nodes of length {} and travel time {}:", self.nodes.len(), self.distance(), self.travel_time());
         for node in self.nodes.iter() {
             println!("\t\t* {}", self.nw.node(*node));
         }

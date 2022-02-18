@@ -56,8 +56,10 @@ impl Units {
         self.units.len()
     }
 
-    pub(crate) fn iter(&self) -> impl Iterator<Item=&Unit>{
-        self.units.values()
+    pub(crate) fn get_all(&self) -> Vec<UnitId> {
+        let mut ids: Vec<UnitId> = self.units.keys().cloned().collect();
+        ids.sort();
+        ids
     }
 
     pub(crate) fn get_unit(&self, id: UnitId) -> &Unit {

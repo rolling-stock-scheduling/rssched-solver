@@ -3,7 +3,7 @@ use std::fmt;
 /// a string of constant size that implements the Copy-trait.
 /// it is used as Station (N = 4) (given by the abbreviation code)
 /// and for the UnitId (N = 10)
-#[derive(Hash,Eq,PartialEq,Copy,Clone)]
+#[derive(Hash,Eq,PartialEq,Copy,Clone,PartialOrd,Ord)]
 pub(crate) struct CopyStr<const N: usize> {
     code: [u8;N],
     len: usize

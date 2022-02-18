@@ -78,9 +78,8 @@ pub fn run() {
 
 
     let mut schedule = Schedule::initialize(&locations, &units, &network);
-    for unit in units.iter() {
-        let unit_id = unit.id();
-        let mut node = network.start_node_id_of(unit_id);
+    for unit_id in units.get_all() {
+        let mut node = network.start_node_of(unit_id);
         let mut new_node_opt = schedule.uncovered_successors(node).find(|&n| schedule.assign_test(unit_id,vec!(n)).is_ok());
         while new_node_opt.is_some() {
             node = new_node_opt.unwrap();
@@ -88,9 +87,14 @@ pub fn run() {
             new_node_opt = schedule.uncovered_successors(node).find(|&n| schedule.assign_test(unit_id,vec!(n)).is_ok());
         }
     }
+    // println!("{}", schedule);
     schedule.print();
 
+    println!("total distance: {}", schedule.total_distance());
 
-    println!("penalty: {}", schedule.total_cover_penalty());
+    println!("uncovered nodes (penalty: {}):", schedule.total_cover_penalty());
 
+    for node in schedule.uncovered_nodes(){
+        println!("\t{}", network.node(node));
+    }
 }

@@ -15,8 +15,11 @@ use std::fmt;
 
 use std::iter::Iterator;
 
+
 pub(crate) struct Network<'a> {
     nodes: HashMap<NodeId, Node>,
+
+    // nodes are by default sorted by start_time
     service_nodes: Vec<NodeId>,
     maintenance_nodes: Vec<NodeId>,
     start_nodes: HashMap<UnitId,NodeId>,
@@ -24,6 +27,60 @@ pub(crate) struct Network<'a> {
     nodes_sorted_by_start: Vec<NodeId>,
     nodes_sorted_by_end: Vec<NodeId>,
     locations: &'a Locations
+}
+
+// methods
+impl<'a> Network<'a> {
+
+    pub(crate) fn node(&self, id: NodeId) -> &Node {
+        self.nodes.get(&id).unwrap()
+    }
+
+    /// return the number of nodes in the network.
+    pub(crate) fn size(&self) -> usize {
+        self.nodes.len()
+    }
+
+    pub(crate) fn service_nodes(&self) -> impl Iterator<Item=NodeId> + '_ {
+        self.service_nodes.iter().copied()
+    }
+
+    pub(crate) fn maintenance_nodes(&self) -> impl Iterator<Item=NodeId> + '_ {
+        self.maintenance_nodes.iter().copied()
+    }
+
+    pub(crate) fn end_nodes(&self) -> impl Iterator<Item=NodeId> + '_ {
+        self.end_nodes.iter().copied()
+    }
+
+    pub(crate) fn start_node_of(&self, unit_id: UnitId) -> NodeId {
+        self.nodes.get(self.start_nodes.get(&unit_id).unwrap()).unwrap().id()
+    }
+
+    /// returns True iff node1 can reach node2
+    pub(crate) fn can_reach(&self, node1: NodeId, node2: NodeId) -> bool {
+        let n1 = self.nodes.get(&node1).unwrap();
+        let n2 = self.nodes.get(&node2).unwrap();
+        n1.end_time() + self.locations.travel_time(n1.end_location(), n2.start_location()) < n2.start_time()
+    }
+
+    /// provides all nodes that are reachable from node (in increasing order according to the
+    /// starting time)
+    pub(crate) fn all_successors(&self, node: NodeId) -> impl Iterator<Item=NodeId> + '_ {
+        // TODO: Could use binary_search for speed up
+        self.nodes_sorted_by_start.iter().cloned().filter(move |&n| self.can_reach(node,n))
+    }
+
+    /// provides all nodes that are can reach node (in decreasing order according to the
+    /// end time)
+    pub(crate) fn all_predecessors(&self, node: NodeId) -> impl Iterator<Item=NodeId> + '_ {
+        // TODO: Could use binary_search for speed up
+        self.nodes_sorted_by_end.iter().rev().cloned().filter(move |&n| self.can_reach(n, node))
+    }
+
+    pub(crate) fn all_nodes(&self) -> impl Iterator<Item=NodeId> + '_ {
+        self.nodes_sorted_by_start.iter().copied()
+    }
 }
 
 // static functions
@@ -82,8 +139,8 @@ impl<'a> Network<'a> {
         }
 
         let mut start_nodes: HashMap<UnitId, NodeId> = HashMap::new();
-        for unit in units.iter() {
-            let unit_id = unit.id();
+        for unit_id in units.get_all() {
+            let unit = units.get_unit(unit_id);
             let node_id_string = format!("SN:{}", unit_id);
             let node_id = NodeId::from(&node_id_string);
             let start_node = Node::create_start_node(node_id, unit_id, unit.start_location(), unit.start_time());
@@ -116,80 +173,26 @@ impl<'a> Network<'a> {
         }
 
         let mut nodes_sorted_by_start: Vec<NodeId> = nodes.keys().cloned().collect();
-        nodes_sorted_by_start.sort_by(|n1, n2| nodes.get(n1).unwrap().start_time().cmp(&nodes.get(n2).unwrap().start_time()));
+        nodes_sorted_by_start.sort_by(|n1, n2| nodes.get(n1).unwrap().cmp_start_time(&nodes.get(n2).unwrap()));
         let mut nodes_sorted_by_end: Vec<NodeId> = nodes.keys().cloned().collect();
-        nodes_sorted_by_end.sort_by(|n1, n2| nodes.get(n1).unwrap().end_time().cmp(&nodes.get(n2).unwrap().end_time()));
+        nodes_sorted_by_end.sort_by(|n1, n2| nodes.get(n1).unwrap().cmp_end_time(&nodes.get(n2).unwrap()));
+
+        // sort all indices by the start_time
+        service_nodes.sort_by(|n1, n2| nodes.get(n1).unwrap().cmp_start_time(&nodes.get(n2).unwrap()));
+        maintenance_nodes.sort_by(|n1, n2| nodes.get(n1).unwrap().cmp_start_time(&nodes.get(n2).unwrap()));
+        end_nodes.sort_by(|n1, n2| nodes.get(n1).unwrap().cmp_start_time(&nodes.get(n2).unwrap()));
 
         Network{nodes,service_nodes,maintenance_nodes,start_nodes,end_nodes,nodes_sorted_by_start, nodes_sorted_by_end,locations}
     }
 }
 
-// methods
-impl<'a> Network<'a> {
 
-    pub(crate) fn node(&self, id: NodeId) -> &Node {
-        self.nodes.get(&id).unwrap()
-    }
-
-    /// return the number of nodes in the network.
-    pub(crate) fn size(&self) -> usize {
-        self.nodes.len()
-    }
-
-    pub(crate) fn service_nodes_ids(&self) -> impl Iterator<Item=NodeId> + '_ {
-        self.service_nodes.iter().copied()
-    }
-
-    pub(crate) fn maintenance_nodes_ids(&self) -> impl Iterator<Item=NodeId> + '_ {
-        self.maintenance_nodes.iter().copied()
-
-    }
-
-    pub(crate) fn start_nodes_ids(&self) -> impl Iterator<Item=NodeId> + '_ {
-        self.start_nodes.values().copied()
-
-    }
-
-    pub(crate) fn end_nodes_ids(&self) -> impl Iterator<Item=NodeId> + '_ {
-        self.end_nodes.iter().copied()
-
-    }
-
-    pub(crate) fn start_node_id_of(&self, unit_id: UnitId) -> NodeId {
-        self.nodes.get(self.start_nodes.get(&unit_id).unwrap()).unwrap().id()
-    }
-
-    /// returns True iff node1 can reach node2
-    pub(crate) fn can_reach(&self, node1: NodeId, node2: NodeId) -> bool {
-        let n1 = self.nodes.get(&node1).unwrap();
-        let n2 = self.nodes.get(&node2).unwrap();
-        n1.end_time() + self.locations.travel_time(n1.end_location(), n2.start_location()) < n2.start_time()
-    }
-
-    /// provides all nodes that are reachable from node (in increasing order according to the
-    /// starting time)
-    pub(crate) fn all_successors(&self, node: NodeId) -> impl Iterator<Item=NodeId> + '_ {
-        // TODO: Could use binary_search for speed up
-        self.nodes_sorted_by_start.iter().cloned().filter(move |&n| self.can_reach(node,n))
-    }
-
-    /// provides all nodes that are can reach node (in decreasing order according to the
-    /// end time)
-    pub(crate) fn all_predecessors(&self, node: NodeId) -> impl Iterator<Item=NodeId> + '_ {
-        // TODO: Could use binary_search for speed up
-        self.nodes_sorted_by_end.iter().rev().cloned().filter(move |&n| self.can_reach(n, node))
-    }
-
-    pub(crate) fn all_nodes_ids(&self) -> impl Iterator<Item=NodeId> + '_ {
-        self.nodes_sorted_by_start.iter().copied()
-    }
-}
 
 impl<'a> fmt::Display for Network<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,"** network with {} nodes:\n", self.size())?;
-        for (i,v) in self.nodes.values().enumerate() {
-            write!(f,"\t{}: {}\n", i, v)?;
+        for (i,n) in self.nodes_sorted_by_start.iter().enumerate() {
+            write!(f,"\t{}: {}\n", i, self.nodes.get(n).unwrap())?;
         }
         Ok(())
     }
