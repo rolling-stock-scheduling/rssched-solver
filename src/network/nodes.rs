@@ -87,7 +87,7 @@ impl Node {
         match self {
             Node::Service(s) => s.origin,
             Node::Maintenance(m) => m.location,
-            Node::Start(_) => Location::Infinity,
+            Node::Start(_) => Location::Nowhere,
             Node::End(e) => e.location
         }
     }
@@ -97,7 +97,7 @@ impl Node {
             Node::Service(s) => s.destination,
             Node::Maintenance(m) => m.location,
             Node::Start(s) => s.location,
-            Node::End(_) => Location::Infinity
+            Node::End(_) => Location::Nowhere
         }
     }
 

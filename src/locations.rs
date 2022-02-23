@@ -34,7 +34,8 @@ pub(crate) struct Locations {
 #[derive(Hash,Eq,PartialEq,Copy,Clone)]
 pub(crate) enum Location {
     Location(Station),
-    Infinity // distance to Infinity is always infinity
+    Nowhere, // distance to Nowhere is always infinity
+    Everywhere // distance to Everywehre is always zero (except for Nowhere)
 }
 
 struct DeadHeadTrip{
@@ -133,15 +134,15 @@ impl Locations {
 
     pub(crate) fn distance(&self, a: Location, b: Location) -> Distance {
         match self.get_dead_head_trip(a,b) {
-            None => Distance::zero(),
-            Some(d) => d.distance
+            Some(d) => d.distance,
+            None => if a == Location::Nowhere || b == Location::Nowhere {Distance::Infinity} else {Distance::zero()}
         }
     }
 
     pub(crate) fn travel_time(&self, a: Location, b: Location) -> Duration {
         match self.get_dead_head_trip(a,b) {
-            None => Duration::zero(),
-            Some(d) => d.travel_time
+            Some(d) => d.travel_time,
+            None => if a == Location::Nowhere || b == Location::Nowhere {Duration::Infinity} else {Duration::zero()}
         }
     }
 
@@ -156,13 +157,13 @@ impl Locations {
 
     fn get_dead_head_trip(&self, a: Location, b: Location) -> Option<&DeadHeadTrip> {
         match a {
-            Location::Infinity => None,
             Location::Location(station_a) =>
                 match b {
-                    Location::Infinity => None,
                     Location::Location(station_b) =>
-                        Some(self.dead_head_trips.get(&station_a).unwrap().get(&station_b).unwrap())
-                }
+                        Some(self.dead_head_trips.get(&station_a).unwrap().get(&station_b).unwrap()),
+                    _ => None,
+                },
+            _ => None
         }
 
     }
@@ -187,7 +188,7 @@ impl Location {
     fn as_station(&self) -> Station {
         match self {
             Location::Location(s) => s.clone(),
-            Location::Infinity => {panic!("Location is infinity!")},
+            _ => {panic!("Location is NOWHERE or EVERYWHERE!")},
         }
     }
 }
@@ -196,7 +197,8 @@ impl fmt::Display for Location {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Location::Location(s) => write!(f, "{}", s),
-            Location::Infinity => write!(f, "INFINITY!"),
+            Location::Nowhere => write!(f, "NOWHERE!"),
+            Location::Everywhere => write!(f, "EVERYWHERE!")
         }
     }
 }

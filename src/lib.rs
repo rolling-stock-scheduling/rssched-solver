@@ -1,24 +1,25 @@
+mod base_types;
 mod time;
 mod distance;
-mod base_types;
+mod utilities;
+mod train_formation;
 
 mod locations;
 mod units;
-
 mod network;
 
 mod objective;
 mod schedule;
 
-mod utilities;
 
-mod train_formation;
+mod solver;
+
+use solver::Solver;
+use solver::greedy_1::Greedy1;
 
 use network::Network;
 use units::Units;
-use schedule::Schedule;
 use locations::Locations;
-use base_types::NodeId;
 
 
 pub fn run() {
@@ -31,63 +32,24 @@ pub fn run() {
 
 
 
-    for location in locations.get_all_locations() {
-        println!("{}", location);
-    }
-    println!("{}", network);
-
-    // for id in network.service_nodes_ids() {
-        // let node = network.node(id);
-        // println!("node: {}", node);
-        // println!("start_time: {}", node.start_time());
-        // println!("end_time: {}", node.end_time());
-        // println!("successor: ");
-        // for succ in network.all_successors(id) {
-            // println!("\tin {}: {} start {}", locations.travel_time(node.end_location(), network.node(succ).start_location()), succ, network.node(succ).start_time());
-        // }
-        // println!("predecessor:");
-        // for pred in network.all_predecessors(id) {
-            // println!("\tin {}: {} end: {}", locations.travel_time(network.node(pred).end_location(), node.start_location()), pred, network.node(pred).end_time());
-        // }
-        // println!("");
+    // for location in locations.get_all_locations() {
+        // println!("{}", location);
     // }
+    // println!("{}", network);
+
+
+    // execute greedy_1 algorithms (going through units and pick nodes greedily)
+
+    let greedy_1 = Greedy1::initialize(&locations, &units, &network);
+    let schedule = greedy_1.solve();
+
+
+    schedule.write_to_csv("leistungsketten.csv").unwrap();
 
 
 
-    // let mut schedule = Schedule::initialize(&locations, &units, &network);
-    // let mut counter = 0;
+    // print some properties of the resulting schedule to the terminal:
 
-    // while schedule.has_uncovered_nodes() {
-        // let node_id : NodeId = schedule.uncovered_iter().next().unwrap();
-
-        // for unit in units.iter() {
-            // let unit_id = unit.id();
-            // if let Ok(replacement) = schedule.assign_test(unit_id, vec!(node_id)) {
-                // if replacement.is_empty() {
-                    // schedule.assign(unit_id, vec!(node_id)).unwrap();
-                    // break;
-                // }
-            // }
-        // }
-        // if counter == 1000 {
-            // break;
-        // }
-        // counter += 1;
-    // }
-    // schedule.print();
-
-
-    let mut schedule = Schedule::initialize(&locations, &units, &network);
-    for unit_id in units.get_all() {
-        let mut node = network.start_node_of(unit_id);
-        let mut new_node_opt = schedule.uncovered_successors(node).find(|&n| schedule.assign_test(unit_id,vec!(n)).is_ok());
-        while new_node_opt.is_some() {
-            node = new_node_opt.unwrap();
-            schedule.assign(unit_id, vec!(node)).unwrap();
-            new_node_opt = schedule.uncovered_successors(node).find(|&n| schedule.assign_test(unit_id,vec!(n)).is_ok());
-        }
-    }
-    // println!("{}", schedule);
     schedule.print();
 
     println!("total distance: {}", schedule.total_distance());
@@ -98,5 +60,4 @@ pub fn run() {
         println!("\t{}", network.node(node));
     }
 
-    schedule.write_to_csv("leistungsketten.csv").unwrap();
 }
