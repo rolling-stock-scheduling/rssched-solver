@@ -7,17 +7,22 @@ use crate::base_types::{NodeId,UnitId};
 
 use itertools::Itertools;
 
+use std::rc::Rc;
+
 type Position = usize; // the position within the tour from 0 to nodes.len()-1
 
+// this represents a tour of a single unit.
+// It should be an immutable objects. So whenever some modification is applied a copy of the tour
+// is created.
 #[derive(Clone)]
-pub(crate) struct Tour<'a> {
+pub(crate) struct Tour {
     unit: UnitId,
     nodes: Vec<NodeId>, // nodes will always be sorted by start_time
-    loc: &'a Locations,
-    nw: &'a Network<'a>,
+    loc: Rc<Locations>,
+    nw: Rc<Network>,
 }
 
-impl<'a> Tour<'a> {
+impl Tour {
     pub(crate) fn nodes_iter(&self) -> impl Iterator<Item=&NodeId> +'_{
         self.nodes.iter()
     }
@@ -40,21 +45,24 @@ impl<'a> Tour<'a> {
             |(&a,&b)| self.loc.travel_time(self.nw.node(a).end_location(), self.nw.node(b).start_location())).sum();
         service_tt + dead_head_tt
     }
+
     /// inserts the provided node sequence on the correct position (time-wise). The sequence will
     /// stay uninterrupted. All removed nodes (due to time-clashes) are returned.
     /// Assumes that provided node sequence is feasible.
     /// Panics if sequence is not reachable from the start node, and if end_node cannot be reached,
     /// sequence must itself end with a end_node
-    pub(super) fn insert(&mut self, node_sequence: Vec<NodeId>) -> Result<Vec<NodeId>,String> {
+    pub(super) fn insert(&self, node_sequence: Vec<NodeId>) -> Result<(Tour,Vec<NodeId>),String> {
         let first = node_sequence[0];
         let last = node_sequence[node_sequence.len()-1];
 
         let start_pos = self.latest_node_reaching(first).ok_or_else(|| format!("Unit, cannot reach node"))?;
         let end_pos = self.earliest_node_reached_by(last).ok_or_else(|| format!("Cannot insert sequence to path of unit {}, as the end_point cannot be reached!", self.unit))?;
 
+        let mut new_tour_nodes = self.nodes.clone();
         // remove all elements strictly between start_pos and end_pos and replace them by
         // node_sequence. Removed nodes are returned.
-        Ok(self.nodes.splice(start_pos+1..end_pos,node_sequence).collect())
+        let removed_nodes = new_tour_nodes.splice(start_pos+1..end_pos,node_sequence).collect();
+        Ok((Tour{unit: self.unit, nodes:new_tour_nodes,loc:self.loc.clone(),nw:self.nw.clone()},removed_nodes))
     }
 
     fn latest_node_reaching(&self, node: NodeId) -> Option<Position>{
@@ -129,14 +137,14 @@ impl<'a> Tour<'a> {
     }
 }
 
-impl<'a> Tour<'a> {
-    pub(super) fn new(unit: UnitId, nodes: Vec<NodeId>, loc: &'a Locations,nw: &'a Network) -> Tour<'a> {
+impl Tour {
+    pub(super) fn new(unit: UnitId, nodes: Vec<NodeId>, loc: Rc<Locations>,nw: Rc<Network>) -> Tour {
         Tour{unit, nodes, loc, nw}
     }
 }
 
 
-impl<'a> fmt::Display for Tour<'a> {
+impl fmt::Display for Tour {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "tour of {} with {} nodes", self.unit, self.nodes.len())
     }

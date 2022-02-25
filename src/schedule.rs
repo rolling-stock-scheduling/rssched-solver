@@ -11,67 +11,82 @@ use crate::distance::Distance;
 use crate::base_types::{NodeId,UnitId,Penalty};
 use crate::objective::Objective;
 
-use std::collections::{HashMap,HashSet,VecDeque};
+use std::collections::VecDeque;
+use im::{HashSet,HashMap};
 
 use std::fmt;
 use std::error::Error;
 use crate::base_types::PENALTY_ZERO;
 
-pub(crate) struct Schedule<'a> {
-    tours: HashMap<UnitId, Tour<'a>>,
-    covered_by: HashMap<NodeId, TrainFormation<'a>>,
+use std::rc::Rc;
+
+
+// this represents a solution to the rolling stock problem.
+// It should be an immutable object. So whenever a modification is applied a copy of the
+// schedule is create.
+#[derive(Clone)]
+pub(crate) struct Schedule {
+    tours: HashMap<UnitId, Tour>,
+    covered_by: HashMap<NodeId, TrainFormation>,
 
     // non-covered or only partially covered service nodes are stored seperately for quick objective_value conputation
     uncovered_nodes: HashSet<NodeId>,
     objective_value: Option<Objective>,
 
-    loc: &'a Locations,
-    units: &'a Units,
-    nw: &'a Network<'a>,
+    loc: Rc<Locations>,
+    units: Rc<Units>,
+    nw: Rc<Network>,
 }
 
 
 
 // methods
-impl<'a> Schedule <'a> {
+impl Schedule {
     pub(crate) fn tour_of(&self, unit: UnitId) -> &Tour {
         self.tours.get(&unit).unwrap()
     }
 
-    pub(crate) fn assign(&mut self, unit: UnitId, node_sequence: Vec<NodeId>) -> Result<(),String> {
-        let tour = self.tours.get_mut(&unit).unwrap();
+    pub(crate) fn assign(&self, unit: UnitId, node_sequence: Vec<NodeId>) -> Result<Schedule,String> {
         let new_nodes = node_sequence.clone();
 
+        let mut tours = self.tours.clone(); // lazy clone
+        let tour = tours.get(&unit).unwrap();
+
         // insert sequence into tour
-        let removed_nodes = tour.insert(node_sequence)?;
+        let (new_tour, removed_nodes) = tour.insert(node_sequence)?;
+
+        tours.insert(unit, new_tour);
 
         // update covered_by:
+        let mut covered_by = self.covered_by.clone(); // lazy clone
         for node in removed_nodes.iter() {
-            self.covered_by.get_mut(node).unwrap().remove(unit);
+            covered_by.get_mut(node).unwrap().remove(unit);
         }
         for node in new_nodes.iter() {
-            self.covered_by.get_mut(node).unwrap().add(unit);
+            covered_by.get_mut(node).unwrap().add(unit);
         }
 
         // update uncovered_nodes:
+        let mut uncovered_nodes = self.uncovered_nodes.clone(); // lazy clone
         for node in removed_nodes.iter() {
             if self.cover_penalty_of(*node) != PENALTY_ZERO {
-                self.uncovered_nodes.insert(*node);
+                uncovered_nodes.insert(*node);
             }
         }
         for node in new_nodes.iter() {
             if self.cover_penalty_of(*node) == PENALTY_ZERO {
-                self.uncovered_nodes.remove(node);
+                uncovered_nodes.remove(node);
             }
         }
-        Ok(())
+        Ok(Schedule{tours,covered_by,uncovered_nodes,objective_value:None,loc:self.loc.clone(),units:self.units.clone(),nw:self.nw.clone()})
     }
 
     /// simulates inserting the node_sequence into the tour of unit. Return all nodes that would
     /// have been removed from the tour.
     pub(crate) fn assign_test(&self, unit: UnitId, node_sequence: Vec<NodeId>) -> Result<Vec<NodeId>,String> {
-        let mut tour: Tour = self.tours.get(&unit).unwrap().clone();
-        tour.insert(node_sequence)
+        let tour: Tour = self.tours.get(&unit).unwrap().clone();
+        let result = tour.insert(node_sequence)?;
+        Ok(result.1)
 
     }
 
@@ -155,7 +170,7 @@ impl<'a> Schedule <'a> {
 }
 
 
-impl<'a> fmt::Display for Schedule<'a> {
+impl fmt::Display for Schedule {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "** schedule with {} tours:", self.tours.len())?;
         for unit in self.units.get_all() {
@@ -166,10 +181,10 @@ impl<'a> fmt::Display for Schedule<'a> {
 }
 
 // static functions
-impl<'a> Schedule<'a> {
-    pub(crate) fn initialize(loc: &'a Locations, units: &'a Units, nw: &'a Network) -> Schedule<'a> {
+impl Schedule {
+    pub(crate) fn initialize(loc: Rc<Locations>, units: Rc<Units>, nw: Rc<Network>) -> Schedule {
 
-        let mut tours: HashMap<UnitId, Tour> = HashMap::with_capacity(units.len());
+        let mut tours: HashMap<UnitId, Tour> = HashMap::new();
         let mut covered_by: HashMap<NodeId, TrainFormation> = HashMap::new();
 
         // create trivial tours from start_point directly to end point
@@ -183,17 +198,17 @@ impl<'a> Schedule<'a> {
             let pos = end_nodes.iter().position(|&e| nw.node(e).unit_type() == unit.unit_type() && nw.can_reach(start_node, e)).expect(format!("No suitable end_node found for start_node: {}", start_node).as_str());
             let end_node = end_nodes.remove(pos).unwrap();
 
-            tours.insert(unit_id, Tour::new(unit_id, vec!(start_node, end_node),loc,nw));
+            tours.insert(unit_id, Tour::new(unit_id, vec!(start_node, end_node),loc.clone(),nw.clone()));
 
-            covered_by.insert(start_node, TrainFormation::new(vec!(unit_id), units));
-            covered_by.insert(end_node, TrainFormation::new(vec!(unit_id), units));
+            covered_by.insert(start_node, TrainFormation::new(vec!(unit_id), units.clone()));
+            covered_by.insert(end_node, TrainFormation::new(vec!(unit_id), units.clone()));
         }
 
         for node in nw.service_nodes() {
-            covered_by.insert(node, TrainFormation::new(vec!(), units));
+            covered_by.insert(node, TrainFormation::new(vec!(), units.clone()));
         }
         for node in nw.maintenance_nodes() {
-            covered_by.insert(node, TrainFormation::new(vec!(), units));
+            covered_by.insert(node, TrainFormation::new(vec!(), units.clone()));
         }
 
         assert!(end_nodes.is_empty(), "There are more end_nodes than units!");

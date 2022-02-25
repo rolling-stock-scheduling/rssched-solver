@@ -2,22 +2,24 @@ use crate::base_types::UnitId;
 use crate::units::{Unit, Units};
 use std::fmt;
 
+use std::rc::Rc;
 
-pub(super) struct TrainFormation<'a> {
+#[derive(Clone)]
+pub(super) struct TrainFormation {
     formation: Vec<UnitId>,
     flipped: bool, // if flipped = false, then formation[0] is first, formation[1] second, ...; if flipped = true then formation[0] is last, formation[1] next-to-last ...
-    units: &'a Units
+    units: Rc<Units>
 }
 
 // static functions
-impl<'a> TrainFormation<'a> {
-    pub(crate) fn new (formation: Vec<UnitId>, units: &'a Units) -> TrainFormation<'a> {
+impl TrainFormation {
+    pub(crate) fn new (formation: Vec<UnitId>, units: Rc<Units>) -> TrainFormation {
         TrainFormation{formation, flipped:false, units}
     }
 }
 
 // methods
-impl<'a> TrainFormation<'a> {
+impl TrainFormation {
     pub(crate) fn add (&mut self, unit: UnitId) {
         self.formation.push(unit);
     }
@@ -52,7 +54,7 @@ impl<'a> TrainFormation<'a> {
     }
 }
 
-impl<'a> fmt::Display for TrainFormation<'a> {
+impl fmt::Display for TrainFormation {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.formation.len() > 0 {
             for unit in self.formation.iter().rev() {

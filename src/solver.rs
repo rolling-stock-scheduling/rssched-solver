@@ -4,9 +4,10 @@ use crate::schedule::Schedule;
 use crate::locations::Locations;
 use crate::units::Units;
 use crate::network::Network;
+use std::rc::Rc;
 
-pub(crate) trait Solver<'a> {
-    fn initialize(loc: &'a Locations, units: &'a Units, nw: &'a Network<'a>) -> Self;
+pub(crate) trait Solver {
+    fn initialize(loc: Rc<Locations>, units: Rc<Units>, nw: Rc<Network>) -> Self;
 
-    fn solve(&self) -> Schedule<'a>;
+    fn solve(&self) -> Schedule;
 }

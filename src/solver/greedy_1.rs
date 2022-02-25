@@ -4,26 +4,28 @@ use crate::units::Units;
 use crate::network::Network;
 use crate::solver::Solver;
 
-pub struct Greedy1<'a> {
-    loc: &'a Locations,
-    units: &'a Units,
-    nw: &'a Network<'a>
+use std::rc::Rc;
+
+pub struct Greedy1 {
+    loc: Rc<Locations>,
+    units: Rc<Units>,
+    nw: Rc<Network>
 }
 
-impl<'a> Solver<'a> for Greedy1<'a> {
+impl Solver for Greedy1 {
 
-    fn initialize(loc: &'a Locations, units: &'a Units, nw: &'a Network<'a>) -> Greedy1<'a> {
+    fn initialize(loc: Rc<Locations>, units: Rc<Units>, nw: Rc<Network>) -> Greedy1 {
         Greedy1{loc, units, nw}
     }
 
-    fn solve(&self) -> Schedule<'a> {
-        let mut schedule = Schedule::initialize(self.loc, self.units, self.nw);
+    fn solve(&self) -> Schedule {
+        let mut schedule = Schedule::initialize(self.loc.clone(), self.units.clone(), self.nw.clone());
         for unit_id in self.units.get_all() {
             let mut node = self.nw.start_node_of(unit_id);
             let mut new_node_opt = schedule.uncovered_successors(node).find(|&n| schedule.assign_test(unit_id,vec!(n)).is_ok());
             while new_node_opt.is_some() {
                 node = new_node_opt.unwrap();
-                schedule.assign(unit_id, vec!(node)).unwrap();
+                schedule = schedule.assign(unit_id, vec!(node)).unwrap();
                 new_node_opt = schedule.uncovered_successors(node).find(|&n| schedule.assign_test(unit_id,vec!(n)).is_ok());
             }
         }

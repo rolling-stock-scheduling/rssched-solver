@@ -5,6 +5,7 @@ use crate::locations::{Locations,Location};
 use crate::base_types::UnitId;
 use std::collections::HashMap;
 use std::iter::Iterator;
+use std::rc::Rc;
 
 pub(crate) struct Units {
     units: HashMap<UnitId, Unit>,
@@ -33,7 +34,7 @@ pub(crate) enum UnitType {
 /////////////////////////////////////////////////////////////////////
 
 impl Units {
-    pub(crate) fn load_from_csv(path: &str, locations: &Locations) -> Units {
+    pub(crate) fn load_from_csv(path: &str, loc: Rc<Locations>) -> Units {
         let mut units: HashMap<UnitId, Unit> = HashMap::new();
         let mut reader = csv::ReaderBuilder::new().delimiter(b';').from_path(path).expect("csv-file for loading units not found");
         for result in reader.records() {
@@ -41,7 +42,7 @@ impl Units {
             let id = UnitId::from(record.get(0).unwrap());
             let unit_type = UnitType::Standard;
             let start_time = Time::new(record.get(1).unwrap());
-            let start_location = locations.get_location(record.get(2).unwrap());
+            let start_location = loc.get_location(record.get(2).unwrap());
             let initial_time_counter = Duration::from_iso(record.get(3).unwrap());
             let initial_dist_counter =  Distance::from_km(record.get(4).unwrap().parse().unwrap());
             units.insert(id,Unit{id,unit_type,start_time,start_location,initial_time_counter,initial_dist_counter});

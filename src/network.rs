@@ -15,8 +15,9 @@ use std::fmt;
 
 use std::iter::Iterator;
 
+use std::rc::Rc;
 
-pub(crate) struct Network<'a> {
+pub(crate) struct Network {
     nodes: HashMap<NodeId, Node>,
 
     // nodes are by default sorted by start_time
@@ -26,11 +27,13 @@ pub(crate) struct Network<'a> {
     end_nodes: Vec<NodeId>,
     nodes_sorted_by_start: Vec<NodeId>,
     nodes_sorted_by_end: Vec<NodeId>,
-    locations: &'a Locations
+
+    // for convenience
+    loc: Rc<Locations>
 }
 
 // methods
-impl<'a> Network<'a> {
+impl Network {
 
     pub(crate) fn node(&self, id: NodeId) -> &Node {
         self.nodes.get(&id).unwrap()
@@ -61,7 +64,7 @@ impl<'a> Network<'a> {
     pub(crate) fn can_reach(&self, node1: NodeId, node2: NodeId) -> bool {
         let n1 = self.nodes.get(&node1).unwrap();
         let n2 = self.nodes.get(&node2).unwrap();
-        n1.end_time() + self.locations.travel_time(n1.end_location(), n2.start_location()) < n2.start_time()
+        n1.end_time() + self.loc.travel_time(n1.end_location(), n2.start_location()) < n2.start_time()
     }
 
     /// provides all nodes that are reachable from node (in increasing order according to the
@@ -84,8 +87,8 @@ impl<'a> Network<'a> {
 }
 
 // static functions
-impl<'a> Network<'a> {
-    pub(crate) fn load_from_csv(path_service: &str, path_maintenance: &str, path_endpoints: &str, locations: &'a Locations, units: &Units) -> Network<'a> {
+impl Network {
+    pub(crate) fn load_from_csv(path_service: &str, path_maintenance: &str, path_endpoints: &str, loc: Rc<Locations>, units: Rc<Units>) -> Network {
         let mut nodes: HashMap<NodeId, Node> = HashMap::new();
 
         let mut service_nodes: Vec<NodeId> = Vec::new();
@@ -95,10 +98,10 @@ impl<'a> Network<'a> {
             let _driving_day = record.get(0).unwrap();
             let _train_number = record.get(1).unwrap();
             let start_time = Time::new(record.get(2).unwrap());
-            let start_location = locations.get_location(record.get(3).unwrap());
+            let start_location = loc.get_location(record.get(3).unwrap());
             let start_side = StationSide::from(record.get(4).unwrap());
             let end_time = Time::new(record.get(5).unwrap());
-            let end_location = locations.get_location(record.get(6).unwrap());
+            let end_location = loc.get_location(record.get(6).unwrap());
             let end_side = StationSide::from(record.get(7).unwrap());
             let length =  Distance::from_km(record.get(8).unwrap().parse().unwrap());
             let demand_amount: u8 = record.get(9).unwrap().parse().unwrap();
@@ -124,7 +127,7 @@ impl<'a> Network<'a> {
             let record = result.expect("Some recond cannot be read while reading maintenance_slots");
             let id_string = format!("MS:{}",record.get(0).unwrap());
             let id = NodeId::from(&id_string);
-            let location = locations.get_location(record.get(1).unwrap());
+            let location = loc.get_location(record.get(1).unwrap());
             let start_time = Time::new(record.get(2).unwrap());
             let end_time = Time::new(record.get(3).unwrap());
 
@@ -156,7 +159,7 @@ impl<'a> Network<'a> {
             let id = NodeId::from(&id_string);
             let unit_type = UnitType::Standard;
             let time = Time::new(record.get(1).unwrap());
-            let location = locations.get_location(record.get(2).unwrap());
+            let location = loc.get_location(record.get(2).unwrap());
             let duration_till_maintenance = Duration::from_iso(record.get(3).unwrap());
             let dist_till_maintenance =  Distance::from_km(record.get(4).unwrap().parse().unwrap());
 
@@ -182,13 +185,13 @@ impl<'a> Network<'a> {
         maintenance_nodes.sort_by(|n1, n2| nodes.get(n1).unwrap().cmp_start_time(&nodes.get(n2).unwrap()));
         end_nodes.sort_by(|n1, n2| nodes.get(n1).unwrap().cmp_start_time(&nodes.get(n2).unwrap()));
 
-        Network{nodes,service_nodes,maintenance_nodes,start_nodes,end_nodes,nodes_sorted_by_start, nodes_sorted_by_end,locations}
+        Network{nodes,service_nodes,maintenance_nodes,start_nodes,end_nodes,nodes_sorted_by_start, nodes_sorted_by_end,loc}
     }
 }
 
 
 
-impl<'a> fmt::Display for Network<'a> {
+impl fmt::Display for Network {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,"** network with {} nodes:\n", self.size())?;
         for (i,n) in self.nodes_sorted_by_start.iter().enumerate() {

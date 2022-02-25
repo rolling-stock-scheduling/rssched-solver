@@ -21,14 +21,15 @@ use network::Network;
 use units::Units;
 use locations::Locations;
 
+use std::rc::Rc;
 
 pub fn run() {
 
     // load instance: All the objects are static and are multiple times referenced;
     // network also references locations
-    let locations = Locations::load_from_csv("relationen.csv");
-    let units = Units::load_from_csv("fahrzeuggruppen.csv", &locations);
-    let network: Network = Network::load_from_csv("kundenfahrten.csv", "wartungsfenster.csv","endpunkte.csv", &locations, &units);
+    let loc= Rc::new(Locations::load_from_csv("relationen.csv"));
+    let units = Rc::new(Units::load_from_csv("fahrzeuggruppen.csv", loc.clone()));
+    let nw = Rc::new(Network::load_from_csv("kundenfahrten.csv", "wartungsfenster.csv","endpunkte.csv", loc.clone(), units.clone()));
 
 
 
@@ -40,7 +41,7 @@ pub fn run() {
 
     // execute greedy_1 algorithms (going through units and pick nodes greedily)
 
-    let greedy_1 = Greedy1::initialize(&locations, &units, &network);
+    let greedy_1 = Greedy1::initialize(loc.clone(), units.clone(), nw.clone());
     let schedule = greedy_1.solve();
 
 
@@ -57,7 +58,7 @@ pub fn run() {
     println!("uncovered nodes (penalty: {}):", schedule.total_cover_penalty());
 
     for node in schedule.uncovered_nodes(){
-        println!("\t{}", network.node(node));
+        println!("\t{}", nw.node(node));
     }
 
 }
