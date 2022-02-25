@@ -4,7 +4,7 @@ use crate::units::{Unit,UnitType};
 use crate::distance::Distance;
 use crate::base_types::{NodeId,UnitId,Penalty};
 use super::demand::Demand;
-use crate::train_formation::TrainFormation;
+use crate::schedule::train_formation::TrainFormation;
 
 use core::cmp::Ordering;
 

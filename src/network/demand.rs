@@ -1,5 +1,5 @@
 use crate::base_types::Penalty;
-use crate::train_formation::TrainFormation;
+use crate::schedule::train_formation::TrainFormation;
 pub(super) struct Demand {
     amount: u8
 }

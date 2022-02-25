@@ -1,7 +1,11 @@
 mod tour;
 use tour::Tour;
 
-use crate::train_formation::TrainFormation;
+mod path;
+use path::Path;
+
+pub(crate) mod train_formation;
+use train_formation::TrainFormation;
 
 use crate::network::Network;
 use crate::network::nodes::Node;
@@ -46,14 +50,14 @@ impl Schedule {
         self.tours.get(&unit).unwrap()
     }
 
-    pub(crate) fn assign(&self, unit: UnitId, node_sequence: Vec<NodeId>) -> Result<Schedule,String> {
-        let new_nodes = node_sequence.clone();
+    pub(crate) fn assign_path(&self, unit: UnitId, path: Path) -> Result<Schedule,String> {
+        let new_nodes = path.clone();
 
         let mut tours = self.tours.clone(); // lazy clone
         let tour = tours.get(&unit).unwrap();
 
         // insert sequence into tour
-        let (new_tour, removed_nodes) = tour.insert(node_sequence)?;
+        let (new_tour, removed_nodes) = tour.insert(path)?;
 
         tours.insert(unit, new_tour);
 
@@ -81,13 +85,20 @@ impl Schedule {
         Ok(Schedule{tours,covered_by,uncovered_nodes,objective_value:None,loc:self.loc.clone(),units:self.units.clone(),nw:self.nw.clone()})
     }
 
-    /// simulates inserting the node_sequence into the tour of unit. Return all nodes that would
-    /// have been removed from the tour.
-    pub(crate) fn assign_test(&self, unit: UnitId, node_sequence: Vec<NodeId>) -> Result<Vec<NodeId>,String> {
-        let tour: Tour = self.tours.get(&unit).unwrap().clone();
-        let result = tour.insert(node_sequence)?;
-        Ok(result.1)
+    pub(crate) fn assign_node(&self, unit: UnitId, node: NodeId) -> Result<Schedule,String> {
+        self.assign_path(unit, Path::new(vec!(node),self.loc.clone(),self.nw.clone()))
+    }
 
+    /// simulates inserting the node_sequence into the tour of unit. Return all nodes (as a Path) that would
+    /// have been removed from the tour.
+    pub(crate) fn conflict_path(&self, unit: UnitId, path: Path) -> Result<Path,String> {
+        let tour: Tour = self.tours.get(&unit).unwrap().clone();
+        let result = tour.insert(path)?;
+        Ok(result.1)
+    }
+
+    pub(crate) fn conflict_node(&self, unit: UnitId, node: NodeId) -> Result<Path, String> {
+        self.conflict_path(unit, Path::new(vec!(node), self.loc.clone(), self.nw.clone()))
     }
 
     fn cover_penalty_of(&self, node: NodeId) -> Penalty {

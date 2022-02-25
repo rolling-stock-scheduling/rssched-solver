@@ -5,7 +5,7 @@ use std::fmt;
 use std::rc::Rc;
 
 #[derive(Clone)]
-pub(super) struct TrainFormation {
+pub(crate) struct TrainFormation {
     formation: Vec<UnitId>,
     flipped: bool, // if flipped = false, then formation[0] is first, formation[1] second, ...; if flipped = true then formation[0] is last, formation[1] next-to-last ...
     units: Rc<Units>

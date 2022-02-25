@@ -2,7 +2,6 @@ mod base_types;
 mod time;
 mod distance;
 mod utilities;
-mod train_formation;
 
 mod locations;
 mod units;
