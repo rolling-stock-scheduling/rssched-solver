@@ -4,6 +4,9 @@ use tour::Tour;
 mod path;
 use path::Path;
 
+mod objective;
+use objective::Objective;
+
 pub(crate) mod train_formation;
 use train_formation::TrainFormation;
 
@@ -13,7 +16,6 @@ use crate::units::Units;
 use crate::locations::Locations;
 use crate::distance::Distance;
 use crate::base_types::{NodeId,UnitId,Penalty};
-use crate::objective::Objective;
 
 use std::collections::VecDeque;
 use im::{HashSet,HashMap};

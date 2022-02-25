@@ -7,7 +7,6 @@ mod locations;
 mod units;
 mod network;
 
-mod objective;
 mod schedule;
 
 
