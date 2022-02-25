@@ -67,6 +67,34 @@ impl Tour {
         Ok(Tour::new_trusted(self.unit, new_tour_nodes,self.loc.clone(),self.units.clone(),self.nw.clone()))
     }
 
+    /// remove a part of the tour. The subpath between 'from' and 'to' is removed and the new
+    /// shortened Tour as well as the removed nodes (as Path) are returned.
+    /// Fails if either 'from' or 'to' are not part of the Tour or if the Start or EndNode would
+    /// get removed.
+    pub(crate) fn remove(&self, from: NodeId, to: NodeId) -> Result<(Tour, Path),String> {
+
+        let start_position = self.nodes.iter().position(|&n| n == from).ok_or("'from' is not part of the Tour")?;
+        let end_position = self.nodes.iter().position(|&n| n == to).ok_or("'to' is not part of the Tour")?;
+        if start_position == 0 {
+            return Err(String::from("StartNode cannot be removed."));
+        }
+        if start_position == self.nodes.len()-1 {
+            return Err(String::from("EndNode cannot be removed."));
+        }
+        if start_position > end_position {
+            return Err(String::from("'from' comes after 'to'."));
+        }
+
+        if !self.nw.can_reach(self.nodes[start_position-1],self.nodes[end_position+1]) {
+            return Err(String::from("Strange! Removing nodes make the tour invalid"));
+        }
+        let mut tour_nodes: Vec<NodeId> = self.nodes[..start_position].iter().cloned().collect();
+        tour_nodes.extend(self.nodes[end_position..].iter().cloned());
+        let removed_nodes: Vec<NodeId> = self.nodes[start_position..end_position].iter().cloned().collect();
+
+        Ok((Tour::new_trusted(self.unit, tour_nodes,self.loc.clone(),self.units.clone(),self.nw.clone()), Path::new_trusted(removed_nodes,self.loc.clone(),self.nw.clone())))
+    }
+
     pub(super) fn conflict(&self, path: &Path) -> Result<Path,String> {
 
         let (start_pos,end_pos) = self.get_insert_positions(&path)?;
