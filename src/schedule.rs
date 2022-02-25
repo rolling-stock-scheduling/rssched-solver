@@ -52,14 +52,20 @@ impl Schedule {
         self.tours.get(&unit).unwrap()
     }
 
-    pub(crate) fn assign_path(&self, unit: UnitId, path: Path) -> Result<Schedule,String> {
+    /// inserts the path into the tour of unit. All conflicting nodes are removed from the tour.
+    /// If path ends with an endnode it is replaces the old endpoint. (Path is suffix of the tour.)
+    /// Otherwise the path must reach the old endnode.
+    pub(crate) fn override_assign(&self, unit: UnitId, path: Path) -> Result<Schedule,String> {
+
         let new_nodes = path.clone();
+
 
         let mut tours = self.tours.clone(); // lazy clone
         let tour = tours.get(&unit).unwrap();
 
         // insert sequence into tour
-        let (new_tour, removed_nodes) = tour.insert(path)?;
+        let removed_nodes = tour.conflict(&path)?;
+        let new_tour = tour.insert(path)?;
 
         tours.insert(unit, new_tour);
 
@@ -87,20 +93,27 @@ impl Schedule {
         Ok(Schedule{tours,covered_by,uncovered_nodes,objective_value:None,loc:self.loc.clone(),units:self.units.clone(),nw:self.nw.clone()})
     }
 
-    pub(crate) fn assign_node(&self, unit: UnitId, node: NodeId) -> Result<Schedule,String> {
-        self.assign_path(unit, Path::new(vec!(node),self.loc.clone(),self.nw.clone()))
+    pub(crate) fn assign(&self, unit: UnitId, path: Path) -> Result<Schedule, String> {
+        if !self.conflict(unit, &path)?.is_empty() {
+            return Err(String::from("There are conflcits. Abort assign()!"));
+        }
+        self.override_assign(unit, path)
+    }
+
+    pub(crate) fn assign_single_node(&self, unit: UnitId, node: NodeId) -> Result<Schedule,String> {
+        self.override_assign(unit, Path::new(vec!(node),self.loc.clone(),self.nw.clone()))
     }
 
     /// simulates inserting the node_sequence into the tour of unit. Return all nodes (as a Path) that would
     /// have been removed from the tour.
-    pub(crate) fn conflict_path(&self, unit: UnitId, path: Path) -> Result<Path,String> {
+    pub(crate) fn conflict(&self, unit: UnitId, path: &Path) -> Result<Path,String> {
         let tour: Tour = self.tours.get(&unit).unwrap().clone();
-        let result = tour.insert(path)?;
-        Ok(result.1)
+        let result = tour.conflict(path)?;
+        Ok(result)
     }
 
-    pub(crate) fn conflict_node(&self, unit: UnitId, node: NodeId) -> Result<Path, String> {
-        self.conflict_path(unit, Path::new(vec!(node), self.loc.clone(), self.nw.clone()))
+    pub(crate) fn conflict_single_node(&self, unit: UnitId, node: NodeId) -> Result<Path, String> {
+        self.conflict(unit, &Path::new(vec!(node), self.loc.clone(), self.nw.clone()))
     }
 
     fn cover_penalty_of(&self, node: NodeId) -> Penalty {
@@ -211,7 +224,7 @@ impl Schedule {
             let pos = end_nodes.iter().position(|&e| nw.node(e).unit_type() == unit.unit_type() && nw.can_reach(start_node, e)).expect(format!("No suitable end_node found for start_node: {}", start_node).as_str());
             let end_node = end_nodes.remove(pos).unwrap();
 
-            tours.insert(unit_id, Tour::new(unit_id, vec!(start_node, end_node),loc.clone(),nw.clone()));
+            tours.insert(unit_id, Tour::new(unit_id, vec!(start_node, end_node),loc.clone(),units.clone(),nw.clone()));
 
             covered_by.insert(start_node, TrainFormation::new(vec!(unit_id), units.clone()));
             covered_by.insert(end_node, TrainFormation::new(vec!(unit_id), units.clone()));

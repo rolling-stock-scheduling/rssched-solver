@@ -2,6 +2,7 @@ use std::fmt;
 use crate::distance::Distance;
 use crate::time::{Time, Duration};
 use crate::locations::Locations;
+use crate::units::Units;
 use crate::network::Network;
 use crate::network::nodes::Node;
 use crate::base_types::{NodeId,UnitId};
@@ -22,6 +23,7 @@ pub(crate) struct Tour {
     unit: UnitId,
     nodes: Vec<NodeId>, // nodes will always be sorted by start_time
     loc: Rc<Locations>,
+    units: Rc<Units>,
     nw: Rc<Network>,
 }
 
@@ -54,18 +56,43 @@ impl Tour {
     /// Assumes that provided node sequence is feasible.
     /// Panics if sequence is not reachable from the start node, and if end_node cannot be reached,
     /// sequence must itself end with a end_node
-    pub(super) fn insert(&self, path: Path) -> Result<(Tour,Path),String> {
-        let first = path.first();
-        let last = path.last();
+    pub(super) fn insert(&self, path: Path) -> Result<Tour,String> {
 
-        let start_pos = self.latest_node_reaching(first).ok_or_else(|| format!("Unit, cannot reach node"))?;
-        let end_pos = self.earliest_node_reached_by(last).ok_or_else(|| format!("Cannot insert sequence to path of unit {}, as the end_point cannot be reached!", self.unit))?;
+        let (start_pos,end_pos) = self.get_insert_positions(&path)?;
 
         let mut new_tour_nodes = self.nodes.clone();
         // remove all elements strictly between start_pos and end_pos and replace them by
         // node_sequence. Removed nodes are returned.
-        let removed_nodes = new_tour_nodes.splice(start_pos+1..end_pos,path.consume()).collect();
-        Ok((Tour::new_trusted(self.unit, new_tour_nodes,self.loc.clone(),self.nw.clone()),Path::new_trusted(removed_nodes,self.loc.clone(),self.nw.clone())))
+        new_tour_nodes.splice(start_pos+1..end_pos,path.consume());
+        Ok(Tour::new_trusted(self.unit, new_tour_nodes,self.loc.clone(),self.units.clone(),self.nw.clone()))
+    }
+
+    pub(super) fn conflict(&self, path: &Path) -> Result<Path,String> {
+
+        let (start_pos,end_pos) = self.get_insert_positions(&path)?;
+
+        let conflicted_nodes = self.nodes[start_pos+1..end_pos].iter().cloned().collect();
+        Ok(Path::new_trusted(conflicted_nodes,self.loc.clone(),self.nw.clone()))
+    }
+
+    fn get_insert_positions(&self, path: &Path) -> Result<(usize,usize), String> {
+        let first = path.first();
+        let last = path.last();
+
+        let mut has_endnode = false;
+        let last_node = self.nw.node(last);
+        if matches!(last_node, Node::End(_)) {
+            if last_node.unit_type() != self.units.get_unit(self.unit).unit_type() {
+                return Err(String::from("Unit types do not match!"));
+            }
+            has_endnode = true;
+        }
+
+        let start_pos = self.latest_node_reaching(first).ok_or_else(|| format!("Unit, cannot reach node"))?;
+        let end_pos = if has_endnode { self.nodes.len()
+            } else {
+            self.earliest_node_reached_by(last).ok_or_else(|| format!("Cannot insert path to tour of unit {}, as it does not end with an EndPoint and the old EndPoint cannot be reached!", self.unit))? };
+        Ok((start_pos,end_pos))
     }
 
     fn latest_node_reaching(&self, node: NodeId) -> Option<Position>{
@@ -147,7 +174,7 @@ impl Tour {
     /// * end with an EndNode
     /// * only Service or MaintenanceNodes in the middle
     /// * each node can reach is successor
-    pub(super) fn new(unit: UnitId, nodes: Vec<NodeId>, loc: Rc<Locations>,nw: Rc<Network>) -> Tour {
+    pub(super) fn new(unit: UnitId, nodes: Vec<NodeId>, loc: Rc<Locations>, units: Rc<Units>, nw: Rc<Network>) -> Tour {
         assert!(matches!(nw.node(nodes[0]),Node::Start(_)), "Tour needs to start with a StartNode");
         assert!(matches!(nw.node(nodes[nodes.len()-1]), Node::End(_)), "Tour needs to end with a EndNode");
         for i in 1..nodes.len() - 1 {
@@ -157,12 +184,12 @@ impl Tour {
         for (&a,&b) in nodes.iter().tuple_windows() {
             assert!(nw.can_reach(a,b),"Not a valid Tour");
         }
-        Tour{unit, nodes, loc, nw}
+        Tour{unit, nodes, loc, units, nw}
     }
 
     /// Creates a new tour from a vector of NodeIds. Trusts that the vector leads to a valid Tour.
-    pub(super) fn new_trusted(unit: UnitId, nodes: Vec<NodeId>, loc: Rc<Locations>,nw: Rc<Network>) -> Tour {
-        Tour{unit, nodes, loc, nw}
+    pub(super) fn new_trusted(unit: UnitId, nodes: Vec<NodeId>, loc: Rc<Locations>, units: Rc<Units>, nw: Rc<Network>) -> Tour {
+        Tour{unit, nodes, loc, units, nw}
     }
 }
 

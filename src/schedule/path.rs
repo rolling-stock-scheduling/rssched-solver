@@ -49,4 +49,8 @@ impl Path {
     pub(crate) fn consume(self) -> Vec<NodeId> {
         self.node_sequence
     }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.node_sequence.is_empty()
+    }
 }
