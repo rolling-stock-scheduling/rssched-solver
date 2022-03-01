@@ -11,7 +11,7 @@ pub(crate) struct Units {
     units: HashMap<UnitId, Unit>,
 }
 
-
+#[derive(Clone)]
 pub(crate) struct Unit {
     id: UnitId,
     unit_type: UnitType,

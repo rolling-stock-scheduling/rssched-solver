@@ -1,6 +1,9 @@
 use crate::base_types::Penalty;
+use crate::units::UnitType;
 use crate::schedule::train_formation::TrainFormation;
-pub(super) struct Demand {
+
+#[derive(Clone,Copy)]
+pub(crate) struct Demand {
     amount: u8
 }
 
@@ -11,6 +14,14 @@ impl Demand {
             panic!("The Demand is smaller than the train-length");
         }
         self.amount as Penalty - train.len() as Penalty
+    }
+
+    pub(crate) fn get_valid_types(&self) -> Vec<UnitType> {
+        vec!(UnitType::Standard; self.amount as usize)
+    }
+
+    pub(crate) fn number_of_units(&self) -> u8 {
+        self.amount
     }
 }
 

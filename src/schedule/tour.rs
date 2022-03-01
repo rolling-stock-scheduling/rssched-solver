@@ -2,11 +2,11 @@ use std::fmt;
 use crate::distance::Distance;
 use crate::time::{Time, Duration};
 use crate::locations::Locations;
-use crate::units::Units;
+use crate::units::UnitType;
 use crate::network::Network;
 use crate::network::nodes::Node;
-use crate::base_types::{NodeId,UnitId};
-use crate::schedule::path::Path;
+use crate::base_types::NodeId;
+use crate::schedule::path::{Path,Segment};
 
 use itertools::Itertools;
 
@@ -14,16 +14,17 @@ use std::rc::Rc;
 
 type Position = usize; // the position within the tour from 0 to nodes.len()-1
 
-/// this represents a tour of a single unit. It always start at the StartNode of the unit and ends
-/// with an EndNode that has the type of the unit.
-/// It should be an immutable objects. So whenever some modification is applied a copy of the tour
+/// this represents a tour of a single unit (or dummy unit). For real units it always start at the StartNode of the unit and ends
+/// with an EndNode that has the type of the unit. For dummy units only the type must fit.
+/// It is an immutable objects. So whenever some modification is applied a copy of the tour
 /// is created.
 #[derive(Clone)]
 pub(crate) struct Tour {
-    unit: UnitId,
+    unit_type: UnitType,
     nodes: Vec<NodeId>, // nodes will always be sorted by start_time
+    is_dummy: bool,
+
     loc: Rc<Locations>,
-    units: Rc<Units>,
     nw: Rc<Network>,
 }
 
@@ -36,12 +37,20 @@ impl Tour {
         *self.nodes.last().unwrap()
     }
 
-    pub(crate) fn distance(&self) -> Distance {
-        let service_length: Distance = self.nodes.iter().map(|&n| self.nw.node(n).length()).sum();
+    pub(crate) fn first_node(&self) -> NodeId {
+        *self.nodes.first().unwrap()
+    }
 
-        let dead_head_length = self.nodes.iter().tuple_windows().map(
+    pub(crate) fn len(&self) -> usize {
+        self.nodes.len()
+    }
+
+    pub(crate) fn distance(&self) -> Distance {
+        let service_distance: Distance = self.nodes.iter().map(|&n| self.nw.node(n).travel_distance()).sum();
+
+        let dead_head_distance = self.nodes.iter().tuple_windows().map(
             |(&a,&b)| self.loc.distance(self.nw.node(a).end_location(),self.nw.node(b).start_location())).sum();
-        service_length + dead_head_length
+        service_distance + dead_head_distance
     }
 
     pub(crate) fn travel_time(&self) -> Duration {
@@ -51,144 +60,183 @@ impl Tour {
         service_tt + dead_head_tt
     }
 
+    /// return the overhead_time (dead head travel time + idle time) of the tour.
+    pub(crate) fn overhead_time(&self) -> Duration {
+        self.nodes.iter().tuple_windows().map(|(&a,&b)| self.nw.node(b).start_time() - self.nw.node(a).end_time()).sum()
+    }
+
+    pub(crate) fn sub_path(&self, segment: Segment) -> Result<Path,String> {
+        let start_pos = self.earliest_not_reaching_node(segment.start()).ok_or(String::from("segment.start() not part of Tour."))?;
+        if segment.start() != self.nodes[start_pos] {
+            return Err(String::from("segment.start() not part of Tour."));
+        }
+        let end_pos = self.earliest_not_reaching_node(segment.end()).ok_or(String::from("segment.end() not part of Tour."))?;
+        if segment.end() != self.nodes[end_pos] {
+            return Err(String::from("segment.end() not part of Tour."));
+        }
+
+        Ok(Path::new_trusted(self.nodes[start_pos..end_pos+1].iter().copied().collect(), self.loc.clone(), self.nw.clone()))
+
+    }
+
     /// inserts the provided node sequence on the correct position (time-wise). The sequence will
     /// stay uninterrupted. All removed nodes (due to time-clashes) are returned.
     /// Assumes that provided node sequence is feasible.
-    /// Panics if sequence is not reachable from the start node, and if end_node cannot be reached,
-    /// sequence must itself end with a end_node
+    /// For unit tours it fails if sequence is not reachable from the start node. If end_node cannot be reached,
+    /// sequence must itself end with a end_node (or it fails).
     pub(super) fn insert(&self, path: Path) -> Result<Tour,String> {
+        let segment = Segment::new(path.first(), path.last());
 
-        let (start_pos,end_pos) = self.get_insert_positions(&path)?;
+        let (start_pos,end_pos) = self.get_insert_positions(segment);
 
-        let mut new_tour_nodes = self.nodes.clone();
-        // remove all elements strictly between start_pos and end_pos and replace them by
+        self.test_if_valid_replacement(segment, start_pos, end_pos)?;
+
+        // remove all elements in start_pos..end_pos and replace them by
         // node_sequence. Removed nodes are returned.
-        new_tour_nodes.splice(start_pos+1..end_pos,path.consume());
-        Ok(Tour::new_trusted(self.unit, new_tour_nodes,self.loc.clone(),self.units.clone(),self.nw.clone()))
+        let mut new_tour_nodes = self.nodes.clone();
+        new_tour_nodes.splice(start_pos..end_pos,path.consume());
+        Ok(Tour::new_trusted(self.unit_type, new_tour_nodes, self.is_dummy, self.loc.clone(),self.nw.clone()))
     }
 
-    /// remove a part of the tour. The subpath between 'from' and 'to' is removed and the new
+    /// remove the segment of the tour. The subpath between segment.start() and segment.end() is removed and the new
     /// shortened Tour as well as the removed nodes (as Path) are returned.
-    /// Fails if either 'from' or 'to' are not part of the Tour or if the Start or EndNode would
+    /// Fails if either segment.start() or segment.end() are not part of the Tour or if the Start or EndNode would
     /// get removed.
-    pub(crate) fn remove(&self, from: NodeId, to: NodeId) -> Result<(Tour, Path),String> {
+    pub(crate) fn remove(&self, segment: Segment) -> Result<(Tour, Path),String> {
 
-        let start_position = self.nodes.iter().position(|&n| n == from).ok_or("'from' is not part of the Tour")?;
-        let end_position = self.nodes.iter().position(|&n| n == to).ok_or("'to' is not part of the Tour")?;
-        if start_position == 0 {
+        let start_position = self.nodes.iter().position(|&n| n == segment.start()).ok_or("segment.start() is not part of the Tour")?;
+        let end_position = self.nodes.iter().position(|&n| n == segment.end()).ok_or("segment.end() is not part of the Tour")?;
+
+        if !self.is_dummy && start_position == 0 {
             return Err(String::from("StartNode cannot be removed."));
         }
-        if start_position == self.nodes.len()-1 {
+        if !self.is_dummy && start_position == self.nodes.len()-1 {
             return Err(String::from("EndNode cannot be removed."));
         }
         if start_position > end_position {
-            return Err(String::from("'from' comes after 'to'."));
+            return Err(String::from("segment.start() comes after segment.end()."));
         }
 
-        if !self.nw.can_reach(self.nodes[start_position-1],self.nodes[end_position+1]) {
-            return Err(String::from("Strange! Removing nodes make the tour invalid"));
+        if start_position > 0 && end_position < self.nodes.len() - 1 && !self.nw.can_reach(self.nodes[start_position-1],self.nodes[end_position+1]) {
+            return Err(String::from("Strange! Removing nodes make the tour invalid. Dead_head travel time not consistent."));
         }
         let mut tour_nodes: Vec<NodeId> = self.nodes[..start_position].iter().cloned().collect();
-        tour_nodes.extend(self.nodes[end_position..].iter().cloned());
-        let removed_nodes: Vec<NodeId> = self.nodes[start_position..end_position].iter().cloned().collect();
+        tour_nodes.extend(self.nodes[end_position+1..].iter().cloned());
+        let removed_nodes: Vec<NodeId> = self.nodes[start_position..end_position+1].iter().cloned().collect();
 
-        Ok((Tour::new_trusted(self.unit, tour_nodes,self.loc.clone(),self.units.clone(),self.nw.clone()), Path::new_trusted(removed_nodes,self.loc.clone(),self.nw.clone())))
+        Ok((Tour::new_trusted(self.unit_type, tour_nodes, self.is_dummy, self.loc.clone(),self.nw.clone()), Path::new_trusted(removed_nodes,self.loc.clone(),self.nw.clone())))
     }
 
-    pub(super) fn conflict(&self, path: &Path) -> Result<Path,String> {
+    pub(super) fn conflict(&self, segment: Segment) -> Result<Path,String> {
 
-        let (start_pos,end_pos) = self.get_insert_positions(&path)?;
+        let (start_pos,end_pos) = self.get_insert_positions(segment);
 
-        let conflicted_nodes = self.nodes[start_pos+1..end_pos].iter().cloned().collect();
+        self.test_if_valid_replacement(segment, start_pos, end_pos)?;
+
+        let conflicted_nodes = self.nodes[start_pos..end_pos].iter().cloned().collect();
         Ok(Path::new_trusted(conflicted_nodes,self.loc.clone(),self.nw.clone()))
     }
 
-    fn get_insert_positions(&self, path: &Path) -> Result<(usize,usize), String> {
-        let first = path.first();
-        let last = path.last();
+    fn test_if_valid_replacement(&self, segment: Segment, start_pos: Position, end_pos: Position) -> Result<(), String> {
 
+        // first test if end nodes make sense:
         let mut has_endnode = false;
+        let last = segment.end();
         let last_node = self.nw.node(last);
         if matches!(last_node, Node::End(_)) {
-            if last_node.unit_type() != self.units.get_unit(self.unit).unit_type() {
+            if last_node.unit_type() != self.unit_type {
                 return Err(String::from("Unit types do not match!"));
+            }
+            if self.is_dummy {
+                return Err(String::from("Dummy-Tours cannot take EndNodes!"));
             }
             has_endnode = true;
         }
-
-        let start_pos = self.latest_node_reaching(first).ok_or_else(|| format!("Unit, cannot reach node"))?;
-        let end_pos = if has_endnode { self.nodes.len()
-            } else {
-            self.earliest_node_reached_by(last).ok_or_else(|| format!("Cannot insert path to tour of unit {}, as it does not end with an EndPoint and the old EndPoint cannot be reached!", self.unit))? };
-        Ok((start_pos,end_pos))
-    }
-
-    fn latest_node_reaching(&self, node: NodeId) -> Option<Position>{
-        if !self.nw.can_reach(self.nodes[0], node) {
-            None
-        } else {
-
-            let candidate = self.latest_arrival_before(self.nw.node(node).start_time(), 0, self.nodes.len());
-            match candidate {
-                None => None,
-                Some(p) => {
-                    let mut pos = p;
-                    while !self.nw.can_reach(self.nodes[pos],node) {
-                        pos -= 1;
-                    }
-                    Some(pos)
-                }
-            }
+        if end_pos == self.nodes.len() && !self.is_dummy && !has_endnode {
+            return Err(String::from("Cannot insert path to tour, as it does not end with an EndPoint and the old EndPoint cannot be reached!"));
         }
+
+        // test if start node makes sense:
+        if start_pos == 0 && !self.is_dummy {
+            return Err(String::from("Cannot replace the start node."));
+        }
+
+        Ok(())
+
     }
 
-    fn latest_arrival_before(&self, time: Time, left: Position, right: Position) -> Option<Position> {
+    /// return the range of the conflicting nodes. start..end must be replaced by path.
+    /// that means start is the first conflicting node and end-1 is the last conflciting node
+    fn get_insert_positions(&self, segment: Segment) -> (Position,Position) {
+        let first = segment.start();
+        let last = segment.end();
+
+
+        let start_pos = self.earliest_not_reaching_node(first).unwrap_or(self.nodes.len());
+        let end_pos = match self.latest_not_reached_by_node(last) {
+            None => 0,
+            Some(p) => p+1
+        };
+        (start_pos,end_pos)
+    }
+
+    fn earliest_not_reaching_node(&self, node: NodeId) -> Option<Position> {
+        if self.nw.can_reach(*self.nodes.last().unwrap(), node) {
+            return None; // all tour-nodes can reach node, even the last
+        }
+        let candidate = self.earliest_arrival_after(self.nw.node(node).start_time(), 0, self.nodes.len());
+        let mut pos = candidate.unwrap_or(self.nodes.len()-1);
+        while pos > 0 && !self.nw.can_reach(self.nodes[pos-1],node) {
+            pos -= 1;
+        }
+        Some(pos)
+    }
+
+    fn earliest_arrival_after(&self, time: Time, left: Position, right: Position) -> Option<Position> {
         if left+1 == right {
-            if self.nw.node(self.nodes[left]).end_time() <= time { Some(left) } else { None }
+            if self.nw.node(self.nodes[left]).end_time() >= time { Some(left) } else { None }
         } else {
             let mid = left + (right - left) / 2;
-            if self.nw.node(self.nodes[mid]).end_time() <= time {
-                self.latest_arrival_before(time, mid, right)
+            if self.nw.node(self.nodes[mid-1]).end_time() >= time {
+                self.earliest_arrival_after(time, left, mid)
             } else {
-                self.latest_arrival_before(time, left, mid)
+                self.earliest_arrival_after(time, mid, right)
             }
         }
     }
 
-    fn earliest_node_reached_by(&self, node: NodeId) -> Option<Position>{
-        if !self.nw.can_reach(node, *self.nodes.last().unwrap()) {
-            None
-        } else {
-
-            let candidate = self.earliest_departure_after(self.nw.node(node).end_time(), 0, self.nodes.len());
-            match candidate {
-                None => None,
-                Some(p) => {
-                    let mut pos = p;
-                    while !self.nw.can_reach(node, self.nodes[pos]) {
-                        pos += 1;
-                    }
-                    Some(pos)
-                }
-            }
+    /// computes the position of the latest tour-node that is not reached by node.
+    /// if node can reach all tour-nodes, None is returned.
+    fn latest_not_reached_by_node(&self, node: NodeId) -> Option<Position> {
+        if self.nw.can_reach(node, *self.nodes.first().unwrap()) {
+            return None; // node can reach all nodes, even the first
         }
+        // the candidate cannot be reached by node for sure.
+        let candidate = self.latest_departure_before(self.nw.node(node).end_time(), 0, self.nodes.len());
+        // but later nodes might also not be reached by node.
+
+        let mut pos = candidate.unwrap_or(0);
+        while pos < self.nodes.len()-1 && !self.nw.can_reach(node, self.nodes[pos+1]) {
+            pos += 1;
+        }
+        Some(pos)
     }
 
-    fn earliest_departure_after(&self, time: Time, left: Position, right: Position) -> Option<Position> {
+    fn latest_departure_before(&self, time: Time, left: Position, right: Position) -> Option<Position> {
         if left+1 == right {
-            if self.nw.node(self.nodes[left]).start_time() >= time { Some(left) } else { None }
+            if self.nw.node(self.nodes[left]).start_time() <= time { Some(left) } else { None }
         } else {
-            let mid = left + (right - left - 1) / 2;
-            if self.nw.node(self.nodes[mid]).start_time() >= time {
-                self.earliest_departure_after(time, left, mid+1)
+            let mid = left + (right - left) / 2;
+            if self.nw.node(self.nodes[mid]).start_time() <= time {
+                self.latest_departure_before(time, mid, right)
             } else {
-                self.earliest_departure_after(time, mid+1, right)
+                self.latest_departure_before(time, left, mid)
             }
         }
     }
 
     pub(crate) fn print(&self) {
-        println!("tour with {} nodes of length {} and travel time {}:", self.nodes.len(), self.distance(), self.travel_time());
+        println!("{}tour with {} nodes of length {} and travel time {}:", if self.is_dummy {"dummy-"} else {""}, self.nodes.len(), self.distance(), self.travel_time());
         for node in self.nodes.iter() {
             println!("\t\t* {}", self.nw.node(*node));
         }
@@ -202,7 +250,7 @@ impl Tour {
     /// * end with an EndNode
     /// * only Service or MaintenanceNodes in the middle
     /// * each node can reach is successor
-    pub(super) fn new(unit: UnitId, nodes: Vec<NodeId>, loc: Rc<Locations>, units: Rc<Units>, nw: Rc<Network>) -> Tour {
+    pub(super) fn new(unit_type: UnitType, nodes: Vec<NodeId>, loc: Rc<Locations>, nw: Rc<Network>) -> Tour {
         assert!(matches!(nw.node(nodes[0]),Node::Start(_)), "Tour needs to start with a StartNode");
         assert!(matches!(nw.node(nodes[nodes.len()-1]), Node::End(_)), "Tour needs to end with a EndNode");
         for i in 1..nodes.len() - 1 {
@@ -212,18 +260,30 @@ impl Tour {
         for (&a,&b) in nodes.iter().tuple_windows() {
             assert!(nw.can_reach(a,b),"Not a valid Tour");
         }
-        Tour{unit, nodes, loc, units, nw}
+        Tour{unit_type, nodes, is_dummy: false, loc, nw}
+    }
+
+    pub(super) fn new_dummy(unit_type: UnitType, nodes: Vec<NodeId>, loc: Rc<Locations>, nw: Rc<Network>) -> Tour {
+        for (&a,&b) in nodes.iter().tuple_windows() {
+            assert!(nw.can_reach(a,b),"Not a valid Dummy-Tour");
+        }
+        Tour{unit_type, nodes, is_dummy: true, loc, nw}
     }
 
     /// Creates a new tour from a vector of NodeIds. Trusts that the vector leads to a valid Tour.
-    pub(super) fn new_trusted(unit: UnitId, nodes: Vec<NodeId>, loc: Rc<Locations>, units: Rc<Units>, nw: Rc<Network>) -> Tour {
-        Tour{unit, nodes, loc, units, nw}
+    pub(super) fn new_trusted(unit_type: UnitType, nodes: Vec<NodeId>, is_dummy: bool, loc: Rc<Locations>, nw: Rc<Network>) -> Tour {
+        Tour{unit_type, nodes, is_dummy, loc, nw}
+    }
+
+    pub(super) fn new_dummy_by_path(unit_type: UnitType, path: Path, loc: Rc<Locations>, nw: Rc<Network>) -> Tour {
+        Tour{unit_type, nodes:path.consume(), is_dummy: true, loc, nw}
     }
 }
 
 
 impl fmt::Display for Tour {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "tour of {} with {} nodes", self.unit, self.nodes.len())
+        write!(f, "{}tour for {:?} with {} nodes", if self.is_dummy {"dummy-"} else {""}, self.unit_type, self.nodes.len())
     }
 }
+

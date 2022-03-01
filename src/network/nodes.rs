@@ -27,7 +27,7 @@ pub(crate) struct ServiceTrip {
     destination: Location,
     departure: Time,
     arrival: Time,
-    length: Distance,
+    travel_distance: Distance,
     demand: Demand,
 }
 
@@ -83,6 +83,10 @@ impl Node {
         }
     }
 
+    pub(crate) fn duration(&self) -> Duration {
+        self.end_time() - self.start_time()
+    }
+
     pub(crate) fn start_location(&self) -> Location {
         match self {
             Node::Service(s) => s.origin,
@@ -101,9 +105,9 @@ impl Node {
         }
     }
 
-    pub(crate) fn length(&self) -> Distance {
+    pub(crate) fn travel_distance(&self) -> Distance {
         match self {
-            Node::Service(s) => s.length,
+            Node::Service(s) => s.travel_distance,
             _ => Distance::zero()
         }
     }
@@ -122,11 +126,20 @@ impl Node {
         }
     }
 
+    pub(crate) fn demand(&self) -> Demand {
+        match self {
+            Node::Service(s) => s.demand,
+            Node::Maintenance(_) => Demand::new(1),
+            Node::Start(_) => Demand::new(1),
+            Node::End(_) => Demand::new(1)
+        }
+    }
+
     pub(crate) fn cover_penalty(&self, train: &TrainFormation) -> Penalty {
         match self {
             Node::Service(s) => s.demand.compute_penalty(train),
             Node::Maintenance(m) => if train.len() == 1 {PENALTY_ZERO} else {PENALTY_UNUSED_MAINTENANCE},
-            Node::Start(s) => if train.len() == 1 && *train.get().first().unwrap() == s.unit_id {PENALTY_ZERO} else {PENALTY_INF},
+            Node::Start(s) => if train.len() == 1 && train.iter().next().unwrap() == s.unit_id {PENALTY_ZERO} else {PENALTY_INF},
             Node::End(e) => if train.len() == 1 && train.get_as_units().first().unwrap().unit_type() == e.unit_type {PENALTY_ZERO} else {PENALTY_INF}
         }
     }
@@ -165,14 +178,14 @@ impl Node {
 impl Node {
 
     // factory for creating a service trip
-    pub(super) fn create_service_node(id: NodeId, origin: Location, destination: Location, departure: Time, arrival: Time, length: Distance, demand: Demand) -> Node {
+    pub(super) fn create_service_node(id: NodeId, origin: Location, destination: Location, departure: Time, arrival: Time, travel_distance: Distance, demand: Demand) -> Node {
         Node::Service(ServiceTrip{
             id,
             origin,
             destination,
             departure,
             arrival,
-            length,
+            travel_distance,
             demand}
         )
     }
@@ -215,7 +228,7 @@ impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Node::Service(s) =>
-                write!(f,"{} from {} ({}) to {} ({}), {}", s.id, s.origin, s.departure, s.destination, s.arrival, s.length),
+                write!(f,"{} from {} ({}) to {} ({}), {}", s.id, s.origin, s.departure, s.destination, s.arrival, s.travel_distance),
             Node::Maintenance(m) =>
                 write!(f,"{} at {} (from {} to {})", m.id, m.location, m.start, m.end),
             Node::Start(s) =>

@@ -17,7 +17,18 @@ pub(crate) struct Path {
     nw: Rc<Network>
 }
 
-impl Path{
+#[derive(Debug,Clone,Copy)]
+pub(crate) struct Segment {
+    start: NodeId,
+    end: NodeId
+}
+
+////////////////////////////////////////////
+///////////////// Path /////////////////////
+////////////////////////////////////////////
+
+// static functions
+impl Path {
 
     /// crates a new Path and asserts that it is a path in the network
     pub(crate) fn new(node_sequence: Vec<NodeId>, loc: Rc<Locations>, nw: Rc<Network>) -> Path {
@@ -33,6 +44,7 @@ impl Path{
     }
 }
 
+// methods
 impl Path {
     pub(crate) fn iter(&self) -> impl Iterator<Item=&NodeId> + '_ {
         self.node_sequence.iter()
@@ -52,5 +64,29 @@ impl Path {
 
     pub(crate) fn is_empty(&self) -> bool {
         self.node_sequence.is_empty()
+    }
+}
+
+
+////////////////////////////////////////////
+////////////// Segment /////////////////////
+////////////////////////////////////////////
+
+
+// static functions
+impl Segment {
+    pub(crate) fn new(start: NodeId, end: NodeId) -> Segment {
+        Segment{start, end}
+    }
+}
+
+// methods
+impl Segment {
+    pub(crate) fn start(&self) -> NodeId {
+        self.start
+    }
+
+    pub(crate) fn end(&self) -> NodeId {
+        self.end
     }
 }

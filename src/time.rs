@@ -292,6 +292,23 @@ impl Add for Duration {
     }
 }
 
+impl Sub for Duration {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        assert!(self > other, "Cannot subtract a longer duration from a shorter duration.");
+        match self {
+            Duration::Infinity => Duration::Infinity,
+            Duration::Length(l1) => {
+                match other {
+                    Duration::Infinity => panic!("Cannot subtract Infinity"),
+                    Duration::Length(l2) => Duration::Length(l1 - l2)
+                }
+            }
+        }
+    }
+}
+
 impl std::iter::Sum<Self> for Duration {
     fn sum<I>(iter: I) -> Self
     where
@@ -321,6 +338,26 @@ impl Add for DurationLength {
         let sum_of_minutes = self.minutes + other.minutes;
         let minutes = sum_of_minutes % 60;
         let hours = self.hours + other.hours + (sum_of_minutes/60) as u32;
+        DurationLength{
+            hours,
+            minutes
+        }
+    }
+}
+
+impl Sub for DurationLength {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        assert!(self > other, "Cannot subtract a longer duration from a shorter duration.");
+        let mut self_minutes = self.minutes;
+        let mut self_hours = self.hours;
+        if self.minutes < other.minutes {
+            self_minutes += 60;
+            self_hours -= 1;
+        }
+        let minutes = self_minutes - other.minutes;
+        let hours = self_hours - other.hours;
         DurationLength{
             hours,
             minutes

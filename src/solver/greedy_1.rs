@@ -22,11 +22,13 @@ impl Solver for Greedy1 {
         let mut schedule = Schedule::initialize(self.loc.clone(), self.units.clone(), self.nw.clone());
         for unit_id in self.units.get_all() {
             let mut node = self.nw.start_node_of(unit_id);
-            let mut new_node_opt = schedule.uncovered_successors(node).find(|&n| schedule.conflict_single_node(unit_id,n).is_ok());
+            let mut new_node_opt = schedule.uncovered_successors(node).find(|(n,_)| schedule.conflict_single_node(*n, unit_id).is_ok());
+
             while new_node_opt.is_some() {
-                node = new_node_opt.unwrap();
-                schedule = schedule.assign_single_node(unit_id, node).unwrap();
-                new_node_opt = schedule.uncovered_successors(node).find(|&n| schedule.conflict_single_node(unit_id,n).is_ok());
+                let (new_node, dummy) = new_node_opt.unwrap();
+                node = new_node;
+                schedule = schedule.reassign_all(dummy, unit_id).unwrap();
+                new_node_opt = schedule.uncovered_successors(node).find(|(n,_)| schedule.conflict_single_node(*n, unit_id).is_ok());
             }
         }
         schedule
