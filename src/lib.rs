@@ -44,9 +44,8 @@ pub fn run() {
 
     // print some properties of the resulting schedule to the terminal:
     schedule.print();
-    println!("total distance: {}", schedule.total_distance());
-    println!("total overhead time: {} (MIN: {})", schedule.total_overhead_time(), nw.minimal_overhead());
 
+    schedule.objective_value().print();
 
     // manual_test(units.clone(), schedule);
 
@@ -122,5 +121,12 @@ fn manual_test(units: Rc<Units>, schedule: Schedule) {
         println!("dummy-unit: {}", dummy);
         newest_schedule.tour_of(dummy).print();
     }
+
+    println!("BEFORE:");
+    schedule.objective_value().print();
+    println!("MIDDLE:");
+    new_schedule.objective_value().print();
+    println!("AFTER:");
+    newest_schedule.objective_value().print();
 
 }

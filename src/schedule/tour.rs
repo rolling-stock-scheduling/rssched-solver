@@ -48,9 +48,13 @@ impl Tour {
     pub(crate) fn distance(&self) -> Distance {
         let service_distance: Distance = self.nodes.iter().map(|&n| self.nw.node(n).travel_distance()).sum();
 
-        let dead_head_distance = self.nodes.iter().tuple_windows().map(
-            |(&a,&b)| self.loc.distance(self.nw.node(a).end_location(),self.nw.node(b).start_location())).sum();
+        let dead_head_distance = self.dead_head_distance();
         service_distance + dead_head_distance
+    }
+
+    pub(crate) fn dead_head_distance(&self) -> Distance {
+        self.nodes.iter().tuple_windows().map(
+            |(&a,&b)| self.loc.distance(self.nw.node(a).end_location(),self.nw.node(b).start_location())).sum()
     }
 
     pub(crate) fn travel_time(&self) -> Duration {
@@ -127,6 +131,10 @@ impl Tour {
         Ok((Tour::new_trusted(self.unit_type, tour_nodes, self.is_dummy, self.loc.clone(),self.nw.clone()), Path::new_trusted(removed_nodes,self.loc.clone(),self.nw.clone())))
     }
 
+    /// for a given segment (in general of another tour) returns all nodes that are conflicting
+    /// when the segment would have been inserted. These nodes form a path.
+    /// Fails if the segment insertion would not lead  to a valid Tour (for example start node
+    /// cannot reach segment.start(), or segment.end() cannot reach end node).
     pub(super) fn conflict(&self, segment: Segment) -> Result<Path,String> {
 
         let (start_pos,end_pos) = self.get_insert_positions(segment);
@@ -137,6 +145,20 @@ impl Tour {
         Ok(Path::new_trusted(conflicted_nodes,self.loc.clone(),self.nw.clone()))
     }
 
+    pub(crate) fn print(&self) {
+        println!("{}tour with {} nodes of length {} and travel time {}:", if self.is_dummy {"dummy-"} else {""}, self.nodes.len(), self.distance(), self.travel_time());
+        for node in self.nodes.iter() {
+            println!("\t\t* {}", self.nw.node(*node));
+        }
+    }
+}
+
+
+
+
+
+// private methods
+impl Tour {
     fn test_if_valid_replacement(&self, segment: Segment, start_pos: Position, end_pos: Position) -> Result<(), String> {
 
         // first test if end nodes make sense:
@@ -235,12 +257,6 @@ impl Tour {
         }
     }
 
-    pub(crate) fn print(&self) {
-        println!("{}tour with {} nodes of length {} and travel time {}:", if self.is_dummy {"dummy-"} else {""}, self.nodes.len(), self.distance(), self.travel_time());
-        for node in self.nodes.iter() {
-            println!("\t\t* {}", self.nw.node(*node));
-        }
-    }
 }
 
 impl Tour {

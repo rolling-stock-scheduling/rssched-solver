@@ -41,8 +41,6 @@ pub(crate) struct Schedule {
     dummy_tours: HashMap<UnitId, Tour>,
     dummy_counter: usize,
 
-    objective_value: Option<Objective>,
-
     loc: Rc<Locations>,
     units: Rc<Units>,
     nw: Rc<Network>,
@@ -66,6 +64,107 @@ impl Schedule {
 
     fn is_dummy(&self, unit: UnitId) -> bool {
         self.dummy_units.contains_key(&unit)
+    }
+
+    pub(crate) fn total_overhead_time(&self) -> Duration {
+        self.tours.values().map(|t| t.overhead_time()).sum()
+    }
+
+    pub(crate) fn overhead_time_of(&self, unit: UnitId) -> Duration {
+        self.tours.get(&unit).unwrap().overhead_time()
+    }
+
+    pub(crate) fn total_dummy_overhead_time(&self) -> Duration {
+        self.dummy_tours.values().map(|t| t.overhead_time()).sum()
+    }
+
+    pub(crate) fn total_distance(&self) -> Distance {
+        self.tours.values().map(|t| t.distance()).sum()
+    }
+
+    pub(crate) fn total_dead_head_distance(&self) -> Distance {
+        self.tours.values().map(|t| t.dead_head_distance()).sum()
+    }
+
+    pub(crate) fn number_of_dummy_units(&self) -> usize {
+        self.dummy_tours.keys().count()
+    }
+
+    pub(crate) fn objective_value(&self) -> Objective {
+        Objective::new(self.total_overhead_time(),self.number_of_dummy_units(),self.total_dummy_overhead_time(),self.total_dead_head_distance())
+    }
+
+    // returns the first (seen from head to tail) dummy_unit that covers the node.
+    // If node is fully-covered by real units, None is returned.
+    fn get_dummy_cover_of(&self, node: NodeId) -> Option<UnitId> {
+        self.covered_by.get(&node).unwrap().iter().filter(|u| self.dummy_units.contains_key(u)).next()
+    }
+
+    pub(crate) fn uncovered_nodes(&self) -> impl Iterator<Item = (NodeId,UnitId)> + '_ {
+        self.dummy_tours.iter().flat_map(|(u,t)| t.nodes_iter().map(|&n| (n,*u)))
+    }
+
+    pub(crate) fn all_dummy_units(&self) -> Vec<UnitId> {
+        let mut dummy_units: Vec<UnitId> = self.dummy_units.keys().copied().collect();
+        dummy_units.sort();
+        dummy_units
+    }
+
+    pub(crate) fn uncovered_successors(&self, node: NodeId) -> impl Iterator<Item = (NodeId,UnitId)> + '_ {
+        self.nw.all_successors(node).filter_map(|n| self.get_dummy_cover_of(n).map(|u| (n,u)))
+    }
+
+    /// Simulates inserting the node_sequence into the tour of unit. Return all nodes (as a Path) that would
+    /// have been removed from the tour.
+    pub(crate) fn conflict(&self, segment: Segment, receiver: UnitId) -> Result<Path,String> {
+        let tour: Tour = self.tours.get(&receiver).unwrap().clone();
+        let result = tour.conflict(segment)?;
+        Ok(result)
+    }
+
+    pub(crate) fn conflict_single_node(&self, node: NodeId, receiver: UnitId) -> Result<Path, String> {
+        self.conflict(Segment::new(node,node),receiver)
+    }
+
+    pub(crate) fn conflict_all(&self, dummy_provider: UnitId, receiver: UnitId) -> Result<Path, String> {
+        let tour = self.dummy_tours.get(&dummy_provider).expect("Can only assign_all if provider is a dummy-unit.");
+        self.conflict(Segment::new(tour.first_node(), tour.last_node()), receiver)
+    }
+
+    /// Reassigns a path (given by a segment and a provider) to the tour of receiver.
+    /// Aborts if there are any conflicts.
+    pub(crate) fn reassign(&self, segment: Segment, provider: UnitId, receiver: UnitId) -> Result<Schedule, String> {
+        let path = self.tour_of(provider).sub_path(segment)?;
+        if !self.conflict(segment, receiver)?.is_empty() {
+            return Err(String::from("There are conflcits. Abort reassign()!"));
+        }
+        self.override_reassign(segment, provider, receiver)
+    }
+
+    /// Reassigns a single node of provider to the tour of receiver.
+    /// Aborts if there are any conflicts.
+    pub(crate) fn reassign_single_node(&self, node: NodeId, provider: UnitId, receiver: UnitId) -> Result<Schedule,String> {
+        self.reassign(Segment::new(node, node), provider, receiver)
+    }
+
+    /// Reassign the complete tour of the provider (must be dummy-unit) to the receiver.
+    /// Aborts if there are any conflicts.
+    pub(crate) fn reassign_all(&self, dummy_provider: UnitId, receiver: UnitId) -> Result<Schedule, String> {
+        let tour = self.dummy_tours.get(&dummy_provider).expect("Can only assign_all if provider is a dummy-unit.");
+        self.reassign(Segment::new(tour.first_node(), tour.last_node()), dummy_provider, receiver)
+    }
+
+    /// Reassigns a single node of provider to the tour of receiver.
+    /// Conflicts are removed from the tour.
+    pub(crate) fn override_reassign_single_node(&self, node: NodeId, provider: UnitId, receiver: UnitId) -> Result<Schedule,String> {
+        self.override_reassign(Segment::new(node, node), provider, receiver)
+    }
+
+    /// Reassign the complete tour of the provider (must be dummy-unit) to the receiver.
+    /// Conflicts are removed from the tour.
+    pub(crate) fn override_reassign_all(&self, dummy_provider: UnitId, receiver: UnitId) -> Result<Schedule, String> {
+        let tour = self.dummy_tours.get(&dummy_provider).expect("Can only assign_all if provider is a dummy-unit.");
+        self.override_reassign(Segment::new(tour.first_node(), tour.last_node()), dummy_provider, receiver)
     }
 
     /// Remove segment from prover's tour and inserts the nodes into the tour of receiver unit.
@@ -141,138 +240,9 @@ impl Schedule {
 
         }
 
-        Ok(Schedule{tours,covered_by,dummy_units,dummy_tours,dummy_counter,objective_value: None, loc:self.loc.clone(),units:self.units.clone(),nw:self.nw.clone()})
+        Ok(Schedule{tours,covered_by,dummy_units,dummy_tours,dummy_counter, loc:self.loc.clone(),units:self.units.clone(),nw:self.nw.clone()})
     }
 
-    /// Reassigns a path (given by a segment and a provider) to the tour of receiver.
-    /// Aborts if there are any conflicts.
-    pub(crate) fn reassign(&self, segment: Segment, provider: UnitId, receiver: UnitId) -> Result<Schedule, String> {
-        let path = self.tour_of(provider).sub_path(segment)?;
-        if !self.conflict(segment, receiver)?.is_empty() {
-            return Err(String::from("There are conflcits. Abort reassign()!"));
-        }
-        self.override_reassign(segment, provider, receiver)
-    }
-
-    /// Reassigns a single node of provider to the tour of receiver.
-    /// Aborts if there are any conflicts.
-    pub(crate) fn reassign_single_node(&self, node: NodeId, provider: UnitId, receiver: UnitId) -> Result<Schedule,String> {
-        self.reassign(Segment::new(node, node), provider, receiver)
-    }
-
-    /// Reassigns a single node of provider to the tour of receiver.
-    /// Conflicts are removed from the tour.
-    pub(crate) fn override_reassign_single_node(&self, node: NodeId, provider: UnitId, receiver: UnitId) -> Result<Schedule,String> {
-        self.override_reassign(Segment::new(node, node), provider, receiver)
-    }
-
-    /// Reassign the complete tour of the provider (must be dummy-unit) to the receiver.
-    /// Aborts if there are any conflicts.
-    pub(crate) fn reassign_all(&self, dummy_provider: UnitId, receiver: UnitId) -> Result<Schedule, String> {
-        let tour = self.dummy_tours.get(&dummy_provider).expect("Can only assign_all if provider is a dummy-unit.");
-        self.reassign(Segment::new(tour.first_node(), tour.last_node()), dummy_provider, receiver)
-
-    }
-
-    /// Reassign the complete tour of the provider (must be dummy-unit) to the receiver.
-    /// Conflicts are removed from the tour.
-    pub(crate) fn override_reassign_all(&self, dummy_provider: UnitId, receiver: UnitId) -> Result<Schedule, String> {
-        let tour = self.dummy_tours.get(&dummy_provider).expect("Can only assign_all if provider is a dummy-unit.");
-        self.override_reassign(Segment::new(tour.first_node(), tour.last_node()), dummy_provider, receiver)
-    }
-
-    /// Unassigns the path between 'from' and 'to' from the Tour of unit (including 'from' and
-    /// 'to').
-    /// Fails if either 'from' or 'to' is not part of the Tour or the Start or EndNode would have
-    /// been removed, or 'from' comes after 'to'.
-    // pub(crate) fn unassign(&self, unit: UnitId, from: NodeId, to: NodeId) -> Result<Schedule, String> {
-
-        // let mut tours = self.tours.clone(); // lazy clone
-        // let tour = tours.get(&unit).unwrap();
-
-        // let (new_tour, removed_nodes) = tour.remove(from, to)?;
-        // tours.insert(unit, new_tour);
-
-        // update covered_by:
-        // let mut covered_by = self.covered_by.clone(); // lazy clone
-        // for node in removed_nodes.iter() {
-            // println!("remove {}, from train {}", unit, covered_by.get(node).unwrap());
-            // covered_by.get_mut(node).unwrap().remove(unit);
-            // println!("train afterwards {}", covered_by.get(node).unwrap());
-        // }
-
-        // update uncovered_nodes:
-        // let mut uncovered_nodes = self.uncovered_nodes.clone(); // lazy clone
-        // for &node in removed_nodes.iter() {
-            // if self.nw.node(node).cover_penalty(covered_by.get(&node).unwrap()) != PENALTY_ZERO {
-                // uncovered_nodes.insert(node);
-            // }
-        // }
-
-        // Ok(Schedule{tours,covered_by,uncovered_nodes,objective_value:None,loc:self.loc.clone(),units:self.units.clone(),nw:self.nw.clone()})
-    // }
-
-    /// unassign a single node from the Tour of unit.
-    // pub(crate) fn unassign_single_node(&self, unit: UnitId, node: NodeId) -> Result<Schedule, String> {
-        // self.unassign(unit, node, node)
-    // }
-
-    /// Simulates inserting the node_sequence into the tour of unit. Return all nodes (as a Path) that would
-    /// have been removed from the tour.
-    pub(crate) fn conflict(&self, segment: Segment, receiver: UnitId) -> Result<Path,String> {
-        let tour: Tour = self.tours.get(&receiver).unwrap().clone();
-        let result = tour.conflict(segment)?;
-        Ok(result)
-    }
-
-    pub(crate) fn conflict_single_node(&self, node: NodeId, receiver: UnitId) -> Result<Path, String> {
-        self.conflict(Segment::new(node,node),receiver)
-    }
-
-    pub(crate) fn conflict_all(&self, dummy_provider: UnitId, receiver: UnitId) -> Result<Path, String> {
-        let tour = self.dummy_tours.get(&dummy_provider).expect("Can only assign_all if provider is a dummy-unit.");
-        self.conflict(Segment::new(tour.first_node(), tour.last_node()), receiver)
-    }
-
-
-
-
-    pub(crate) fn total_overhead_time(&self) -> Duration {
-        self.tours.values().map(|t| t.overhead_time()).sum()
-    }
-
-    fn overhead_time_of(&self, unit: UnitId) -> Duration {
-        self.tours.get(&unit).unwrap().overhead_time()
-    }
-
-
-    pub(crate) fn total_distance(&self) -> Distance {
-        self.tours.values().map(|t| t.distance()).sum()
-    }
-
-    pub(crate) fn is_fully_covered(&self) -> bool {
-        self.dummy_tours.is_empty()
-    }
-
-    // returns the first (seen from head to tail) dummy_unit that covers the node.
-    // If node is fully-covered by real units, None is returned.
-    fn get_dummy_cover_of(&self, node: NodeId) -> Option<UnitId> {
-        self.covered_by.get(&node).unwrap().iter().filter(|u| self.dummy_units.contains_key(u)).next()
-    }
-
-    pub(crate) fn uncovered_nodes(&self) -> impl Iterator<Item = (NodeId,UnitId)> + '_ {
-        self.dummy_tours.iter().flat_map(|(u,t)| t.nodes_iter().map(|&n| (n,*u)))
-    }
-
-    pub(crate) fn all_dummy_units(&self) -> Vec<UnitId> {
-        let mut dummy_units: Vec<UnitId> = self.dummy_units.keys().copied().collect();
-        dummy_units.sort();
-        dummy_units
-    }
-
-    pub(crate) fn uncovered_successors(&self, node: NodeId) -> impl Iterator<Item = (NodeId,UnitId)> + '_ {
-        self.nw.all_successors(node).filter_map(|n| self.get_dummy_cover_of(n).map(|u| (n,u)))
-    }
 
     pub(crate) fn write_to_csv(&self, path: &str) -> Result<(), Box<dyn Error>> {
         let mut writer = csv::WriterBuilder::new().delimiter(b';').from_path(path)?;
@@ -386,6 +356,6 @@ impl Schedule {
             covered_by.insert(node, TrainFormation::new(formation, units.clone()));
         }
 
-        Schedule{tours, covered_by, dummy_units, dummy_tours, dummy_counter, objective_value:None, loc, units, nw}
+        Schedule{tours, covered_by, dummy_units, dummy_tours, dummy_counter, loc, units, nw}
     }
 }
