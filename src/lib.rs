@@ -47,7 +47,10 @@ pub fn run(path: &str) {
 
     schedule.objective_value().print();
 
+    println!("Minimal overhead: {}", nw.minimal_overhead());
+
     // manual_test(units.clone(), schedule);
+    manual_swap_test(units.clone(), schedule);
 
 }
 
@@ -65,7 +68,37 @@ pub fn run(path: &str) {
 //////////////////////////////////////////
 //////////// manual test /////////////////
 //////////////////////////////////////////
+use crate::modifications::{Swap,PathExchange};
+fn manual_swap_test(units: Rc<Units>, schedule: Schedule) {
 
+    let unitA = *units.get_all().first().unwrap();
+    let unitB = *units.get_all().last().unwrap();
+
+    let tourA = schedule.tour_of(unitA);
+    let tourB = schedule.tour_of(unitB);
+
+    let node = *tourA.nodes_iter().nth(2).unwrap();
+
+    let swap = PathExchange::new(node, node, unitA, unitB);
+
+    let new_schedule = swap.apply(&schedule).unwrap();
+
+
+    println!("BEFORE:");
+    tourA.print();
+    println!("AFTER:");
+    new_schedule.tour_of(unitA).print();
+    println!("BEFORE:");
+    tourB.print();
+    println!("AFTER:");
+    new_schedule.tour_of(unitB).print();
+    
+    println!("\n\nAFTER dummy_tours:");
+    for dummy in new_schedule.all_dummy_units(){
+        println!("dummy-unit: {}", dummy);
+        new_schedule.tour_of(dummy).print();
+    }
+}
 
 fn manual_test(units: Rc<Units>, schedule: Schedule) {
     let unit1 = *units.get_all().first().unwrap();

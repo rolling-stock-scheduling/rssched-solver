@@ -296,7 +296,7 @@ impl Sub for Duration {
     type Output = Self;
 
     fn sub(self, other: Self) -> Self {
-        assert!(self > other, "Cannot subtract a longer duration from a shorter duration.");
+        assert!(self >= other, "Cannot subtract a longer duration from a shorter duration.");
         match self {
             Duration::Infinity => Duration::Infinity,
             Duration::Length(l1) => {

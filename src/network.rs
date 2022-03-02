@@ -92,6 +92,7 @@ impl Network {
         overhead = overhead - self.service_nodes.iter().chain(self.maintenance_nodes.iter()).map(
             |n| (0..self.node(*n).demand().number_of_units()).map(|_| self.node(*n).duration()).sum()).sum();
         // node that service trips are counted as big as their demand is
+
         overhead
     }
 }

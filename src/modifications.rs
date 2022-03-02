@@ -44,11 +44,11 @@ impl PathExchange {
 
 impl Swap for PathExchange {
     fn apply(&self, schedule: &Schedule) -> Result<Schedule, String> {
-        let (intermediateSchedule, new_dummy_opt) = schedule.override_reassign(self.segment, self.provider, self.receiver)?;
+        let (intermediate_schedule, new_dummy_opt) = schedule.override_reassign(self.segment, self.provider, self.receiver)?;
 
         match new_dummy_opt {
-            None => Ok(intermediateSchedule),
-            Some(new_dummy) => Ok(intermediateSchedule.fit_reassign_all(new_dummy, self.provider)?)
+            None => Ok(intermediate_schedule),
+            Some(new_dummy) => Ok(intermediate_schedule.fit_reassign_all(new_dummy, self.provider)?)
         }
     }
 }
