@@ -139,7 +139,7 @@ impl Schedule {
         if !self.conflict(segment, receiver)?.is_empty() {
             return Err(String::from("There are conflcits. Abort reassign()!"));
         }
-        self.override_reassign(segment, provider, receiver)
+        self.override_reassign(segment, provider, receiver).map(|tuple| tuple.0)
     }
 
     /// Reassigns a single node of provider to the tour of receiver.
@@ -157,23 +157,85 @@ impl Schedule {
 
     /// Reassigns a single node of provider to the tour of receiver.
     /// Conflicts are removed from the tour.
-    pub(crate) fn override_reassign_single_node(&self, node: NodeId, provider: UnitId, receiver: UnitId) -> Result<Schedule,String> {
+    pub(crate) fn override_reassign_single_node(&self, node: NodeId, provider: UnitId, receiver: UnitId) -> Result<(Schedule, Option<UnitId>),String> {
         self.override_reassign(Segment::new(node, node), provider, receiver)
     }
 
     /// Reassign the complete tour of the provider (must be dummy-unit) to the receiver.
     /// Conflicts are removed from the tour.
-    pub(crate) fn override_reassign_all(&self, dummy_provider: UnitId, receiver: UnitId) -> Result<Schedule, String> {
+    pub(crate) fn override_reassign_all(&self, dummy_provider: UnitId, receiver: UnitId) -> Result<(Schedule, Option<UnitId>), String> {
         let tour = self.dummy_tours.get(&dummy_provider).expect("Can only assign_all if provider is a dummy-unit.");
         self.override_reassign(Segment::new(tour.first_node(), tour.last_node()), dummy_provider, receiver)
     }
 
-    /// Remove segment from prover's tour and inserts the nodes into the tour of receiver unit.
+    /// Tries to insert all nodes of provider's segment into receiver's tour.
+    /// Nodes that causes conflcits are rejected and stay in provider's tour.
+    /// Nodes that do not cause a conflict are reassigned to the receiver.
+    pub(crate) fn fit_reassign(&self, segment: Segment, provider: UnitId, receiver: UnitId) -> Result<Schedule,String> {
+
+        // do lazy clones of schedule:
+        let mut tours = self.tours.clone();
+        let mut covered_by = self.covered_by.clone();
+        let mut dummy_units = self.dummy_units.clone();
+        let mut dummy_tours = self.dummy_tours.clone();
+
+        let tour_provider = self.tour_of(provider);
+        let tour_receiver = self.tour_of(receiver);
+
+        let mut new_tour_provider = tour_provider.clone();
+        let mut new_tour_receiver = tour_receiver.clone();
+
+        let path = tour_provider.sub_path(segment)?;
+
+        let mut moved_nodes = Vec::new();
+
+        for &node in path.iter().filter(|&n| tour_receiver.conflict_single_node(*n).map(|c| c.is_empty()).unwrap_or(false)) {
+            new_tour_receiver = new_tour_receiver.insert_single_node(node)?;
+            new_tour_provider = new_tour_provider.remove_single_node(node)?;
+            moved_nodes.push(node);
+        }
+
+        // update reduced tour of the provider
+        if new_tour_provider.len() > 0 {
+            if self.is_dummy(provider) {
+                dummy_tours.insert(provider, new_tour_provider);
+            } else {
+                tours.insert(provider, new_tour_provider);
+            }
+        } else {
+            dummy_units.remove(&provider);
+            dummy_tours.remove(&provider); // old_dummy_tour is completely removed
+        }
+
+        // update extended tour of the receiver
+        if self.is_dummy(receiver) {
+            dummy_tours.insert(receiver, new_tour_receiver);
+        } else {
+            tours.insert(receiver, new_tour_receiver);
+        }
+
+        // update covered_by:
+        for node in moved_nodes.iter() {
+            let new_formation = covered_by.get(node).unwrap().replace(provider, receiver);
+            covered_by.insert(*node, new_formation);
+        }
+
+
+        Ok(Schedule{tours,covered_by,dummy_units,dummy_tours, dummy_counter: self.dummy_counter, loc:self.loc.clone(),units:self.units.clone(),nw:self.nw.clone()})
+    }
+
+    pub(crate) fn fit_reassign_all(&self, provider: UnitId, receiver: UnitId) -> Result<Schedule,String> {
+        let provider_tour = self.tour_of(provider);
+        self.fit_reassign(Segment::new(provider_tour.first_node(), provider_tour.last_node()), provider, receiver)
+    }
+
+
+    /// Remove segment from provider's tour and inserts the nodes into the tour of receiver unit.
     /// All conflicting nodes are removed from the tour and in the case that there are conflcits
     /// a new dummy tour is created.
     /// If path ends with an endnode it is replaces the old endpoint. (Path is suffix of the tour.)
     /// Otherwise the path must reach the old endnode.
-    pub(crate) fn override_reassign(&self, segment: Segment, provider: UnitId, receiver: UnitId) -> Result<Schedule,String> {
+    pub(crate) fn override_reassign(&self, segment: Segment, provider: UnitId, receiver: UnitId) -> Result<(Schedule, Option<UnitId>),String> {
 
         // do lazy clones of schedule:
         let mut tours = self.tours.clone();
@@ -189,7 +251,6 @@ impl Schedule {
 
         // update covered_by:
         for node in path.iter() {
-            println!("{}", covered_by.get(node).unwrap());
             let new_formation = covered_by.get(node).unwrap().replace(provider, receiver);
             covered_by.insert(*node, new_formation);
         }
@@ -220,11 +281,13 @@ impl Schedule {
             tours.insert(receiver, new_tour_receiver);
         }
 
-
+        let mut new_dummy_opt = None;
         // insert new dummy tour consisting of conflicting nodes removed from receiver's tour
         if !replaced_path.is_empty() {
 
             let new_dummy = UnitId::from(format!("dummy{:05}", dummy_counter).as_str());
+
+            new_dummy_opt = Some(new_dummy);
 
             for node in replaced_path.iter() {
                 let new_formation = covered_by.get(node).unwrap().replace(receiver, new_dummy);
@@ -241,7 +304,7 @@ impl Schedule {
 
         }
 
-        Ok(Schedule{tours,covered_by,dummy_units,dummy_tours,dummy_counter, loc:self.loc.clone(),units:self.units.clone(),nw:self.nw.clone()})
+        Ok((Schedule{tours,covered_by,dummy_units,dummy_tours,dummy_counter, loc:self.loc.clone(),units:self.units.clone(),nw:self.nw.clone()}, new_dummy_opt))
     }
 
 

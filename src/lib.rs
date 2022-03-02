@@ -24,13 +24,13 @@ use schedule::path::Segment;
 
 use std::rc::Rc;
 
-pub fn run() {
+pub fn run(path: &str) {
 
     // load instance: All the objects are static and are multiple times referenced;
     // network also references locations
-    let loc= Rc::new(Locations::load_from_csv("relationen.csv"));
-    let units = Rc::new(Units::load_from_csv("fahrzeuggruppen.csv", loc.clone()));
-    let nw = Rc::new(Network::load_from_csv("kundenfahrten.csv", "wartungsfenster.csv","endpunkte.csv", loc.clone(), units.clone()));
+    let loc= Rc::new(Locations::load_from_csv(&format!("{}{}", path, "relationen.csv")));
+    let units = Rc::new(Units::load_from_csv(&format!("{}{}", path, "fahrzeuggruppen.csv"), loc.clone()));
+    let nw = Rc::new(Network::load_from_csv(&format!("{}{}", path, "kundenfahrten.csv"), &format!("{}{}", path, "wartungsfenster.csv"), &format!("{}{}", path, "endpunkte.csv"), loc.clone(), units.clone()));
 
 
 
@@ -38,7 +38,7 @@ pub fn run() {
     let greedy_1 = Greedy1::initialize(loc.clone(), units.clone(), nw.clone());
     let schedule = greedy_1.solve();
 
-    schedule.write_to_csv("leistungsketten.csv").unwrap();
+    schedule.write_to_csv(&format!("{}{}", path, "ETH_leistungsketten.csv")).unwrap();
 
 
 
@@ -84,10 +84,10 @@ fn manual_test(units: Rc<Units>, schedule: Schedule) {
     let segment = Segment::new(*tour1.nodes_iter().nth(from).unwrap(),*tour1.nodes_iter().nth(to).unwrap());
 
     // let new_schedule = schedule.override_reassign(segment, unit1, unit2).unwrap();
-    let new_schedule = schedule.override_reassign_all(dummy2,unit2).unwrap();
+    let (new_schedule,_) = schedule.override_reassign_all(dummy2,unit2).unwrap();
     let dummy3 = *new_schedule.all_dummy_units().first().unwrap();
     let dummy4 = *new_schedule.all_dummy_units().last().unwrap();
-    let newest_schedule = new_schedule.override_reassign_all(dummy3, dummy4).unwrap();
+    let (newest_schedule,_) = new_schedule.override_reassign_all(dummy3, dummy4).unwrap();
 
 
     println!("BEFORE:");

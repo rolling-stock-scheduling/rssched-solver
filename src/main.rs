@@ -3,5 +3,5 @@ use sbb::run;
 
 
 fn main() {
-    run();
+    run("test_instances/21-10-tage-2/");
 }

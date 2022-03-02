@@ -1,6 +1,6 @@
-use crate::base_types::UnitId;
+use crate::base_types::{NodeId, UnitId};
 use crate::schedule::Schedule;
-use crate::schedule::path::Path;
+use crate::schedule::path::Segment;
 
 /// An elementary modification. Defining the "neighborhood" for the local search.
 pub(crate) trait Swap {
@@ -30,9 +30,31 @@ pub(crate) trait LocalImprover {
 /// All removed nodes that are removed from receiver's Tour (due to conflicts) are tried to insert conflict-free into
 /// the provider's Tour.
 pub(crate) struct PathExchange {
-    path: Path,
+    segment: Segment,
     provider: UnitId,
     receiver: UnitId,
 }
+
+impl PathExchange {
+    pub(crate) fn new(start: NodeId, end: NodeId, provider: UnitId, receiver: UnitId) -> PathExchange {
+        let segment = Segment::new(start, end);
+        PathExchange{segment, provider, receiver}
+    }
+}
+
+impl Swap for PathExchange {
+    fn apply(&self, schedule: &Schedule) -> Result<Schedule, String> {
+        let (intermediateSchedule, new_dummy_opt) = schedule.override_reassign(self.segment, self.provider, self.receiver)?;
+
+        match new_dummy_opt {
+            None => Ok(intermediateSchedule),
+            Some(new_dummy) => Ok(intermediateSchedule.fit_reassign_all(new_dummy, self.provider)?)
+        }
+    }
+}
+
+
+
+
 
 

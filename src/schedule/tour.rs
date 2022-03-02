@@ -102,6 +102,11 @@ impl Tour {
         Ok(Tour::new_trusted(self.unit_type, new_tour_nodes, self.is_dummy, self.loc.clone(),self.nw.clone()))
     }
 
+    pub(super) fn insert_single_node(&self, node: NodeId) -> Result<Tour,String> {
+        self.insert(Path::new(vec!(node), self.loc.clone(), self.nw.clone()))
+    }
+
+
     /// remove the segment of the tour. The subpath between segment.start() and segment.end() is removed and the new
     /// shortened Tour as well as the removed nodes (as Path) are returned.
     /// Fails if either segment.start() or segment.end() are not part of the Tour or if the Start or EndNode would
@@ -131,6 +136,10 @@ impl Tour {
         Ok((Tour::new_trusted(self.unit_type, tour_nodes, self.is_dummy, self.loc.clone(),self.nw.clone()), Path::new_trusted(removed_nodes,self.loc.clone(),self.nw.clone())))
     }
 
+    pub(crate) fn remove_single_node(&self, node: NodeId) -> Result<Tour,String> {
+        self.remove(Segment::new(node, node)).map(|tuple| tuple.0)
+    }
+
     /// for a given segment (in general of another tour) returns all nodes that are conflicting
     /// when the segment would have been inserted. These nodes form a path.
     /// Fails if the segment insertion would not lead  to a valid Tour (for example start node
@@ -143,6 +152,10 @@ impl Tour {
 
         let conflicted_nodes = self.nodes[start_pos..end_pos].iter().cloned().collect();
         Ok(Path::new_trusted(conflicted_nodes,self.loc.clone(),self.nw.clone()))
+    }
+
+    pub(super) fn conflict_single_node(&self, node: NodeId) -> Result<Path,String> {
+        self.conflict(Segment::new(node, node))
     }
 
     pub(crate) fn print(&self) {
