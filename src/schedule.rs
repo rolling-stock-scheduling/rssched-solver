@@ -22,6 +22,7 @@ use crate::time::Duration;
 use std::collections::VecDeque;
 use im::HashMap;
 
+use itertools::Itertools;
 use std::fmt;
 use std::error::Error;
 
@@ -249,12 +250,26 @@ impl Schedule {
         writer.write_record(&["fahrzeuggruppeId","sortierZeit","typ","bpAb","bpAn","kundenfahrtId","endpunktId","wartungsfensterId"])?;
         for unit in self.units.get_all() {
             let tour = self.tours.get(&unit).unwrap();
-            for node_id in tour.nodes_iter() {
+            for (prev_node_id, node_id) in tour.nodes_iter().tuple_windows() {
                 let node = self.nw.node(*node_id);
-                if let Node::Start(_) = node {
-                    continue;
-                }
+
+                let prev_node = self.nw.node(*prev_node_id);
+
                 let fahrzeuggruppen_id = format!("{}",unit);
+
+
+
+                if prev_node.end_location() != node.start_location() {
+                    // add dead_head_trip
+                    let dhd_ab = format!("{}", prev_node.end_location());
+                    let dhd_an = format!("{}", node.start_location());
+                    let dhd_sortier_zeit = prev_node.end_time().as_iso();
+                    let empty = String::from("");
+                    writer.write_record(&[fahrzeuggruppen_id.clone(),dhd_sortier_zeit,String::from("BETRIEBSFAHRT"),dhd_ab,dhd_an,empty.clone(),empty.clone(),empty])?;
+                }
+
+
+
                 let sortier_zeit = node.start_time().as_iso();
                 let typ = String::from(match node {
                     Node::Service(_) => "KUNDENFAHRT",
@@ -262,11 +277,10 @@ impl Schedule {
                     Node::End(_) => {"ENDPUNKT"},
                     _ => ""
                 });
-
-                // TODO add dead_head_trips
-
-                let bp_ab = format!("{}", node.start_location());
-                let bp_an = format!("{}", node.start_location());
+                let (bp_ab, bp_an) = match node {
+                    Node::End(_) => (String::from(""), format!("{}", node.start_location())),
+                    _ => (format!("{}", node.start_location()), format!("{}", node.end_location()))
+                };
 
                 let long_id = format!("{}", node.id());
                 let id: &str = long_id.split(':').collect::<Vec<_>>().get(1).unwrap(); // remove the "ST:", "MS:", "EP:"
