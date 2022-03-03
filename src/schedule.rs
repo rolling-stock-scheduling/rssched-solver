@@ -62,7 +62,7 @@ impl Schedule {
         self.dummies.get(&unit).map(|tuple| tuple.0).unwrap_or_else(|| self.units.get_unit(unit).unit_type())
     }
 
-    fn is_dummy(&self, unit: UnitId) -> bool {
+    pub(crate) fn is_dummy(&self, unit: UnitId) -> bool {
         self.dummies.contains_key(&unit)
     }
 

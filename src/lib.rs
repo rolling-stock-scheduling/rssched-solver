@@ -22,7 +22,7 @@ use locations::Locations;
 use schedule::Schedule;
 use schedule::path::Segment;
 
-use modifications::{SwapFactory, AllExchanges};
+use modifications::{SwapIterator,LocalImprover,Greedy};
 
 use std::rc::Rc;
 
@@ -40,21 +40,31 @@ pub fn run(path: &str) {
 
 
     // execute greedy_1 algorithms (going through units and pick nodes greedily)
-    let greedy_1 = Greedy1::initialize(loc.clone(), units.clone(), nw.clone());
-    let schedule = greedy_1.solve();
+    // let greedy_1 = Greedy1::initialize(loc.clone(), units.clone(), nw.clone());
+    // let schedule = greedy_1.solve();
 
+    // let swap_factory = AllExchanges::new();
+    let local_improver = Greedy::new();
+
+    let mut schedule = Schedule::initialize(loc.clone(), units.clone(), nw.clone());
+
+    let optimal = nw.minimal_overhead();
+
+    while let Some(sched) = local_improver.improve(&schedule) {
+        println!("");
+        println!("min_overhead: {}", optimal);
+        sched.objective_value().print();
+        schedule = sched;
+        if schedule.number_of_dummy_units() < 10 {
+            for dummy in schedule.dummy_iter(){
+                println!("{}: {}", dummy, schedule.tour_of(dummy));
+            }
+        }
+    }
+
+    println!("\nFinal:");
     schedule.print();
-    let swap_factory = AllExchanges::new();
-    // let mut schedule = Schedule::initialize(loc.clone(), units.clone(), nw.clone());
-    let swaps = swap_factory.create_swaps(&schedule);
-
-    println!("Swap-count: {}", swaps.len());
-
-    // for swap in swaps.iter() {
-        // println!("\n schedule after {}:", swap);
-        // swap.apply(&schedule).unwrap().print();
-    // }
-    
+    schedule.objective_value().print();
 
 
     // schedule.write_to_csv(&format!("{}{}", path, "ETH_leistungsketten.csv")).unwrap();
