@@ -29,6 +29,7 @@ pub(crate) struct ServiceTrip {
     arrival: Time,
     travel_distance: Distance,
     demand: Demand,
+    name: String
 }
 
 pub(crate) struct MaintenanceSlot {
@@ -36,6 +37,7 @@ pub(crate) struct MaintenanceSlot {
     location: Location,
     start: Time,
     end: Time,
+    name: String
 }
 
 pub(crate) struct StartPoint {
@@ -43,6 +45,7 @@ pub(crate) struct StartPoint {
     unit_id: UnitId,
     location: Location,
     time: Time,
+    name: String
 }
 
 pub(crate) struct EndPoint {
@@ -52,6 +55,7 @@ pub(crate) struct EndPoint {
     time: Time,
     duration_till_maintenance: Duration,
     dist_till_maintenance: Distance,
+    name: String
 }
 
 // methods
@@ -144,6 +148,15 @@ impl Node {
         }
     }
 
+    pub(crate) fn name(&self) -> &str {
+        match self {
+            Node::Service(s) => &s.name,
+            Node::Maintenance(m) => &m.name,
+            Node::Start(s) => &s.name,
+            Node::End(e) => &e.name
+        }
+    }
+
     /// compare to nodes according to the start_time (ties are broken by end_time and then id)
     pub(crate) fn cmp_start_time(&self, other: &Node)  -> Ordering {
         match self.start_time().partial_cmp(&other.start_time()) {
@@ -168,6 +181,19 @@ impl Node {
         }.unwrap()
     }
 
+    pub(crate) fn print(&self) {
+        match self {
+            Node::Service(s) =>
+                println!("{} (id: {}) from {} ({}) to {} ({}), {}", s.name, s.id, s.origin, s.departure, s.destination, s.arrival, s.travel_distance),
+            Node::Maintenance(m) =>
+                println!("{} (id: {}) at {} (from {} to {})", m.name, m.id, m.location, m.start, m.end),
+            Node::Start(s) =>
+                println!("{} (id: {}) of {} at {} ({})", s.name, s.node_id, s.unit_id, s.location, s.time),
+            Node::End(e) =>
+                println!("{} (id: {}) for {:?} at {} ({})", e.name, e.id, e.unit_type, e.location, e.time)
+        }
+    }
+
 }
 
 
@@ -178,7 +204,7 @@ impl Node {
 impl Node {
 
     // factory for creating a service trip
-    pub(super) fn create_service_node(id: NodeId, origin: Location, destination: Location, departure: Time, arrival: Time, travel_distance: Distance, demand: Demand) -> Node {
+    pub(super) fn create_service_node(id: NodeId, origin: Location, destination: Location, departure: Time, arrival: Time, travel_distance: Distance, demand: Demand, name: String) -> Node {
         Node::Service(ServiceTrip{
             id,
             origin,
@@ -186,32 +212,35 @@ impl Node {
             departure,
             arrival,
             travel_distance,
-            demand}
-        )
+            demand,
+            name
+        })
     }
 
     // factory for creating a node for a maintenance slot
-    pub(super) fn create_maintenance_node(id: NodeId, location: Location, start: Time, end: Time) -> Node {
+    pub(super) fn create_maintenance_node(id: NodeId, location: Location, start: Time, end: Time, name: String) -> Node {
         Node::Maintenance(MaintenanceSlot{
             id,
             location,
             start,
-            end
+            end,
+            name
         })
     }
 
 
     // factory for creating start and end node of a unit
-    pub(super) fn create_start_node(node_id: NodeId, unit_id: UnitId, location: Location, time: Time) -> Node {
+    pub(super) fn create_start_node(node_id: NodeId, unit_id: UnitId, location: Location, time: Time, name: String) -> Node {
         Node::Start(StartPoint{
             node_id,
             unit_id,
             location,
-            time
+            time,
+            name
         })
     }
 
-    pub(super) fn create_end_node(id: NodeId, unit_type: UnitType, location: Location, time: Time, duration_till_maintenance: Duration, dist_till_maintenance: Distance) -> Node {
+    pub(super) fn create_end_node(id: NodeId, unit_type: UnitType, location: Location, time: Time, duration_till_maintenance: Duration, dist_till_maintenance: Distance, name: String) -> Node {
         Node::End(EndPoint{
             id,
             unit_type,
@@ -219,6 +248,7 @@ impl Node {
             time,
             duration_till_maintenance,
             dist_till_maintenance,
+            name
         })
     }
 
@@ -226,16 +256,7 @@ impl Node {
 
 impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Node::Service(s) =>
-                write!(f,"{} from {} ({}) to {} ({}), {}", s.id, s.origin, s.departure, s.destination, s.arrival, s.travel_distance),
-            Node::Maintenance(m) =>
-                write!(f,"{} at {} (from {} to {})", m.id, m.location, m.start, m.end),
-            Node::Start(s) =>
-                write!(f,"{} of {} at {} ({})", s.node_id, s.unit_id, s.location, s.time),
-            Node::End(e) =>
-                write!(f,"{} for {:?} at {} ({})", e.id, e.unit_type, e.location, e.time)
-        }
+        write!(f, "{}", self.name())
     }
 }
 

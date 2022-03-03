@@ -43,7 +43,8 @@ pub fn run(path: &str) {
 
 
     // print some properties of the resulting schedule to the terminal:
-    schedule.print();
+    // schedule.print();
+
 
     schedule.objective_value().print();
 
@@ -71,33 +72,35 @@ pub fn run(path: &str) {
 use crate::modifications::{Swap,PathExchange};
 fn manual_swap_test(units: Rc<Units>, schedule: Schedule) {
 
-    let unitA = *units.get_all().first().unwrap();
-    let unitB = *units.get_all().last().unwrap();
+    let unit_a = *units.get_all().first().unwrap();
+    let unit_b = *units.get_all().last().unwrap();
 
-    let tourA = schedule.tour_of(unitA);
-    let tourB = schedule.tour_of(unitB);
+    let tour_a = schedule.tour_of(unit_a);
+    let tour_b = schedule.tour_of(unit_b);
 
-    let node = *tourA.nodes_iter().nth(2).unwrap();
+    let node = *tour_a.nodes_iter().nth(2).unwrap();
 
-    let swap = PathExchange::new(node, node, unitA, unitB);
+    let swap = PathExchange::new(node, node, unit_a, unit_b);
 
     let new_schedule = swap.apply(&schedule).unwrap();
 
 
     println!("BEFORE:");
-    tourA.print();
+    println!("{}: {}", unit_a, tour_a);
     println!("AFTER:");
-    new_schedule.tour_of(unitA).print();
+    println!("{}: {}", unit_a, new_schedule.tour_of(unit_a));
     println!("BEFORE:");
-    tourB.print();
+    println!("{}: {}", unit_b, tour_b);
     println!("AFTER:");
-    new_schedule.tour_of(unitB).print();
-    
+    println!("{}: {}", unit_b, new_schedule.tour_of(unit_b));
+
     println!("\n\nAFTER dummy_tours:");
     for dummy in new_schedule.all_dummy_units(){
-        println!("dummy-unit: {}", dummy);
-        new_schedule.tour_of(dummy).print();
+        println!("{}: {}", dummy, new_schedule.tour_of(dummy));
     }
+
+    println!("\nnew_schedule:");
+    new_schedule.print();
 }
 
 fn manual_test(units: Rc<Units>, schedule: Schedule) {

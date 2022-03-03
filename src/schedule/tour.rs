@@ -161,7 +161,8 @@ impl Tour {
     pub(crate) fn print(&self) {
         println!("{}tour with {} nodes of length {} and travel time {}:", if self.is_dummy {"dummy-"} else {""}, self.nodes.len(), self.distance(), self.travel_time());
         for node in self.nodes.iter() {
-            println!("\t\t* {}", self.nw.node(*node));
+            print!("\t* ");
+            self.nw.node(*node).print();
         }
     }
 }
@@ -312,7 +313,12 @@ impl Tour {
 
 impl fmt::Display for Tour {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}tour for {:?} with {} nodes", if self.is_dummy {"dummy-"} else {""}, self.unit_type, self.nodes.len())
+        let mut nodes_iter = self.nodes.iter();
+        write!(f, "{}", self.nw.node(*nodes_iter.next().unwrap()))?; 
+        for node in nodes_iter {
+            write!(f, " - {}", self.nw.node(*node))?;
+        }
+        Ok(())
     }
 }
 

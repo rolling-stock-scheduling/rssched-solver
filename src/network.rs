@@ -104,7 +104,7 @@ impl Network {
 
         let mut service_nodes: Vec<NodeId> = Vec::new();
         let mut reader = csv::ReaderBuilder::new().delimiter(b';').from_path(path_service).expect("csv-file for loading service_trips not found");
-        for result in reader.records() {
+        for (i, result) in reader.records().enumerate() {
             let record = result.expect("Some recond cannot be read while reading service_trips");
             let _driving_day = record.get(0).unwrap();
             let _train_number = record.get(1).unwrap();
@@ -116,8 +116,8 @@ impl Network {
             let end_side = StationSide::from(record.get(7).unwrap());
             let length =  Distance::from_km(record.get(8).unwrap().parse().unwrap());
             let demand_amount: u8 = record.get(9).unwrap().parse().unwrap();
-            let id_string = &format!("ST:{}",(record.get(10).unwrap()));
-            let id = NodeId::from(&id_string);
+            let id = NodeId::from(record.get(10).unwrap());
+            let name = format!("{}-{}:{}",start_location, end_location,i);
 
             let service_trip = Node::create_service_node(
                 id,
@@ -126,7 +126,8 @@ impl Network {
                 start_time,
                 end_time,
                 length,
-                Demand::new(demand_amount)
+                Demand::new(demand_amount),
+                name
                 );
             nodes.insert(id,service_trip);
             service_nodes.push(id);
@@ -136,17 +137,18 @@ impl Network {
         let mut reader = csv::ReaderBuilder::new().delimiter(b';').from_path(path_maintenance).expect("csv-file for loading maintenance_slots not found");
         for result in reader.records() {
             let record = result.expect("Some recond cannot be read while reading maintenance_slots");
-            let id_string = format!("MS:{}",record.get(0).unwrap());
-            let id = NodeId::from(&id_string);
+            let id = NodeId::from(record.get(0).unwrap());
             let location = loc.get_location(record.get(1).unwrap());
             let start_time = Time::new(record.get(2).unwrap());
             let end_time = Time::new(record.get(3).unwrap());
+            let name = format!("!{}:{}!",location,record.get(0).unwrap());
 
             let maintenance_slot = Node::create_maintenance_node(
                 id,
                 location,
                 start_time,
                 end_time,
+                name
                 );
             nodes.insert(id,maintenance_slot);
             maintenance_nodes.push(id);
@@ -155,9 +157,9 @@ impl Network {
         let mut start_nodes: HashMap<UnitId, NodeId> = HashMap::new();
         for unit_id in units.get_all() {
             let unit = units.get_unit(unit_id);
-            let node_id_string = format!("SN:{}", unit_id);
-            let node_id = NodeId::from(&node_id_string);
-            let start_node = Node::create_start_node(node_id, unit_id, unit.start_location(), unit.start_time());
+            let node_id = NodeId::from(&format!("{}", unit_id));
+            let name = format!("|{}@{}", unit_id, unit.start_location());
+            let start_node = Node::create_start_node(node_id, unit_id, unit.start_location(), unit.start_time(),name);
             nodes.insert(node_id,start_node);
             start_nodes.insert(unit_id,node_id);
         }
@@ -166,13 +168,13 @@ impl Network {
         let mut reader = csv::ReaderBuilder::new().delimiter(b';').from_path(path_endpoints).expect("csv-file for loading end_points not found");
         for result in reader.records() {
             let record = result.expect("Some recond cannot be read while reading end_points");
-            let id_string = format!("EP:{}",record.get(0).unwrap());
-            let id = NodeId::from(&id_string);
+            let id = NodeId::from(record.get(0).unwrap());
             let unit_type = UnitType::Standard;
             let time = Time::new(record.get(1).unwrap());
             let location = loc.get_location(record.get(2).unwrap());
             let duration_till_maintenance = Duration::from_iso(record.get(3).unwrap());
             let dist_till_maintenance =  Distance::from_km(record.get(4).unwrap().parse().unwrap());
+            let name = format!("{}:{}|",location, record.get(0).unwrap());
 
             let end_point = Node::create_end_node(
                 id,
@@ -180,7 +182,8 @@ impl Network {
                 location,
                 time,
                 duration_till_maintenance,
-                dist_till_maintenance
+                dist_till_maintenance,
+                name
                 );
             nodes.insert(id,end_point);
             end_nodes.push(id);

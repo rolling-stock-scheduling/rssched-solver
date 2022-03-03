@@ -345,8 +345,7 @@ impl Schedule {
                     _ => (format!("{}", node.start_location()), format!("{}", node.end_location()))
                 };
 
-                let long_id = format!("{}", node.id());
-                let id: &str = long_id.split(':').collect::<Vec<_>>().get(1).unwrap(); // remove the "ST:", "MS:", "EP:"
+                let id = &format!("{}", node.id());
                 let kundenfahrt_id = String::from(match node {
                     Node::Service(_) => id,
                     _ => ""
@@ -367,23 +366,27 @@ impl Schedule {
 
     }
 
-    pub(crate) fn print(&self) {
-        println!("** schedule with {} tours:", self.tours.len());
+    pub(crate) fn print_long(&self) {
+        println!("** schedule with {} tours and {} dummy-tours:", self.tours.len(), self.dummy_tours.len());
         for unit in self.units.get_all() {
-            print!("\ttour of {}:", unit);
+            print!("     {}: ", unit);
             self.tours.get(&unit).unwrap().print();
         }
-    }
-}
-
-
-impl fmt::Display for Schedule {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "** schedule with {} tours:", self.tours.len())?;
-        for unit in self.units.get_all() {
-            writeln!(f, "\t{}", self.tours.get(&unit).unwrap())?;
+        for dummy in self.dummy_tours.keys() {
+            print!("     {}: ", dummy);
+            self.dummy_tours.get(&dummy).unwrap().print();
         }
-        Ok(())
+    }
+
+    
+    pub(crate) fn print(&self) {
+
+        for unit in self.units.get_all() {
+            println!("{}: {}", unit, self.tours.get(&unit).unwrap());
+        }
+        for dummy in self.dummy_tours.keys() {
+            println!("{}: {}", dummy, self.dummy_tours.get(&dummy).unwrap());
+        }
     }
 }
 
