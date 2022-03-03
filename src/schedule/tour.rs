@@ -41,6 +41,10 @@ impl Tour {
         *self.nodes.first().unwrap()
     }
 
+    pub(crate) fn nth_node(&self,pos: usize) -> NodeId {
+        *self.nodes.get(pos).unwrap()
+    }
+
     pub(crate) fn len(&self) -> usize {
         self.nodes.len()
     }
@@ -113,25 +117,14 @@ impl Tour {
     /// get removed.
     pub(crate) fn remove(&self, segment: Segment) -> Result<(Tour, Path),String> {
 
-        let start_position = self.nodes.iter().position(|&n| n == segment.start()).ok_or("segment.start() is not part of the Tour")?;
-        let end_position = self.nodes.iter().position(|&n| n == segment.end()).ok_or("segment.end() is not part of the Tour")?;
+        let start_pos= self.position_of(segment.start())?;
+        let end_pos= self.position_of(segment.end())?;
 
-        if !self.is_dummy && start_position == 0 {
-            return Err(String::from("StartNode cannot be removed."));
-        }
-        if !self.is_dummy && start_position == self.nodes.len()-1 {
-            return Err(String::from("EndNode cannot be removed."));
-        }
-        if start_position > end_position {
-            return Err(String::from("segment.start() comes after segment.end()."));
-        }
+        self.removable_by_pos(start_pos, end_pos)?;
 
-        if start_position > 0 && end_position < self.nodes.len() - 1 && !self.nw.can_reach(self.nodes[start_position-1],self.nodes[end_position+1]) {
-            return Err(String::from("Strange! Removing nodes make the tour invalid. Dead_head travel time not consistent."));
-        }
-        let mut tour_nodes: Vec<NodeId> = self.nodes[..start_position].iter().cloned().collect();
-        tour_nodes.extend(self.nodes[end_position+1..].iter().cloned());
-        let removed_nodes: Vec<NodeId> = self.nodes[start_position..end_position+1].iter().cloned().collect();
+        let mut tour_nodes: Vec<NodeId> = self.nodes[..start_pos].iter().cloned().collect();
+        tour_nodes.extend(self.nodes[end_pos+1..].iter().cloned());
+        let removed_nodes: Vec<NodeId> = self.nodes[start_pos..end_pos+1].iter().cloned().collect();
 
         Ok((Tour::new_trusted(self.unit_type, tour_nodes, self.is_dummy, self.loc.clone(),self.nw.clone()), Path::new_trusted(removed_nodes,self.loc.clone(),self.nw.clone())))
     }
@@ -156,6 +149,43 @@ impl Tour {
 
     pub(super) fn conflict_single_node(&self, node: NodeId) -> Result<Path,String> {
         self.conflict(Segment::new(node, node))
+    }
+
+    pub(super) fn position_of(&self, node: NodeId) -> Result<usize, String> {
+        let pos = self.nodes.binary_search_by(|other| self.nw.node(*other)
+                                              .cmp_start_time(self.nw.node(node))).map_err(|_| "Node not part of tour.")?;
+        assert!(node == self.nodes[pos],"fehler");
+        Ok(pos)
+    }
+
+    pub(crate) fn removable(&self, segment: Segment) -> bool {
+        let start_pos_res = self.position_of(segment.start());
+        let end_pos_res = self.position_of(segment.end());
+        if start_pos_res.is_err() || end_pos_res.is_err() {false} else {
+            self.removable_by_pos(start_pos_res.unwrap(), end_pos_res.unwrap()).is_ok()}
+    }
+
+    pub(crate) fn removable_single_node(&self, node: NodeId) -> bool {
+        self.removable(Segment::new(node, node))
+    }
+
+
+    fn removable_by_pos(&self, start_position: usize, end_position: usize) -> Result<(), String> {
+        if !self.is_dummy && start_position == 0 {
+            return Err(String::from("StartNode cannot be removed."));
+        }
+        if !self.is_dummy && start_position == self.nodes.len()-1 {
+            return Err(String::from("EndNode cannot be removed."));
+        }
+        if start_position > end_position {
+            return Err(String::from("segment.start() comes after segment.end()."));
+        }
+
+        if start_position > 0 && end_position < self.nodes.len() - 1 && !self.nw.can_reach(self.nodes[start_position-1],self.nodes[end_position+1]) {
+            return Err(format!("Removing nodes ({} to {}) makes the tour invalid. Dead-head-trip is slower than service-trips.", self.nodes[start_position], self.nodes[end_position]));
+        }
+        Ok(())
+
     }
 
     pub(crate) fn print(&self) {
@@ -216,7 +246,7 @@ impl Tour {
         (start_pos,end_pos)
     }
 
-    fn earliest_not_reaching_node(&self, node: NodeId) -> Option<Position> {
+    pub(crate) fn earliest_not_reaching_node(&self, node: NodeId) -> Option<Position> {
         if self.nw.can_reach(*self.nodes.last().unwrap(), node) {
             return None; // all tour-nodes can reach node, even the last
         }
@@ -314,7 +344,7 @@ impl Tour {
 impl fmt::Display for Tour {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut nodes_iter = self.nodes.iter();
-        write!(f, "{}", self.nw.node(*nodes_iter.next().unwrap()))?; 
+        write!(f, "{}", self.nw.node(*nodes_iter.next().unwrap()))?;
         for node in nodes_iter {
             write!(f, " - {}", self.nw.node(*node))?;
         }

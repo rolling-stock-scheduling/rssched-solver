@@ -185,14 +185,62 @@ impl Schedule {
         let mut new_tour_provider = tour_provider.clone();
         let mut new_tour_receiver = tour_receiver.clone();
 
-        let path = tour_provider.sub_path(segment)?;
+        let mut remaining_path = tour_provider.sub_path(segment)?;
 
         let mut moved_nodes = Vec::new();
 
-        for &node in path.iter().filter(|&n| tour_receiver.conflict_single_node(*n).map(|c| c.is_empty()).unwrap_or(false)) {
-            new_tour_receiver = new_tour_receiver.insert_single_node(node)?;
-            new_tour_provider = new_tour_provider.remove_single_node(node)?;
-            moved_nodes.push(node);
+
+        // go through the path that should be inserted without causing conflcits.
+        // As dead_head_trips might be longer than service trips we do not iterate over all nodes
+        // individually but instead cut the path into maximal segments that could be reassigned.
+        //
+        // Hence we iteratively consider the first node of the remaining_path as the start of a
+        // segment and take the biggest segment that can be reassigned.
+        // Afterwards this segment is removed
+
+        while !remaining_path.is_empty() {
+            let sub_segment_start = remaining_path.first();
+            let (end_pos, sub_segment_end) = match new_tour_receiver.earliest_not_reaching_node(sub_segment_start) {
+                None => (remaining_path.len() - 1, remaining_path.last()),
+                Some(pos) => {
+                    // the segment can only be inserted before the blocker
+                    let blocker = new_tour_receiver.nth_node(pos);
+                    // consider all nodes that arrive before the departure of the blocker
+                    // test all of them if they can reach the blocker.
+                    // test all of them if this segment could be removed.
+                    // take the latest node of those.
+                    // If empty this segment will fail, so return path.first()
+                    remaining_path.iter().enumerate()
+                        .map_while(|(i,&n)| if self.nw.node(n).end_time() > self.nw.node(blocker).start_time() {None} else {Some((i,n))})
+                        .filter(|(_,n)| self.nw.can_reach(*n, blocker))
+                        .filter(|(_,n)| new_tour_provider.removable(Segment::new(sub_segment_start, *n)))
+                        .last().unwrap_or((0,remaining_path.first()))
+                }
+            };
+
+            let mut node_sequence = remaining_path.consume();
+            remaining_path = Path::new(node_sequence.split_off(end_pos+1),self.loc.clone(), self.nw.clone());
+            let sub_segment = Segment::new(sub_segment_start, sub_segment_end);
+            let remove_result = new_tour_provider.remove(sub_segment);
+
+            if remove_result.is_err() {
+                continue;
+            }
+
+            let (new_tour_provider_candidate, path_for_insertion) = remove_result.unwrap();
+
+            // test if inserting sub_segment would cause any conflicts (or fail for other reasons
+            if new_tour_receiver.conflict(sub_segment).map(|c| !c.is_empty()).unwrap_or(true) {
+                continue;
+            }
+            let insert_result = new_tour_receiver.insert(path_for_insertion);
+
+            if insert_result.is_ok() {
+                new_tour_provider = new_tour_provider_candidate;
+                new_tour_receiver = insert_result.unwrap();
+                moved_nodes.extend(node_sequence);
+            }
+
         }
 
         // update reduced tour of the provider
@@ -345,7 +393,8 @@ impl Schedule {
                     _ => (format!("{}", node.start_location()), format!("{}", node.end_location()))
                 };
 
-                let id = &format!("{}", node.id());
+                let long_id = format!("{}", node.id());
+                let id: &str = long_id.split(':').collect::<Vec<_>>().get(1).unwrap(); // remove the "ST:", "MS:", "EP:"
                 let kundenfahrt_id = String::from(match node {
                     Node::Service(_) => id,
                     _ => ""
@@ -378,7 +427,7 @@ impl Schedule {
         }
     }
 
-    
+
     pub(crate) fn print(&self) {
 
         for unit in self.units.get_all() {

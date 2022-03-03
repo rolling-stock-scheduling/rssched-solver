@@ -89,8 +89,10 @@ impl Network {
         let earliest_start_time = self.start_nodes.values().map(|n| self.node(*n).end_time()).min().unwrap();
         let mut overhead = self.end_nodes.iter().map(|n| self.node(*n).start_time() - earliest_start_time).sum();
         overhead = overhead - self.start_nodes.values().map(|n| self.node(*n).end_time() - earliest_start_time).sum();
-        overhead = overhead - self.service_nodes.iter().chain(self.maintenance_nodes.iter()).map(
-            |n| (0..self.node(*n).demand().number_of_units()).map(|_| self.node(*n).duration()).sum()).sum();
+
+        overhead = overhead - self.service_nodes.iter().chain(self.maintenance_nodes.iter())
+            .map(|n| (0..self.node(*n).demand().number_of_units())
+                 .map(|_| self.node(*n).duration()).sum()).sum();
         // node that service trips are counted as big as their demand is
 
         overhead
@@ -116,7 +118,7 @@ impl Network {
             let end_side = StationSide::from(record.get(7).unwrap());
             let length =  Distance::from_km(record.get(8).unwrap().parse().unwrap());
             let demand_amount: u8 = record.get(9).unwrap().parse().unwrap();
-            let id = NodeId::from(record.get(10).unwrap());
+            let id = NodeId::from(&format!("ST:{}", record.get(10).unwrap()));
             let name = format!("{}-{}:{}",start_location, end_location,i);
 
             let service_trip = Node::create_service_node(
@@ -137,7 +139,7 @@ impl Network {
         let mut reader = csv::ReaderBuilder::new().delimiter(b';').from_path(path_maintenance).expect("csv-file for loading maintenance_slots not found");
         for result in reader.records() {
             let record = result.expect("Some recond cannot be read while reading maintenance_slots");
-            let id = NodeId::from(record.get(0).unwrap());
+            let id = NodeId::from(&format!("MS:{}", record.get(0).unwrap()));
             let location = loc.get_location(record.get(1).unwrap());
             let start_time = Time::new(record.get(2).unwrap());
             let end_time = Time::new(record.get(3).unwrap());
@@ -157,7 +159,7 @@ impl Network {
         let mut start_nodes: HashMap<UnitId, NodeId> = HashMap::new();
         for unit_id in units.get_all() {
             let unit = units.get_unit(unit_id);
-            let node_id = NodeId::from(&format!("{}", unit_id));
+            let node_id = NodeId::from(&format!("SN:{}", unit_id));
             let name = format!("|{}@{}", unit_id, unit.start_location());
             let start_node = Node::create_start_node(node_id, unit_id, unit.start_location(), unit.start_time(),name);
             nodes.insert(node_id,start_node);
@@ -168,7 +170,7 @@ impl Network {
         let mut reader = csv::ReaderBuilder::new().delimiter(b';').from_path(path_endpoints).expect("csv-file for loading end_points not found");
         for result in reader.records() {
             let record = result.expect("Some recond cannot be read while reading end_points");
-            let id = NodeId::from(record.get(0).unwrap());
+            let id = NodeId::from(&format!("EN:{}", record.get(0).unwrap()));
             let unit_type = UnitType::Standard;
             let time = Time::new(record.get(1).unwrap());
             let location = loc.get_location(record.get(2).unwrap());

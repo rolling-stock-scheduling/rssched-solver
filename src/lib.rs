@@ -43,8 +43,11 @@ pub fn run(path: &str) {
 
 
     // print some properties of the resulting schedule to the terminal:
-    // schedule.print();
+    schedule.print();
 
+    // for node in nw.all_nodes() {
+        // println!("{}", nw.node(node));
+    // }
 
     schedule.objective_value().print();
 
@@ -79,6 +82,8 @@ fn manual_swap_test(units: Rc<Units>, schedule: Schedule) {
     let tour_b = schedule.tour_of(unit_b);
 
     let node = *tour_a.nodes_iter().nth(2).unwrap();
+
+    println!("removable: {}", tour_a.removable_single_node(node));
 
     let swap = PathExchange::new(node, node, unit_a, unit_b);
 

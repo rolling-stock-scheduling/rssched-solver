@@ -49,6 +49,10 @@ impl Path {
     pub(crate) fn iter(&self) -> impl Iterator<Item=&NodeId> + '_ {
         self.node_sequence.iter()
     }
+    
+    pub(crate) fn len(&self) -> usize {
+        self.node_sequence.len()
+    }
 
     pub(crate) fn first(&self) -> NodeId {
         self.node_sequence[0]
