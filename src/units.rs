@@ -9,6 +9,7 @@ use std::rc::Rc;
 
 pub(crate) struct Units {
     units: HashMap<UnitId, Unit>,
+    ids_sorted: Vec<UnitId>,
 }
 
 #[derive(Clone)]
@@ -48,7 +49,9 @@ impl Units {
             units.insert(id,Unit{id,unit_type,start_time,start_location,initial_time_counter,initial_dist_counter});
         }
 
-        Units{units}
+        let mut ids_sorted: Vec<UnitId> = units.keys().cloned().collect();
+        ids_sorted.sort();
+        Units{units, ids_sorted}
     }
 }
 
@@ -57,10 +60,8 @@ impl Units {
         self.units.len()
     }
 
-    pub(crate) fn get_all(&self) -> Vec<UnitId> {
-        let mut ids: Vec<UnitId> = self.units.keys().cloned().collect();
-        ids.sort();
-        ids
+    pub(crate) fn iter(&self) -> impl Iterator<Item = UnitId> + '_ {
+        self.ids_sorted.iter().cloned()
     }
 
     pub(crate) fn get_unit(&self, id: UnitId) -> &Unit {

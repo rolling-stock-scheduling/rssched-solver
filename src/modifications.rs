@@ -9,8 +9,8 @@ pub(crate) trait Swap {
 }
 
 /// Computes for a given schedule all Swaps in the neighborhood.
-pub(crate) trait LocalModifier {
-    fn compute_neighborhood(&self, schedule: &Schedule) -> Vec<Schedule>;
+pub(crate) trait SwapFactory {
+    fn create_swaps(&self, schedule: &Schedule) -> Vec<Box<dyn Swap>>;
 }
 
 /// Computes for a given schedule the best new schedule that has better objective function.
@@ -55,6 +55,25 @@ impl Swap for PathExchange {
 
 
 
+/////////////////////////////////////////////////////////////
+//////////////////////// SwapFactory ////////////////////////
+/////////////////////////////////////////////////////////////
+
+pub(crate) struct AllExchanges {
+
+}
+
+// impl SwapFactory for AllExchanges {
+    // fn create_swaps(&self, schedule: &Schedule) -> Vec<Box<dyn Swap>> {
+        // let mut swaps: Vec<Box<dyn Swap>> = Vec::new();
+        // for dummy in schedule.all_dummy_units() {
+            // let tour = schedule.tour_of(unit)
+
+        // }
+
+        // swaps
+    // }
+// }
 
 
 

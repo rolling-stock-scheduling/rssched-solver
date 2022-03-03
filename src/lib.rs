@@ -75,8 +75,8 @@ pub fn run(path: &str) {
 use crate::modifications::{Swap,PathExchange};
 fn manual_swap_test(units: Rc<Units>, schedule: Schedule) {
 
-    let unit_a = *units.get_all().first().unwrap();
-    let unit_b = *units.get_all().last().unwrap();
+    let unit_a = units.iter().next().unwrap();
+    let unit_b = units.iter().last().unwrap();
 
     let tour_a = schedule.tour_of(unit_a);
     let tour_b = schedule.tour_of(unit_b);
@@ -100,7 +100,7 @@ fn manual_swap_test(units: Rc<Units>, schedule: Schedule) {
     println!("{}: {}", unit_b, new_schedule.tour_of(unit_b));
 
     println!("\n\nAFTER dummy_tours:");
-    for dummy in new_schedule.all_dummy_units(){
+    for dummy in new_schedule.dummy_iter(){
         println!("{}: {}", dummy, new_schedule.tour_of(dummy));
     }
 
@@ -109,14 +109,14 @@ fn manual_swap_test(units: Rc<Units>, schedule: Schedule) {
 }
 
 fn manual_test(units: Rc<Units>, schedule: Schedule) {
-    let unit1 = *units.get_all().first().unwrap();
-    let unit2 = *units.get_all().last().unwrap();
+    let unit1 = units.iter().next().unwrap();
+    let unit2 = units.iter().last().unwrap();
 
     let tour1 = schedule.tour_of(unit1);
     let tour2 = schedule.tour_of(unit2);
 
-    let dummy1 = *schedule.all_dummy_units().first().unwrap();
-    let dummy2 = *schedule.all_dummy_units().last().unwrap();
+    let dummy1 = schedule.dummy_iter().next().unwrap();
+    let dummy2 = schedule.dummy_iter().last().unwrap();
     println!("dummy2: {}", dummy2);
 
 
@@ -126,8 +126,8 @@ fn manual_test(units: Rc<Units>, schedule: Schedule) {
 
     // let new_schedule = schedule.override_reassign(segment, unit1, unit2).unwrap();
     let (new_schedule,_) = schedule.override_reassign_all(dummy2,unit2).unwrap();
-    let dummy3 = *new_schedule.all_dummy_units().first().unwrap();
-    let dummy4 = *new_schedule.all_dummy_units().last().unwrap();
+    let dummy3 = new_schedule.dummy_iter().next().unwrap();
+    let dummy4 = new_schedule.dummy_iter().last().unwrap();
     let (newest_schedule,_) = new_schedule.override_reassign_all(dummy3, dummy4).unwrap();
 
 
@@ -145,7 +145,7 @@ fn manual_test(units: Rc<Units>, schedule: Schedule) {
     newest_schedule.tour_of(unit2).print();
 
     println!("\n\nBEFORE dummy_tours:");
-    for dummy in schedule.all_dummy_units(){
+    for dummy in schedule.dummy_iter(){
         println!("dummy-unit: {}", dummy);
         schedule.tour_of(dummy).print();
         for n in schedule.tour_of(dummy).nodes_iter() {
@@ -153,12 +153,12 @@ fn manual_test(units: Rc<Units>, schedule: Schedule) {
         }
     }
     println!("\n\nMIDDLE dummy_tours:");
-    for dummy in new_schedule.all_dummy_units(){
+    for dummy in new_schedule.dummy_iter(){
         println!("dummy-unit: {}", dummy);
         new_schedule.tour_of(dummy).print();
     }
     println!("\n\nAFTER dummy_tours:");
-    for dummy in newest_schedule.all_dummy_units(){
+    for dummy in newest_schedule.dummy_iter(){
         println!("dummy-unit: {}", dummy);
         newest_schedule.tour_of(dummy).print();
     }

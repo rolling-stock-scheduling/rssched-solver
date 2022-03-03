@@ -23,7 +23,6 @@ use std::collections::VecDeque;
 use im::HashMap;
 
 use itertools::Itertools;
-use std::fmt;
 use std::error::Error;
 
 use std::rc::Rc;
@@ -38,8 +37,8 @@ pub(crate) struct Schedule {
     covered_by: HashMap<NodeId, TrainFormation>,
 
     // non-covered or only partially covered service nodes are stored seperately
-    dummy_units: HashMap<UnitId, UnitType>,
-    dummy_tours: HashMap<UnitId, Tour>,
+    dummies: HashMap<UnitId, (UnitType, Tour)>,
+    dummy_ids_sorted: Vec<UnitId>,
     dummy_counter: usize,
 
     loc: Rc<Locations>,
@@ -52,7 +51,7 @@ pub(crate) struct Schedule {
 // methods
 impl Schedule {
     pub(crate) fn tour_of(&self, unit: UnitId) -> &Tour {
-        self.tours.get(&unit).unwrap_or_else(|| self.dummy_tours.get(&unit).expect(format!("{} is neither real nor dummy unit", unit).as_str()))
+        self.tours.get(&unit).unwrap_or_else(|| &self.dummies.get(&unit).expect(format!("{} is neither real nor dummy unit", unit).as_str()).1)
     }
 
     pub(crate) fn covered_by(&self, node: NodeId) -> &TrainFormation {
@@ -60,11 +59,11 @@ impl Schedule {
     }
 
     pub(crate) fn type_of(&self, unit: UnitId) -> UnitType {
-        self.dummy_units.get(&unit).copied().unwrap_or_else(|| self.units.get_unit(unit).unit_type())
+        self.dummies.get(&unit).map(|tuple| tuple.0).unwrap_or_else(|| self.units.get_unit(unit).unit_type())
     }
 
     fn is_dummy(&self, unit: UnitId) -> bool {
-        self.dummy_units.contains_key(&unit)
+        self.dummies.contains_key(&unit)
     }
 
     pub(crate) fn total_overhead_time(&self) -> Duration {
@@ -76,7 +75,7 @@ impl Schedule {
     }
 
     pub(crate) fn total_dummy_overhead_time(&self) -> Duration {
-        self.dummy_tours.values().map(|t| t.overhead_time()).sum()
+        self.dummies.values().map(|tuple| tuple.1.overhead_time()).sum()
     }
 
     pub(crate) fn total_distance(&self) -> Distance {
@@ -88,7 +87,7 @@ impl Schedule {
     }
 
     pub(crate) fn number_of_dummy_units(&self) -> usize {
-        self.dummy_tours.keys().count()
+        self.dummies.keys().count()
     }
 
     pub(crate) fn objective_value(&self) -> Objective {
@@ -98,17 +97,15 @@ impl Schedule {
     // returns the first (seen from head to tail) dummy_unit that covers the node.
     // If node is fully-covered by real units, None is returned.
     fn get_dummy_cover_of(&self, node: NodeId) -> Option<UnitId> {
-        self.covered_by.get(&node).unwrap().iter().filter(|u| self.dummy_units.contains_key(u)).next()
+        self.covered_by.get(&node).unwrap().iter().filter(|u| self.dummies.contains_key(u)).next()
     }
 
     pub(crate) fn uncovered_nodes(&self) -> impl Iterator<Item = (NodeId,UnitId)> + '_ {
-        self.dummy_tours.iter().flat_map(|(u,t)| t.nodes_iter().map(|&n| (n,*u)))
+        self.dummy_iter().flat_map(|u| self.tour_of(u).nodes_iter().map(move |n| (*n,u)))
     }
 
-    pub(crate) fn all_dummy_units(&self) -> Vec<UnitId> {
-        let mut dummy_units: Vec<UnitId> = self.dummy_units.keys().copied().collect();
-        dummy_units.sort();
-        dummy_units
+    pub(crate) fn dummy_iter(&self) -> impl Iterator<Item = UnitId> + '_ {
+        self.dummy_ids_sorted.iter().copied()
     }
 
     pub(crate) fn uncovered_successors(&self, node: NodeId) -> impl Iterator<Item = (NodeId,UnitId)> + '_ {
@@ -128,7 +125,7 @@ impl Schedule {
     }
 
     pub(crate) fn conflict_all(&self, dummy_provider: UnitId, receiver: UnitId) -> Result<Path, String> {
-        let tour = self.dummy_tours.get(&dummy_provider).expect("Can only assign_all if provider is a dummy-unit.");
+        let tour = &self.dummies.get(&dummy_provider).expect("Can only assign_all if provider is a dummy-unit.").1;
         self.conflict(Segment::new(tour.first_node(), tour.last_node()), receiver)
     }
 
@@ -151,7 +148,7 @@ impl Schedule {
     /// Reassign the complete tour of the provider (must be dummy-unit) to the receiver.
     /// Aborts if there are any conflicts.
     pub(crate) fn reassign_all(&self, dummy_provider: UnitId, receiver: UnitId) -> Result<Schedule, String> {
-        let tour = self.dummy_tours.get(&dummy_provider).expect("Can only assign_all if provider is a dummy-unit.");
+        let tour = &self.dummies.get(&dummy_provider).expect("Can only assign_all if provider is a dummy-unit.").1;
         self.reassign(Segment::new(tour.first_node(), tour.last_node()), dummy_provider, receiver)
     }
 
@@ -164,7 +161,7 @@ impl Schedule {
     /// Reassign the complete tour of the provider (must be dummy-unit) to the receiver.
     /// Conflicts are removed from the tour.
     pub(crate) fn override_reassign_all(&self, dummy_provider: UnitId, receiver: UnitId) -> Result<(Schedule, Option<UnitId>), String> {
-        let tour = self.dummy_tours.get(&dummy_provider).expect("Can only assign_all if provider is a dummy-unit.");
+        let tour = &self.dummies.get(&dummy_provider).expect("Can only assign_all if provider is a dummy-unit.").1;
         self.override_reassign(Segment::new(tour.first_node(), tour.last_node()), dummy_provider, receiver)
     }
 
@@ -176,8 +173,8 @@ impl Schedule {
         // do lazy clones of schedule:
         let mut tours = self.tours.clone();
         let mut covered_by = self.covered_by.clone();
-        let mut dummy_units = self.dummy_units.clone();
-        let mut dummy_tours = self.dummy_tours.clone();
+        let mut dummies = self.dummies.clone();
+        let mut dummy_ids_sorted = self.dummy_ids_sorted.clone();
 
         let tour_provider = self.tour_of(provider);
         let tour_receiver = self.tour_of(receiver);
@@ -246,18 +243,18 @@ impl Schedule {
         // update reduced tour of the provider
         if new_tour_provider.len() > 0 {
             if self.is_dummy(provider) {
-                dummy_tours.insert(provider, new_tour_provider);
+                dummies.insert(provider, (self.type_of(provider),new_tour_provider));
             } else {
                 tours.insert(provider, new_tour_provider);
             }
         } else {
-            dummy_units.remove(&provider);
-            dummy_tours.remove(&provider); // old_dummy_tour is completely removed
+            dummies.remove(&provider); // old_dummy_tour is completely removed
+            dummy_ids_sorted.remove(dummy_ids_sorted.iter().position(|id| *id == provider).unwrap());
         }
 
         // update extended tour of the receiver
         if self.is_dummy(receiver) {
-            dummy_tours.insert(receiver, new_tour_receiver);
+            dummies.insert(receiver, (self.type_of(receiver), new_tour_receiver));
         } else {
             tours.insert(receiver, new_tour_receiver);
         }
@@ -269,7 +266,8 @@ impl Schedule {
         }
 
 
-        Ok(Schedule{tours,covered_by,dummy_units,dummy_tours, dummy_counter: self.dummy_counter, loc:self.loc.clone(),units:self.units.clone(),nw:self.nw.clone()})
+
+        Ok(Schedule{tours,covered_by,dummies,dummy_ids_sorted, dummy_counter: self.dummy_counter, loc:self.loc.clone(),units:self.units.clone(),nw:self.nw.clone()})
     }
 
     pub(crate) fn fit_reassign_all(&self, provider: UnitId, receiver: UnitId) -> Result<Schedule,String> {
@@ -288,8 +286,8 @@ impl Schedule {
         // do lazy clones of schedule:
         let mut tours = self.tours.clone();
         let mut covered_by = self.covered_by.clone();
-        let mut dummy_units = self.dummy_units.clone();
-        let mut dummy_tours = self.dummy_tours.clone();
+        let mut dummies = self.dummies.clone();
+        let mut dummy_ids_sorted = self.dummy_ids_sorted.clone();
         let mut dummy_counter = self.dummy_counter;
 
         let tour_provider = self.tour_of(provider);
@@ -313,18 +311,18 @@ impl Schedule {
         // update shrinked tour of the provider
         if shrinked_tour_provider.len() > 0 {
             if self.is_dummy(provider) {
-                dummy_tours.insert(provider, shrinked_tour_provider);
+                dummies.insert(provider, (self.type_of(provider), shrinked_tour_provider));
             } else {
                 tours.insert(provider, shrinked_tour_provider);
             }
         } else {
-            dummy_units.remove(&provider);
-            dummy_tours.remove(&provider); // old_dummy_tour is completely removed
+            dummies.remove(&provider); // old_dummy_tour is completely removed
+            dummy_ids_sorted.remove(dummy_ids_sorted.iter().position(|id| *id == provider).unwrap());
         }
 
         // update extended tour of the receiver
         if self.is_dummy(receiver) {
-            dummy_tours.insert(receiver, new_tour_receiver);
+            dummies.insert(receiver, (self.type_of(receiver), new_tour_receiver));
         } else {
             tours.insert(receiver, new_tour_receiver);
         }
@@ -345,21 +343,22 @@ impl Schedule {
             let new_dummy_type = self.type_of(receiver);
             let new_dummy_tour = Tour::new_dummy_by_path(new_dummy_type, replaced_path, self.loc.clone(), self.nw.clone());
 
-            dummy_units.insert(new_dummy, new_dummy_type);
-            dummy_tours.insert(new_dummy, new_dummy_tour);
+            dummies.insert(new_dummy, (new_dummy_type, new_dummy_tour));
+            dummy_ids_sorted.push(new_dummy);
+            dummy_ids_sorted.sort();
 
             dummy_counter += 1;
 
         }
 
-        Ok((Schedule{tours,covered_by,dummy_units,dummy_tours,dummy_counter, loc:self.loc.clone(),units:self.units.clone(),nw:self.nw.clone()}, new_dummy_opt))
+        Ok((Schedule{tours,covered_by,dummies,dummy_ids_sorted,dummy_counter, loc:self.loc.clone(),units:self.units.clone(),nw:self.nw.clone()}, new_dummy_opt))
     }
 
 
     pub(crate) fn write_to_csv(&self, path: &str) -> Result<(), Box<dyn Error>> {
         let mut writer = csv::WriterBuilder::new().delimiter(b';').from_path(path)?;
         writer.write_record(&["fahrzeuggruppeId","sortierZeit","typ","bpAb","bpAn","kundenfahrtId","endpunktId","wartungsfensterId"])?;
-        for unit in self.units.get_all() {
+        for unit in self.units.iter() {
             let tour = self.tours.get(&unit).unwrap();
             for (prev_node_id, node_id) in tour.nodes_iter().tuple_windows() {
                 let node = self.nw.node(*node_id);
@@ -416,25 +415,25 @@ impl Schedule {
     }
 
     pub(crate) fn print_long(&self) {
-        println!("** schedule with {} tours and {} dummy-tours:", self.tours.len(), self.dummy_tours.len());
-        for unit in self.units.get_all() {
+        println!("** schedule with {} tours and {} dummy-tours:", self.tours.len(), self.dummies.len());
+        for unit in self.units.iter() {
             print!("     {}: ", unit);
             self.tours.get(&unit).unwrap().print();
         }
-        for dummy in self.dummy_tours.keys() {
+        for dummy in self.dummy_iter() {
             print!("     {}: ", dummy);
-            self.dummy_tours.get(&dummy).unwrap().print();
+            self.dummies.get(&dummy).unwrap().1.print();
         }
     }
 
 
     pub(crate) fn print(&self) {
 
-        for unit in self.units.get_all() {
+        for unit in self.units.iter() {
             println!("{}: {}", unit, self.tours.get(&unit).unwrap());
         }
-        for dummy in self.dummy_tours.keys() {
-            println!("{}: {}", dummy, self.dummy_tours.get(&dummy).unwrap());
+        for dummy in self.dummy_iter() {
+            println!("{}: {}", dummy, self.dummies.get(&dummy).unwrap().1);
         }
     }
 }
@@ -451,7 +450,7 @@ impl Schedule {
         let mut end_nodes: VecDeque<NodeId> = nw.end_nodes().collect();
         end_nodes.make_contiguous().sort_by(|&e1,&e2| nw.node(e1).start_time().cmp(&nw.node(e2).start_time()));
 
-        for unit_id in units.get_all() {
+        for unit_id in units.iter() {
             let unit = units.get_unit(unit_id);
             let start_node = nw.start_node_of(unit_id);
             let pos = end_nodes.iter().position(|&e| nw.node(e).unit_type() == unit.unit_type() && nw.can_reach(start_node, e)).expect(format!("No suitable end_node found for start_node: {}", start_node).as_str());
@@ -466,8 +465,7 @@ impl Schedule {
 
         // all service- and maintanence nodes are non covered. We create dummy_units to coverer
         // them. Each dummy_unit has a Tour of exactly one node.
-        let mut dummy_units = HashMap::new();
-        let mut dummy_tours = HashMap::new();
+        let mut dummies = HashMap::new();
         let mut dummy_counter = 0;
 
         for node in nw.service_nodes().chain(nw.maintenance_nodes()) {
@@ -476,15 +474,16 @@ impl Schedule {
                 let trivial_tour = Tour::new_dummy(t, vec!(node), loc.clone(), nw.clone());
                 let new_dummy_id = UnitId::from(format!("dummy{:05}", dummy_counter).as_str());
 
-                dummy_units.insert(new_dummy_id,t);
-                dummy_tours.insert(new_dummy_id,trivial_tour);
+                dummies.insert(new_dummy_id,(t,trivial_tour));
 
                 formation.push(new_dummy_id);
                 dummy_counter += 1;
             }
             covered_by.insert(node, TrainFormation::new(formation, units.clone()));
         }
+        let mut dummy_ids_sorted: Vec<UnitId> = dummies.keys().copied().collect();
+        dummy_ids_sorted.sort();
 
-        Schedule{tours, covered_by, dummy_units, dummy_tours, dummy_counter, loc, units, nw}
+        Schedule{tours, covered_by, dummies, dummy_ids_sorted, dummy_counter, loc, units, nw}
     }
 }

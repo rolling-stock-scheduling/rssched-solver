@@ -21,7 +21,7 @@ impl Solver for Greedy1 {
 
     fn solve(&self) -> Schedule {
         let mut schedule = Schedule::initialize(self.loc.clone(), self.units.clone(), self.nw.clone());
-        for unit in self.units.get_all() {
+        for unit in self.units.iter() {
             let mut node = self.nw.start_node_of(unit);
             let mut new_node_opt = get_fitting_node(&schedule, node, unit);
 

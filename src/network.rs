@@ -157,7 +157,7 @@ impl Network {
         }
 
         let mut start_nodes: HashMap<UnitId, NodeId> = HashMap::new();
-        for unit_id in units.get_all() {
+        for unit_id in units.iter() {
             let unit = units.get_unit(unit_id);
             let node_id = NodeId::from(&format!("SN:{}", unit_id));
             let name = format!("|{}@{}", unit_id, unit.start_location());
