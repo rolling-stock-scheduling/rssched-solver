@@ -108,6 +108,11 @@ impl Schedule {
         self.dummy_ids_sorted.iter().copied()
     }
 
+    /// returns all unit ids of real units (sorted)
+    pub(crate) fn real_units_iter(&self) -> impl Iterator<Item = UnitId> + '_ {
+        self.units.iter()
+    }
+
     pub(crate) fn uncovered_successors(&self, node: NodeId) -> impl Iterator<Item = (NodeId,UnitId)> + '_ {
         self.nw.all_successors(node).filter_map(|n| self.get_dummy_cover_of(n).map(|u| (n,u)))
     }
@@ -115,7 +120,7 @@ impl Schedule {
     /// Simulates inserting the node_sequence into the tour of unit. Return all nodes (as a Path) that would
     /// have been removed from the tour.
     pub(crate) fn conflict(&self, segment: Segment, receiver: UnitId) -> Result<Path,String> {
-        let tour: Tour = self.tours.get(&receiver).unwrap().clone();
+        let tour: Tour = self.tour_of(receiver).clone();
         let result = tour.conflict(segment)?;
         Ok(result)
     }

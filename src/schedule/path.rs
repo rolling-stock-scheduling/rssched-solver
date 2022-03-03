@@ -2,6 +2,7 @@ use crate::base_types::NodeId;
 use crate::locations::Locations;
 use crate::network::Network;
 use itertools::Itertools;
+use std::fmt;
 
 use std::rc::Rc;
 
@@ -71,6 +72,17 @@ impl Path {
     }
 }
 
+impl fmt::Display for Path {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut nodes_iter = self.node_sequence.iter();
+        write!(f, "{}", self.nw.node(*nodes_iter.next().unwrap()))?;
+        for node in nodes_iter {
+            write!(f, " - {}", self.nw.node(*node))?;
+        }
+        Ok(())
+    }
+}
+
 
 ////////////////////////////////////////////
 ////////////// Segment /////////////////////
@@ -92,5 +104,11 @@ impl Segment {
 
     pub(crate) fn end(&self) -> NodeId {
         self.end
+    }
+}
+
+impl fmt::Display for Segment {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "[{}..{}]", self.start, self.end)
     }
 }

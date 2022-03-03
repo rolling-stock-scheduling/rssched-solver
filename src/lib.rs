@@ -22,6 +22,8 @@ use locations::Locations;
 use schedule::Schedule;
 use schedule::path::Segment;
 
+use modifications::{SwapFactory, AllExchanges};
+
 use std::rc::Rc;
 
 pub fn run(path: &str) {
@@ -34,27 +36,43 @@ pub fn run(path: &str) {
 
 
 
+
+
+
     // execute greedy_1 algorithms (going through units and pick nodes greedily)
     let greedy_1 = Greedy1::initialize(loc.clone(), units.clone(), nw.clone());
     let schedule = greedy_1.solve();
 
-    schedule.write_to_csv(&format!("{}{}", path, "ETH_leistungsketten.csv")).unwrap();
+    schedule.print();
+    let swap_factory = AllExchanges::new();
+    // let mut schedule = Schedule::initialize(loc.clone(), units.clone(), nw.clone());
+    let swaps = swap_factory.create_swaps(&schedule);
+
+    println!("Swap-count: {}", swaps.len());
+
+    // for swap in swaps.iter() {
+        // println!("\n schedule after {}:", swap);
+        // swap.apply(&schedule).unwrap().print();
+    // }
+    
+
+
+    // schedule.write_to_csv(&format!("{}{}", path, "ETH_leistungsketten.csv")).unwrap();
 
 
 
     // print some properties of the resulting schedule to the terminal:
-    schedule.print();
 
     // for node in nw.all_nodes() {
         // println!("{}", nw.node(node));
     // }
 
-    schedule.objective_value().print();
+    // schedule.objective_value().print();
 
-    println!("Minimal overhead: {}", nw.minimal_overhead());
+    // println!("Minimal overhead: {}", nw.minimal_overhead());
 
     // manual_test(units.clone(), schedule);
-    manual_swap_test(units.clone(), schedule);
+    // manual_swap_test(units.clone(), schedule);
 
 }
 
@@ -85,7 +103,7 @@ fn manual_swap_test(units: Rc<Units>, schedule: Schedule) {
 
     println!("removable: {}", tour_a.removable_single_node(node));
 
-    let swap = PathExchange::new(node, node, unit_a, unit_b);
+    let swap = PathExchange::new(Segment::new(node, node), unit_a, unit_b);
 
     let new_schedule = swap.apply(&schedule).unwrap();
 
