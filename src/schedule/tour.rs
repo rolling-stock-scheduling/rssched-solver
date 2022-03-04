@@ -61,7 +61,7 @@ impl Tour {
             |(&a,&b)| self.loc.distance(self.nw.node(a).end_location(),self.nw.node(b).start_location())).sum()
     }
 
-    pub(crate) fn travel_time(&self) -> Duration {
+    pub(crate) fn travel_time(&self) -> Duration { // Care do not count Maintenance
         let service_tt: Duration = self.nodes.iter().map(|&n| self.nw.node(n).travel_time()).sum();
         let dead_head_tt = self.nodes.iter().tuple_windows().map(
             |(&a,&b)| self.loc.travel_time(self.nw.node(a).end_location(), self.nw.node(b).start_location())).sum();
@@ -71,6 +71,11 @@ impl Tour {
     /// return the overhead_time (dead head travel time + idle time) of the tour.
     pub(crate) fn overhead_time(&self) -> Duration {
         self.nodes.iter().tuple_windows().map(|(&a,&b)| self.nw.node(b).start_time() - self.nw.node(a).end_time()).sum()
+    }
+    
+    /// return the overhead_time (dead head travel time + idle time) of the tour.
+    pub(crate) fn useful_time(&self) -> Duration {
+        self.nodes.iter().map(|&n| self.nw.node(n).useful_duration()).sum()
     }
 
     pub(crate) fn sub_path(&self, segment: Segment) -> Result<Path,String> {
@@ -103,6 +108,7 @@ impl Tour {
         // node_sequence. Removed nodes are returned.
         let mut new_tour_nodes = self.nodes.clone();
         new_tour_nodes.splice(start_pos..end_pos,path.consume());
+
         Ok(Tour::new_trusted(self.unit_type, new_tour_nodes, self.is_dummy, self.loc.clone(),self.nw.clone()))
     }
 
@@ -170,11 +176,14 @@ impl Tour {
     }
 
 
+    /// start_position is here the position of the first node that should be removed
+    /// end_position is here the position in the tour of the last node that should be removed
+    /// in other words [start_position .. end_position+1) is about to be removed
     fn removable_by_pos(&self, start_position: usize, end_position: usize) -> Result<(), String> {
         if !self.is_dummy && start_position == 0 {
             return Err(String::from("StartNode cannot be removed."));
         }
-        if !self.is_dummy && start_position == self.nodes.len()-1 {
+        if !self.is_dummy && end_position == self.nodes.len()-1 {
             return Err(String::from("EndNode cannot be removed."));
         }
         if start_position > end_position {
@@ -207,16 +216,15 @@ impl Tour {
 
         // first test if end nodes make sense:
         let mut has_endnode = false;
-        let last = segment.end();
-        let last_node = self.nw.node(last);
+        let last_node = self.nw.node(segment.end());
         if matches!(last_node, Node::End(_)) {
+            has_endnode = true;
             if last_node.unit_type() != self.unit_type {
                 return Err(String::from("Unit types do not match!"));
             }
             if self.is_dummy {
                 return Err(String::from("Dummy-Tours cannot take EndNodes!"));
             }
-            has_endnode = true;
         }
         if end_pos == self.nodes.len() && !self.is_dummy && !has_endnode {
             return Err(String::from("Cannot insert path to tour, as it does not end with an EndPoint and the old EndPoint cannot be reached!"));

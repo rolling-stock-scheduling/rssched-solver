@@ -91,6 +91,14 @@ impl Node {
         self.end_time() - self.start_time()
     }
 
+    pub(crate) fn useful_duration(&self) -> Duration {
+        if matches!(self, Node::Service(_)) || matches!(self, Node::Maintenance(_)) {
+            self.duration()
+        } else {
+            Duration::zero()
+        }
+    }
+
     pub(crate) fn start_location(&self) -> Location {
         match self {
             Node::Service(s) => s.origin,

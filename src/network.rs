@@ -87,15 +87,16 @@ impl Network {
 
     pub(crate) fn minimal_overhead(&self) -> Duration {
         let earliest_start_time = self.start_nodes.values().map(|n| self.node(*n).end_time()).min().unwrap();
-        let mut overhead = self.end_nodes.iter().map(|n| self.node(*n).start_time() - earliest_start_time).sum();
-        overhead = overhead - self.start_nodes.values().map(|n| self.node(*n).end_time() - earliest_start_time).sum();
+        self.end_nodes.iter().map(|n| self.node(*n).start_time() - earliest_start_time).sum::<Duration>()
+         - self.start_nodes.values().map(|n| self.node(*n).end_time() - earliest_start_time).sum()
+         - self.total_useful_duration()
+    }
 
-        overhead = overhead - self.service_nodes.iter().chain(self.maintenance_nodes.iter())
+    pub(crate) fn total_useful_duration(&self) -> Duration {
+        self.service_nodes.iter().chain(self.maintenance_nodes.iter())
             .map(|n| (0..self.node(*n).demand().number_of_units())
-                 .map(|_| self.node(*n).duration()).sum()).sum();
+            .map(|_| self.node(*n).duration()).sum()).sum()
         // node that service trips are counted as big as their demand is
-
-        overhead
     }
 }
 

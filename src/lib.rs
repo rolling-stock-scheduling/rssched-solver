@@ -23,7 +23,7 @@ use schedule::Schedule;
 use schedule::path::Segment;
 
 use modifications::{SwapIterator,LocalImprover,Greedy};
-
+use time::Duration;
 use std::rc::Rc;
 
 pub fn run(path: &str) {
@@ -49,6 +49,7 @@ pub fn run(path: &str) {
     let mut schedule = Schedule::initialize(loc.clone(), units.clone(), nw.clone());
 
     let optimal = nw.minimal_overhead();
+    let all_duration: Duration = nw.total_useful_duration();
 
     while let Some(sched) = local_improver.improve(&schedule) {
         println!("");
@@ -60,6 +61,8 @@ pub fn run(path: &str) {
                 println!("{}: {}", dummy, schedule.tour_of(dummy));
             }
         }
+        let useful_duration: Duration = schedule.real_units_iter().map(|u| schedule.tour_of(u).useful_time()).sum();
+        println!("covered duration: {} of {}", useful_duration, all_duration);
     }
 
     println!("\nFinal:");
