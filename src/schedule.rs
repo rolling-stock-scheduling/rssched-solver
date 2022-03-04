@@ -254,7 +254,8 @@ impl Schedule {
             }
         } else {
             dummies.remove(&provider); // old_dummy_tour is completely removed
-            dummy_ids_sorted.remove(dummy_ids_sorted.iter().position(|id| *id == provider).unwrap());
+            dummy_ids_sorted.remove(dummy_ids_sorted.binary_search(&provider).unwrap());
+            // dummy_ids_sorted.remove(dummy_ids_sorted.iter().position(|id| *id == provider).unwrap());
         }
 
         // update extended tour of the receiver
@@ -322,7 +323,7 @@ impl Schedule {
             }
         } else {
             dummies.remove(&provider); // old_dummy_tour is completely removed
-            dummy_ids_sorted.remove(dummy_ids_sorted.iter().position(|id| *id == provider).unwrap());
+            dummy_ids_sorted.remove(dummy_ids_sorted.binary_search(&provider).unwrap());
         }
 
         // update extended tour of the receiver
@@ -349,8 +350,9 @@ impl Schedule {
             let new_dummy_tour = Tour::new_dummy_by_path(new_dummy_type, replaced_path, self.loc.clone(), self.nw.clone());
 
             dummies.insert(new_dummy, (new_dummy_type, new_dummy_tour));
-            dummy_ids_sorted.push(new_dummy);
-            dummy_ids_sorted.sort();
+            dummy_ids_sorted.insert(dummy_ids_sorted.binary_search(&new_dummy).unwrap_or_else(|e| e), new_dummy);
+            // dummy_ids_sorted.push(new_dummy);
+            // dummy_ids_sorted.sort();
 
             dummy_counter += 1;
 

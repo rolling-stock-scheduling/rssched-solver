@@ -38,7 +38,6 @@ pub fn run(path: &str) {
 
 
 
-
     // execute greedy_1 algorithms (going through units and pick nodes greedily)
     // let greedy_1 = Greedy1::initialize(loc.clone(), units.clone(), nw.clone());
     // let schedule = greedy_1.solve();
@@ -52,22 +51,23 @@ pub fn run(path: &str) {
     let all_duration: Duration = nw.total_useful_duration();
 
     while let Some(sched) = local_improver.improve(&schedule) {
+        schedule = sched;
         println!("");
         println!("min_overhead: {}", optimal);
-        sched.objective_value().print();
-        schedule = sched;
+        schedule.objective_value().print();
+        // schedule.print();
         if schedule.number_of_dummy_units() < 10 {
             for dummy in schedule.dummy_iter(){
                 println!("{}: {}", dummy, schedule.tour_of(dummy));
             }
         }
-        let useful_duration: Duration = schedule.real_units_iter().map(|u| schedule.tour_of(u).useful_time()).sum();
-        println!("covered duration: {} of {}", useful_duration, all_duration);
+        // let useful_duration: Duration = schedule.real_units_iter().map(|u| schedule.tour_of(u).useful_time()).sum();
+        // println!("covered duration: {} of {}", useful_duration, all_duration);
     }
 
-    println!("\nFinal:");
-    schedule.print();
-    schedule.objective_value().print();
+    // println!("\nFinal:");
+    // schedule.print();
+    // schedule.objective_value().print();
 
 
     // schedule.write_to_csv(&format!("{}{}", path, "ETH_leistungsketten.csv")).unwrap();

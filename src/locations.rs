@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use crate::distance::Distance;
 use crate::time::Duration;
-use crate::base_types::StationSide;
+use crate::base_types::{Meter,StationSide};
 
 use crate::utilities::CopyStr;
 
@@ -117,11 +117,11 @@ impl Locations {
 
 // methods
 impl Locations {
-    pub(crate) fn get_all_locations(&self) -> Vec<Location> {
-        let mut stations: Vec<Station> = self.stations.iter().cloned().collect();
-        stations.sort();
-        stations.iter().map(|s| Location::of(*s)).collect()
-    }
+    // pub(crate) fn get_all_locations(&self) -> Vec<Location> {
+        // let mut stations: Vec<Station> = self.stations.iter().copied().collect();
+        // stations.sort();
+        // stations.iter().map(|s| Location::of(*s)).collect()
+    // }
 
     pub(crate) fn get_location(&self, code: &str) -> Location {
         let station = Station::from(code);

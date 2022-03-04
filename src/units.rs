@@ -49,7 +49,7 @@ impl Units {
             units.insert(id,Unit{id,unit_type,start_time,start_location,initial_time_counter,initial_dist_counter});
         }
 
-        let mut ids_sorted: Vec<UnitId> = units.keys().cloned().collect();
+        let mut ids_sorted: Vec<UnitId> = units.keys().copied().collect();
         ids_sorted.sort();
         Units{units, ids_sorted}
     }
@@ -61,7 +61,7 @@ impl Units {
     }
 
     pub(crate) fn iter(&self) -> impl Iterator<Item = UnitId> + '_ {
-        self.ids_sorted.iter().cloned()
+        self.ids_sorted.iter().copied()
     }
 
     pub(crate) fn get_unit(&self, id: UnitId) -> &Unit {

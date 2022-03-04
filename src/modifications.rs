@@ -165,19 +165,70 @@ impl LocalImprover for Greedy {
 
         let swap_iterator = provider_info.iter().flat_map(|(provider, nodes)|
                 nodes.iter().tuple_combinations().chain(nodes.iter().map(|n| (n, n)))
+                // nodes.iter().enumerate().flat_map(|(i,n1)| nodes.iter().skip(i).map(move |n2| (n1,n2)))
                 .map(|(&s, &e)| Segment::new(*s, *e))
                 .filter(|seg| schedule.tour_of(*provider).removable(*seg))
                 .flat_map(move |segment| 
                     schedule.real_units_iter().chain(schedule.dummy_iter())
                     .filter(move |&u| u != *provider && schedule.conflict(segment, u).is_ok())
                     .map(move |receiver|
-                    PathExchange::new(segment, *provider, receiver)))
-            );
+                    PathExchange::new(segment, *provider, receiver))));
+        
+
+        // temp:
+        // swap_iterator
+            // .filter_map(|swap| swap.apply(schedule).ok().map(move |sched| (swap, sched)))
+            // .find(|(swap, sched)| sched.objective_value() < old_objective).map(|(swap, sched)| {
+                // println!("{}", swap);
+                // println!("start_pos: {}, end_pos: {}", 
+                         // schedule.tour_of(swap.provider).position_of(swap.segment.start()).unwrap(), 
+                         // schedule.tour_of(swap.provider).position_of(swap.segment.end()).unwrap(), 
+                         // );
+
+                // let nodes: Vec<_> = schedule.tour_of(swap.provider).nodes_iter().collect();
+                // for _ in nodes.iter().tuple_combinations().chain(nodes.iter().map(|n| (n, n)))
+                // .map(|(&s, &e)| Segment::new(*s, *e))
+                // .filter(|seg| {
+                        // print!("\n{}-{}|{}:{} - ", 
+                         // schedule.tour_of(swap.provider).position_of(seg.start()).unwrap(), 
+                         // schedule.tour_of(swap.provider).position_of(seg.end()).unwrap(), 
+                         // swap.provider,
+                               // schedule.tour_of(swap.provider).removable(*seg));
+                        // schedule.tour_of(swap.provider).removable(*seg)})
+                // .flat_map(move |segment| 
+                    // schedule.real_units_iter().chain(schedule.dummy_iter())
+                    // .filter(move |&u| u != swap.provider && {
+                        // print!("{}:{} ", u, schedule.conflict(segment, u).is_ok());
+                        // schedule.conflict(segment, u).is_ok()}) 
+                    // .map(move |receiver| {
+                    // let test_swap = PathExchange::new(segment, swap.provider, receiver);
+                    // let test_schedule_res = test_swap.apply(schedule);
+                    // print!("ok: {}, ", test_schedule_res.is_ok());
+                    // if let Ok(test_schedule) = test_schedule_res {
+                        // print!("obj: {}; ", test_schedule.objective_value() < schedule.objective_value());
+                    // }
+                    // test_swap
+
+                    // }))
+                // {}
+                // println!("\n");
+
+                // sched.print();
 
 
+                // for (prov, nodes) in provider_info.iter() {
+                    // println!("provider_info: {}: {:?}", prov, nodes.iter().format(","));
+                // }
+                // println!("provider: before: {}", schedule.tour_of(swap.provider));
+                // println!("receiver: after: {}", sched.tour_of(swap.receiver));
+
+
+                // sched})
+        
         swap_iterator
             .filter_map(|swap| swap.apply(schedule).ok())
             .find(|sched| sched.objective_value() < old_objective)
+        
     }
 }
 

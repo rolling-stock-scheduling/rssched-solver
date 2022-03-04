@@ -4,7 +4,7 @@ use crate::time::Duration;
 use crate::base_types::Penalty;
 
 /// objective value of schedule (to be minimized)
-#[derive(Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
 pub(crate) struct Objective {
     overhead_time: Duration, // idle_time + dead_head_time for the tours only (its minimal if all service trips are covered
     number_of_dummy_units : usize,

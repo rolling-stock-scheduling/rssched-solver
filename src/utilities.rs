@@ -37,6 +37,6 @@ impl<const N: usize> fmt::Debug for CopyStr<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let (s, _) = self.code.split_at(self.len);
         let as_str = std::str::from_utf8(s).expect("Invalid UTF8.");
-        write!(f, "{}\n", as_str)
+        write!(f, "{}", as_str)
     }
 }

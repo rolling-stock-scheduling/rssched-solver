@@ -1,16 +1,16 @@
 use std::fmt;
 use std::ops::Add;
-use crate::base_types::Kilometer;
+use crate::base_types::Meter;
 
-#[derive(Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
 pub(crate) enum Distance {
-    Distance(Kilometer),
+    Distance(Meter),
     Infinity
 }
 
 // methods:
 impl Distance {
-    pub fn as_km(&self) -> Kilometer {
+    pub fn in_meter(&self) -> Meter {
         match self {
             Distance::Distance(d) => *d,
             Distance::Infinity => {panic!("Distance is infinity")},
@@ -20,12 +20,16 @@ impl Distance {
 
 // static functions:
 impl Distance {
-    pub fn from_km(d: Kilometer) -> Distance {
-        Distance::Distance(d)
+    pub fn from_meter(m: Meter) -> Distance {
+        Distance::Distance(m)
+    }
+
+    pub fn from_km(km: f32) -> Distance {
+        Distance::from_meter((km * 1000.0) as Meter)
     }
 
     pub fn zero() -> Distance {
-        Distance::Distance(0.0)
+        Distance::Distance(0)
     }
 }
 
@@ -58,7 +62,10 @@ impl std::iter::Sum<Self> for Distance {
 impl fmt::Display for Distance {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Distance::Distance(d) => write!(f, "{}km", d),
+            Distance::Distance(d) => {
+                let m = d % 1000;
+                let km = (d - m)/1000;
+                write!(f, "{}.{:03}km", km, m)},
             Distance::Infinity => write!(f, "INF km"),
         }
     }

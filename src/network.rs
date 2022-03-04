@@ -71,14 +71,14 @@ impl Network {
     /// starting time)
     pub(crate) fn all_successors(&self, node: NodeId) -> impl Iterator<Item=NodeId> + '_ {
         // TODO: Could use binary_search for speed up
-        self.nodes_sorted_by_start.iter().cloned().filter(move |&n| self.can_reach(node,n))
+        self.nodes_sorted_by_start.iter().copied().filter(move |&n| self.can_reach(node,n))
     }
 
     /// provides all nodes that are can reach node (in decreasing order according to the
     /// end time)
     pub(crate) fn all_predecessors(&self, node: NodeId) -> impl Iterator<Item=NodeId> + '_ {
         // TODO: Could use binary_search for speed up
-        self.nodes_sorted_by_end.iter().rev().cloned().filter(move |&n| self.can_reach(n, node))
+        self.nodes_sorted_by_end.iter().rev().copied().filter(move |&n| self.can_reach(n, node))
     }
 
     pub(crate) fn all_nodes(&self) -> impl Iterator<Item=NodeId> + '_ {
@@ -192,9 +192,9 @@ impl Network {
             end_nodes.push(id);
         }
 
-        let mut nodes_sorted_by_start: Vec<NodeId> = nodes.keys().cloned().collect();
+        let mut nodes_sorted_by_start: Vec<NodeId> = nodes.keys().copied().collect();
         nodes_sorted_by_start.sort_by(|n1, n2| nodes.get(n1).unwrap().cmp_start_time(&nodes.get(n2).unwrap()));
-        let mut nodes_sorted_by_end: Vec<NodeId> = nodes.keys().cloned().collect();
+        let mut nodes_sorted_by_end: Vec<NodeId> = nodes.keys().copied().collect();
         nodes_sorted_by_end.sort_by(|n1, n2| nodes.get(n1).unwrap().cmp_end_time(&nodes.get(n2).unwrap()));
 
         // sort all indices by the start_time

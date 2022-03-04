@@ -128,9 +128,9 @@ impl Tour {
 
         self.removable_by_pos(start_pos, end_pos)?;
 
-        let mut tour_nodes: Vec<NodeId> = self.nodes[..start_pos].iter().cloned().collect();
-        tour_nodes.extend(self.nodes[end_pos+1..].iter().cloned());
-        let removed_nodes: Vec<NodeId> = self.nodes[start_pos..end_pos+1].iter().cloned().collect();
+        let mut tour_nodes: Vec<NodeId> = self.nodes[..start_pos].iter().copied().collect();
+        tour_nodes.extend(self.nodes[end_pos+1..].iter().copied());
+        let removed_nodes: Vec<NodeId> = self.nodes[start_pos..end_pos+1].iter().copied().collect();
 
         Ok((Tour::new_trusted(self.unit_type, tour_nodes, self.is_dummy, self.loc.clone(),self.nw.clone()), Path::new_trusted(removed_nodes,self.loc.clone(),self.nw.clone())))
     }
@@ -149,7 +149,7 @@ impl Tour {
 
         self.test_if_valid_replacement(segment, start_pos, end_pos)?;
 
-        let conflicted_nodes = self.nodes[start_pos..end_pos].iter().cloned().collect();
+        let conflicted_nodes = self.nodes[start_pos..end_pos].iter().copied().collect();
         Ok(Path::new_trusted(conflicted_nodes,self.loc.clone(),self.nw.clone()))
     }
 
@@ -157,7 +157,7 @@ impl Tour {
         self.conflict(Segment::new(node, node))
     }
 
-    pub(super) fn position_of(&self, node: NodeId) -> Result<usize, String> {
+    pub(crate) fn position_of(&self, node: NodeId) -> Result<usize, String> {
         let pos = self.nodes.binary_search_by(|other| self.nw.node(*other)
                                               .cmp_start_time(self.nw.node(node))).map_err(|_| "Node not part of tour.")?;
         assert!(node == self.nodes[pos],"fehler");
