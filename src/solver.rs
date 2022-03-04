@@ -1,5 +1,7 @@
 pub mod greedy_1;
 
+pub mod local_search;
+
 use crate::schedule::Schedule;
 use crate::locations::Locations;
 use crate::units::Units;

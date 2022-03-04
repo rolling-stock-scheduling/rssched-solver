@@ -22,7 +22,7 @@ pub(crate) type UnitId = CopyStr<10>;
 
 pub(crate) type NodeId = CopyStr<32>;
 
-pub(crate) type Meter = u32;
+pub(crate) type Meter = u64;
 pub(crate) type Penalty = u32;
 // TODO: Integrate this into the Penalty type
 pub(crate) const PENALTY_ZERO: Penalty = 0;

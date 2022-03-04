@@ -10,10 +10,10 @@ mod network;
 mod schedule;
 
 mod solver;
-mod modifications;
 
 use solver::Solver;
 use solver::greedy_1::Greedy1;
+use solver::local_search::LocalSearch1;
 
 use network::Network;
 use units::Units;
@@ -22,7 +22,6 @@ use locations::Locations;
 use schedule::Schedule;
 use schedule::path::Segment;
 
-use modifications::{SwapIterator,LocalImprover,Greedy};
 use time::Duration;
 use std::rc::Rc;
 
@@ -42,28 +41,14 @@ pub fn run(path: &str) {
     // let greedy_1 = Greedy1::initialize(loc.clone(), units.clone(), nw.clone());
     // let schedule = greedy_1.solve();
 
-    // let swap_factory = AllExchanges::new();
-    let local_improver = Greedy::new();
 
-    let mut schedule = Schedule::initialize(loc.clone(), units.clone(), nw.clone());
+    let local_search_solver = LocalSearch1::initialize(loc.clone(), units.clone(), nw.clone());
 
-    let optimal = nw.minimal_overhead();
-    let all_duration: Duration = nw.total_useful_duration();
+    let final_schedule = local_search_solver.solve();
 
-    while let Some(sched) = local_improver.improve(&schedule) {
-        schedule = sched;
-        println!("");
-        println!("min_overhead: {}", optimal);
-        schedule.objective_value().print();
-        // schedule.print();
-        if schedule.number_of_dummy_units() < 10 {
-            for dummy in schedule.dummy_iter(){
-                println!("{}: {}", dummy, schedule.tour_of(dummy));
-            }
-        }
-        // let useful_duration: Duration = schedule.real_units_iter().map(|u| schedule.tour_of(u).useful_time()).sum();
-        // println!("covered duration: {} of {}", useful_duration, all_duration);
-    }
+    println!("\nFinal schedule:");
+    final_schedule.print();
+    final_schedule.objective_value().print();
 
     // println!("\nFinal:");
     // schedule.print();
@@ -103,7 +88,7 @@ pub fn run(path: &str) {
 //////////////////////////////////////////
 //////////// manual test /////////////////
 //////////////////////////////////////////
-use crate::modifications::{Swap,PathExchange};
+use crate::solver::local_search::{Swap,swaps::PathExchange};
 fn manual_swap_test(units: Rc<Units>, schedule: Schedule) {
 
     let unit_a = units.iter().next().unwrap();
