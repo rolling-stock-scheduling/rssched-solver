@@ -14,7 +14,6 @@ use std::iter::Iterator;
 pub(crate) struct Path {
     node_sequence: Vec<NodeId>,
 
-    loc: Rc<Locations>,
     nw: Rc<Network>
 }
 
@@ -32,16 +31,16 @@ pub(crate) struct Segment {
 impl Path {
 
     /// crates a new Path and asserts that it is a path in the network
-    pub(crate) fn new(node_sequence: Vec<NodeId>, loc: Rc<Locations>, nw: Rc<Network>) -> Path {
+    pub(crate) fn new(node_sequence: Vec<NodeId>, nw: Rc<Network>) -> Path {
         for (&a,&b) in node_sequence.iter().tuple_windows() {
             assert!(nw.can_reach(a,b),"Not a valid Path");
         }
-        Path{node_sequence, loc, nw}
+        Path{node_sequence, nw}
     }
 
     /// crates a new Path but does NOT assert that it is a path in the network
-    pub(crate) fn new_trusted(node_sequence: Vec<NodeId>, loc: Rc<Locations>, nw: Rc<Network>) -> Path {
-        Path{node_sequence, loc, nw}
+    pub(crate) fn new_trusted(node_sequence: Vec<NodeId>, nw: Rc<Network>) -> Path {
+        Path{node_sequence, nw}
     }
 }
 

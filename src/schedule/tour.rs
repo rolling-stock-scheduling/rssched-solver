@@ -72,7 +72,7 @@ impl Tour {
     pub(crate) fn overhead_time(&self) -> Duration {
         self.nodes.iter().tuple_windows().map(|(&a,&b)| self.nw.node(b).start_time() - self.nw.node(a).end_time()).sum()
     }
-    
+
     /// return the overhead_time (dead head travel time + idle time) of the tour.
     pub(crate) fn useful_time(&self) -> Duration {
         self.nodes.iter().map(|&n| self.nw.node(n).useful_duration()).sum()
@@ -88,7 +88,7 @@ impl Tour {
             return Err(String::from("segment.end() not part of Tour."));
         }
 
-        Ok(Path::new_trusted(self.nodes[start_pos..end_pos+1].iter().copied().collect(), self.loc.clone(), self.nw.clone()))
+        Ok(Path::new_trusted(self.nodes[start_pos..end_pos+1].iter().copied().collect(), self.nw.clone()))
 
     }
 
@@ -113,7 +113,7 @@ impl Tour {
     }
 
     pub(super) fn insert_single_node(&self, node: NodeId) -> Result<Tour,String> {
-        self.insert(Path::new(vec!(node), self.loc.clone(), self.nw.clone()))
+        self.insert(Path::new(vec!(node), self.nw.clone()))
     }
 
 
@@ -132,7 +132,7 @@ impl Tour {
         tour_nodes.extend(self.nodes[end_pos+1..].iter().copied());
         let removed_nodes: Vec<NodeId> = self.nodes[start_pos..end_pos+1].iter().copied().collect();
 
-        Ok((Tour::new_trusted(self.unit_type, tour_nodes, self.is_dummy, self.loc.clone(),self.nw.clone()), Path::new_trusted(removed_nodes,self.loc.clone(),self.nw.clone())))
+        Ok((Tour::new_trusted(self.unit_type, tour_nodes, self.is_dummy, self.loc.clone(),self.nw.clone()), Path::new_trusted(removed_nodes,self.nw.clone())))
     }
 
     pub(crate) fn remove_single_node(&self, node: NodeId) -> Result<Tour,String> {
@@ -150,7 +150,7 @@ impl Tour {
         self.test_if_valid_replacement(segment, start_pos, end_pos)?;
 
         let conflicted_nodes = self.nodes[start_pos..end_pos].iter().copied().collect();
-        Ok(Path::new_trusted(conflicted_nodes,self.loc.clone(),self.nw.clone()))
+        Ok(Path::new_trusted(conflicted_nodes,self.nw.clone()))
     }
 
     pub(super) fn conflict_single_node(&self, node: NodeId) -> Result<Path,String> {

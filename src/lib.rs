@@ -88,7 +88,7 @@ pub fn run(path: &str) {
 //////////////////////////////////////////
 //////////// manual test /////////////////
 //////////////////////////////////////////
-use crate::solver::local_search::{Swap,swaps::PathExchange};
+use crate::solver::local_search::swaps::{Swap,PathExchange};
 fn manual_swap_test(units: Rc<Units>, schedule: Schedule) {
 
     let unit_a = units.iter().next().unwrap();

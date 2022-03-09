@@ -7,35 +7,17 @@ pub mod local_improver;
 
 use crate::locations::Locations;
 use crate::units::Units;
-use crate::time::Duration;
 use crate::network::Network;
 use crate::solver::Solver;
 use crate::schedule::Schedule;
 use std::rc::Rc;
 
 use swap_factory::AllExchanges;
-use local_improver::Greedy;
-
-use std::fmt;
+use local_improver::{LocalImprover, Greedy};
 
 
-/// An elementary modification. Defining the "neighborhood" for the local search.
-pub(crate) trait Swap: fmt::Display {
-    fn apply(&self, schedule: &Schedule) -> Result<Schedule, String>;
-    // TODO maybe add something like, get_improvement()
-}
 
-/// Computes for a given schedule all Swaps in the neighborhood.
-// pub(crate) trait SwapIterator: Iterator<Item=PathExchange> {
-pub(crate) trait SwapFactory {
-    fn create_swap_iterator<'a>(&'a self, schedule: &'a Schedule) -> Box<dyn Iterator<Item = PathExchange> + 'a>;
-}
 
-/// Computes for a given schedule the best new schedule that has better objective function.
-/// Returns None if there is no better schedule in the neighborhood.
-pub(crate) trait LocalImprover {
-    fn improve(&self, schedule: &Schedule) -> Option<Schedule>;
-}
 
 
 

@@ -1,7 +1,6 @@
 
 use crate::distance::Distance;
 use crate::time::Duration;
-use crate::base_types::Penalty;
 
 /// objective value of schedule (to be minimized)
 #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]

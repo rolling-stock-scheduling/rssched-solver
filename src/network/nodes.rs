@@ -1,6 +1,6 @@
 use crate::time::{Time,Duration};
 use crate::locations::Location;
-use crate::units::{Unit,UnitType};
+use crate::units::UnitType;
 use crate::distance::Distance;
 use crate::base_types::{NodeId,UnitId,Penalty};
 use super::demand::Demand;

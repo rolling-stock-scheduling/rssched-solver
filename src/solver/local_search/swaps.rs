@@ -1,9 +1,16 @@
 use crate::base_types::{NodeId, UnitId};
 use crate::schedule::path::Segment;
 use crate::schedule::Schedule;
-use super::Swap;
 
 use std::fmt;
+
+
+/// An elementary modification. Defining the "neighborhood" for the local search.
+pub(crate) trait Swap: fmt::Display {
+    fn apply(&self, schedule: &Schedule) -> Result<Schedule, String>;
+    // TODO maybe add something like, get_improvement()
+}
+
 
 
 /// Removes the path from the provider's Tour and insert it into the receiver's Tour.

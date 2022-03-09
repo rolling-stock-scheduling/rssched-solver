@@ -1,9 +1,19 @@
 use crate::schedule::Schedule;
 
-use super::LocalImprover;
-use super::SwapFactory;
-use super::Swap;
+use super::swap_factory::SwapFactory;
+use super::swaps::Swap;
 
+/// Computes for a given schedule the best new schedule that has better objective function.
+/// Returns None if there is no better schedule in the neighborhood.
+pub(crate) trait LocalImprover {
+    fn improve(&self, schedule: &Schedule) -> Option<Schedule>;
+}
+
+
+
+///////////////////////////////////////////////////////////
+////////////////////// Minimizer //////////////////////////
+///////////////////////////////////////////////////////////
 
 pub(crate) struct Minimizer<F: SwapFactory> {
     swap_factory: F
@@ -29,6 +39,9 @@ impl<F: SwapFactory> LocalImprover for Minimizer<F> {
 
 
 
+///////////////////////////////////////////////////////////
+//////////////////////// Greedy ///////////////////////////
+///////////////////////////////////////////////////////////
 
 
 pub(crate) struct Greedy<F: SwapFactory> {
@@ -53,5 +66,4 @@ impl<F: SwapFactory> LocalImprover for Greedy<F> {
 
     }
 }
-
 
