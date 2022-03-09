@@ -61,8 +61,19 @@ impl<F: SwapFactory> LocalImprover for Greedy<F> {
 
         let swap_iterator = self.swap_factory.create_swap_iterator(schedule);
 
-        swap_iterator.filter_map(|swap| swap.apply(schedule).ok())
-            .find(|sched| sched.objective_value() < old_objective)
+        // swap_iterator.filter_map(|swap| swap.apply(schedule).ok())
+            // .find(|sched| sched.objective_value() < old_objective)
+        let mut counter = 0;
+        let result = swap_iterator.filter_map(|swap| {counter += 1; swap.apply(schedule).ok()})
+            .find(|sched| sched.objective_value() < old_objective);
+        if result.is_none() {
+            println!("No improvement found after {} swaps.", counter);
+        } else {
+            println!("Improvement found after {} swaps.", counter);
+
+        }
+
+        result
 
     }
 }

@@ -1,6 +1,13 @@
 use super::swaps::{Swap, PathExchange};
 use crate::schedule::Schedule;
 use crate::schedule::path::Segment;
+use crate::time::Duration;
+use crate::network::Network;
+use std::rc::Rc;
+use crate::time::Time;
+use crate::base_types::UnitId;
+
+use std::iter;
 
 /// Computes for a given schedule all Swaps in the neighborhood.
 pub(crate) trait SwapFactory {
@@ -39,6 +46,91 @@ impl SwapFactory for AllExchanges {
                 )
             )
         )
+    }
+}
+
+///////////////////////////////////////////////////////////
+////////////////// LimitedExchanges ///////////////////////
+///////////////////////////////////////////////////////////
+
+
+/// Takes all PathExchanges where the segment time length is smaller than the threshold.
+/// The length of a segment is measured from the start_time of the first node to the end_time of
+/// the last node.
+pub(crate) struct LimitedExchanges {
+    segment_limit: Option<Duration>,
+    overhead_threshold: Option<Duration>,
+    nw: Rc<Network>
+}
+
+impl LimitedExchanges {
+    pub(crate) fn new(segment_limit: Option<Duration>, overhead_threshold: Option<Duration>, nw: Rc<Network>) -> LimitedExchanges {
+        LimitedExchanges{segment_limit, overhead_threshold, nw}
+    }
+}
+
+impl SwapFactory for LimitedExchanges {
+    fn create_swap_iterator<'a> (&'a self, schedule : &'a Schedule) -> Box<dyn Iterator<Item = Box<dyn Swap>> + 'a> {
+
+        Box::new(
+            // as provider first take dummies then real units:
+            self.dummy_and_real_units(schedule)
+            .flat_map(move |provider|
+                // create segment of provider's tour
+                self.segments(provider, schedule)
+                .flat_map(move |seg|
+                    // as receiver first take the real units then the dummies
+                    self.real_and_dummy_units(schedule)
+                    // skip provider as receiver, test if receiver could in principle take the
+                    // segment
+                    .filter(move |&u| u != provider && schedule.conflict(seg, u).is_ok())
+                    // crate the swap
+                    .map(move |receiver| -> Box<dyn Swap> {
+                        Box::new(PathExchange::new(seg, provider, receiver))
+                    })
+                )
+            )
+        )
+    }
+}
+
+impl LimitedExchanges {
+    fn segments<'a>(&'a self, provider: UnitId, schedule: &'a Schedule) -> impl Iterator<Item = Segment> + 'a {
+        let threshold = match self.overhead_threshold{None => Duration::zero(), Some(d) => d};
+        let tour = schedule.tour_of(provider);
+        // all nodes of provider's tour might be the start of a segment
+        tour.movable_nodes().enumerate()
+        // only take nodes with enough preceding overhead:
+        .filter(move |(_,&n)| tour.preceding_overhead(n) >= threshold)
+        .flat_map(move |(i,seg_start)|
+            // all nodes (after the start) could be the end of the segment
+            tour.movable_nodes().copied().skip(i)
+            // only take nodes with enough subsequent overhead:
+            .filter(move |n| tour.subsequent_overhead(*n) >= threshold)
+            // only take the nodes such that the segment is not longer than the threshold
+            .take_while(move |seg_end| self.segment_limit.is_none()
+                        || self.nw.node(*seg_end).end_time() - self.nw.node(*seg_start).start_time() <= self.segment_limit.unwrap())
+            // if provider is a real unit, add the last_node as segment end. (note that is not taken twice as EndNodes
+            // end at time Infinity
+            .chain(iter::once(schedule.tour_of(provider).last_node())
+                   .filter(move |_n| self.segment_limit.is_some()
+                           // && self.nw.node(*_n).end_time() == Time::Latest
+                           )
+                   )
+            // create the segment
+            .map(move |seg_end| Segment::new(*seg_start, seg_end))
+        )
+        // test whether the segment can be removed
+        .filter(move |seg| schedule.tour_of(provider).removable(*seg))
+
+    }
+
+    fn dummy_and_real_units<'a>(&'a self, schedule: &'a Schedule) -> impl Iterator<Item = UnitId> + 'a {
+        schedule.dummy_iter().chain(schedule.real_units_iter())
+    }
+
+    fn real_and_dummy_units<'a>(&'a self, schedule: &'a Schedule) -> impl Iterator<Item = UnitId> + 'a {
+        schedule.real_units_iter().chain(schedule.dummy_iter())
     }
 }
 

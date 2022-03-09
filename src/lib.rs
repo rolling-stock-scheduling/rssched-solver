@@ -24,6 +24,7 @@ use schedule::path::Segment;
 
 use time::Duration;
 use std::rc::Rc;
+use std::time as stdtime;
 
 pub fn run(path: &str) {
 
@@ -43,12 +44,16 @@ pub fn run(path: &str) {
 
 
     let local_search_solver = LocalSearch1::initialize(loc.clone(), units.clone(), nw.clone());
-
+    let start_time = stdtime::Instant::now();
     let final_schedule = local_search_solver.solve();
+    let end_time = stdtime::Instant::now();
+    let runtime_duration = end_time.duration_since(start_time);
 
     println!("\nFinal schedule:");
     final_schedule.print();
     final_schedule.objective_value().print();
+
+    println!("Running time: {:0.2}sec", runtime_duration.as_secs_f32());
 
     // println!("\nFinal:");
     // schedule.print();

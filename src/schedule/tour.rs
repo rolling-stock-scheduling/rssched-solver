@@ -33,6 +33,36 @@ impl Tour {
         self.nodes.iter()
     }
 
+    /// return an iterator over all nodes (by start time) skipping the StartNode
+    pub(crate) fn movable_nodes(&self) -> impl Iterator<Item=&NodeId> {
+        let mut iter = self.nodes.iter();
+        if !self.is_dummy {
+            iter.next(); // skip StartNode
+        }
+        iter
+    }
+
+    /// the overhead time (dead_head + idle) between the predecessor and  the node itself
+    pub(crate) fn preceding_overhead(&self, node: NodeId) -> Duration {
+        if node == self.first_node() {
+            Duration::Infinity
+        } else {
+            let pos = self.position_of(node).unwrap();
+            let predecessor = *self.nodes.get(pos - 1).unwrap();
+            self.nw.node(node).start_time() - self.nw.node(predecessor).end_time()
+        }
+    }
+    /// the overhead time (dead_head + ilde) between the node itself and its successor
+    pub(crate) fn subsequent_overhead(&self, node: NodeId) -> Duration {
+        if node == self.last_node() {
+            Duration::Infinity
+        } else {
+            let pos = self.position_of(node).unwrap();
+            let successor = *self.nodes.get(pos + 1).unwrap();
+            self.nw.node(successor).start_time() - self.nw.node(node).end_time()
+        }
+    }
+
     pub(crate) fn last_node(&self) -> NodeId {
         *self.nodes.last().unwrap()
     }
