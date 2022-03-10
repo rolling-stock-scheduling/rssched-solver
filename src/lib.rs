@@ -36,17 +36,26 @@ pub fn run(path: &str) {
     let nw = Rc::new(Network::load_from_csv(&format!("{}{}", path, "kundenfahrten.csv"), &format!("{}{}", path, "wartungsfenster.csv"), &format!("{}{}", path, "endpunkte.csv"), loc.clone(), units.clone()));
 
 
-
+    let start_time = stdtime::Instant::now();
 
 
     // execute greedy_1 algorithms (going through units and pick nodes greedily)
     // let greedy_1 = Greedy1::initialize(loc.clone(), units.clone(), nw.clone());
-    // let schedule = greedy_1.solve();
+    // let final_schedule = greedy_1.solve();
 
 
-    let local_search_solver = LocalSearch1::initialize(loc.clone(), units.clone(), nw.clone());
-    let start_time = stdtime::Instant::now();
-    let final_schedule = local_search_solver.solve();
+
+    // execute greedy_2 algorithms (going through units and pick nodes greedily)
+    let greedy_2 = Greedy2::initialize(loc.clone(), units.clone(), nw.clone());
+    let final_schedule = greedy_2.solve();
+    
+
+
+    // let local_search_solver = LocalSearch1::initialize(loc.clone(), units.clone(), nw.clone());
+    // let final_schedule = local_search_solver.solve();
+   
+
+
     let end_time = stdtime::Instant::now();
     let runtime_duration = end_time.duration_since(start_time);
 
@@ -58,11 +67,6 @@ pub fn run(path: &str) {
     final_schedule.objective_value().print();
 
     println!("Running time: {:0.2}sec", runtime_duration.as_secs_f32());
-
-    // println!("\nFinal:");
-    // schedule.print();
-    // schedule.objective_value().print();
-
 
     // schedule.write_to_csv(&format!("{}{}", path, "ETH_leistungsketten.csv")).unwrap();
 

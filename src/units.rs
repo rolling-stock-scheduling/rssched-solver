@@ -64,12 +64,6 @@ impl Units {
         self.ids_sorted.iter().copied()
     }
 
-    pub(crate) fn get_all(&self) -> Vec<UnitId> {
-        let mut ids: Vec<UnitId> = self.units.keys().cloned().collect();
-        ids.sort();
-        ids
-    }
-
     pub(crate) fn get_unit(&self, id: UnitId) -> &Unit {
         self.units.get(&id).unwrap()
     }
