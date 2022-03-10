@@ -13,6 +13,7 @@ mod solver;
 
 use solver::Solver;
 use solver::greedy_1::Greedy1;
+use solver::greedy_2::Greedy2;
 use solver::local_search::LocalSearch1;
 
 use network::Network;

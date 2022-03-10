@@ -1,5 +1,5 @@
 pub mod greedy_1;
-// pub mod greedy_2;
+pub mod greedy_2;
 pub mod local_search;
 
 use crate::schedule::Schedule;

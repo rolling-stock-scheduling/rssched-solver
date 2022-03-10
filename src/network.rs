@@ -18,7 +18,7 @@ use std::iter::Iterator;
 use std::rc::Rc;
 
 pub(crate) struct Network {
-    nodes: HashMap<NodeId, Node>,
+    pub nodes: HashMap<NodeId, Node>,
 
     // nodes are by default sorted by start_time
     service_nodes: Vec<NodeId>,
