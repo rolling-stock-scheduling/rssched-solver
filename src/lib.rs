@@ -45,15 +45,15 @@ pub fn run(path: &str) {
 
 
 
-    // execute greedy_2 algorithms (going through units and pick nodes greedily)
-    let greedy_2 = Greedy2::initialize(loc.clone(), units.clone(), nw.clone());
-    let final_schedule = greedy_2.solve();
-    
+    // execute greedy_2 algorithms (going through nodes and pick units greedily)
+    // let greedy_2 = Greedy2::initialize(loc.clone(), units.clone(), nw.clone());
+    // let final_schedule = greedy_2.solve();
 
 
-    // let local_search_solver = LocalSearch1::initialize(loc.clone(), units.clone(), nw.clone());
-    // let final_schedule = local_search_solver.solve();
-   
+
+    let local_search_solver = LocalSearch1::initialize(loc.clone(), units.clone(), nw.clone());
+    let final_schedule = local_search_solver.solve();
+
 
 
     let end_time = stdtime::Instant::now();

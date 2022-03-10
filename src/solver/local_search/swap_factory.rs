@@ -58,18 +58,18 @@ impl SwapFactory for AllExchanges {
 /// The length of a segment is measured from the start_time of the first node to the end_time of
 /// the last node.
 pub(crate) struct LimitedExchanges {
-    segment_limit: Option<Duration>,
+    segment_length_limit: Option<Duration>,
     overhead_threshold: Option<Duration>,
     only_dummy_provider: bool,
     nw: Rc<Network>
 }
 
 impl LimitedExchanges {
-    pub(crate) fn new(segment_limit: Option<Duration>,
+    pub(crate) fn new(segment_length_limit: Option<Duration>,
                       overhead_threshold: Option<Duration>,
                       only_dummy_provider: bool,
                       nw: Rc<Network>) -> LimitedExchanges {
-        LimitedExchanges{segment_limit, overhead_threshold, only_dummy_provider, nw}
+        LimitedExchanges{segment_length_limit, overhead_threshold, only_dummy_provider, nw}
     }
 }
 
@@ -117,12 +117,12 @@ impl LimitedExchanges {
             // only take nodes with enough subsequent overhead:
             .filter(move |n| schedule.is_dummy(provider) || tour.subsequent_overhead(*n) >= threshold)
             // only take the nodes such that the segment is not longer than the threshold
-            .take_while(move |seg_end| self.segment_limit.is_none()
-                        || self.nw.node(*seg_end).end_time() - self.nw.node(*seg_start).start_time() <= self.segment_limit.unwrap())
+            .take_while(move |seg_end| self.segment_length_limit.is_none()
+                        || self.nw.node(*seg_end).end_time() - self.nw.node(*seg_start).start_time() <= self.segment_length_limit.unwrap())
             // if provider is a real unit, add the last_node as segment end. (note that is not taken twice as EndNodes
             // end at time Infinity
             .chain(iter::once(schedule.tour_of(provider).last_node())
-                   .filter(move |_n| self.segment_limit.is_some()
+                   .filter(move |_n| self.segment_length_limit.is_some()
                            // && self.nw.node(*_n).end_time() == Time::Latest
                            )
                    )

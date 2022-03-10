@@ -116,21 +116,22 @@ impl<F: SwapFactory> TakeFirstRecursion<F> {
         let swap_iterator = schedules.iter().flat_map(|sched| self.swap_factory.create_swap_iterator(sched).map(move |swap| (swap, sched)));
 
         let mut counter = 0;
-        let mut schedule_collection: Vec<Schedule> = Vec::new();
+        let mut schedule_collection: Vec<(Schedule,ObjectiveValue)> = Vec::new();
 
         let result = swap_iterator.filter_map(|(swap,old_sched)| {
             counter += 1;
             swap.apply(old_sched).ok()
         }).find(|new_sched| {
-            schedule_collection.push(new_sched.clone());
-            new_sched.objective_value() < objective_to_beat
+            let new_objective_value = new_sched.objective_value();
+            schedule_collection.push((new_sched.clone(), new_objective_value));
+            new_objective_value < objective_to_beat
         });
 
         if result.is_none() {
             println!("No improvement found after {} swaps.", counter);
 
             if remaining_recursion > 0 {
-                let compare = |sched1:&Schedule, sched2:&Schedule| sched1.objective_value().cmp(&sched2.objective_value());
+                let compare = |(_,obj1):&(Schedule,ObjectiveValue), (_,obj2):&(Schedule, ObjectiveValue)| obj1.cmp(obj2);
                 if let Some(width) = self.recursion_width {
                     let width = width.min(schedule_collection.len());
                     schedule_collection.select_nth_unstable_by(width-1, compare);
@@ -139,8 +140,9 @@ impl<F: SwapFactory> TakeFirstRecursion<F> {
                 
                 println!("Going into recursion. Remaining depth: {}. Schedule-count: {}", remaining_recursion, schedule_collection.len());
                 schedule_collection.sort_by(compare);
+                let schedules_for_recursion = schedule_collection.into_iter().map(|(sched,_)| sched).collect();
                 
-                self.improve_recursion(schedule_collection, objective_to_beat, remaining_recursion-1)
+                self.improve_recursion(schedules_for_recursion, objective_to_beat, remaining_recursion-1)
             } else {
                 println!("No recursion-depth left.");
                 None
