@@ -193,14 +193,14 @@ impl Network {
         }
 
         let mut nodes_sorted_by_start: Vec<NodeId> = nodes.keys().copied().collect();
-        nodes_sorted_by_start.sort_by(|n1, n2| nodes.get(n1).unwrap().cmp_start_time(&nodes.get(n2).unwrap()));
+        nodes_sorted_by_start.sort_by(|n1, n2| nodes.get(n1).unwrap().cmp_start_time(nodes.get(n2).unwrap()));
         let mut nodes_sorted_by_end: Vec<NodeId> = nodes.keys().copied().collect();
-        nodes_sorted_by_end.sort_by(|n1, n2| nodes.get(n1).unwrap().cmp_end_time(&nodes.get(n2).unwrap()));
+        nodes_sorted_by_end.sort_by(|n1, n2| nodes.get(n1).unwrap().cmp_end_time(nodes.get(n2).unwrap()));
 
         // sort all indices by the start_time
-        service_nodes.sort_by(|n1, n2| nodes.get(n1).unwrap().cmp_start_time(&nodes.get(n2).unwrap()));
-        maintenance_nodes.sort_by(|n1, n2| nodes.get(n1).unwrap().cmp_start_time(&nodes.get(n2).unwrap()));
-        end_nodes.sort_by(|n1, n2| nodes.get(n1).unwrap().cmp_start_time(&nodes.get(n2).unwrap()));
+        service_nodes.sort_by(|n1, n2| nodes.get(n1).unwrap().cmp_start_time(nodes.get(n2).unwrap()));
+        maintenance_nodes.sort_by(|n1, n2| nodes.get(n1).unwrap().cmp_start_time(nodes.get(n2).unwrap()));
+        end_nodes.sort_by(|n1, n2| nodes.get(n1).unwrap().cmp_start_time(nodes.get(n2).unwrap()));
 
         Network{nodes,service_nodes,maintenance_nodes,start_nodes,end_nodes,nodes_sorted_by_start, nodes_sorted_by_end,loc}
     }
@@ -210,9 +210,9 @@ impl Network {
 
 impl fmt::Display for Network {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,"** network with {} nodes:\n", self.size())?;
+        writeln!(f,"** network with {} nodes:", self.size())?;
         for (i,n) in self.nodes_sorted_by_start.iter().enumerate() {
-            write!(f,"\t{}: {}\n", i, self.nodes.get(n).unwrap())?;
+            writeln!(f,"\t{}: {}", i, self.nodes.get(n).unwrap())?;
         }
         Ok(())
     }

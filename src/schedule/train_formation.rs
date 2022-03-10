@@ -49,7 +49,7 @@ impl TrainFormation {
 
 impl fmt::Display for TrainFormation {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if self.formation.len() > 0 {
+        if !self.formation.is_empty() {
             for unit in self.formation.iter() {
                 write!(f, "[{}]->", unit)?;
             }

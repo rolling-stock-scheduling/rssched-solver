@@ -40,7 +40,7 @@ pub(crate) struct DurationLength {
 
 impl Time {
     pub(crate) fn new(string: &str) -> Time { //"2009-06-15T13:45:00Z" or "2009-4-15T12:1"
-        let shortened = string.replace("Z","");
+        let shortened = string.replace('Z',"");
         let splitted: Vec<&str> = shortened.split(&['T','-',' ',':'][..]).collect();
         let len = splitted.len();
         assert!(len <= 6 && len >= 5, "Wrong time format.");
@@ -150,7 +150,7 @@ impl TimePoint {
         let mut new_year = year;
         if new_month > 12 {
             new_year += 1;
-            new_month = new_month - 12;
+            new_month -= 12;
         }
 
         TimePoint::correct_date(new_year, new_month, new_day)

@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use crate::distance::Distance;
 use crate::time::Duration;
-use crate::base_types::{Meter,StationSide};
+use crate::base_types::StationSide;
 
 use crate::utilities::CopyStr;
 
@@ -33,7 +33,7 @@ pub(crate) struct Locations {
 
 #[derive(Hash,Eq,PartialEq,Copy,Clone)]
 pub(crate) enum Location {
-    Location(Station),
+    Station(Station),
     Nowhere, // distance to Nowhere is always infinity
     Everywhere // distance to Everywehre is always zero (except for Nowhere)
 }
@@ -61,7 +61,7 @@ impl Locations {
             let first_station_code = record.get(0).unwrap();
             let second_station_code = record.get(1).unwrap();
 
-            let travel_time_formatted = record.get(2).unwrap().split('T').last().unwrap().split('M').next().unwrap().replace("H",":");
+            let travel_time_formatted = record.get(2).unwrap().split('T').last().unwrap().split('M').next().unwrap().replace('H',":");
             let travel_time = Duration::new(&travel_time_formatted);
 
             let distance = Distance::from_km(record.get(3).unwrap().parse().unwrap());
@@ -74,9 +74,9 @@ impl Locations {
             fn insert(distances: &mut HashMap<Station,HashMap<Station,DeadHeadTrip>>, origin: &Station, destination: &Station, dead_head_trip: DeadHeadTrip) {
                 match distances.get_mut(origin){
                     Some(hm) => hm,
-                    None => {distances.insert(origin.clone(),HashMap::new());
+                    None => {distances.insert(*origin,HashMap::new());
                              distances.get_mut(origin).unwrap()}
-                }.insert(destination.clone(), dead_head_trip);
+                }.insert(*destination, dead_head_trip);
             }
 
             stations.insert(Station::from(first_station_code));
@@ -157,9 +157,9 @@ impl Locations {
 
     fn get_dead_head_trip(&self, a: Location, b: Location) -> Option<&DeadHeadTrip> {
         match a {
-            Location::Location(station_a) =>
+            Location::Station(station_a) =>
                 match b {
-                    Location::Location(station_b) =>
+                    Location::Station(station_b) =>
                         Some(self.dead_head_trips.get(&station_a).unwrap().get(&station_b).unwrap()),
                     _ => None,
                 },
@@ -180,14 +180,14 @@ impl Location {
     // }
 
     fn of(station: Station) -> Location {
-        Location::Location(station)
+        Location::Station(station)
     }
 }
 
 impl Location {
     fn as_station(&self) -> Station {
         match self {
-            Location::Location(s) => s.clone(),
+            Location::Station(s) => *s,
             _ => {panic!("Location is NOWHERE or EVERYWHERE!")},
         }
     }
@@ -196,7 +196,7 @@ impl Location {
 impl fmt::Display for Location {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Location::Location(s) => write!(f, "{}", s),
+            Location::Station(s) => write!(f, "{}", s),
             Location::Nowhere => write!(f, "NOWHERE!"),
             Location::Everywhere => write!(f, "EVERYWHERE!")
         }

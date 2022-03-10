@@ -3,7 +3,7 @@ use crate::locations::Locations;
 use crate::units::Units;
 use crate::network::Network;
 use crate::solver::Solver;
-use crate::base_types::{UnitId,NodeId,StationSide};
+use crate::base_types::{UnitId,NodeId};
 
 use std::rc::Rc;
 
@@ -24,7 +24,7 @@ impl Solver for Greedy2 {
 
         // Sort service and maintanence nodes by start time
         let mut nodes_sorted_by_start: Vec<NodeId> = self.nw.service_nodes().chain(self.nw.maintenance_nodes()).collect();
-        nodes_sorted_by_start.sort_by(|n1, n2| self.nw.node(*n1).cmp_start_time(&self.nw.node(*n2)));
+        nodes_sorted_by_start.sort_by(|n1, n2| self.nw.node(*n1).cmp_start_time(self.nw.node(*n2)));
 
         // Last node in each non-dummy tour excluding end node. Initialize to start nodes.
         let mut last_nodes: Vec<(UnitId, NodeId)> = Vec::new();
@@ -36,15 +36,14 @@ impl Solver for Greedy2 {
         for node in nodes_sorted_by_start{
             for dummy_id in schedule.clone().covered_by(node).iter() {
                 // Sort last_nodes by end time of nodes in decreasing order (i.e. second component in the tuple)
-                last_nodes.sort_by(|n1, n2| self.nw.node(n2.1).cmp_end_time(&self.nw.node(n1.1)));
+                last_nodes.sort_by(|n1, n2| self.nw.node(n2.1).cmp_end_time(self.nw.node(n1.1)));
                 // Find an existing tour that can cover 'node' while minimizing the wasted time
                 let candidate = last_nodes.iter().find(|(u,_)| {
                     let conflict_result = schedule.conflict_single_node(node, *u);
                     conflict_result.is_ok() && conflict_result.unwrap().is_empty()
                 });
                 // update tour
-                if candidate.is_some() {
-                    let (new_unit, _) = candidate.unwrap();
+                if let Some((new_unit, _)) = candidate {
                     schedule = schedule.reassign_all(dummy_id, *new_unit).unwrap();
                 }
             }

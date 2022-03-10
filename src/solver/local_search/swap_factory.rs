@@ -4,7 +4,6 @@ use crate::schedule::path::Segment;
 use crate::time::Duration;
 use crate::network::Network;
 use std::rc::Rc;
-use crate::time::Time;
 use crate::base_types::UnitId;
 
 use std::iter;

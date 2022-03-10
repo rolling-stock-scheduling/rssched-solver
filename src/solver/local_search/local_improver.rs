@@ -1,7 +1,6 @@
 use crate::schedule::Schedule;
 
 use super::swap_factory::SwapFactory;
-use super::swaps::Swap;
 use crate::schedule::objective::ObjectiveValue;
 
 /// Computes for a given schedule the best new schedule that has better objective function.

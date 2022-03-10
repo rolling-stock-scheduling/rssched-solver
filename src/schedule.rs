@@ -51,7 +51,7 @@ pub(crate) struct Schedule {
 // methods
 impl Schedule {
     pub(crate) fn tour_of(&self, unit: UnitId) -> &Tour {
-        self.tours.get(&unit).unwrap_or_else(|| &self.dummies.get(&unit).expect(format!("{} is neither real nor dummy unit", unit).as_str()).1)
+        self.tours.get(&unit).unwrap_or_else(|| &self.dummies.get(&unit).unwrap_or_else(|| panic!("{} is neither real nor dummy unit", unit)).1)
     }
 
     pub(crate) fn covered_by(&self, node: NodeId) -> &TrainFormation {
@@ -97,7 +97,7 @@ impl Schedule {
     // returns the first (seen from head to tail) dummy_unit that covers the node.
     // If node is fully-covered by real units, None is returned.
     fn get_dummy_cover_of(&self, node: NodeId) -> Option<UnitId> {
-        self.covered_by.get(&node).unwrap().iter().filter(|u| self.dummies.contains_key(u)).next()
+        self.covered_by.get(&node).unwrap().iter().find(|u| self.dummies.contains_key(u))
     }
 
     pub(crate) fn uncovered_nodes(&self) -> impl Iterator<Item = (NodeId,UnitId)> + '_ {
@@ -237,9 +237,9 @@ impl Schedule {
             }
             let insert_result = new_tour_receiver.insert(path_for_insertion);
 
-            if insert_result.is_ok() {
+            if let Ok(receiver) = insert_result {
                 new_tour_provider = new_tour_provider_candidate;
-                new_tour_receiver = insert_result.unwrap();
+                new_tour_receiver = receiver;
                 moved_nodes.extend(node_sequence);
             }
 
@@ -460,7 +460,7 @@ impl Schedule {
         for unit_id in units.iter() {
             let unit = units.get_unit(unit_id);
             let start_node = nw.start_node_of(unit_id);
-            let pos = end_nodes.iter().position(|&e| nw.node(e).unit_type() == unit.unit_type() && nw.can_reach(start_node, e)).expect(format!("No suitable end_node found for start_node: {}", start_node).as_str());
+            let pos = end_nodes.iter().position(|&e| nw.node(e).unit_type() == unit.unit_type() && nw.can_reach(start_node, e)).unwrap_or_else(|| panic!("No suitable end_node found for start_node: {}", start_node));
             let end_node = end_nodes.remove(pos).unwrap();
 
             tours.insert(unit_id, Tour::new(unit.unit_type(), vec!(start_node, end_node), loc.clone(), nw.clone()));

@@ -23,7 +23,6 @@ use locations::Locations;
 use schedule::Schedule;
 use schedule::path::Segment;
 
-use time::Duration;
 use std::rc::Rc;
 use std::time as stdtime;
 
@@ -61,7 +60,7 @@ pub fn run(path: &str) {
 
     println!("\n\nFinal schedule:");
     final_schedule.print();
-    println!("");
+    println!();
     let optimal = nw.minimal_overhead();
     println!("min_overhead: {}", optimal);
     final_schedule.objective_value().print();

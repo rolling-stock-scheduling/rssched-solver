@@ -19,7 +19,7 @@ impl<const N: usize> CopyStr<N>{
 
         let mut writable: [u8; N] = [0; N];
         let (writearea, _) = writable.split_at_mut(len);
-        writearea.copy_from_slice(&raw);
+        writearea.copy_from_slice(raw);
 
         CopyStr{code: writable, len}
     }

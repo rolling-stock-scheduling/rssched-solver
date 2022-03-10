@@ -1,5 +1,4 @@
 pub mod swaps;
-use swaps::PathExchange;
 
 pub mod swap_factory;
 
@@ -13,8 +12,8 @@ use crate::schedule::Schedule;
 use crate::time::Duration;
 use std::rc::Rc;
 
-use swap_factory::{LimitedExchanges, AllExchanges};
-use local_improver::{LocalImprover, Minimizer, TakeFirst, TakeFirstRecursion};
+use swap_factory::LimitedExchanges;
+use local_improver::{LocalImprover, TakeFirstRecursion};
 use super::greedy_2::Greedy2;
 
 
@@ -86,7 +85,7 @@ impl LocalSearch1 {
                     println!("{}: {}", dummy, new_schedule.tour_of(dummy));
                 }
             }
-            println!("");
+            println!();
             old_schedule = new_schedule;
         }
         old_schedule

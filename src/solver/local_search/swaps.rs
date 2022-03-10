@@ -1,4 +1,4 @@
-use crate::base_types::{NodeId, UnitId};
+use crate::base_types::UnitId;
 use crate::schedule::path::Segment;
 use crate::schedule::Schedule;
 

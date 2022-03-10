@@ -109,16 +109,16 @@ impl Tour {
     }
 
     pub(crate) fn sub_path(&self, segment: Segment) -> Result<Path,String> {
-        let start_pos = self.earliest_not_reaching_node(segment.start()).ok_or(String::from("segment.start() not part of Tour."))?;
+        let start_pos = self.earliest_not_reaching_node(segment.start()).ok_or_else(||String::from("segment.start() not part of Tour."))?;
         if segment.start() != self.nodes[start_pos] {
             return Err(String::from("segment.start() not part of Tour."));
         }
-        let end_pos = self.earliest_not_reaching_node(segment.end()).ok_or(String::from("segment.end() not part of Tour."))?;
+        let end_pos = self.earliest_not_reaching_node(segment.end()).ok_or_else(|| String::from("segment.end() not part of Tour."))?;
         if segment.end() != self.nodes[end_pos] {
             return Err(String::from("segment.end() not part of Tour."));
         }
 
-        Ok(Path::new_trusted(self.nodes[start_pos..end_pos+1].iter().copied().collect(), self.nw.clone()))
+        Ok(Path::new_trusted(self.nodes[start_pos..end_pos+1].to_vec(), self.nw.clone()))
 
     }
 
@@ -158,9 +158,9 @@ impl Tour {
 
         self.removable_by_pos(start_pos, end_pos)?;
 
-        let mut tour_nodes: Vec<NodeId> = self.nodes[..start_pos].iter().copied().collect();
+        let mut tour_nodes: Vec<NodeId> = self.nodes[..start_pos].to_vec();
         tour_nodes.extend(self.nodes[end_pos+1..].iter().copied());
-        let removed_nodes: Vec<NodeId> = self.nodes[start_pos..end_pos+1].iter().copied().collect();
+        let removed_nodes: Vec<NodeId> = self.nodes[start_pos..end_pos+1].to_vec();
 
         Ok((Tour::new_trusted(self.unit_type, tour_nodes, self.is_dummy, self.loc.clone(),self.nw.clone()), Path::new_trusted(removed_nodes,self.nw.clone())))
     }
@@ -179,7 +179,7 @@ impl Tour {
 
         self.test_if_valid_replacement(segment, start_pos, end_pos)?;
 
-        let conflicted_nodes = self.nodes[start_pos..end_pos].iter().copied().collect();
+        let conflicted_nodes = self.nodes[start_pos..end_pos].to_vec();
         Ok(Path::new_trusted(conflicted_nodes,self.nw.clone()))
     }
 
@@ -197,7 +197,9 @@ impl Tour {
     pub(crate) fn removable(&self, segment: Segment) -> bool {
         let start_pos_res = self.position_of(segment.start());
         let end_pos_res = self.position_of(segment.end());
-        if start_pos_res.is_err() || end_pos_res.is_err() {false} else {
+        if start_pos_res.is_err() || end_pos_res.is_err() {
+            false
+        } else {
             self.removable_by_pos(start_pos_res.unwrap(), end_pos_res.unwrap()).is_ok()}
     }
 

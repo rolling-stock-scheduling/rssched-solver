@@ -1,5 +1,4 @@
 use crate::base_types::NodeId;
-use crate::locations::Locations;
 use crate::network::Network;
 use itertools::Itertools;
 use std::fmt;
