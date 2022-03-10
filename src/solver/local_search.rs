@@ -14,7 +14,8 @@ use crate::time::Duration;
 use std::rc::Rc;
 
 use swap_factory::{LimitedExchanges, AllExchanges};
-use local_improver::{LocalImprover, Greedy, Minimizer};
+use local_improver::{LocalImprover, Minimizer, TakeFirst, TakeFirstRecursion};
+use super::greedy_1::Greedy1;
 
 
 
@@ -36,29 +37,60 @@ impl Solver for LocalSearch1 {
     }
 
     fn solve(&self) -> Schedule {
+        // let mut schedule = Schedule::initialize(self.loc.clone(), self.units.clone(), self.nw.clone());
+        let greedy = Greedy1::initialize(self.loc.clone(), self.units.clone(), self.nw.clone());
+        let mut schedule = greedy.solve();
+
+
+
+
+
+
+
+        // Phase 1: limited exchanges:
+        let segment_limit = Duration::new("3:00");
+        let overhead_threshold = Duration::new("0:30"); // tours of real-unit-providers are not splitted at nodes under these duration
+        let only_dummy_provider = false;
+        let swap_factory = LimitedExchanges::new(Some(segment_limit), Some(overhead_threshold), only_dummy_provider, self.nw.clone());
+
+        let recursion_depth = 3;
+        let recursion_width = 50;
+        let limited_local_improver = TakeFirstRecursion::new(swap_factory,recursion_depth, Some(recursion_width));
+        // let limited_local_improver = TakeFirst::new(swap_factory);
+
+        schedule = self.find_local_optimum(schedule, limited_local_improver);
+
+
+        // Phase 2: unlimited exchanges:
         // let swap_factory = AllExchanges::new();
-        // let swap_factory = LimitedExchanges::new(None, self.nw.clone());
-        let segment_limit = Duration::new("6:00");
-        let overhead_threshold = Duration::new("0:30");
-        let swap_factory = LimitedExchanges::new(Some(segment_limit), Some(overhead_threshold) , self.nw.clone());
-        let local_improver = Greedy::new(swap_factory);
-        // let local_improver = Minimizer::new(swap_factory);
+        let swap_factory = LimitedExchanges::new(None, None, false, self.nw.clone());
+        // let unlimited_local_improver = TakeFirst::new(swap_factory);
+        let unlimited_local_improver = TakeFirstRecursion::new(swap_factory,1,Some(2));
 
-        let mut schedule = Schedule::initialize(self.loc.clone(), self.units.clone(), self.nw.clone());
+        schedule = self.find_local_optimum(schedule, unlimited_local_improver);
 
-        let optimal = self.nw.minimal_overhead();
-        while let Some(sched) = local_improver.improve(&schedule) {
-            schedule = sched;
-            println!("min_overhead: {}", optimal);
-            schedule.objective_value().print();
+
+
+        schedule
+
+    }
+}
+
+impl LocalSearch1 {
+    fn find_local_optimum(&self, schedule: Schedule, local_improver: impl LocalImprover) -> Schedule {
+        let mut old_schedule = schedule;
+        while let Some(new_schedule) = local_improver.improve(&old_schedule) {
+            new_schedule.objective_value().print();
             // schedule.print();
-            if schedule.number_of_dummy_units() < 5 {
-                for dummy in schedule.dummy_iter(){
-                    println!("{}: {}", dummy, schedule.tour_of(dummy));
+            if new_schedule.number_of_dummy_units() < 5 {
+                for dummy in new_schedule.dummy_iter(){
+                    println!("{}: {}", dummy, new_schedule.tour_of(dummy));
                 }
             }
             println!("");
+            old_schedule = new_schedule;
         }
-        schedule
+        old_schedule
+
     }
 }

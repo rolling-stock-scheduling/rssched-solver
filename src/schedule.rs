@@ -5,8 +5,8 @@ pub(crate) mod path;
 use path::Path;
 use path::Segment;
 
-mod objective;
-use objective::Objective;
+pub(crate) mod objective;
+use objective::ObjectiveValue;
 
 pub(crate) mod train_formation;
 use train_formation::TrainFormation;
@@ -90,8 +90,8 @@ impl Schedule {
         self.dummies.keys().count()
     }
 
-    pub(crate) fn objective_value(&self) -> Objective {
-        Objective::new(self.total_overhead_time(),self.number_of_dummy_units(),self.total_dummy_overhead_time(),self.total_dead_head_distance())
+    pub(crate) fn objective_value(&self) -> ObjectiveValue {
+        ObjectiveValue::new(self.total_overhead_time(),self.number_of_dummy_units(),self.total_dummy_overhead_time(),self.total_dead_head_distance())
     }
 
     // returns the first (seen from head to tail) dummy_unit that covers the node.

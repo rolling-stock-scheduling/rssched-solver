@@ -60,21 +60,30 @@ impl SwapFactory for AllExchanges {
 pub(crate) struct LimitedExchanges {
     segment_limit: Option<Duration>,
     overhead_threshold: Option<Duration>,
+    only_dummy_provider: bool,
     nw: Rc<Network>
 }
 
 impl LimitedExchanges {
-    pub(crate) fn new(segment_limit: Option<Duration>, overhead_threshold: Option<Duration>, nw: Rc<Network>) -> LimitedExchanges {
-        LimitedExchanges{segment_limit, overhead_threshold, nw}
+    pub(crate) fn new(segment_limit: Option<Duration>,
+                      overhead_threshold: Option<Duration>,
+                      only_dummy_provider: bool,
+                      nw: Rc<Network>) -> LimitedExchanges {
+        LimitedExchanges{segment_limit, overhead_threshold, only_dummy_provider, nw}
     }
 }
 
 impl SwapFactory for LimitedExchanges {
     fn create_swap_iterator<'a> (&'a self, schedule : &'a Schedule) -> Box<dyn Iterator<Item = Box<dyn Swap>> + 'a> {
 
+        let providers: Vec<_> = if self.only_dummy_provider {
+            schedule.dummy_iter().collect()
+        } else {
+            self.dummy_and_real_units(schedule).collect()
+        };
         Box::new(
             // as provider first take dummies then real units:
-            self.dummy_and_real_units(schedule)
+            providers.into_iter()
             .flat_map(move |provider|
                 // create segment of provider's tour
                 self.segments(provider, schedule)
@@ -101,12 +110,12 @@ impl LimitedExchanges {
         // all nodes of provider's tour might be the start of a segment
         tour.movable_nodes().enumerate()
         // only take nodes with enough preceding overhead:
-        .filter(move |(_,&n)| tour.preceding_overhead(n) >= threshold)
+        .filter(move |(_,&n)| schedule.is_dummy(provider) || tour.preceding_overhead(n) >= threshold)
         .flat_map(move |(i,seg_start)|
             // all nodes (after the start) could be the end of the segment
             tour.movable_nodes().copied().skip(i)
             // only take nodes with enough subsequent overhead:
-            .filter(move |n| tour.subsequent_overhead(*n) >= threshold)
+            .filter(move |n| schedule.is_dummy(provider) || tour.subsequent_overhead(*n) >= threshold)
             // only take the nodes such that the segment is not longer than the threshold
             .take_while(move |seg_end| self.segment_limit.is_none()
                         || self.nw.node(*seg_end).end_time() - self.nw.node(*seg_start).start_time() <= self.segment_limit.unwrap())

@@ -50,8 +50,11 @@ pub fn run(path: &str) {
     let end_time = stdtime::Instant::now();
     let runtime_duration = end_time.duration_since(start_time);
 
-    println!("\nFinal schedule:");
+    println!("\n\nFinal schedule:");
     final_schedule.print();
+    println!("");
+    let optimal = nw.minimal_overhead();
+    println!("min_overhead: {}", optimal);
     final_schedule.objective_value().print();
 
     println!("Running time: {:0.2}sec", runtime_duration.as_secs_f32());

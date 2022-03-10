@@ -4,7 +4,7 @@ use crate::time::Duration;
 
 /// objective value of schedule (to be minimized)
 #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
-pub(crate) struct Objective {
+pub(crate) struct ObjectiveValue {
     overhead_time: Duration, // idle_time + dead_head_time for the tours only (its minimal if all service trips are covered
     number_of_dummy_units : usize,
     dummy_overhead_time: Duration, // idle_time + dead_head_time of dummy tours.
@@ -14,7 +14,7 @@ pub(crate) struct Objective {
     dead_head_distance: Distance // total dead_head_distance traveled
 }
 
-impl Objective {
+impl ObjectiveValue {
     pub fn print(&self) {
         println!("* overhead_time: {}", self.overhead_time);
         println!("* number_of_dummy_units: {}", self.number_of_dummy_units);
@@ -22,8 +22,8 @@ impl Objective {
         println!("* dead_head_distance: {}", self.dead_head_distance);
     }
 
-    pub fn new(overhead_time: Duration, number_of_dummy_units: usize, dummy_overhead_time: Duration, dead_head_distance: Distance) -> Objective {
-        Objective{
+    pub fn new(overhead_time: Duration, number_of_dummy_units: usize, dummy_overhead_time: Duration, dead_head_distance: Distance) -> ObjectiveValue {
+        ObjectiveValue {
             overhead_time,
             number_of_dummy_units,
             dummy_overhead_time,
