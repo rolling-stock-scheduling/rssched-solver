@@ -24,6 +24,10 @@ pub(crate) struct Tour {
     nodes: Vec<NodeId>, // nodes will always be sorted by start_time
     is_dummy: bool,
 
+    overhead_time: Duration,
+    service_distance: Distance,
+    dead_head_distance: Distance,
+
     loc: Rc<Locations>,
     nw: Rc<Network>,
 }
@@ -80,33 +84,29 @@ impl Tour {
     }
 
     pub(crate) fn distance(&self) -> Distance {
-        let service_distance: Distance = self.nodes.iter().map(|&n| self.nw.node(n).travel_distance()).sum();
-
-        let dead_head_distance = self.dead_head_distance();
-        service_distance + dead_head_distance
+        self.service_distance + self.dead_head_distance
     }
 
     pub(crate) fn dead_head_distance(&self) -> Distance {
-        self.nodes.iter().tuple_windows().map(
-            |(&a,&b)| self.loc.distance(self.nw.node(a).end_location(),self.nw.node(b).start_location())).sum()
+        self.dead_head_distance
     }
 
-    pub(crate) fn travel_time(&self) -> Duration { // Care do not count Maintenance
-        let service_tt: Duration = self.nodes.iter().map(|&n| self.nw.node(n).travel_time()).sum();
-        let dead_head_tt = self.nodes.iter().tuple_windows().map(
-            |(&a,&b)| self.loc.travel_time(self.nw.node(a).end_location(), self.nw.node(b).start_location())).sum();
-        service_tt + dead_head_tt
-    }
+    // pub(crate) fn travel_time(&self) -> Duration { // Care: does not count Maintenance
+        // let service_tt: Duration = self.nodes.iter().map(|&n| self.nw.node(n).travel_time()).sum();
+        // let dead_head_tt = self.nodes.iter().tuple_windows().map(
+            // |(&a,&b)| self.loc.travel_time(self.nw.node(a).end_location(), self.nw.node(b).start_location())).sum();
+        // service_tt + dead_head_tt
+    // }
 
     /// return the overhead_time (dead head travel time + idle time) of the tour.
     pub(crate) fn overhead_time(&self) -> Duration {
-        self.nodes.iter().tuple_windows().map(|(&a,&b)| self.nw.node(b).start_time() - self.nw.node(a).end_time()).sum()
+        self.overhead_time
     }
 
-    /// return the overhead_time (dead head travel time + idle time) of the tour.
-    pub(crate) fn useful_time(&self) -> Duration {
-        self.nodes.iter().map(|&n| self.nw.node(n).useful_duration()).sum()
-    }
+    /// return the usefule_time (end - start for each node, including maintenance_slots) of the tour.
+    // pub(crate) fn useful_time(&self) -> Duration {
+        // self.nodes.iter().map(|&n| self.nw.node(n).useful_duration()).sum()
+    // }
 
     pub(crate) fn sub_path(&self, segment: Segment) -> Result<Path,String> {
         let start_pos = self.earliest_not_reaching_node(segment.start()).ok_or_else(||String::from("segment.start() not part of Tour."))?;
@@ -134,12 +134,65 @@ impl Tour {
 
         self.test_if_valid_replacement(segment, start_pos, end_pos)?;
 
+        // compute useful_time, service_distance and dead_head_distance for the path:
+        let path_useful_time = path.iter().map(|n| self.nw.node(*n).useful_duration()).sum();
+        let path_service_distance = path.iter().map(|n| self.nw.node(*n).travel_distance()).sum();
+        let path_dead_head_distance =
+            if start_pos == 0 {
+                Distance::zero()
+            } else {
+                self.loc.distance(self.nw.node(*self.nodes.get(start_pos-1).unwrap()).end_location(), self.nw.node(path.first()).start_location())
+            } +
+
+            path.iter().tuple_windows().map(|(&a,&b)| self.loc.distance(self.nw.node(a).end_location(),self.nw.node(b).start_location())).sum() +
+
+            if end_pos >= self.nodes.len() || path.is_empty() {
+                Distance::zero()
+            } else {
+                self.loc.distance(self.nw.node(path.last()).end_location(), self.nw.node(*self.nodes.get(end_pos).unwrap()).start_location())
+            };
+
+
         // remove all elements in start_pos..end_pos and replace them by
         // node_sequence. Removed nodes are returned.
         let mut new_tour_nodes = self.nodes.clone();
         new_tour_nodes.splice(start_pos..end_pos,path.consume());
 
-        Ok(Tour::new_trusted(self.unit_type, new_tour_nodes, self.is_dummy, self.loc.clone(),self.nw.clone()))
+
+
+        // compute useful_time, service_distance and dead_head_distance for the segment that is
+        // removed:
+        let removed_useful_time = (start_pos..end_pos).map(|i| self.nw.node(self.nodes[i]).useful_duration()).sum();
+        let removed_service_distance = (start_pos..end_pos).map(|i| self.nw.node(self.nodes[i]).travel_distance()).sum();
+        let removed_dead_head_distance: Distance =
+            if start_pos == 0 || start_pos >= self.nodes.len() {
+                Distance::zero()
+            } else {
+                self.loc.distance(self.nw.node(self.nodes[start_pos-1]).end_location(), self.nw.node(self.nodes[start_pos]).start_location())
+            } +
+            (start_pos..end_pos).tuple_windows().map(
+            |(i,j)| self.loc.distance(self.nw.node(self.nodes[i]).end_location(),self.nw.node(self.nodes[j]).start_location())).sum() +
+            if end_pos == self.nodes.len() || (start_pos == end_pos && start_pos > 0) || end_pos == 0 {
+                Distance::zero()
+            } else {
+                self.loc.distance(self.nw.node(*self.nodes.get(end_pos-1).unwrap()).end_location(), self.nw.node(*self.nodes.get(end_pos).unwrap()).start_location())
+            };
+
+
+        // compute the overhead_time, service_distance and dead_head_distance for the new tour:
+        let overhead_time = if self.is_dummy {
+            // for a dummy the total time (start of the first node - end of the last node)
+            // might have changed.
+            let total_time_original = self.nw.node(*self.nodes.last().unwrap()).end_time() - self.nw.node(*self.nodes.first().unwrap()).start_time();
+            let total_time_new = self.nw.node(*new_tour_nodes.last().unwrap()).end_time() - self.nw.node(*new_tour_nodes.first().unwrap()).start_time();
+            self.overhead_time + total_time_new + removed_useful_time - path_useful_time - total_time_original
+        } else {
+            self.overhead_time + removed_useful_time - path_useful_time
+        };
+        let service_distance = self.service_distance + path_service_distance - removed_service_distance;
+        let dead_head_distance = self.dead_head_distance + path_dead_head_distance - removed_dead_head_distance;
+
+        Ok(Tour::new_trusted(self.unit_type, new_tour_nodes, self.is_dummy, overhead_time, service_distance, dead_head_distance, self.loc.clone(),self.nw.clone()))
     }
 
     pub(super) fn insert_single_node(&self, node: NodeId) -> Result<Tour,String> {
@@ -158,11 +211,56 @@ impl Tour {
 
         self.removable_by_pos(start_pos, end_pos)?;
 
+        // compute usefile_time, service_distance and dead_head_distance for the removed segment:
+        let removed_useful_time = (start_pos..end_pos+1).map(|i| self.nw.node(self.nodes[i]).useful_duration()).sum();
+        let removed_service_distance = (start_pos..end_pos+1).map(|i| self.nw.node(self.nodes[i]).travel_distance()).sum();
+        let removed_dead_head_distance: Distance =
+            if start_pos == 0 {
+                Distance::zero()
+            } else {
+                self.loc.distance(self.nw.node(*self.nodes.get(start_pos-1).unwrap()).end_location(), self.nw.node(*self.nodes.get(start_pos).unwrap()).start_location())
+            } +
+            (start_pos..end_pos+1).tuple_windows().map(
+            |(i,j)| self.loc.distance(self.nw.node(self.nodes[i]).end_location(),self.nw.node(self.nodes[j]).start_location())).sum() +
+            if end_pos == self.nodes.len() - 1 {
+                Distance::zero()
+            } else {
+                self.loc.distance(self.nw.node(self.nodes[end_pos]).end_location(), self.nw.node(self.nodes[end_pos+1]).start_location())
+            };
+
+        // compute the dead_head_distance for the new gap that is created:
+        let added_dead_head_distance =
+            if start_pos == 0 || end_pos == self.nodes.len() - 1 {
+                Distance::zero()
+            } else {
+                self.loc.distance(self.nw.node(self.nodes[start_pos-1]).end_location(), self.nw.node(self.nodes[end_pos+1]).start_location())
+            };
+
+
+        // remove the segment from the tour:
         let mut tour_nodes: Vec<NodeId> = self.nodes[..start_pos].to_vec();
         tour_nodes.extend(self.nodes[end_pos+1..].iter().copied());
         let removed_nodes: Vec<NodeId> = self.nodes[start_pos..end_pos+1].to_vec();
 
-        Ok((Tour::new_trusted(self.unit_type, tour_nodes, self.is_dummy, self.loc.clone(),self.nw.clone()), Path::new_trusted(removed_nodes,self.nw.clone())))
+
+        // compute the overhead_time, service_distance and dead_head_distance for the new tour:
+        let overhead_time =
+            if self.is_dummy {
+                if tour_nodes.len() == 0 {
+                    Duration::zero()
+                } else {
+                    let total_time_original = self.nw.node(*self.nodes.last().unwrap()).end_time() - self.nw.node(*self.nodes.first().unwrap()).start_time();
+                    let total_time_new = self.nw.node(*tour_nodes.last().unwrap()).end_time() - self.nw.node(*tour_nodes.first().unwrap()).start_time();
+                    self.overhead_time + removed_useful_time + total_time_new - total_time_original
+                }
+            } else {
+                self.overhead_time + removed_useful_time
+            };
+        let service_distance = self.service_distance - removed_service_distance;
+        let dead_head_distance = self.dead_head_distance + added_dead_head_distance - removed_dead_head_distance;
+
+
+        Ok((Tour::new_trusted(self.unit_type, tour_nodes, self.is_dummy, overhead_time, service_distance, dead_head_distance, self.loc.clone(),self.nw.clone()), Path::new_trusted(removed_nodes,self.nw.clone())))
     }
 
     pub(crate) fn remove_single_node(&self, node: NodeId) -> Result<Tour,String> {
@@ -230,7 +328,7 @@ impl Tour {
     }
 
     pub(crate) fn print(&self) {
-        println!("{}tour with {} nodes of length {} and travel time {}:", if self.is_dummy {"dummy-"} else {""}, self.nodes.len(), self.distance(), self.travel_time());
+        println!("{}tour with {} nodes:", if self.is_dummy {"dummy-"} else {""}, self.nodes.len(),);
         for node in self.nodes.iter() {
             print!("\t* ");
             self.nw.node(*node).print();
@@ -360,23 +458,31 @@ impl Tour {
         for (&a,&b) in nodes.iter().tuple_windows() {
             assert!(nw.can_reach(a,b),"Not a valid Tour");
         }
-        Tour{unit_type, nodes, is_dummy: false, loc, nw}
+        Tour::new_computing(unit_type, nodes, false, loc, nw)
     }
 
     pub(super) fn new_dummy(unit_type: UnitType, nodes: Vec<NodeId>, loc: Rc<Locations>, nw: Rc<Network>) -> Tour {
         for (&a,&b) in nodes.iter().tuple_windows() {
             assert!(nw.can_reach(a,b),"Not a valid Dummy-Tour");
         }
-        Tour{unit_type, nodes, is_dummy: true, loc, nw}
+        Tour::new_computing(unit_type, nodes, true, loc, nw)
     }
 
     /// Creates a new tour from a vector of NodeIds. Trusts that the vector leads to a valid Tour.
-    pub(super) fn new_trusted(unit_type: UnitType, nodes: Vec<NodeId>, is_dummy: bool, loc: Rc<Locations>, nw: Rc<Network>) -> Tour {
-        Tour{unit_type, nodes, is_dummy, loc, nw}
+    pub(super) fn new_trusted(unit_type: UnitType, nodes: Vec<NodeId>, is_dummy: bool, overhead_time: Duration, service_distance: Distance, dead_head_distance: Distance, loc: Rc<Locations>, nw: Rc<Network>) -> Tour {
+        Tour{unit_type, nodes, is_dummy, overhead_time, service_distance, dead_head_distance, loc, nw}
     }
 
     pub(super) fn new_dummy_by_path(unit_type: UnitType, path: Path, loc: Rc<Locations>, nw: Rc<Network>) -> Tour {
-        Tour{unit_type, nodes:path.consume(), is_dummy: true, loc, nw}
+        Tour::new_computing(unit_type, path.consume(), true, loc, nw)
+    }
+
+    fn new_computing(unit_type: UnitType, nodes: Vec<NodeId>, is_dummy: bool, loc: Rc<Locations>, nw: Rc<Network>) -> Tour {
+        let overhead_time = nodes.iter().tuple_windows().map(|(&a,&b)| nw.node(b).start_time() - nw.node(a).end_time()).sum();
+        let service_distance = nodes.iter().map(|&n| nw.node(n).travel_distance()).sum();
+        let dead_head_distance = nodes.iter().tuple_windows().map(
+            |(&a,&b)| loc.distance(nw.node(a).end_location(),nw.node(b).start_location())).sum();
+        Tour{unit_type, nodes, is_dummy, overhead_time, service_distance, dead_head_distance, loc, nw}
     }
 }
 

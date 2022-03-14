@@ -21,13 +21,13 @@ pub(crate) struct TimePoint {
     minute: u8
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)] // care the ordering of the variants is important
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)] // care the ordering of the variants is important
 pub(crate) enum Duration {
     Length(DurationLength),
     Infinity, // always longer than all other Durations
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub(crate) struct DurationLength {
     hours: u32,
     minutes: u8
@@ -296,7 +296,7 @@ impl Sub for Duration {
     type Output = Self;
 
     fn sub(self, other: Self) -> Self {
-        assert!(self >= other, "Cannot subtract a longer duration from a shorter duration.");
+        assert!(self >= other, "Cannot subtract a longer duration ({}) from a shorter duration ({}).", other, self);
         match self {
             Duration::Infinity => Duration::Infinity,
             Duration::Length(l1) => {
@@ -349,7 +349,7 @@ impl Sub for DurationLength {
     type Output = Self;
 
     fn sub(self, other: Self) -> Self {
-        assert!(self > other, "Cannot subtract a longer duration from a shorter duration.");
+        assert!(self >= other, "Cannot subtract a longer duration from a shorter duration.");
         let mut self_minutes = self.minutes;
         let mut self_hours = self.hours;
         if self.minutes < other.minutes {

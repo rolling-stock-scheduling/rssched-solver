@@ -1,8 +1,8 @@
 use std::fmt;
-use std::ops::Add;
+use std::ops::{Add,Sub};
 use crate::base_types::Meter;
 
-#[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Debug)]
 pub(crate) enum Distance {
     Distance(Meter),
     Infinity
@@ -44,6 +44,24 @@ impl Add for Distance {
                     Distance::Infinity => Distance::Infinity,
                     Distance::Distance(d2) =>
                         Distance::Distance(d1 + d2)
+                }
+        }
+    }
+}
+
+impl Sub for Distance {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        match self {
+            Distance::Infinity => Distance::Infinity,
+            Distance::Distance(d1) =>
+                match other {
+                    Distance::Infinity => panic!("Cannot subtract Distance::Infinity"),
+                    Distance::Distance(d2) => {
+                        assert!(d1 >= d2, "Cannot subtract {} from {}", d2, d1);
+                        Distance::Distance(d1 - d2)
+                    }
                 }
         }
     }

@@ -48,12 +48,12 @@ impl Solver for LocalSearch1 {
 
         // Phase 1: limited exchanges:
         println!("\n\n\n*** Phase 1: limited exchanges with recursion ***");
-        let segment_limit = Duration::new("3:00");
+        let segment_limit = Duration::new("6:00");
         let overhead_threshold = Duration::new("0:20"); // tours of real-unit-providers are not splitted at nodes under these duration
         let only_dummy_provider = false;
         let swap_factory = LimitedExchanges::new(Some(segment_limit), Some(overhead_threshold), only_dummy_provider, self.nw.clone());
 
-        let recursion_depth = 3;
+        let recursion_depth = 5;
         let recursion_width = 25;
         let limited_local_improver = TakeFirstRecursion::new(swap_factory,recursion_depth, Some(recursion_width));
         // let limited_local_improver = TakeFirst::new(swap_factory);
@@ -64,7 +64,7 @@ impl Solver for LocalSearch1 {
         // Phase 2: less-limited exchanges:
         // let swap_factory = AllExchanges::new();
         println!("\n\n*** Phase 2: less-limited exchanges without recursion ***");
-        let segment_limit = Duration::new("12:00");
+        let segment_limit = Duration::new("24:00");
         let swap_factory = LimitedExchanges::new(Some(segment_limit), None, false, self.nw.clone());
         // let unlimited_local_improver = TakeFirst::new(swap_factory);
         let unlimited_local_improver = TakeFirstRecursion::new(swap_factory,0,None);

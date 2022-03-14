@@ -41,6 +41,10 @@ pub(crate) struct Schedule {
     dummy_ids_sorted: Vec<UnitId>,
     dummy_counter: usize,
 
+    unit_objective_info: HashMap<UnitId, (Duration, Distance)>, // for each unit we store the overhead_time and the dead_head_distance
+    dummy_objective_info: HashMap<UnitId, Duration>, // for each dummy we store the overhead_time
+    objective_value: ObjectiveValue,
+
     loc: Rc<Locations>,
     units: Rc<Units>,
     nw: Rc<Network>,
@@ -66,32 +70,32 @@ impl Schedule {
         self.dummies.contains_key(&unit)
     }
 
-    pub(crate) fn total_overhead_time(&self) -> Duration {
-        self.tours.values().map(|t| t.overhead_time()).sum()
-    }
+    // pub(crate) fn total_overhead_time(&self) -> Duration {
+        // self.tours.values().map(|t| t.overhead_time()).sum()
+    // }
 
-    pub(crate) fn overhead_time_of(&self, unit: UnitId) -> Duration {
-        self.tours.get(&unit).unwrap().overhead_time()
-    }
+    // pub(crate) fn overhead_time_of(&self, unit: UnitId) -> Duration {
+        // self.tours.get(&unit).unwrap().overhead_time()
+    // }
 
-    pub(crate) fn total_dummy_overhead_time(&self) -> Duration {
-        self.dummies.values().map(|tuple| tuple.1.overhead_time()).sum()
-    }
+    // pub(crate) fn total_dummy_overhead_time(&self) -> Duration {
+        // self.dummies.values().map(|tuple| tuple.1.overhead_time()).sum()
+    // }
 
-    pub(crate) fn total_distance(&self) -> Distance {
-        self.tours.values().map(|t| t.distance()).sum()
-    }
+    // pub(crate) fn total_distance(&self) -> Distance {
+        // self.tours.values().map(|t| t.distance()).sum()
+    // }
 
-    pub(crate) fn total_dead_head_distance(&self) -> Distance {
-        self.tours.values().map(|t| t.dead_head_distance()).sum()
-    }
+    // pub(crate) fn total_dead_head_distance(&self) -> Distance {
+        // self.tours.values().map(|t| t.dead_head_distance()).sum()
+    // }
 
     pub(crate) fn number_of_dummy_units(&self) -> usize {
-        self.dummies.keys().count()
+        self.dummies.len()
     }
 
     pub(crate) fn objective_value(&self) -> ObjectiveValue {
-        ObjectiveValue::new(self.total_overhead_time(),self.number_of_dummy_units(),self.total_dummy_overhead_time(),self.total_dead_head_distance())
+        self.objective_value
     }
 
     // returns the first (seen from head to tail) dummy_unit that covers the node.
@@ -100,9 +104,9 @@ impl Schedule {
         self.covered_by.get(&node).unwrap().iter().find(|u| self.dummies.contains_key(u))
     }
 
-    pub(crate) fn uncovered_nodes(&self) -> impl Iterator<Item = (NodeId,UnitId)> + '_ {
-        self.dummy_iter().flat_map(|u| self.tour_of(u).nodes_iter().map(move |n| (*n,u)))
-    }
+    // pub(crate) fn uncovered_nodes(&self) -> impl Iterator<Item = (NodeId,UnitId)> + '_ {
+        // self.dummy_iter().flat_map(|u| self.tour_of(u).nodes_iter().map(move |n| (*n,u)))
+    // }
 
     pub(crate) fn dummy_iter(&self) -> impl Iterator<Item = UnitId> + '_ {
         self.dummy_ids_sorted.iter().copied()
@@ -129,15 +133,14 @@ impl Schedule {
         self.conflict(Segment::new(node,node),receiver)
     }
 
-    pub(crate) fn conflict_all(&self, dummy_provider: UnitId, receiver: UnitId) -> Result<Path, String> {
-        let tour = &self.dummies.get(&dummy_provider).expect("Can only assign_all if provider is a dummy-unit.").1;
-        self.conflict(Segment::new(tour.first_node(), tour.last_node()), receiver)
-    }
+    // pub(crate) fn conflict_all(&self, dummy_provider: UnitId, receiver: UnitId) -> Result<Path, String> {
+        // let tour = &self.dummies.get(&dummy_provider).expect("Can only assign_all if provider is a dummy-unit.").1;
+        // self.conflict(Segment::new(tour.first_node(), tour.last_node()), receiver)
+    // }
 
     /// Reassigns a path (given by a segment and a provider) to the tour of receiver.
     /// Aborts if there are any conflicts.
     pub(crate) fn reassign(&self, segment: Segment, provider: UnitId, receiver: UnitId) -> Result<Schedule, String> {
-        let path = self.tour_of(provider).sub_path(segment)?;
         if !self.conflict(segment, receiver)?.is_empty() {
             return Err(String::from("There are conflcits. Abort reassign()!"));
         }
@@ -146,9 +149,9 @@ impl Schedule {
 
     /// Reassigns a single node of provider to the tour of receiver.
     /// Aborts if there are any conflicts.
-    pub(crate) fn reassign_single_node(&self, node: NodeId, provider: UnitId, receiver: UnitId) -> Result<Schedule,String> {
-        self.reassign(Segment::new(node, node), provider, receiver)
-    }
+    // pub(crate) fn reassign_single_node(&self, node: NodeId, provider: UnitId, receiver: UnitId) -> Result<Schedule,String> {
+        // self.reassign(Segment::new(node, node), provider, receiver)
+    // }
 
     /// Reassign the complete tour of the provider (must be dummy-unit) to the receiver.
     /// Aborts if there are any conflicts.
@@ -159,9 +162,9 @@ impl Schedule {
 
     /// Reassigns a single node of provider to the tour of receiver.
     /// Conflicts are removed from the tour.
-    pub(crate) fn override_reassign_single_node(&self, node: NodeId, provider: UnitId, receiver: UnitId) -> Result<(Schedule, Option<UnitId>),String> {
-        self.override_reassign(Segment::new(node, node), provider, receiver)
-    }
+    // pub(crate) fn override_reassign_single_node(&self, node: NodeId, provider: UnitId, receiver: UnitId) -> Result<(Schedule, Option<UnitId>),String> {
+        // self.override_reassign(Segment::new(node, node), provider, receiver)
+    // }
 
     /// Reassign the complete tour of the provider (must be dummy-unit) to the receiver.
     /// Conflicts are removed from the tour.
@@ -180,6 +183,8 @@ impl Schedule {
         let mut covered_by = self.covered_by.clone();
         let mut dummies = self.dummies.clone();
         let mut dummy_ids_sorted = self.dummy_ids_sorted.clone();
+        let mut unit_objective_info = self.unit_objective_info.clone();
+        let mut dummy_objective_info = self.dummy_objective_info.clone();
 
         let tour_provider = self.tour_of(provider);
         let tour_receiver = self.tour_of(receiver);
@@ -248,20 +253,24 @@ impl Schedule {
         // update reduced tour of the provider
         if new_tour_provider.len() > 0 {
             if self.is_dummy(provider) {
+                dummy_objective_info.insert(provider, new_tour_provider.overhead_time());
                 dummies.insert(provider, (self.type_of(provider),new_tour_provider));
             } else {
+                unit_objective_info.insert(provider, (new_tour_provider.overhead_time(), new_tour_provider.dead_head_distance()));
                 tours.insert(provider, new_tour_provider);
             }
         } else {
             dummies.remove(&provider); // old_dummy_tour is completely removed
             dummy_ids_sorted.remove(dummy_ids_sorted.binary_search(&provider).unwrap());
-            // dummy_ids_sorted.remove(dummy_ids_sorted.iter().position(|id| *id == provider).unwrap());
+            dummy_objective_info.remove(&provider);
         }
 
         // update extended tour of the receiver
         if self.is_dummy(receiver) {
+            dummy_objective_info.insert(receiver, new_tour_receiver.overhead_time());
             dummies.insert(receiver, (self.type_of(receiver), new_tour_receiver));
         } else {
+            unit_objective_info.insert(receiver, (new_tour_receiver.overhead_time(), new_tour_receiver.dead_head_distance()));
             tours.insert(receiver, new_tour_receiver);
         }
 
@@ -271,9 +280,26 @@ impl Schedule {
             covered_by.insert(*node, new_formation);
         }
 
+        // compute objective_value / unit_objective_info
+        let overhead_time = unit_objective_info.values().map(|tuple| tuple.0).sum();
+        let number_of_dummy_units = dummies.len();
+        let dummy_overhead_time: Duration = dummy_objective_info.values().copied().sum();
+        let dead_head_distance = unit_objective_info.values().map(|tuple| tuple.1).sum();
+
+        let objective_value = ObjectiveValue::new(overhead_time, number_of_dummy_units, dummy_overhead_time, dead_head_distance);
 
 
-        Ok(Schedule{tours,covered_by,dummies,dummy_ids_sorted, dummy_counter: self.dummy_counter, loc:self.loc.clone(),units:self.units.clone(),nw:self.nw.clone()})
+        Ok(Schedule{tours,
+            covered_by,
+            dummies,
+            dummy_ids_sorted,
+            dummy_counter: self.dummy_counter,
+            unit_objective_info,
+            dummy_objective_info,
+            objective_value,
+            loc:self.loc.clone(),
+            units:self.units.clone(),
+            nw:self.nw.clone()})
     }
 
     pub(crate) fn fit_reassign_all(&self, provider: UnitId, receiver: UnitId) -> Result<Schedule,String> {
@@ -295,9 +321,13 @@ impl Schedule {
         let mut dummies = self.dummies.clone();
         let mut dummy_ids_sorted = self.dummy_ids_sorted.clone();
         let mut dummy_counter = self.dummy_counter;
+        let mut unit_objective_info = self.unit_objective_info.clone();
+        let mut dummy_objective_info = self.dummy_objective_info.clone();
 
         let tour_provider = self.tour_of(provider);
         let tour_receiver = self.tour_of(receiver);
+
+        // remove segment for provider
         let (shrinked_tour_provider, path) = tour_provider.remove(segment)?;
 
 
@@ -317,19 +347,24 @@ impl Schedule {
         // update shrinked tour of the provider
         if shrinked_tour_provider.len() > 0 {
             if self.is_dummy(provider) {
+                dummy_objective_info.insert(provider, shrinked_tour_provider.overhead_time());
                 dummies.insert(provider, (self.type_of(provider), shrinked_tour_provider));
             } else {
+                unit_objective_info.insert(provider, (shrinked_tour_provider.overhead_time(), shrinked_tour_provider.dead_head_distance()));
                 tours.insert(provider, shrinked_tour_provider);
             }
         } else {
             dummies.remove(&provider); // old_dummy_tour is completely removed
             dummy_ids_sorted.remove(dummy_ids_sorted.binary_search(&provider).unwrap());
+            dummy_objective_info.remove(&provider);
         }
 
         // update extended tour of the receiver
         if self.is_dummy(receiver) {
+            dummy_objective_info.insert(receiver, new_tour_receiver.overhead_time());
             dummies.insert(receiver, (self.type_of(receiver), new_tour_receiver));
         } else {
+            unit_objective_info.insert(receiver, (new_tour_receiver.overhead_time(), new_tour_receiver.dead_head_distance()));
             tours.insert(receiver, new_tour_receiver);
         }
 
@@ -349,16 +384,36 @@ impl Schedule {
             let new_dummy_type = self.type_of(receiver);
             let new_dummy_tour = Tour::new_dummy_by_path(new_dummy_type, replaced_path, self.loc.clone(), self.nw.clone());
 
+            dummy_objective_info.insert(new_dummy, new_dummy_tour.overhead_time());
             dummies.insert(new_dummy, (new_dummy_type, new_dummy_tour));
             dummy_ids_sorted.insert(dummy_ids_sorted.binary_search(&new_dummy).unwrap_or_else(|e| e), new_dummy);
             // dummy_ids_sorted.push(new_dummy);
             // dummy_ids_sorted.sort();
 
             dummy_counter += 1;
-
         }
 
-        Ok((Schedule{tours,covered_by,dummies,dummy_ids_sorted,dummy_counter, loc:self.loc.clone(),units:self.units.clone(),nw:self.nw.clone()}, new_dummy_opt))
+        // compute objective_value / unit_objective_info
+        let overhead_time = unit_objective_info.values().map(|tuple| tuple.0).sum();
+        let number_of_dummy_units = dummies.len();
+        let dummy_overhead_time = dummy_objective_info.values().copied().sum();
+        let dead_head_distance = unit_objective_info.values().map(|tuple| tuple.1).sum();
+
+        let objective_value = ObjectiveValue::new(overhead_time, number_of_dummy_units, dummy_overhead_time, dead_head_distance);
+
+
+        Ok((Schedule{tours,
+            covered_by,
+            dummies,
+            dummy_ids_sorted,
+            dummy_counter,
+            unit_objective_info,
+            dummy_objective_info,
+            objective_value,
+            loc:self.loc.clone(),
+            units:self.units.clone(),
+            nw:self.nw.clone()},
+            new_dummy_opt))
     }
 
 
@@ -491,6 +546,36 @@ impl Schedule {
         let mut dummy_ids_sorted: Vec<UnitId> = dummies.keys().copied().collect();
         dummy_ids_sorted.sort();
 
-        Schedule{tours, covered_by, dummies, dummy_ids_sorted, dummy_counter, loc, units, nw}
+
+
+        // compute objective_value / unit_objective_info
+        let mut unit_objective_info: HashMap<UnitId, (Duration, Distance)> = HashMap::new();
+        let mut dummy_objective_info: HashMap<UnitId, Duration> = HashMap::new();
+        for unit in units.iter() {
+            let tour = tours.get(&unit).unwrap();
+            unit_objective_info.insert(unit, (tour.overhead_time(), tour.dead_head_distance()));
+        }
+        for dummy in dummy_ids_sorted.iter() {
+            dummy_objective_info.insert(*dummy, Duration::zero());
+        }
+
+        let overhead_time = unit_objective_info.values().map(|tuple| tuple.0).sum();
+        let number_of_dummy_units = dummies.len();
+        let dummy_overhead_time = dummies.values().map(|tuple| tuple.1.overhead_time()).sum();
+        let dead_head_distance = unit_objective_info.values().map(|tuple| tuple.1).sum();
+
+        let objective_value = ObjectiveValue::new(overhead_time, number_of_dummy_units, dummy_overhead_time, dead_head_distance);
+
+        Schedule{tours,
+                 covered_by,
+                 dummies,
+                 dummy_ids_sorted,
+                 dummy_counter,
+                 unit_objective_info,
+                 dummy_objective_info,
+                 objective_value,
+                 loc,
+                 units,
+                 nw}
     }
 }

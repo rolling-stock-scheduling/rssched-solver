@@ -67,7 +67,7 @@ pub fn run(path: &str) {
 
     println!("Running time: {:0.2}sec", runtime_duration.as_secs_f32());
 
-    // schedule.write_to_csv(&format!("{}{}", path, "ETH_leistungsketten.csv")).unwrap();
+    final_schedule.write_to_csv(&format!("{}{}", path, "ETH_leistungsketten.csv")).unwrap();
 
 
 
