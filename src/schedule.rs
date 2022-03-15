@@ -24,7 +24,7 @@ use im::HashMap;
 
 use itertools::Itertools;
 use std::error::Error;
-
+use std::cmp::Ordering;
 use std::rc::Rc;
 
 
@@ -476,6 +476,10 @@ impl Schedule {
 
     }
 
+    pub(crate) fn cmp(&self, other: &Self) -> Ordering {
+        self.objective_value.cmp(&other.objective_value)
+    }
+
     pub(crate) fn print_long(&self) {
         println!("** schedule with {} tours and {} dummy-tours:", self.tours.len(), self.dummies.len());
         for unit in self.units.iter() {
@@ -488,7 +492,6 @@ impl Schedule {
         }
     }
 
-
     pub(crate) fn print(&self) {
 
         for unit in self.units.iter() {
@@ -499,6 +502,9 @@ impl Schedule {
         }
     }
 }
+
+
+
 
 // static functions
 impl Schedule {
