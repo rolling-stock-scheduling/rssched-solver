@@ -5,17 +5,17 @@ use crate::network::Network;
 use crate::solver::Solver;
 use crate::base_types::{UnitId, NodeId};
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub struct Greedy1 {
-    loc: Rc<Locations>,
-    units: Rc<Units>,
-    nw: Rc<Network>
+    loc: Arc<Locations>,
+    units: Arc<Units>,
+    nw: Arc<Network>
 }
 
 impl Solver for Greedy1 {
 
-    fn initialize(loc: Rc<Locations>, units: Rc<Units>, nw: Rc<Network>) -> Greedy1 {
+    fn initialize(loc: Arc<Locations>, units: Arc<Units>, nw: Arc<Network>) -> Greedy1 {
         Greedy1{loc, units, nw}
     }
 

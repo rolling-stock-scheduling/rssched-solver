@@ -15,7 +15,7 @@ use std::fmt;
 
 use std::iter::Iterator;
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub(crate) struct Network {
     nodes: HashMap<NodeId, Node>,
@@ -29,7 +29,7 @@ pub(crate) struct Network {
     nodes_sorted_by_end: Vec<NodeId>,
 
     // for convenience
-    loc: Rc<Locations>
+    loc: Arc<Locations>
 }
 
 // methods
@@ -102,7 +102,7 @@ impl Network {
 
 // static functions
 impl Network {
-    pub(crate) fn load_from_csv(path_service: &str, path_maintenance: &str, path_endpoints: &str, loc: Rc<Locations>, units: Rc<Units>) -> Network {
+    pub(crate) fn load_from_csv(path_service: &str, path_maintenance: &str, path_endpoints: &str, loc: Arc<Locations>, units: Arc<Units>) -> Network {
         let mut nodes: HashMap<NodeId, Node> = HashMap::new();
 
         let mut service_nodes: Vec<NodeId> = Vec::new();

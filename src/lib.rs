@@ -23,16 +23,16 @@ use locations::Locations;
 use schedule::Schedule;
 use schedule::path::Segment;
 
-use std::rc::Rc;
+use std::sync::Arc;
 use std::time as stdtime;
 
 pub fn run(path: &str) {
 
     // load instance: All the objects are static and are multiple times referenced;
     // network also references locations
-    let loc= Rc::new(Locations::load_from_csv(&format!("{}{}", path, "relationen.csv")));
-    let units = Rc::new(Units::load_from_csv(&format!("{}{}", path, "fahrzeuggruppen.csv"), loc.clone()));
-    let nw = Rc::new(Network::load_from_csv(&format!("{}{}", path, "kundenfahrten.csv"), &format!("{}{}", path, "wartungsfenster.csv"), &format!("{}{}", path, "endpunkte.csv"), loc.clone(), units.clone()));
+    let loc= Arc::new(Locations::load_from_csv(&format!("{}{}", path, "relationen.csv")));
+    let units = Arc::new(Units::load_from_csv(&format!("{}{}", path, "fahrzeuggruppen.csv"), loc.clone()));
+    let nw = Arc::new(Network::load_from_csv(&format!("{}{}", path, "kundenfahrten.csv"), &format!("{}{}", path, "wartungsfenster.csv"), &format!("{}{}", path, "endpunkte.csv"), loc.clone(), units.clone()));
 
 
     let start_time = stdtime::Instant::now();
@@ -101,7 +101,7 @@ pub fn run(path: &str) {
 //////////// manual test /////////////////
 //////////////////////////////////////////
 use crate::solver::local_search::swaps::{Swap,PathExchange};
-fn manual_swap_test(units: Rc<Units>, schedule: Schedule) {
+fn manual_swap_test(units: Arc<Units>, schedule: Schedule) {
 
     let unit_a = units.iter().next().unwrap();
     let unit_b = units.iter().last().unwrap();
@@ -136,7 +136,7 @@ fn manual_swap_test(units: Rc<Units>, schedule: Schedule) {
     new_schedule.print();
 }
 
-fn manual_test(units: Rc<Units>, schedule: Schedule) {
+fn manual_test(units: Arc<Units>, schedule: Schedule) {
     let unit1 = units.iter().next().unwrap();
     let unit2 = units.iter().last().unwrap();
 

@@ -5,7 +5,7 @@ use crate::locations::{Locations,Location};
 use crate::base_types::UnitId;
 use std::collections::HashMap;
 use std::iter::Iterator;
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub(crate) struct Units {
     units: HashMap<UnitId, Unit>,
@@ -35,7 +35,7 @@ pub(crate) enum UnitType {
 /////////////////////////////////////////////////////////////////////
 
 impl Units {
-    pub(crate) fn load_from_csv(path: &str, loc: Rc<Locations>) -> Units {
+    pub(crate) fn load_from_csv(path: &str, loc: Arc<Locations>) -> Units {
         let mut units: HashMap<UnitId, Unit> = HashMap::new();
         let mut reader = csv::ReaderBuilder::new().delimiter(b';').from_path(path).expect("csv-file for loading units not found");
         for result in reader.records() {

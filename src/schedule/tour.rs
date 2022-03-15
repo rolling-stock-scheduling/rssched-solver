@@ -10,7 +10,7 @@ use crate::schedule::path::{Path,Segment};
 
 use itertools::Itertools;
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 type Position = usize; // the position within the tour from 0 to nodes.len()-1
 
@@ -28,8 +28,8 @@ pub(crate) struct Tour {
     service_distance: Distance,
     dead_head_distance: Distance,
 
-    loc: Rc<Locations>,
-    nw: Rc<Network>,
+    loc: Arc<Locations>,
+    nw: Arc<Network>,
 }
 
 impl Tour {
@@ -448,7 +448,7 @@ impl Tour {
     /// * end with an EndNode
     /// * only Service or MaintenanceNodes in the middle
     /// * each node can reach is successor
-    pub(super) fn new(unit_type: UnitType, nodes: Vec<NodeId>, loc: Rc<Locations>, nw: Rc<Network>) -> Tour {
+    pub(super) fn new(unit_type: UnitType, nodes: Vec<NodeId>, loc: Arc<Locations>, nw: Arc<Network>) -> Tour {
         assert!(matches!(nw.node(nodes[0]),Node::Start(_)), "Tour needs to start with a StartNode");
         assert!(matches!(nw.node(nodes[nodes.len()-1]), Node::End(_)), "Tour needs to end with a EndNode");
         for i in 1..nodes.len() - 1 {
@@ -461,7 +461,7 @@ impl Tour {
         Tour::new_computing(unit_type, nodes, false, loc, nw)
     }
 
-    pub(super) fn new_dummy(unit_type: UnitType, nodes: Vec<NodeId>, loc: Rc<Locations>, nw: Rc<Network>) -> Tour {
+    pub(super) fn new_dummy(unit_type: UnitType, nodes: Vec<NodeId>, loc: Arc<Locations>, nw: Arc<Network>) -> Tour {
         for (&a,&b) in nodes.iter().tuple_windows() {
             assert!(nw.can_reach(a,b),"Not a valid Dummy-Tour");
         }
@@ -469,15 +469,15 @@ impl Tour {
     }
 
     /// Creates a new tour from a vector of NodeIds. Trusts that the vector leads to a valid Tour.
-    pub(super) fn new_trusted(unit_type: UnitType, nodes: Vec<NodeId>, is_dummy: bool, overhead_time: Duration, service_distance: Distance, dead_head_distance: Distance, loc: Rc<Locations>, nw: Rc<Network>) -> Tour {
+    pub(super) fn new_trusted(unit_type: UnitType, nodes: Vec<NodeId>, is_dummy: bool, overhead_time: Duration, service_distance: Distance, dead_head_distance: Distance, loc: Arc<Locations>, nw: Arc<Network>) -> Tour {
         Tour{unit_type, nodes, is_dummy, overhead_time, service_distance, dead_head_distance, loc, nw}
     }
 
-    pub(super) fn new_dummy_by_path(unit_type: UnitType, path: Path, loc: Rc<Locations>, nw: Rc<Network>) -> Tour {
+    pub(super) fn new_dummy_by_path(unit_type: UnitType, path: Path, loc: Arc<Locations>, nw: Arc<Network>) -> Tour {
         Tour::new_computing(unit_type, path.consume(), true, loc, nw)
     }
 
-    fn new_computing(unit_type: UnitType, nodes: Vec<NodeId>, is_dummy: bool, loc: Rc<Locations>, nw: Rc<Network>) -> Tour {
+    fn new_computing(unit_type: UnitType, nodes: Vec<NodeId>, is_dummy: bool, loc: Arc<Locations>, nw: Arc<Network>) -> Tour {
         let overhead_time = nodes.iter().tuple_windows().map(|(&a,&b)| nw.node(b).start_time() - nw.node(a).end_time()).sum();
         let service_distance = nodes.iter().map(|&n| nw.node(n).travel_distance()).sum();
         let dead_head_distance = nodes.iter().tuple_windows().map(

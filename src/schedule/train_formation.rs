@@ -4,17 +4,17 @@ use std::fmt;
 
 use std::iter::Iterator;
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub(crate) struct TrainFormation {
     formation: Vec<UnitId>, // index 0 is at tail, index len()-1 is front
-    units: Rc<Units>
+    units: Arc<Units>
 }
 
 // static functions
 impl TrainFormation {
-    pub(crate) fn new (formation: Vec<UnitId>, units: Rc<Units>) -> TrainFormation {
+    pub(crate) fn new (formation: Vec<UnitId>, units: Arc<Units>) -> TrainFormation {
         TrainFormation{formation, units}
     }
 }

@@ -10,7 +10,7 @@ use crate::network::Network;
 use crate::solver::Solver;
 use crate::schedule::Schedule;
 use crate::time::Duration;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use swap_factory::LimitedExchanges;
 use local_improver::{LocalImprover, TakeFirstRecursion};
@@ -24,14 +24,14 @@ use super::greedy_2::Greedy2;
 
 
 pub struct LocalSearch1 {
-    loc: Rc<Locations>,
-    units: Rc<Units>,
-    nw: Rc<Network>
+    loc: Arc<Locations>,
+    units: Arc<Units>,
+    nw: Arc<Network>
 }
 
 impl Solver for LocalSearch1 {
 
-    fn initialize(loc: Rc<Locations>, units: Rc<Units>, nw: Rc<Network>) -> LocalSearch1 {
+    fn initialize(loc: Arc<Locations>, units: Arc<Units>, nw: Arc<Network>) -> LocalSearch1 {
         LocalSearch1{loc, units, nw}
     }
 
@@ -54,7 +54,7 @@ impl Solver for LocalSearch1 {
         let swap_factory = LimitedExchanges::new(Some(segment_limit), Some(overhead_threshold), only_dummy_provider, self.nw.clone());
 
         let recursion_depth = 5;
-        let recursion_width = 25;
+        let recursion_width = 2;
         let limited_local_improver = TakeFirstRecursion::new(swap_factory,recursion_depth, Some(recursion_width));
         // let limited_local_improver = TakeFirst::new(swap_factory);
 

@@ -3,7 +3,7 @@ use crate::network::Network;
 use itertools::Itertools;
 use std::fmt;
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 use std::iter::Iterator;
 /// Path is similar as Tour a sequence of nodes that form a path in the network.
@@ -13,7 +13,7 @@ use std::iter::Iterator;
 pub(crate) struct Path {
     node_sequence: Vec<NodeId>,
 
-    nw: Rc<Network>
+    nw: Arc<Network>
 }
 
 #[derive(Debug,Clone,Copy)]
@@ -30,7 +30,7 @@ pub(crate) struct Segment {
 impl Path {
 
     /// crates a new Path and asserts that it is a path in the network
-    pub(crate) fn new(node_sequence: Vec<NodeId>, nw: Rc<Network>) -> Path {
+    pub(crate) fn new(node_sequence: Vec<NodeId>, nw: Arc<Network>) -> Path {
         for (&a,&b) in node_sequence.iter().tuple_windows() {
             assert!(nw.can_reach(a,b),"Not a valid Path");
         }
@@ -38,7 +38,7 @@ impl Path {
     }
 
     /// crates a new Path but does NOT assert that it is a path in the network
-    pub(crate) fn new_trusted(node_sequence: Vec<NodeId>, nw: Rc<Network>) -> Path {
+    pub(crate) fn new_trusted(node_sequence: Vec<NodeId>, nw: Arc<Network>) -> Path {
         Path{node_sequence, nw}
     }
 }

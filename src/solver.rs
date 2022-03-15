@@ -6,10 +6,10 @@ use crate::schedule::Schedule;
 use crate::locations::Locations;
 use crate::units::Units;
 use crate::network::Network;
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub(crate) trait Solver {
-    fn initialize(loc: Rc<Locations>, units: Rc<Units>, nw: Rc<Network>) -> Self;
+    fn initialize(loc: Arc<Locations>, units: Arc<Units>, nw: Arc<Network>) -> Self;
 
     fn solve(&self) -> Schedule;
 }

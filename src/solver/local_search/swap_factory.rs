@@ -3,14 +3,15 @@ use crate::schedule::Schedule;
 use crate::schedule::path::Segment;
 use crate::time::Duration;
 use crate::network::Network;
-use std::rc::Rc;
+use std::sync::Arc;
 use crate::base_types::UnitId;
 
 use std::iter;
+use rayon::iter::ParallelBridge;
 
 /// Computes for a given schedule all Swaps in the neighborhood.
-pub(crate) trait SwapFactory {
-    fn create_swap_iterator<'a>(&'a self, schedule: &'a Schedule) -> Box<dyn Iterator<Item = Box<dyn Swap>>+ 'a>;
+pub(crate) trait SwapFactory: Clone + Send {
+    fn create_swap_iterator<'a>(&'a self, schedule: &'a Schedule) -> Box<dyn Iterator<Item = Box<dyn Swap + Send>>+ Send + 'a>;
 }
 
 
@@ -19,34 +20,34 @@ pub(crate) trait SwapFactory {
 ///////////////////// AllExchanges ////////////////////////
 ///////////////////////////////////////////////////////////
 
-pub(crate) struct AllExchanges {
-}
+// pub(crate) struct AllExchanges {
+// }
 
-impl AllExchanges {
-    pub(crate) fn new() -> AllExchanges {
-        AllExchanges{}
-    }
-}
+// impl AllExchanges {
+    // pub(crate) fn new() -> AllExchanges {
+        // AllExchanges{}
+    // }
+// }
 
-impl SwapFactory for AllExchanges {
-    fn create_swap_iterator<'a> (&'a self, schedule : &'a Schedule) -> Box<dyn Iterator<Item = Box<dyn Swap>> + 'a> {
-        Box::new(
-            schedule.dummy_iter().chain(schedule.real_units_iter())
-            .flat_map(move |provider|
-                schedule.tour_of(provider).nodes_iter().enumerate()
-                .flat_map(move |(i,seg_start)| schedule.tour_of(provider).nodes_iter().skip(i).map(move |seg_end| Segment::new(*seg_start, *seg_end)))
-                .filter(move |seg| schedule.tour_of(provider).removable(*seg))
-                .flat_map(move |seg|
-                    schedule.real_units_iter().chain(schedule.dummy_iter())
-                    .filter(move |&u| u != provider && schedule.conflict(seg, u).is_ok())
-                    .map(move |receiver| -> Box<dyn Swap> {
-                        Box::new(PathExchange::new(seg, provider, receiver))
-                    })
-                )
-            )
-        )
-    }
-}
+// impl SwapFactory for AllExchanges {
+    // fn create_swap_iterator<'a> (&'a self, schedule : &'a Schedule) -> Box<dyn Iterator<Item = Box<dyn Swap>> + Send + 'a> {
+        // Box::new(
+            // schedule.dummy_iter().chain(schedule.real_units_iter())
+            // .flat_map(move |provider|
+                // schedule.tour_of(provider).nodes_iter().enumerate()
+                // .flat_map(move |(i,seg_start)| schedule.tour_of(provider).nodes_iter().skip(i).map(move |seg_end| Segment::new(*seg_start, *seg_end)))
+                // .filter(move |seg| schedule.tour_of(provider).removable(*seg))
+                // .flat_map(move |seg|
+                    // schedule.real_units_iter().chain(schedule.dummy_iter())
+                    // .filter(move |&u| u != provider && schedule.conflict(seg, u).is_ok())
+                    // .map(move |receiver| -> Box<dyn Swap> {
+                        // Box::new(PathExchange::new(seg, provider, receiver))
+                    // })
+                // )
+            // )
+        // )
+    // }
+// }
 
 ///////////////////////////////////////////////////////////
 ////////////////// LimitedExchanges ///////////////////////
@@ -56,24 +57,25 @@ impl SwapFactory for AllExchanges {
 /// Takes all PathExchanges where the segment time length is smaller than the threshold.
 /// The length of a segment is measured from the start_time of the first node to the end_time of
 /// the last node.
+#[derive(Clone)]
 pub(crate) struct LimitedExchanges {
     segment_length_limit: Option<Duration>,
     overhead_threshold: Option<Duration>,
     only_dummy_provider: bool,
-    nw: Rc<Network>
+    nw: Arc<Network>
 }
 
 impl LimitedExchanges {
     pub(crate) fn new(segment_length_limit: Option<Duration>,
                       overhead_threshold: Option<Duration>,
                       only_dummy_provider: bool,
-                      nw: Rc<Network>) -> LimitedExchanges {
+                      nw: Arc<Network>) -> LimitedExchanges {
         LimitedExchanges{segment_length_limit, overhead_threshold, only_dummy_provider, nw}
     }
 }
 
 impl SwapFactory for LimitedExchanges {
-    fn create_swap_iterator<'a> (&'a self, schedule : &'a Schedule) -> Box<dyn Iterator<Item = Box<dyn Swap>> + 'a> {
+    fn create_swap_iterator<'a> (&'a self, schedule : &'a Schedule) -> Box<dyn Iterator<Item = Box<dyn Swap + Send>> + Send + 'a> {
 
         let providers: Vec<_> = if self.only_dummy_provider {
             schedule.dummy_iter().collect()
@@ -93,7 +95,7 @@ impl SwapFactory for LimitedExchanges {
                     // segment
                     .filter(move |&u| u != provider && schedule.conflict(seg, u).is_ok())
                     // crate the swap
-                    .map(move |receiver| -> Box<dyn Swap> {
+                    .map(move |receiver| -> Box<dyn Swap + Send> {
                         Box::new(PathExchange::new(seg, provider, receiver))
                     })
                 )

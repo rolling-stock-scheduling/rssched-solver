@@ -25,7 +25,7 @@ use im::HashMap;
 use itertools::Itertools;
 use std::error::Error;
 use std::cmp::Ordering;
-use std::rc::Rc;
+use std::sync::Arc;
 
 
 // this represents a solution to the rolling stock problem.
@@ -45,9 +45,9 @@ pub(crate) struct Schedule {
     dummy_objective_info: HashMap<UnitId, Duration>, // for each dummy we store the overhead_time
     objective_value: ObjectiveValue,
 
-    loc: Rc<Locations>,
-    units: Rc<Units>,
-    nw: Rc<Network>,
+    loc: Arc<Locations>,
+    units: Arc<Units>,
+    nw: Arc<Network>,
 }
 
 
@@ -478,6 +478,16 @@ impl Schedule {
 
     pub(crate) fn cmp(&self, other: &Self) -> Ordering {
         self.objective_value.cmp(&other.objective_value)
+        // match self.objective_value.cmp(&other.objective_value) {
+            // Ordering::Equal => {
+                // if the objective values are equal we break ties in a deterministic way: List all
+                // units in covered_by and compare lexicographically
+                // match self.nw.all_nodes().flat_map(|n| self.covered_by(n).iter().zip(other.covered_by(n).iter())).map(|(unit, other_unit)| unit.cmp(&other_unit)).find(|ord| *ord != Ordering::Equal) { None => Ordering::Equal,
+                    // Some(other) => other
+                // }
+            // },
+            // other => other
+        // }
     }
 
     pub(crate) fn print_long(&self) {
@@ -508,7 +518,7 @@ impl Schedule {
 
 // static functions
 impl Schedule {
-    pub(crate) fn initialize(loc: Rc<Locations>, units: Rc<Units>, nw: Rc<Network>) -> Schedule {
+    pub(crate) fn initialize(loc: Arc<Locations>, units: Arc<Units>, nw: Arc<Network>) -> Schedule {
 
         let mut tours: HashMap<UnitId, Tour> = HashMap::new();
         let mut covered_by: HashMap<NodeId, TrainFormation> = HashMap::new();
