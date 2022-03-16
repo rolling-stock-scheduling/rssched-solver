@@ -19,6 +19,8 @@ use crate::distance::Distance;
 use crate::base_types::{NodeId,UnitId};
 use crate::time::Duration;
 
+use std::hash::{Hash, Hasher};
+
 use std::collections::VecDeque;
 use im::HashMap;
 
@@ -476,19 +478,6 @@ impl Schedule {
 
     }
 
-    pub(crate) fn cmp(&self, other: &Self) -> Ordering {
-        self.objective_value.cmp(&other.objective_value)
-        // match self.objective_value.cmp(&other.objective_value) {
-            // Ordering::Equal => {
-                // if the objective values are equal we break ties in a deterministic way: List all
-                // units in covered_by and compare lexicographically
-                // match self.nw.all_nodes().flat_map(|n| self.covered_by(n).iter().zip(other.covered_by(n).iter())).map(|(unit, other_unit)| unit.cmp(&other_unit)).find(|ord| *ord != Ordering::Equal) { None => Ordering::Equal,
-                    // Some(other) => other
-                // }
-            // },
-            // other => other
-        // }
-    }
 
     pub(crate) fn print_long(&self) {
         println!("** schedule with {} tours and {} dummy-tours:", self.tours.len(), self.dummies.len());
@@ -511,9 +500,53 @@ impl Schedule {
             println!("{}: {}", dummy, self.dummies.get(&dummy).unwrap().1);
         }
     }
+
+    pub(crate) fn cmp_objective_values(&self, other: &Self) -> Ordering {
+        self.objective_value.cmp(&other.objective_value)
+    }
+
+}
+
+impl PartialEq for Schedule {
+    fn eq(&self, other: &Self) -> bool {
+        self.nw.all_nodes().flat_map(|n| self.covered_by(n).iter().zip(other.covered_by(n).iter()))
+                .all(|(unit, other_unit)| unit == other_unit)
+    }
+}
+// if there are dummies with different id they count differently
+
+impl Eq for Schedule {}
+
+impl PartialOrd for Schedule {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match self.objective_value.cmp(&other.objective_value) {
+            Ordering::Equal => {
+                // if the objective values are equal we break ties in a deterministic way: List all
+                // units in covered_by and compare lexicographically
+                match self.nw.all_nodes().flat_map(|n| self.covered_by(n).iter().zip(other.covered_by(n).iter()))
+                        .map(|(unit, other_unit)| unit.cmp(&other_unit)).find(|ord| *ord != Ordering::Equal) {
+                    None => Some(Ordering::Equal),
+                    Some(other) => Some(other)
+                }
+            },
+            other => Some(other)
+        }
+    }
+}
+
+impl Ord for Schedule {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other).unwrap()
+    }
 }
 
 
+// impl Hash for Schedule {
+    // fn hash<H: Hasher>(&self, state: &mut H) {
+        // let covered_by: Vec<_> = self.nw.all_nodes().flat_map(|n| self.covered_by(n).iter()).collect();
+        // covered_by.hash(state)
+    // }
+// }
 
 
 // static functions

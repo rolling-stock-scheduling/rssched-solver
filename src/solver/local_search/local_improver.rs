@@ -6,6 +6,7 @@ use crate::schedule::objective::ObjectiveValue;
 use rayon::prelude::*;
 use rayon::iter::ParallelBridge;
 use std::sync::mpsc::channel;
+use std::sync::{Arc, Mutex};
 
 
 /// Computes for a given schedule the best new schedule that has better objective function.
@@ -117,9 +118,8 @@ impl<F: SwapFactory + Send + Sync> TakeFirstRecursion<F> {
 
 
     fn improve_recursion(&self, schedules: Vec<Schedule>, objective_to_beat: ObjectiveValue, remaining_recursion: u8) -> Option<Schedule> {
-        // let swap_iterator = schedules.iter().flat_map(|sched| self.swap_factory.create_swap_iterator(sched).map(move |swap| (swap, sched)));
-        // let swap_iterator = schedules.par_iter().flat_map(|sched| self.swap_factory.create_swap_iterator(sched).par_bridge().map(move |swap| (swap, sched)));
-        println!("schedules beginning of recursion: {}", schedules.len());
+
+        println!("Recursion: remaining depth: {}. schedule-count: {}", remaining_recursion, schedules.len());
         let mut schedule_collection: Vec<Vec<Schedule>> = Vec::new();
         let mut result: Option<Schedule> = None;
         rayon::scope(|s| {
@@ -130,30 +130,46 @@ impl<F: SwapFactory + Send + Sync> TakeFirstRecursion<F> {
             for sched in schedules.iter() {
                 let (found_sender, found_receiver) = channel();
                 found_senders.push(found_sender);
+
                 let succ_sender = success_sender.clone();
                 let fail_sender = failure_sender.clone();
                 s.spawn(move |_| {
+                    let found_receiver_mutex = Arc::new(Mutex::new(found_receiver));
+
                     let mut schedules: Vec<Schedule> = Vec::new();
-                    let mut counter_limit = usize::MAX;
-                    let result = self.swap_factory.create_swap_iterator(sched).enumerate()
-                    .filter_map(|(i,swap)| {
-                        swap.apply(sched).ok().map(move |new_sched| (i, new_sched))
-                    }).find(|(i,new_sched)| {
-                        schedules.push(new_sched.clone());
-                        if let Ok(best_i) = found_receiver.try_recv() {
-                            counter_limit = best_i;
+                    let schedules_mutex: Arc<Mutex<&mut Vec<Schedule>>> = Arc::new(Mutex::new(&mut schedules));
+
+                    let result = self.swap_factory.create_swap_iterator(sched).par_bridge()
+                    .filter_map(|swap| {
+                        swap.apply(sched).ok()
+                    }).find_any(|new_sched| {
+
+                        let found_receiver_mutex = found_receiver_mutex.lock().unwrap();
+                        let mut schedules_mutex = schedules_mutex.lock().unwrap();
+
+                        schedules_mutex.push(new_sched.clone());
+
+                        // if there is a recursion_width truncate schedules to the best width many
+                        if let Some(width) = self.recursion_width {
+                            schedules_mutex.sort();
+                            schedules_mutex.dedup_by(|s1,s2| s1.cmp_objective_values(s2).is_eq()); //remove dublicates
+                            let width = width.min(schedules_mutex.len());
+                            schedules_mutex.truncate(width);
                         }
-                        new_sched.objective_value() < objective_to_beat || *i > counter_limit
+
+                        let found = found_receiver_mutex.try_recv();
+                        new_sched.objective_value() < objective_to_beat || found.is_ok()
                     });
+
 
                     match result {
 
-                        Some(pair) => {
-                            if pair.1.objective_value() < objective_to_beat {
-                                succ_sender.send(pair).unwrap();
+                        Some(sched) => {
+                            if sched.objective_value() < objective_to_beat {
+                                succ_sender.send(sched).unwrap();
                             }
                             // if there is a Some result but the objective is not better, that means
-                            // another thread was successful with smaller index. So there is nothing
+                            // another thread was successful first. So there is nothing
                             // left to do for this thread.
                         }
                         None => {
@@ -167,14 +183,11 @@ impl<F: SwapFactory + Send + Sync> TakeFirstRecursion<F> {
             drop(failure_sender);
 
 
-            let mut best_i = usize::MAX;
-            while let Ok((i, new_sched)) = success_receiver.recv() {
-                if result.is_none() || i < best_i || (i==best_i && new_sched.objective_value() < result.as_ref().unwrap().objective_value()) {
-                    // index is smaller or if there is a tie the new schedule has better objective
-                    best_i = i;
-                    for s in found_senders.iter() {
-                        s.send(best_i).ok();
-                    }
+            while let Ok(new_sched) = success_receiver.recv() {
+                for s in found_senders.iter() {
+                    s.send(true).ok();
+                }
+                if result.is_none() || new_sched.objective_value() < result.as_ref().unwrap().objective_value() {
                     result = Some(new_sched);
                 }
             }
@@ -183,31 +196,22 @@ impl<F: SwapFactory + Send + Sync> TakeFirstRecursion<F> {
                     schedule_collection.push(v);
                 }
             }
-            println!("size of schedule_collection: {}", schedule_collection.len());
         });
 
 
         if result.is_none() {
-            // let swap_iterator = schedules.par_iter().flat_map(|sched| self.swap_factory.create_swap_iterator(sched).par_bridge().map(move |swap| (swap, sched)));
-            // let mut schedule_collection: Vec<Schedule> = swap_iterator.filter_map(|(swap,old_sched)| swap.apply(old_sched).ok()).collect();
             let number_of_schedules: usize = schedule_collection.iter().map(|v| v.len()).sum();
             println!("No improvement found after {} swaps.", number_of_schedules);
 
             if remaining_recursion > 0 {
-                println!("collection: {}", schedule_collection.len());
-                let mut schedules_for_recursion = Vec::new();
-                let compare = |sched1:&Schedule, sched2:&Schedule| sched1.cmp(sched2);
-                if let Some(width) = self.recursion_width {
-                    for mut schedules in schedule_collection.into_iter() {
-                        let width = width.min(schedules.len());
-                        schedules.select_nth_unstable_by(width-1, compare);
-                        schedules.truncate(width);
-                        schedules_for_recursion.append(&mut schedules);
-                    }
-                }
-                schedules_for_recursion.sort_by(compare);
+                let mut schedules_for_recursion: Vec<Schedule> = schedule_collection.into_iter().flatten().collect();
 
-                println!("Going into recursion. Remaining depth: {}. Schedule-count: {}", remaining_recursion, schedules_for_recursion.len());
+                schedules_for_recursion.sort();
+                // schedules_for_recursion.dedup();
+                schedules_for_recursion.dedup_by(|s1,s2| s1.cmp_objective_values(s2).is_eq()); //remove dublicates
+
+
+
 
                 self.improve_recursion(schedules_for_recursion, objective_to_beat, remaining_recursion-1)
             } else {
