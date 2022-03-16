@@ -36,9 +36,17 @@ impl Solver for LocalSearch1 {
     }
 
     fn solve(&self) -> Schedule {
+        // empty schedule:
         // let mut schedule = Schedule::initialize(self.loc.clone(), self.units.clone(), self.nw.clone());
+
+
+        // greedy schedule:
         let greedy = Greedy2::initialize(self.loc.clone(), self.units.clone(), self.nw.clone());
         let mut schedule = greedy.solve();
+
+
+        // load SBB-schedule:
+        // let mut schedule = Schedule::load_from_csv("test_instances/21-10-tage-2/SBB_leistungsketten.csv", self.loc.clone(), self.units.clone(), self.nw.clone());
 
 
 

@@ -443,29 +443,56 @@ impl Tour {
 
 impl Tour {
 
-    /// Creates a new tour from a vector of NodeIds. Asserts that the tour is valid:
+    /// Creates a new tour from a vector of NodeIds. Checks that the tour is valid:
     /// * starts with a StartNode
     /// * end with an EndNode
     /// * only Service or MaintenanceNodes in the middle
     /// * each node can reach is successor
-    pub(super) fn new(unit_type: UnitType, nodes: Vec<NodeId>, loc: Arc<Locations>, nw: Arc<Network>) -> Tour {
-        assert!(matches!(nw.node(nodes[0]),Node::Start(_)), "Tour needs to start with a StartNode");
-        assert!(matches!(nw.node(nodes[nodes.len()-1]), Node::End(_)), "Tour needs to end with a EndNode");
-        for i in 1..nodes.len() - 1 {
-            let n = nw.node(nodes[i]);
-            assert!(matches!(n, Node::Service(_)) || matches!(n, Node::Maintenance(_)), "Tour can only have Service or Maintenance Nodes in the middle");
-        }
-        for (&a,&b) in nodes.iter().tuple_windows() {
-            assert!(nw.can_reach(a,b),"Not a valid Tour");
-        }
-        Tour::new_computing(unit_type, nodes, false, loc, nw)
+    /// If one of the checks fails an error message is returned.
+    pub(super) fn new(unit_type: UnitType, nodes: Vec<NodeId>, loc: Arc<Locations>, nw: Arc<Network>) -> Result<Tour, String> {
+        Tour::new_allow_invalid(unit_type, nodes, loc, nw).map_err(|(_, error_msg)| error_msg)
     }
 
-    pub(super) fn new_dummy(unit_type: UnitType, nodes: Vec<NodeId>, loc: Arc<Locations>, nw: Arc<Network>) -> Tour {
-        for (&a,&b) in nodes.iter().tuple_windows() {
-            assert!(nw.can_reach(a,b),"Not a valid Dummy-Tour");
+    /// Creates a new tour from a vector of NodeIds. Checks that the tour is valid:
+    /// * starts with a StartNode
+    /// * end with an EndNode
+    /// * only Service or MaintenanceNodes in the middle
+    /// * each node can reach is successor
+    /// If one of the checks fails an error is returned containing the error message but also the
+    /// invalid tour.
+    pub(super) fn new_allow_invalid(unit_type: UnitType, nodes: Vec<NodeId>, loc: Arc<Locations>, nw: Arc<Network>) -> Result<Tour, (Tour, String)> {
+        let mut error_msg = String::new();
+        if !matches!(nw.node(nodes[0]),Node::Start(_)) {
+            error_msg.push_str(&format!("Tour needs to start with a StartNode, not with: {}.\n", nw.node(nodes[0])));
         }
-        Tour::new_computing(unit_type, nodes, true, loc, nw)
+        if !matches!(nw.node(nodes[nodes.len()-1]), Node::End(_)) {
+            error_msg.push_str(&format!("Tour needs to end with a EndNode, not with: {},\n", nw.node(nodes[nodes.len()-1])));
+        }
+        for i in 1..nodes.len() - 1 {
+            let n = nw.node(nodes[i]);
+            if !matches!(n, Node::Service(_)) && !matches!(n, Node::Maintenance(_)) {
+                error_msg.push_str(&format!("Tour can only have Service or Maintenance Nodes in the middle, not: {}.\n", n));
+            }
+        }
+        for (&a,&b) in nodes.iter().tuple_windows() {
+            if !nw.can_reach(a,b) {
+                error_msg.push_str(&format!("Not a valid Tour: {} cannot reach {}.\n", nw.node(a), nw.node(b)));
+            }
+        }
+        if error_msg.len() > 0 {
+            Err((Tour::new_computing(unit_type, nodes, false, loc, nw), error_msg))
+        } else {
+            Ok(Tour::new_computing(unit_type, nodes, false, loc, nw))
+        }
+    }
+
+    pub(super) fn new_dummy(unit_type: UnitType, nodes: Vec<NodeId>, loc: Arc<Locations>, nw: Arc<Network>) -> Result<Tour, String> {
+        for (&a,&b) in nodes.iter().tuple_windows() {
+            if !nw.can_reach(a,b) {
+                return Err(format!("Not a valid Dummy-Tour: {} cannot reach {}.\n", nw.node(a), nw.node(b)));
+            }
+        }
+        Ok(Tour::new_computing(unit_type, nodes, true, loc, nw))
     }
 
     /// Creates a new tour from a vector of NodeIds. Trusts that the vector leads to a valid Tour.

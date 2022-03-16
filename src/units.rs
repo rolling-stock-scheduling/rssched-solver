@@ -67,6 +67,10 @@ impl Units {
     pub(crate) fn get_unit(&self, id: UnitId) -> &Unit {
         self.units.get(&id).unwrap()
     }
+
+    pub(crate) fn contains(&self, id: UnitId) -> bool {
+        self.units.contains_key(&id)
+    }
 }
 
 /////////////////////////////////////////////////////////////////////

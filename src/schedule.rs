@@ -17,9 +17,7 @@ use crate::units::{Units,UnitType};
 use crate::locations::Locations;
 use crate::distance::Distance;
 use crate::base_types::{NodeId,UnitId};
-use crate::time::Duration;
-
-use std::hash::{Hash, Hasher};
+use crate::time::{Time,Duration};
 
 use std::collections::VecDeque;
 use im::HashMap;
@@ -567,7 +565,7 @@ impl Schedule {
             let pos = end_nodes.iter().position(|&e| nw.node(e).unit_type() == unit.unit_type() && nw.can_reach(start_node, e)).unwrap_or_else(|| panic!("No suitable end_node found for start_node: {}", start_node));
             let end_node = end_nodes.remove(pos).unwrap();
 
-            tours.insert(unit_id, Tour::new(unit.unit_type(), vec!(start_node, end_node), loc.clone(), nw.clone()));
+            tours.insert(unit_id, Tour::new(unit.unit_type(), vec!(start_node, end_node), loc.clone(), nw.clone()).unwrap());
 
             covered_by.insert(start_node, TrainFormation::new(vec!(unit_id), units.clone()));
             covered_by.insert(end_node, TrainFormation::new(vec!(unit_id), units.clone()));
@@ -582,7 +580,7 @@ impl Schedule {
         for node in nw.service_nodes().chain(nw.maintenance_nodes()) {
             let mut formation = Vec::new();
             for t in nw.node(node).demand().get_valid_types() {
-                let trivial_tour = Tour::new_dummy(t, vec!(node), loc.clone(), nw.clone());
+                let trivial_tour = Tour::new_dummy(t, vec!(node), loc.clone(), nw.clone()).unwrap();
                 let new_dummy_id = UnitId::from(format!("dummy{:05}", dummy_counter).as_str());
 
                 dummies.insert(new_dummy_id,(t,trivial_tour));
@@ -598,22 +596,7 @@ impl Schedule {
 
 
         // compute objective_value / unit_objective_info
-        let mut unit_objective_info: HashMap<UnitId, (Duration, Distance)> = HashMap::new();
-        let mut dummy_objective_info: HashMap<UnitId, Duration> = HashMap::new();
-        for unit in units.iter() {
-            let tour = tours.get(&unit).unwrap();
-            unit_objective_info.insert(unit, (tour.overhead_time(), tour.dead_head_distance()));
-        }
-        for dummy in dummy_ids_sorted.iter() {
-            dummy_objective_info.insert(*dummy, Duration::zero());
-        }
-
-        let overhead_time = unit_objective_info.values().map(|tuple| tuple.0).sum();
-        let number_of_dummy_units = dummies.len();
-        let dummy_overhead_time = dummies.values().map(|tuple| tuple.1.overhead_time()).sum();
-        let dead_head_distance = unit_objective_info.values().map(|tuple| tuple.1).sum();
-
-        let objective_value = ObjectiveValue::new(overhead_time, number_of_dummy_units, dummy_overhead_time, dead_head_distance);
+        let (unit_objective_info, dummy_objective_info, objective_value) = Schedule::compute_objective_value(&tours, &dummies);
 
         Schedule{tours,
                  covered_by,
@@ -626,5 +609,142 @@ impl Schedule {
                  loc,
                  units,
                  nw}
+    }
+
+    fn compute_objective_value(tours: &HashMap<UnitId, Tour>, dummies: &HashMap<UnitId, (UnitType, Tour)>) -> (HashMap<UnitId, (Duration, Distance)>, HashMap<UnitId, Duration>, ObjectiveValue) {
+        // compute objective_value / unit_objective_info
+        let mut unit_objective_info: HashMap<UnitId, (Duration, Distance)> = HashMap::new();
+        let mut dummy_objective_info: HashMap<UnitId, Duration> = HashMap::new();
+        for unit in tours.keys() {
+            let tour = tours.get(&unit).unwrap();
+            unit_objective_info.insert(*unit, (tour.overhead_time(), tour.dead_head_distance()));
+        }
+        for dummy in dummies.keys() {
+            dummy_objective_info.insert(*dummy, Duration::zero());
+        }
+
+        let overhead_time = unit_objective_info.values().map(|tuple| tuple.0).sum();
+        let number_of_dummy_units = dummies.len();
+        let dummy_overhead_time = dummies.values().map(|tuple| tuple.1.overhead_time()).sum();
+        let dead_head_distance = unit_objective_info.values().map(|tuple| tuple.1).sum();
+
+        let objective_value = ObjectiveValue::new(overhead_time, number_of_dummy_units, dummy_overhead_time, dead_head_distance);
+
+        (unit_objective_info, dummy_objective_info, objective_value)
+
+    }
+
+
+    pub(crate) fn load_from_csv(path: &str, loc: Arc<Locations>, units: Arc<Units>, nw: Arc<Network>) -> Schedule {
+
+        let mut tour_nodes: HashMap<UnitId, Vec<NodeId>> = HashMap::new();
+        for unit in units.iter() {
+            tour_nodes.insert(unit, Vec::new());
+        }
+
+        let mut covering: HashMap<NodeId, Vec<UnitId>> = HashMap::new();
+        for node in nw.all_nodes() {
+            covering.insert(node, Vec::new());
+        }
+
+        let mut reader = csv::ReaderBuilder::new().delimiter(b';').from_path(path).expect("csv-file for loading schedule not found");
+        for result in reader.records() {
+            let record = result.expect("Some recond cannot be read while reading service_trips");
+            let unit = UnitId::from(record.get(0).unwrap());
+            let _sort_time = Time::new(record.get(1).unwrap());
+            let activity_type = record.get(2).unwrap();
+            // let _start_location = loc.get_location(record.get(3).unwrap());
+            // let _end_location = loc.get_location(record.get(4).unwrap());
+
+            let service_trip_id = record.get(5).unwrap();
+            let end_point_id = record.get(6).unwrap();
+            let maintenance_shift_id = record.get(7).unwrap();
+
+
+            // asserts:
+            assert!(units.contains(unit), "ReadError: unit_id is invalid.");
+
+            match activity_type {
+                "KUNDENFAHRT" => {
+                    let node = NodeId::from(&format!("ST:{}", service_trip_id));
+                    tour_nodes.get_mut(&unit).unwrap().push(node);
+                    covering.get_mut(&node).unwrap().push(unit);
+                },
+                "ENDPUNKT" => {
+                    let node = NodeId::from(&format!("EN:{}", end_point_id));
+                    tour_nodes.get_mut(&unit).unwrap().push(node);
+                    covering.get_mut(&node).unwrap().push(unit);
+
+                },
+                "WARTUNG" => {
+                    let node = NodeId::from(&format!("MS:{}", maintenance_shift_id));
+                    tour_nodes.get_mut(&unit).unwrap().push(node);
+                    covering.get_mut(&node).unwrap().push(unit);
+                },
+                _ => {}
+            };
+        }
+
+        let mut tours: HashMap<UnitId, Tour> = HashMap::new();
+        for unit in units.iter() {
+            let mut nodes = tour_nodes.remove(&unit).unwrap();
+            nodes.push(nw.start_node_of(unit));
+            nodes.sort_by(|n1, n2| nw.node(*n1).cmp_start_time(nw.node(*n2)));
+            let tour = match Tour::new_allow_invalid(units.get_unit(unit).unit_type(), nodes, loc.clone(), nw.clone()) {
+                Err((tour, error_msg)) => {
+                    println!("{}", error_msg);
+                    tour
+                },
+                Ok(tour) => tour
+            };
+
+            tours.insert(unit, tour);
+        }
+
+        let mut covered_by: HashMap<NodeId, TrainFormation> = HashMap::new();
+        let mut dummies: HashMap<UnitId, (UnitType, Tour)> = HashMap::new();
+        let mut dummy_counter = 0;
+        for node in nw.service_nodes().chain(nw.maintenance_nodes()) {
+            let mut formation = covering.remove(&node).unwrap();
+            let types = formation.iter().map(|u| units.get_unit(*u).unit_type()).collect();
+            for t in nw.node(node).demand().get_missing_types(&types) {
+                let trivial_tour = Tour::new_dummy(t, vec!(node), loc.clone(), nw.clone()).unwrap();
+                let new_dummy_id = UnitId::from(format!("dummy{:05}", dummy_counter).as_str());
+
+                dummies.insert(new_dummy_id,(t,trivial_tour));
+
+                formation.push(new_dummy_id);
+                dummy_counter += 1;
+            }
+            covered_by.insert(node, TrainFormation::new(formation, units.clone()));
+        }
+
+        for node in nw.end_nodes() {
+            let formation = covering.remove(&node).unwrap();
+            covered_by.insert(node, TrainFormation::new(formation, units.clone()));
+        }
+
+        for unit in units.iter() {
+            covered_by.insert(nw.start_node_of(unit), TrainFormation::new(vec!(unit), units.clone()));
+        }
+
+        let mut dummy_ids_sorted: Vec<UnitId> = dummies.keys().copied().collect();
+        dummy_ids_sorted.sort();
+
+        // compute objective_value / unit_objective_info
+        let (unit_objective_info, dummy_objective_info, objective_value) = Schedule::compute_objective_value(&tours, &dummies);
+
+        Schedule{tours,
+                 covered_by,
+                 dummies,
+                 dummy_ids_sorted,
+                 dummy_counter,
+                 unit_objective_info,
+                 dummy_objective_info,
+                 objective_value,
+                 loc,
+                 units,
+                 nw}
+
     }
 }
