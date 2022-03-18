@@ -505,39 +505,50 @@ impl Schedule {
 
 }
 
-impl PartialEq for Schedule {
-    fn eq(&self, other: &Self) -> bool {
-        self.nw.all_nodes().flat_map(|n| self.covered_by(n).iter().zip(other.covered_by(n).iter()))
-                .all(|(unit, other_unit)| unit == other_unit)
-    }
-}
-// if there are dummies with different id they count differently
 
-impl Eq for Schedule {}
-
-impl PartialOrd for Schedule {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+impl Ord for Schedule {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // first compare objective
         match self.objective_value.cmp(&other.objective_value) {
             Ordering::Equal => {
-                // if the objective values are equal we break ties in a deterministic way: List all
-                // units in covered_by and compare lexicographically
-                match self.nw.all_nodes().flat_map(|n| self.covered_by(n).iter().zip(other.covered_by(n).iter()))
-                        .map(|(unit, other_unit)| unit.cmp(&other_unit)).find(|ord| *ord != Ordering::Equal) {
-                    None => Some(Ordering::Equal),
-                    Some(other) => Some(other)
+                // then compare real unit tours
+                match self.units.iter().map(|u| self.tour_of(u).cmp(other.tour_of(u))).find(|ord| *ord != Ordering::Equal) {
+                    Some(other) => other,
+                    None => {
+                        // finally compare dummy_tours. For this first sort the dummy tours and
+                        // then compare from small to long.
+                        let mut dummy_tours: Vec<_> = self.dummies.values().collect();
+                        dummy_tours.sort_by(|tuple, other_tuple| tuple.1.cmp(&other_tuple.1));
+                        let mut other_dummy_tours: Vec<_> = other.dummies.values().collect();
+                        other_dummy_tours.sort_by(|tuple, other_tuple| tuple.1.cmp(&other_tuple.1));
+                        match dummy_tours.iter().zip(other_dummy_tours.iter())
+                                .map(|(&tuple, &other_tuple)| tuple.1.cmp(&other_tuple.1)).find(|ord| *ord != Ordering::Equal) {
+                            Some(other) => other,
+                            None => Ordering::Equal
+                        }
+                    }
                 }
-            },
-            other => Some(other)
+
+
+            }
+            other => other,
         }
     }
 }
 
-impl Ord for Schedule {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap()
+impl PartialOrd for Schedule {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 
+impl PartialEq for Schedule {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other).is_eq()
+    }
+}
+
+impl Eq for Schedule {}
 
 // impl Hash for Schedule {
     // fn hash<H: Hasher>(&self, state: &mut H) {

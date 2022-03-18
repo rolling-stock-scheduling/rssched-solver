@@ -13,7 +13,7 @@ use crate::time::Duration;
 use std::sync::Arc;
 
 use swap_factory::LimitedExchanges;
-use local_improver::{LocalImprover, TakeAnyRecursion, Minimizer};
+use local_improver::{LocalImprover, TakeFirstRecursion, TakeAnyParallelRecursion, TakeFirstParallelRecursion, Minimizer};
 use super::greedy_2::Greedy2;
 
 
@@ -63,8 +63,11 @@ impl Solver for LocalSearch1 {
 
         let recursion_depth = 5;
         let recursion_width = 5;
-        let limited_local_improver = TakeAnyRecursion::new(swap_factory,recursion_depth, Some(recursion_width));
+
         // let limited_local_improver = Minimizer::new(swap_factory);
+        // let limited_local_improver = TakeFirstRecursion::new(swap_factory,recursion_depth, Some(25));
+        // let limited_local_improver = TakeFirstParallelRecursion::new(swap_factory,recursion_depth, Some(recursion_width));
+        let limited_local_improver = TakeAnyParallelRecursion::new(swap_factory,recursion_depth, Some(recursion_width));
 
         schedule = self.find_local_optimum(schedule, limited_local_improver);
         // self.find_local_optimum(schedule, limited_local_improver)
@@ -74,8 +77,11 @@ impl Solver for LocalSearch1 {
         println!("\n\n*** Phase 2: less-limited exchanges without recursion ***");
         let segment_limit = Duration::new("24:00");
         let swap_factory = LimitedExchanges::new(Some(segment_limit), None, false, self.nw.clone());
-        let unlimited_local_improver = TakeAnyRecursion::new(swap_factory,0,None);
+
         // let unlimited_local_improver = Minimizer::new(swap_factory);
+        // let unlimited_local_improver = TakeFirstRecursion::new(swap_factory,0,None);
+        // let unlimited_local_improver = TakeFirstParallelRecursion::new(swap_factory,0,None);
+        let unlimited_local_improver = TakeAnyParallelRecursion::new(swap_factory,0,None);
 
         self.find_local_optimum(schedule, unlimited_local_improver)
 
