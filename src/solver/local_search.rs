@@ -81,7 +81,7 @@ impl Solver for LocalSearch1 {
         // let unlimited_local_improver = Minimizer::new(swap_factory);
         // let unlimited_local_improver = TakeFirstRecursion::new(swap_factory,0,None);
         // let unlimited_local_improver = TakeFirstParallelRecursion::new(swap_factory,0,None);
-        let unlimited_local_improver = TakeAnyParallelRecursion::new(swap_factory,1,Some(recursion_width));
+        let unlimited_local_improver = TakeAnyParallelRecursion::new(swap_factory,0,Some(recursion_width));
 
         self.find_local_optimum(schedule, unlimited_local_improver)
 

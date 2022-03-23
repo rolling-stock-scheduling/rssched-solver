@@ -82,10 +82,10 @@ impl Add<Duration> for Time {
     fn add(self, other: Duration) -> Self {
         match other {
             Duration::Infinity => Time::Latest, //note that Earliest + Infinity = Latest
-            Duration::Length(_) => {
+            Duration::Length(l) => {
                 match self {
                     Time::Earliest => Time::Earliest,
-                    Time::Point(t) => Time::Point(t + other),
+                    Time::Point(t) => Time::Point(t + l),
                     Time::Latest => Time::Latest
                 }
             }
@@ -116,6 +116,31 @@ impl Sub for Time {
                     Time::Earliest => Duration::Infinity, // Length - Earliest
                     Time::Point(l2) => l1 - l2,
                     _ => panic!("This can never be reached")
+                }
+            }
+        }
+    }
+}
+
+impl Sub<Duration> for Time {
+    type Output = Time;
+
+    fn sub(self, other: Duration) -> Time {
+        match self {
+            Time::Earliest => {
+                Time::Earliest
+            }
+            Time::Latest => {
+                if other == Duration::Infinity {
+                    panic!("Cannot subtract Infinity from Latest");
+                } else {
+                    Time::Latest
+                }
+            }
+            Time::Point(t) => {
+                match other {
+                    Duration::Infinity => Time::Earliest,
+                    Duration::Length(d) => Time::Point(t - d),
                 }
             }
         }
@@ -181,11 +206,11 @@ impl Sub for TimePoint {
             self.minute + 60 - other.minute};
 
 
-        let mut temp_date = other + Duration::Length(DurationLength{hours, minutes});
+        let mut temp_date = other + DurationLength{hours, minutes};
         while self != temp_date {
             let days_diff = if self.day > temp_date.day {self.day - temp_date.day} else {self.day + TimePoint::get_days_of_month(temp_date.year, temp_date.month) - temp_date.day};
             let hours_diff = 24 * days_diff as u32;
-            temp_date = temp_date + Duration::Length(DurationLength{hours: hours_diff, minutes: 0});
+            temp_date = temp_date + DurationLength{hours: hours_diff, minutes: 0};
             hours += hours_diff;
         }
 
@@ -199,30 +224,68 @@ impl Sub for TimePoint {
 
 
 
-impl Add<Duration> for TimePoint {
+impl Add<DurationLength> for TimePoint {
     type Output = Self;
 
-    fn add(self, other: Duration) -> Self {
-        match other {
-            Duration::Infinity => {panic!("Infinity should never added to a TimePoint!");},
-            Duration::Length(l) => {
-                let sum_of_minutes = self.minute + l.minutes;
-                let minute = sum_of_minutes % 60;
-                let sum_of_hours: u32 = self.hour as u32 + l.hours + (sum_of_minutes/60) as u32;
-                let hour = (sum_of_hours % 24) as u8;
-                let sum_of_days: u32 = self.day as u32 + sum_of_hours/24;
+    fn add(self, other: DurationLength) -> Self {
+        let sum_of_minutes = self.minute + other.minutes;
+        let minute = sum_of_minutes % 60;
+        let sum_of_hours: u32 = self.hour as u32 + other.hours + (sum_of_minutes/60) as u32;
+        let hour = (sum_of_hours % 24) as u8;
+        let sum_of_days: u32 = self.day as u32 + sum_of_hours/24;
 
-                let (year,month,day) = TimePoint::correct_date(self.year, self.month, sum_of_days);
+        let (year,month,day) = TimePoint::correct_date(self.year, self.month, sum_of_days);
 
-                TimePoint{
-                    year,
-                    month,
-                    day,
-                    hour,
-                    minute
-                }
-            }
+        TimePoint{
+            year,
+            month,
+            day,
+            hour,
+            minute
         }
+    }
+}
+
+impl Sub<DurationLength> for TimePoint {
+    type Output = TimePoint;
+
+    fn sub(self, other: DurationLength) -> Self {
+        let mut year = self.year;
+        let mut month = self.month;
+        let mut day = self.day as u32;
+        let mut hour = self.hour as u32;
+        let mut minute = self.minute;
+
+        let mut other_day = 0;
+        let mut other_hour = other.hours;
+        let mut other_minute = other.minutes;
+
+
+        if other_minute > minute {
+            minute += 60;
+            other_hour += 1;
+        }
+        minute -= other_minute;
+
+        if other_hour > hour {
+            let day_diff: u32 = (other_hour - hour) / 24 + 1;
+            hour += day_diff * 24;
+            other_day += day_diff;
+        }
+        hour -= other_hour;
+
+        while other_day > day {
+            if month == 1 {
+                year -= 1;
+                month = 12;
+            } else {
+                month -= 1;
+            }
+            day += TimePoint::get_days_of_month(year, month) as u32;
+        }
+        day -= other_day;
+
+        TimePoint{year,month,day: day as u8,hour: hour as u8,minute}
     }
 }
 
@@ -482,6 +545,31 @@ mod test {
             let duration = Duration::Infinity;
             assert!(latest - earliest == duration, "Subtracting {} from {} gives {} but should give {}", earliest, latest, latest - earliest, duration);
             assert!(earliest + (latest - earliest) == latest, "Adding (later - earlier) to earlier should give later; earlier: {}, later: {}", earliest, latest);
+        }
+    }
+
+    #[test]
+    fn test_subtracting_duration_from_time() {
+        {
+            let later = Time::new("2022-02-06T16:32");
+            let duration = Duration::new("0:00");
+            let earlier = Time::new("2022-02-06T16:32");
+            assert!(later - duration == earlier, "Subtracting {} from {} gives {} but should give {}", duration, later, later - duration, earlier);
+            assert!(later - (later - earlier) == earlier, "Subtracting (later - earlier) from later should give earlier; earlier: {}, later: {}", earlier, later);
+        }
+        {
+            let later = Time::new("2022-02-06T17:31");
+            let duration = Duration::new("0:59");
+            let earlier = Time::new("2022-02-06T16:32");
+            assert!(later - duration == earlier, "Subtracting {} from {} gives {} but should give {}", duration, later, later - duration, earlier);
+            assert!(later - (later - earlier) == earlier, "Subtracting (later - earlier) from later should give earlier; earlier: {}, later: {}", earlier, later);
+        }
+        {
+            let later = Time::new("2022-02-06T17:31");
+            let duration = Duration::new("283599:06");
+            let earlier = Time::new("1989-10-01T02:25");
+            assert!(later - duration == earlier, "Subtracting {} from {} gives {} but should give {}", duration, later, later - duration, earlier);
+            assert!(later - (later - earlier) == earlier, "Subtracting (later - earlier) from later should give earlier; earlier: {}, later: {}", earlier, later);
         }
     }
 }

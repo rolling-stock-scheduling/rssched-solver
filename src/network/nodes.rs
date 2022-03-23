@@ -58,6 +58,16 @@ pub(crate) struct EndPoint {
     name: String
 }
 
+impl EndPoint {
+    pub(crate) fn dist_till_maintenance(&self) -> Distance {
+        self.dist_till_maintenance
+    }
+
+    pub(crate) fn duration_till_maintenance(&self) -> Duration {
+        self.duration_till_maintenance
+    }
+}
+
 // methods
 impl Node {
     pub(crate) fn id(&self) -> NodeId {

@@ -13,7 +13,7 @@ use train_formation::TrainFormation;
 
 use crate::network::Network;
 use crate::network::nodes::Node;
-use crate::units::{Units,UnitType};
+use crate::units::{Units,Unit,UnitType};
 use crate::locations::Locations;
 use crate::distance::Distance;
 use crate::base_types::{NodeId,UnitId};
@@ -41,13 +41,33 @@ pub(crate) struct Schedule {
     dummy_ids_sorted: Vec<UnitId>,
     dummy_counter: usize,
 
-    unit_objective_info: HashMap<UnitId, (Duration, Distance)>, // for each unit we store the overhead_time and the dead_head_distance
+    unit_objective_info: HashMap<UnitId, ObjectiveInfo>, // for each unit we store the overhead_time and the dead_head_distance
     dummy_objective_info: HashMap<UnitId, Duration>, // for each dummy we store the overhead_time
     objective_value: ObjectiveValue,
 
     loc: Arc<Locations>,
     units: Arc<Units>,
     nw: Arc<Network>,
+}
+
+#[derive(Clone)]
+struct ObjectiveInfo {
+    overhead_time: Duration,
+    dead_head_distance: Distance,
+    maintenance_distance_violation: Distance,
+    maintenance_duration_violation: Duration
+}
+
+impl ObjectiveInfo {
+    fn new(unit: &Unit, tour: &Tour) -> ObjectiveInfo {
+        let (maintenance_distance_violation, maintenance_duration_violation) = tour.maintenance_violation(unit);
+        ObjectiveInfo {
+            overhead_time: tour.overhead_time(),
+            dead_head_distance: tour.dead_head_distance(),
+            maintenance_distance_violation,
+            maintenance_duration_violation
+        }
+    }
 }
 
 
@@ -256,7 +276,7 @@ impl Schedule {
                 dummy_objective_info.insert(provider, new_tour_provider.overhead_time());
                 dummies.insert(provider, (self.type_of(provider),new_tour_provider));
             } else {
-                unit_objective_info.insert(provider, (new_tour_provider.overhead_time(), new_tour_provider.dead_head_distance()));
+                unit_objective_info.insert(provider, ObjectiveInfo::new(self.units.get_unit(provider), &new_tour_provider));
                 tours.insert(provider, new_tour_provider);
             }
         } else {
@@ -270,7 +290,7 @@ impl Schedule {
             dummy_objective_info.insert(receiver, new_tour_receiver.overhead_time());
             dummies.insert(receiver, (self.type_of(receiver), new_tour_receiver));
         } else {
-            unit_objective_info.insert(receiver, (new_tour_receiver.overhead_time(), new_tour_receiver.dead_head_distance()));
+            unit_objective_info.insert(receiver, ObjectiveInfo::new(self.units.get_unit(receiver), &new_tour_receiver));
             tours.insert(receiver, new_tour_receiver);
         }
 
@@ -280,13 +300,8 @@ impl Schedule {
             covered_by.insert(*node, new_formation);
         }
 
-        // compute objective_value / unit_objective_info
-        let overhead_time = unit_objective_info.values().map(|tuple| tuple.0).sum();
-        let number_of_dummy_units = dummies.len();
-        let dummy_overhead_time: Duration = dummy_objective_info.values().copied().sum();
-        let dead_head_distance = unit_objective_info.values().map(|tuple| tuple.1).sum();
 
-        let objective_value = ObjectiveValue::new(overhead_time, number_of_dummy_units, dummy_overhead_time, dead_head_distance);
+        let objective_value = Schedule::sum_up_objective_info(&unit_objective_info, &dummy_objective_info);
 
 
         Ok(Schedule{tours,
@@ -350,7 +365,7 @@ impl Schedule {
                 dummy_objective_info.insert(provider, shrinked_tour_provider.overhead_time());
                 dummies.insert(provider, (self.type_of(provider), shrinked_tour_provider));
             } else {
-                unit_objective_info.insert(provider, (shrinked_tour_provider.overhead_time(), shrinked_tour_provider.dead_head_distance()));
+                unit_objective_info.insert(provider, ObjectiveInfo::new(self.units.get_unit(provider), &shrinked_tour_provider));
                 tours.insert(provider, shrinked_tour_provider);
             }
         } else {
@@ -364,7 +379,7 @@ impl Schedule {
             dummy_objective_info.insert(receiver, new_tour_receiver.overhead_time());
             dummies.insert(receiver, (self.type_of(receiver), new_tour_receiver));
         } else {
-            unit_objective_info.insert(receiver, (new_tour_receiver.overhead_time(), new_tour_receiver.dead_head_distance()));
+            unit_objective_info.insert(receiver, ObjectiveInfo::new(self.units.get_unit(receiver), &new_tour_receiver));
             tours.insert(receiver, new_tour_receiver);
         }
 
@@ -393,13 +408,8 @@ impl Schedule {
             dummy_counter += 1;
         }
 
-        // compute objective_value / unit_objective_info
-        let overhead_time = unit_objective_info.values().map(|tuple| tuple.0).sum();
-        let number_of_dummy_units = dummies.len();
-        let dummy_overhead_time = dummy_objective_info.values().copied().sum();
-        let dead_head_distance = unit_objective_info.values().map(|tuple| tuple.1).sum();
 
-        let objective_value = ObjectiveValue::new(overhead_time, number_of_dummy_units, dummy_overhead_time, dead_head_distance);
+        let objective_value = Schedule::sum_up_objective_info(&unit_objective_info, &dummy_objective_info);
 
 
         Ok((Schedule{tours,
@@ -607,7 +617,7 @@ impl Schedule {
 
 
         // compute objective_value / unit_objective_info
-        let (unit_objective_info, dummy_objective_info, objective_value) = Schedule::compute_objective_value(&tours, &dummies);
+        let (unit_objective_info, dummy_objective_info, objective_value) = Schedule::compute_objective_value(&tours, &dummies, units.clone());
 
         Schedule{tours,
                  covered_by,
@@ -622,31 +632,34 @@ impl Schedule {
                  nw}
     }
 
-    fn compute_objective_value(tours: &HashMap<UnitId, Tour>, dummies: &HashMap<UnitId, (UnitType, Tour)>) -> (HashMap<UnitId, (Duration, Distance)>, HashMap<UnitId, Duration>, ObjectiveValue) {
+    fn compute_objective_value(tours: &HashMap<UnitId, Tour>, dummies: &HashMap<UnitId, (UnitType, Tour)>, units: Arc<Units>) -> (HashMap<UnitId, ObjectiveInfo>, HashMap<UnitId, Duration>, ObjectiveValue) {
         // compute objective_value / unit_objective_info
-        let mut unit_objective_info: HashMap<UnitId, (Duration, Distance)> = HashMap::new();
+        let mut unit_objective_info: HashMap<UnitId, ObjectiveInfo> = HashMap::new();
         let mut dummy_objective_info: HashMap<UnitId, Duration> = HashMap::new();
         for unit in tours.keys() {
-            let tour = tours.get(&unit).unwrap();
-            unit_objective_info.insert(*unit, (tour.overhead_time(), tour.dead_head_distance()));
+            let tour = tours.get(unit).unwrap();
+            unit_objective_info.insert(*unit, ObjectiveInfo::new(units.get_unit(*unit), tour));
         }
         for dummy in dummies.keys() {
             dummy_objective_info.insert(*dummy, Duration::zero());
         }
 
-        let overhead_time = unit_objective_info.values().map(|tuple| tuple.0).sum();
-        let number_of_dummy_units = dummies.len();
-        let dummy_overhead_time = dummies.values().map(|tuple| tuple.1.overhead_time()).sum();
-        let dead_head_distance = unit_objective_info.values().map(|tuple| tuple.1).sum();
+        let objective_value = Schedule::sum_up_objective_info(&unit_objective_info, &dummy_objective_info);
 
-
-        // compute maintenance violation:
-
-
-        let objective_value = ObjectiveValue::new(overhead_time, number_of_dummy_units, dummy_overhead_time, dead_head_distance);
 
         (unit_objective_info, dummy_objective_info, objective_value)
 
+    }
+
+    fn sum_up_objective_info(unit_objective_info: &HashMap<UnitId, ObjectiveInfo>, dummy_objective_info: &HashMap<UnitId, Duration>) -> ObjectiveValue {
+        let overhead_time = unit_objective_info.values().map(|info| info.overhead_time).sum();
+        let number_of_dummy_units = dummy_objective_info.len();
+        let dummy_overhead_time: Duration = dummy_objective_info.values().copied().sum();
+        let dead_head_distance = unit_objective_info.values().map(|info| info.dead_head_distance).sum();
+        let maintenance_distance_violation = unit_objective_info.values().map(|info| info.maintenance_distance_violation).sum();
+        let maintenance_duration_violation = unit_objective_info.values().map(|info| info.maintenance_duration_violation).sum();
+
+        ObjectiveValue::new(overhead_time, number_of_dummy_units, dummy_overhead_time, maintenance_distance_violation, maintenance_duration_violation, dead_head_distance)
     }
 
 
@@ -747,7 +760,7 @@ impl Schedule {
         dummy_ids_sorted.sort();
 
         // compute objective_value / unit_objective_info
-        let (unit_objective_info, dummy_objective_info, objective_value) = Schedule::compute_objective_value(&tours, &dummies);
+        let (unit_objective_info, dummy_objective_info, objective_value) = Schedule::compute_objective_value(&tours, &dummies, units.clone());
 
         Schedule{tours,
                  covered_by,

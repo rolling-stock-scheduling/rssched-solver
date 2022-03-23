@@ -238,8 +238,7 @@ impl<F: SwapFactory + Send + Sync> TakeFirstParallelRecursion<F> {
 
 
         if result.is_none() {
-            let number_of_schedules: usize = schedule_collection.iter().map(|v| v.len()).sum();
-            println!("No improvement found after {} swaps.", number_of_schedules);
+            println!("No improvement found.");
 
             if remaining_recursion > 0 {
                 let mut schedules_for_recursion: Vec<Schedule> = schedule_collection.into_iter().flatten().collect();
@@ -327,7 +326,7 @@ impl<F: SwapFactory + Send + Sync> TakeAnyParallelRecursion<F> {
                     .filter_map(|swap| {
                         swap.apply(sched).ok()
                     }).find_any(|new_sched| {
-                        if remaining_recursion > 1 {
+                        if remaining_recursion > 0 {
 
                             let mut schedules_mutex = schedules_mutex.lock().unwrap();
 
@@ -387,8 +386,7 @@ impl<F: SwapFactory + Send + Sync> TakeAnyParallelRecursion<F> {
 
 
         if result.is_none() {
-            let number_of_schedules: usize = schedule_collection.iter().map(|v| v.len()).sum();
-            println!("No improvement found after {} swaps.", number_of_schedules);
+            println!("No improvement found.");
 
             if remaining_recursion > 0 {
                 let mut schedules_for_recursion: Vec<Schedule> = schedule_collection.into_iter().flatten().collect();

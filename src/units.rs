@@ -18,7 +18,7 @@ pub(crate) struct Unit {
     unit_type: UnitType,
     start_time: Time,
     start_location: Location,
-    initial_time_counter: Duration, // time passed since last maintenance (at start_node)
+    initial_duration_counter: Duration, // time passed since last maintenance (at start_node)
     initial_dist_counter: Distance, // distance since last maintenance (at start_node)
 }
 
@@ -44,9 +44,9 @@ impl Units {
             let unit_type = UnitType::Standard;
             let start_time = Time::new(record.get(1).unwrap());
             let start_location = loc.get_location(record.get(2).unwrap());
-            let initial_time_counter = Duration::from_iso(record.get(3).unwrap());
+            let initial_duration_counter = Duration::from_iso(record.get(3).unwrap());
             let initial_dist_counter =  Distance::from_km(record.get(4).unwrap().parse().unwrap());
-            units.insert(id,Unit{id,unit_type,start_time,start_location,initial_time_counter,initial_dist_counter});
+            units.insert(id,Unit{id,unit_type,start_time,start_location,initial_duration_counter,initial_dist_counter});
         }
 
         let mut ids_sorted: Vec<UnitId> = units.keys().copied().collect();
@@ -95,8 +95,8 @@ impl Unit {
         self.start_location
     }
 
-    pub(crate) fn initial_time_counter(&self) -> Duration {
-        self.initial_time_counter
+    pub(crate) fn initial_duration_counter(&self) -> Duration {
+        self.initial_duration_counter
     }
 
     pub(crate) fn initial_dist_counter(&self) -> Distance {
@@ -108,6 +108,6 @@ impl Unit {
 
 impl fmt::Display for Unit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "unit {} ({:?}; {}; {})", self.id, self.unit_type, self.initial_dist_counter, self.initial_time_counter)
+        write!(f, "unit {} ({:?}; {}; {})", self.id, self.unit_type, self.initial_dist_counter, self.initial_duration_counter)
     }
 }

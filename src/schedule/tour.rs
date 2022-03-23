@@ -2,7 +2,7 @@ use std::fmt;
 use crate::distance::Distance;
 use crate::time::{Time, Duration};
 use crate::locations::Locations;
-use crate::units::UnitType;
+use crate::units::{Unit,UnitType};
 use crate::network::Network;
 use crate::network::nodes::Node;
 use crate::base_types::NodeId;
@@ -104,6 +104,45 @@ impl Tour {
     pub(crate) fn overhead_time(&self) -> Duration {
         self.overhead_time
     }
+
+    /// computes and returns the amount of distance and duration violation this tour causes.
+    pub(crate) fn maintenance_violation(&self, unit: &Unit) -> (Distance, Duration) {
+
+        let mut distance_counter = unit.initial_dist_counter();
+        let mut last_maintenance: Time = unit.start_time() - unit.initial_duration_counter();
+
+        let maintenance_dist_limit = Distance::from_meter(12_500_000);
+        let maintenance_duration_limit = Duration::new("720:00"); // 30 days
+
+        let mut dist_violation = Distance::zero();
+        let mut duration_violation = Duration::zero();
+
+        for (&p, &n) in self.nodes_iter().tuple_windows() {
+            distance_counter = distance_counter + self.loc.distance(self.nw.node(p).end_location(), self.nw.node(n).start_location());
+
+            let node = self.nw.node(n);
+
+            match node {
+                Node::Service(_) => {
+                    distance_counter = node.travel_distance()
+                },
+                Node::Maintenance(_) => {
+                    dist_violation = dist_violation + std::cmp::max(distance_counter, maintenance_dist_limit) - maintenance_dist_limit;
+                    distance_counter = Distance::zero();
+                    duration_violation = duration_violation + std::cmp::max(node.start_time() - last_maintenance, maintenance_duration_limit) - maintenance_duration_limit;
+                    last_maintenance = node.end_time();
+                },
+                Node::End(e) => {
+                    distance_counter = distance_counter + e.dist_till_maintenance();
+                    dist_violation = dist_violation + std::cmp::max(distance_counter, maintenance_dist_limit) - maintenance_dist_limit;
+                    duration_violation = duration_violation + std::cmp::max(node.start_time() - last_maintenance, maintenance_duration_limit) - maintenance_duration_limit;
+                },
+                _ => {}
+            }
+        }
+        (dist_violation, duration_violation)
+    }
+
 
     /// return the usefule_time (end - start for each node, including maintenance_slots) of the tour.
     // pub(crate) fn useful_time(&self) -> Duration {
