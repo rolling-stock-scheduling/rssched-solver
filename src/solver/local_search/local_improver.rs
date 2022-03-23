@@ -88,8 +88,8 @@ impl<F: SwapFactory> TakeFirstRecursion<F> {
             counter += 1;
             swap.apply(old_sched).ok()
         }).find(|new_sched| {
-            let new_objective_value = new_sched.objective_value();
-            schedules_for_recursion.push(new_sched.clone());
+            if remaining_recursion > 0 {
+                schedules_for_recursion.push(new_sched.clone());
                 if let Some(width) = self.recursion_width {
                     schedules_for_recursion.sort();
                     schedules_for_recursion.dedup();
@@ -97,7 +97,8 @@ impl<F: SwapFactory> TakeFirstRecursion<F> {
                     let width = width.min(schedules_for_recursion.len());
                     schedules_for_recursion.truncate(width);
                 }
-            new_objective_value < objective_to_beat
+            }
+            new_sched.objective_value() < objective_to_beat
         });
 
         if result.is_none() {
@@ -175,17 +176,19 @@ impl<F: SwapFactory + Send + Sync> TakeFirstParallelRecursion<F> {
                     .filter_map(|(i,swap)| {
                         swap.apply(sched).ok().map(move |new_sched| (i, new_sched))
                     }).find(|(i,new_sched)| {
+                        if remaining_recursion > 0 {
 
-                        schedules.push(new_sched.clone());
+                            schedules.push(new_sched.clone());
 
-                        // if there is a recursion_width truncate schedules to the best width many
-                        if let Some(width) = self.recursion_width {
-                            schedules.sort();
-                            // schedules.dedup(); //remove dublicates
-                            schedules.dedup_by(|s1,s2| s1.cmp_objective_values(s2).is_eq()); //remove dublicates according to objective_value
+                            // if there is a recursion_width truncate schedules to the best width many
+                            if let Some(width) = self.recursion_width {
+                                schedules.sort();
+                                // schedules.dedup(); //remove dublicates
+                                schedules.dedup_by(|s1,s2| s1.cmp_objective_values(s2).is_eq()); //remove dublicates according to objective_value
 
-                            let width = width.min(schedules.len());
-                            schedules.truncate(width);
+                                let width = width.min(schedules.len());
+                                schedules.truncate(width);
+                            }
                         }
 
                         if let Ok(best_i) = found_receiver.try_recv() {
@@ -324,21 +327,23 @@ impl<F: SwapFactory + Send + Sync> TakeAnyParallelRecursion<F> {
                     .filter_map(|swap| {
                         swap.apply(sched).ok()
                     }).find_any(|new_sched| {
+                        if remaining_recursion > 1 {
 
-                        let found_receiver_mutex = found_receiver_mutex.lock().unwrap();
-                        let mut schedules_mutex = schedules_mutex.lock().unwrap();
+                            let mut schedules_mutex = schedules_mutex.lock().unwrap();
 
-                        schedules_mutex.push(new_sched.clone());
+                            schedules_mutex.push(new_sched.clone());
 
-                        // if there is a recursion_width truncate schedules to the best width many
-                        if let Some(width) = self.recursion_width {
-                            schedules_mutex.sort();
-                            // schedules_mutex.dedup(); //remove dublicates
-                            schedules_mutex.dedup_by(|s1,s2| s1.cmp_objective_values(s2).is_eq()); //remove dublicates according to objective_value
-                            let width = width.min(schedules_mutex.len());
-                            schedules_mutex.truncate(width);
+                            // if there is a recursion_width truncate schedules to the best width many
+                            if let Some(width) = self.recursion_width {
+                                schedules_mutex.sort();
+                                // schedules_mutex.dedup(); //remove dublicates
+                                schedules_mutex.dedup_by(|s1,s2| s1.cmp_objective_values(s2).is_eq()); //remove dublicates according to objective_value
+                                let width = width.min(schedules_mutex.len());
+                                schedules_mutex.truncate(width);
+                            }
                         }
 
+                        let found_receiver_mutex = found_receiver_mutex.lock().unwrap();
                         let found = found_receiver_mutex.try_recv();
                         new_sched.objective_value() < objective_to_beat || found.is_ok()
                     });

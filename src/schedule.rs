@@ -639,6 +639,10 @@ impl Schedule {
         let dummy_overhead_time = dummies.values().map(|tuple| tuple.1.overhead_time()).sum();
         let dead_head_distance = unit_objective_info.values().map(|tuple| tuple.1).sum();
 
+
+        // compute maintenance violation:
+
+
         let objective_value = ObjectiveValue::new(overhead_time, number_of_dummy_units, dummy_overhead_time, dead_head_distance);
 
         (unit_objective_info, dummy_objective_info, objective_value)

@@ -35,9 +35,6 @@ pub fn run(path: &str) {
     let nw = Arc::new(Network::load_from_csv(&format!("{}{}", path, "kundenfahrten.csv"), &format!("{}{}", path, "wartungsfenster.csv"), &format!("{}{}", path, "endpunkte.csv"), loc.clone(), units.clone()));
 
 
-    // let loaded_schedule = Schedule::load_from_csv(&format!("{}{}", path, "SBB_leistungsketten.csv"), loc.clone(), units.clone(), nw.clone());
-    // loaded_schedule.print();
-    // loaded_schedule.objective_value().print();
 
 
 
@@ -76,11 +73,15 @@ pub fn run(path: &str) {
     println!("min_overhead: {}", optimal);
     final_schedule.objective_value().print();
 
+    println!("ETH_Solution:");
     println!("Running time: {:0.2}sec", runtime_duration.as_secs_f32());
 
     final_schedule.write_to_csv(&format!("{}{}", path, "ETH_leistungsketten.csv")).unwrap();
 
-
+    println!();
+    let loaded_schedule = Schedule::load_from_csv(&format!("{}{}", path, "SBB_leistungsketten.csv"), loc.clone(), units.clone(), nw.clone());
+    println!("SBB_Solution:");
+    loaded_schedule.objective_value().print();
 
 }
 
