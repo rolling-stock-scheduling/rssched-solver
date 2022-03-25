@@ -38,13 +38,14 @@ impl Solver for Greedy2 {
                 // Sort last_nodes by end time of nodes in decreasing order (i.e. second component in the tuple)
                 last_nodes.sort_by(|n1, n2| self.nw.node(n2.1).cmp_end_time(self.nw.node(n1.1)));
                 // Find an existing tour that can cover 'node' while minimizing the wasted time
-                let candidate = last_nodes.iter().find(|(u,_)| {
+                let candidate = last_nodes.iter().enumerate().find(|(_,(u,_))| {
                     let conflict_result = schedule.conflict_single_node(node, *u);
                     conflict_result.is_ok() && conflict_result.unwrap().is_empty()
                 });
                 // update tour
-                if let Some((new_unit, _)) = candidate {
-                    schedule = schedule.reassign_all(dummy_id, *new_unit).unwrap();
+                if let Some((index,&(new_unit, _))) = candidate {
+                    schedule = schedule.reassign_all(dummy_id, new_unit).unwrap();
+                    last_nodes[index] = (new_unit, node);
                 }
             }
         }

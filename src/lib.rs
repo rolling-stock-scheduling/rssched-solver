@@ -49,8 +49,8 @@ pub fn run(path: &str) {
 
 
     // execute greedy_2 algorithms (going through nodes and pick units greedily)
-    // let greedy_2 = Greedy2::initialize(loc.clone(), units.clone(), nw.clone());
-    // let final_schedule = greedy_2.solve();
+    let greedy_2 = Greedy2::initialize(loc.clone(), units.clone(), nw.clone());
+    let final_schedule = greedy_2.solve();
 
 
 
@@ -58,8 +58,8 @@ pub fn run(path: &str) {
 
 
 
-    let local_search_solver = LocalSearch1::initialize(loc.clone(), units.clone(), nw.clone());
-    let final_schedule = local_search_solver.solve();
+    // let local_search_solver = LocalSearch1::initialize(loc.clone(), units.clone(), nw.clone());
+    // let final_schedule = local_search_solver.solve();
 
 
 
