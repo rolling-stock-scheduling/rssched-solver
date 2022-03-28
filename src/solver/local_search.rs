@@ -14,7 +14,9 @@ use std::sync::Arc;
 
 use swap_factory::LimitedExchanges;
 use local_improver::{LocalImprover, TakeFirstRecursion, TakeAnyParallelRecursion, TakeFirstParallelRecursion, Minimizer};
+use super::greedy_1::Greedy1;
 use super::greedy_2::Greedy2;
+use super::greedy_3::Greedy3;
 
 
 
@@ -41,7 +43,7 @@ impl Solver for LocalSearch1 {
 
 
         // greedy schedule:
-        let greedy = Greedy2::initialize(self.loc.clone(), self.units.clone(), self.nw.clone());
+        let greedy = Greedy3::initialize(self.loc.clone(), self.units.clone(), self.nw.clone());
         let mut schedule = greedy.solve();
 
 

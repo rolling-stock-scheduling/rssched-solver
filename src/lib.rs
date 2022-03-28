@@ -14,6 +14,7 @@ mod solver;
 use solver::Solver;
 use solver::greedy_1::Greedy1;
 use solver::greedy_2::Greedy2;
+use solver::greedy_3::Greedy3;
 use solver::local_search::LocalSearch1;
 
 use network::Network;
@@ -36,31 +37,15 @@ pub fn run(path: &str) {
 
 
 
-
-
-
     let start_time = stdtime::Instant::now();
 
+    // execute greedy algorithm
+    //let greedy_3 = Greedy3::initialize(loc.clone(), units.clone(), nw.clone());
+    //let final_schedule = greedy_3.solve();
 
-    // execute greedy_1 algorithms (going through units and pick nodes greedily)
-    // let greedy_1 = Greedy1::initialize(loc.clone(), units.clone(), nw.clone());
-    // let final_schedule = greedy_1.solve();
-
-
-
-    // execute greedy_2 algorithms (going through nodes and pick units greedily)
-    let greedy_2 = Greedy2::initialize(loc.clone(), units.clone(), nw.clone());
-    let final_schedule = greedy_2.solve();
-
-
-
-
-
-
-
-    // let local_search_solver = LocalSearch1::initialize(loc.clone(), units.clone(), nw.clone());
-    // let final_schedule = local_search_solver.solve();
-
+    // Execute local search (which runs greedy to get an initial solution)
+    let local_search_solver = LocalSearch1::initialize(loc.clone(), units.clone(), nw.clone());
+    let final_schedule = local_search_solver.solve();
 
 
     let end_time = stdtime::Instant::now();
