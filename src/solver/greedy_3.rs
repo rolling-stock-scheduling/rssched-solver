@@ -38,9 +38,15 @@ impl Solver for Greedy3 {
             let node_start_loc = self.nw.node(node).start_location();
             for dummy_id in schedule.clone().covered_by(node).iter() {
                 // Sort last_nodes by deadhead trip distance to 'node' in increasing order
-                last_nodes.sort_by(|n1, n2| self.loc.travel_time(self.nw.node(n1.1).end_location(), node_start_loc).partial_cmp(
-                    &self.loc.travel_time(self.nw.node(n2.1).end_location(), node_start_loc)
-                ).unwrap());
+                // Use a tie breaking rule given by candidate's end time or/and unit ID
+                last_nodes.sort_by(|n1, n2| {
+                    self.loc.travel_time(self.nw.node(n1.1).end_location(), node_start_loc).partial_cmp(
+                    &self.loc.travel_time(self.nw.node(n2.1).end_location(), node_start_loc)).unwrap().then(
+                        // break ties by candidate's end time
+                        //self.nw.node(n2.1).cmp_end_time(self.nw.node(n1.1))).then(
+                            // and/or break ties by candidate's unit ID
+                            self.nw.node(n1.1).id().partial_cmp(&self.nw.node(n2.1).id()).unwrap())
+                });
                 // Find an existing tour that can cover 'node' while minimizing the deadhead distance
                 let candidate = last_nodes.iter().enumerate().find(|(_,(u,_))| {
                     let conflict_result = schedule.conflict_single_node(node, *u);
