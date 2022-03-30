@@ -2,16 +2,13 @@ use crate::time::{Time,Duration};
 use crate::locations::Location;
 use crate::units::UnitType;
 use crate::distance::Distance;
-use crate::base_types::{NodeId,UnitId,Penalty};
+use crate::base_types::{NodeId,UnitId,StationSide};
 use super::demand::Demand;
-use crate::schedule::train_formation::TrainFormation;
 
 use core::cmp::Ordering;
 
 
 use std::fmt;
-
-use crate::base_types::{PENALTY_ZERO, PENALTY_UNUSED_MAINTENANCE,PENALTY_INF};
 
 pub(crate) enum Node {
     Service(ServiceTrip),
@@ -27,6 +24,8 @@ pub(crate) struct ServiceTrip {
     destination: Location,
     departure: Time,
     arrival: Time,
+    departure_side: StationSide,
+    arrival_side: StationSide,
     travel_distance: Distance,
     demand: Demand,
     name: String
@@ -65,6 +64,16 @@ impl EndPoint {
 
     pub(crate) fn duration_till_maintenance(&self) -> Duration {
         self.duration_till_maintenance
+    }
+}
+
+impl ServiceTrip {
+    pub(crate) fn departure_side(&self) -> StationSide {
+        self.departure_side
+    }
+    
+    pub(crate) fn arrival_side(&self) -> StationSide {
+        self.arrival_side
     }
 }
 
@@ -157,15 +166,6 @@ impl Node {
         }
     }
 
-    pub(crate) fn cover_penalty(&self, train: &TrainFormation) -> Penalty {
-        match self {
-            Node::Service(s) => s.demand.compute_penalty(train),
-            Node::Maintenance(m) => if train.len() == 1 {PENALTY_ZERO} else {PENALTY_UNUSED_MAINTENANCE},
-            Node::Start(s) => if train.len() == 1 && train.iter().next().unwrap() == s.unit_id {PENALTY_ZERO} else {PENALTY_INF},
-            Node::End(e) => if train.len() == 1 && train.get_as_units().first().unwrap().unit_type() == e.unit_type {PENALTY_ZERO} else {PENALTY_INF}
-        }
-    }
-
     pub(crate) fn name(&self) -> &str {
         match self {
             Node::Service(s) => &s.name,
@@ -222,13 +222,15 @@ impl Node {
 impl Node {
 
     // factory for creating a service trip
-    pub(super) fn create_service_node(id: NodeId, origin: Location, destination: Location, departure: Time, arrival: Time, travel_distance: Distance, demand: Demand, name: String) -> Node {
+    pub(super) fn create_service_node(id: NodeId, origin: Location, destination: Location, departure: Time, arrival: Time, departure_side: StationSide, arrival_side: StationSide, travel_distance: Distance, demand: Demand, name: String) -> Node {
         Node::Service(ServiceTrip{
             id,
             origin,
             destination,
             departure,
             arrival,
+            departure_side,
+            arrival_side,
             travel_distance,
             demand,
             name

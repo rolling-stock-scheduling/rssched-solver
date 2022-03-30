@@ -4,6 +4,7 @@ use nodes::Node;
 pub(crate) mod demand;
 use demand::Demand;
 
+use crate::config::Config;
 use crate::time::{Time,Duration};
 use crate::distance::Distance;
 use crate::locations::Locations;
@@ -29,6 +30,7 @@ pub(crate) struct Network {
     nodes_sorted_by_end: Vec<NodeId>,
 
     // for convenience
+    config: Arc<Config>,
     loc: Arc<Locations>
 }
 
@@ -64,7 +66,95 @@ impl Network {
     pub(crate) fn can_reach(&self, node1: NodeId, node2: NodeId) -> bool {
         let n1 = self.nodes.get(&node1).unwrap();
         let n2 = self.nodes.get(&node2).unwrap();
-        n1.end_time() + self.loc.travel_time(n1.end_location(), n2.start_location()) < n2.start_time()
+
+
+        n1.end_time() + self.duration_between_activities(n1,n2) <= n2.start_time()
+    }
+
+
+    fn duration_between_activities(&self, n1: &Node, n2: &Node) -> Duration {
+
+        // TODO: Check if the nodes are present as activity links: JOINT or REFERENCE.
+        // if yes, return Duration::zero()
+
+        if n1.end_location() == n2.start_location() {
+            // no dead_head_trip
+            self.duration_between_activities_without_dead_head_trip(n1, n2)
+
+        } else {
+            // dead_head_trip
+            self.duration_between_activities_with_dead_head_trip(n1, n2)
+        }
+    }
+
+    fn duration_between_activities_without_dead_head_trip(&self, n1: &Node, n2: &Node) -> Duration {
+        if let Node::Service(s1) = n1 {
+            if let Node::Service(s2) = n2 {
+                // both nodes are service trips
+
+
+                if n1.demand() != n2.demand() {
+                    // different demands mean a new coupling is needed
+                    self.config.durations_between_activities.coupling
+
+                } else {
+                    if s1.arrival_side() == s2.departure_side() {
+                        // turn
+                        self.config.durations_between_activities.turn
+
+                    } else {
+                        // minimum
+                        self.config.durations_between_activities.minimal
+                    }
+                }
+
+
+            } else {
+                // n2 is no service trip
+                Duration::zero()
+            }
+        } else {
+            // n1 is no service trip
+            Duration::zero()
+        }
+
+    }
+
+    fn duration_between_activities_with_dead_head_trip(&self, n1: &Node, n2: &Node) -> Duration {
+        let (dht_start_side, dht_end_side) = self.loc.station_sides(n1.end_location(), n2.start_location());
+        let previous: Duration = match n1 {
+            Node::Service(s1) => {
+                if dht_start_side == s1.departure_side() {
+                    // turn
+                    self.config.durations_between_activities.dead_head_trip + self.config.durations_between_activities.turn
+                } else {
+                    // no turn
+                    self.config.durations_between_activities.dead_head_trip
+                }
+            },
+            Node::Maintenance(_) => self.config.durations_between_activities.dead_head_trip,
+            _ => Duration::zero()
+        };
+
+        let next: Duration = match n2 {
+            Node::Service(s2) => {
+                if dht_end_side == s2.arrival_side() {
+                    // turn
+                    self.config.durations_between_activities.dead_head_trip + self.config.durations_between_activities.turn
+                } else {
+                    // no turn
+                    self.config.durations_between_activities.dead_head_trip
+                }
+            },
+            Node::Maintenance(_) => self.config.durations_between_activities.dead_head_trip,
+            _ => Duration::zero()
+        };
+
+
+
+        previous + self.loc.travel_time(n1.end_location(), n2.start_location()) + next
+
+
     }
 
     /// provides all nodes that are reachable from node (in increasing order according to the
@@ -76,10 +166,9 @@ impl Network {
 
     /// provides all nodes that are can reach node (in decreasing order according to the
     /// end time)
-    pub(crate) fn all_predecessors(&self, node: NodeId) -> impl Iterator<Item=NodeId> + '_ {
-        // TODO: Could use binary_search for speed up
-        self.nodes_sorted_by_end.iter().rev().copied().filter(move |&n| self.can_reach(n, node))
-    }
+    // pub(crate) fn all_predecessors(&self, node: NodeId) -> impl Iterator<Item=NodeId> + '_ {
+        // self.nodes_sorted_by_end.iter().rev().copied().filter(move |&n| self.can_reach(n, node))
+    // }
 
     pub(crate) fn all_nodes(&self) -> impl Iterator<Item=NodeId> + '_ {
         self.nodes_sorted_by_start.iter().copied()
@@ -102,7 +191,7 @@ impl Network {
 
 // static functions
 impl Network {
-    pub(crate) fn load_from_csv(path_service: &str, path_maintenance: &str, path_endpoints: &str, loc: Arc<Locations>, units: Arc<Units>) -> Network {
+    pub(crate) fn load_from_csv(path_service: &str, path_maintenance: &str, path_endpoints: &str, config: Arc<Config>, loc: Arc<Locations>, units: Arc<Units>) -> Network {
         let mut nodes: HashMap<NodeId, Node> = HashMap::new();
 
         let mut service_nodes: Vec<NodeId> = Vec::new();
@@ -128,6 +217,8 @@ impl Network {
                 end_location,
                 start_time,
                 end_time,
+                start_side,
+                end_side,
                 length,
                 Demand::new(demand_amount),
                 name
@@ -202,7 +293,7 @@ impl Network {
         maintenance_nodes.sort_by(|n1, n2| nodes.get(n1).unwrap().cmp_start_time(nodes.get(n2).unwrap()));
         end_nodes.sort_by(|n1, n2| nodes.get(n1).unwrap().cmp_start_time(nodes.get(n2).unwrap()));
 
-        Network{nodes,service_nodes,maintenance_nodes,start_nodes,end_nodes,nodes_sorted_by_start, nodes_sorted_by_end,loc}
+        Network{nodes,service_nodes,maintenance_nodes,start_nodes,end_nodes,nodes_sorted_by_start, nodes_sorted_by_end,config,loc}
     }
 }
 

@@ -3,7 +3,7 @@ use std::ops::{Add,Sub};
 use crate::base_types::Meter;
 
 #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Debug)]
-pub(crate) enum Distance {
+pub enum Distance {
     Distance(Meter),
     Infinity
 }
@@ -26,6 +26,15 @@ impl Distance {
 
     pub fn from_km(km: f32) -> Distance {
         Distance::from_meter((km * 1000.0) as Meter)
+    }
+
+    pub fn from_km_str(km_string: &str) -> Distance { // could be an int string ("1000") or a float string ("1000.0")
+        let km: f32 = if km_string.contains('.') {
+             km_string.parse().unwrap()
+        } else {
+             km_string.parse::<i32>().unwrap() as f32
+        };
+        Distance::from_km(km)
     }
 
     pub fn zero() -> Distance {

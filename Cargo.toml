@@ -19,4 +19,4 @@ itertools = "0.10"
 csv = "1.1"
 im = "15.0.0" # for lazy copies of data structures
 rayon = "1.5.1" # for parallel iterator
-
+yaml-rust = "0.4" # for reading config.yaml

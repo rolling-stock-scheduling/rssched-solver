@@ -6,10 +6,12 @@ mod utilities;
 mod locations;
 mod units;
 mod network;
+mod config;
 
 mod schedule;
 
 mod solver;
+
 
 use solver::Solver;
 use solver::greedy_1::Greedy1;
@@ -20,6 +22,7 @@ use solver::local_search::LocalSearch1;
 use network::Network;
 use units::Units;
 use locations::Locations;
+use config::Config;
 
 use schedule::Schedule;
 use schedule::path::Segment;
@@ -31,17 +34,18 @@ pub fn run(path: &str) {
 
     // load instance: All the objects are static and are multiple times referenced;
     // network also references locations
+    let config = Arc::new(Config::from_yaml(&format!("{}{}", path, "../config.yaml")));
     let loc= Arc::new(Locations::load_from_csv(&format!("{}{}", path, "relationen.csv")));
     let units = Arc::new(Units::load_from_csv(&format!("{}{}", path, "fahrzeuggruppen.csv"), loc.clone()));
-    let nw = Arc::new(Network::load_from_csv(&format!("{}{}", path, "kundenfahrten.csv"), &format!("{}{}", path, "wartungsfenster.csv"), &format!("{}{}", path, "endpunkte.csv"), loc.clone(), units.clone()));
+    let nw = Arc::new(Network::load_from_csv(&format!("{}{}", path, "kundenfahrten.csv"), &format!("{}{}", path, "wartungsfenster.csv"), &format!("{}{}", path, "endpunkte.csv"), config.clone(), loc.clone(), units.clone()));
 
 
 
     let start_time = stdtime::Instant::now();
 
     // execute greedy algorithm
-    //let greedy_3 = Greedy3::initialize(loc.clone(), units.clone(), nw.clone());
-    //let final_schedule = greedy_3.solve();
+    // let greedy_3 = Greedy3::initialize(loc.clone(), units.clone(), nw.clone());
+    // let final_schedule = greedy_3.solve();
 
     // Execute local search (which runs greedy to get an initial solution)
     let local_search_solver = LocalSearch1::initialize(loc.clone(), units.clone(), nw.clone());

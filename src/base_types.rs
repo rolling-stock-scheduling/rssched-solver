@@ -1,7 +1,7 @@
 use crate::utilities::CopyStr;
 
 /// the side on which units are leaving or entering the station
-#[derive(Copy,Clone)]
+#[derive(Copy,Clone,PartialEq,Eq)]
 pub(crate) enum StationSide {
     Back, // corresponds to 0
     Front // corresponds to 1
@@ -19,12 +19,8 @@ impl StationSide {
 
 pub(crate) type UnitId = CopyStr<10>;
 
-
 pub(crate) type NodeId = CopyStr<32>;
 
 pub(crate) type Meter = u64;
-pub(crate) type Penalty = u32;
-// TODO: Integrate this into the Penalty type
-pub(crate) const PENALTY_ZERO: Penalty = 0;
-pub(crate) const PENALTY_INF: Penalty = 100000;
-pub(crate) const PENALTY_UNUSED_MAINTENANCE: Penalty = 1;
+
+pub(crate) type Cost = f32;

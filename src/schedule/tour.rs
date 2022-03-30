@@ -85,9 +85,9 @@ impl Tour {
         self.nodes.len()
     }
 
-    pub(crate) fn distance(&self) -> Distance {
-        self.service_distance + self.dead_head_distance
-    }
+    // pub(crate) fn distance(&self) -> Distance {
+        // self.service_distance + self.dead_head_distance
+    // }
 
     pub(crate) fn dead_head_distance(&self) -> Distance {
         self.dead_head_distance
@@ -135,7 +135,7 @@ impl Tour {
                 Node::End(e) => {
                     distance_counter = distance_counter + e.dist_till_maintenance();
                     dist_violation = dist_violation + std::cmp::max(distance_counter, maintenance_dist_limit) - maintenance_dist_limit;
-                    duration_violation = duration_violation + std::cmp::max(node.start_time() - last_maintenance, maintenance_duration_limit) - maintenance_duration_limit;
+                    duration_violation = duration_violation + std::cmp::max(node.start_time() + e.duration_till_maintenance() - last_maintenance, maintenance_duration_limit) - maintenance_duration_limit;
                 },
                 _ => {}
             }
@@ -236,9 +236,9 @@ impl Tour {
         Ok(Tour::new_trusted(self.unit_type, new_tour_nodes, self.is_dummy, overhead_time, service_distance, dead_head_distance, self.loc.clone(),self.nw.clone()))
     }
 
-    pub(super) fn insert_single_node(&self, node: NodeId) -> Result<Tour,String> {
-        self.insert(Path::new(vec!(node), self.nw.clone()))
-    }
+    // pub(super) fn insert_single_node(&self, node: NodeId) -> Result<Tour,String> {
+        // self.insert(Path::new(vec!(node), self.nw.clone()))
+    // }
 
 
     /// remove the segment of the tour. The subpath between segment.start() and segment.end() is removed and the new
@@ -304,9 +304,9 @@ impl Tour {
         Ok((Tour::new_trusted(self.unit_type, tour_nodes, self.is_dummy, overhead_time, service_distance, dead_head_distance, self.loc.clone(),self.nw.clone()), Path::new_trusted(removed_nodes,self.nw.clone())))
     }
 
-    pub(crate) fn remove_single_node(&self, node: NodeId) -> Result<Tour,String> {
-        self.remove(Segment::new(node, node)).map(|tuple| tuple.0)
-    }
+    // pub(crate) fn remove_single_node(&self, node: NodeId) -> Result<Tour,String> {
+        // self.remove(Segment::new(node, node)).map(|tuple| tuple.0)
+    // }
 
     /// for a given segment (in general of another tour) returns all nodes that are conflicting
     /// when the segment would have been inserted. These nodes form a path.
@@ -322,9 +322,9 @@ impl Tour {
         Ok(Path::new_trusted(conflicted_nodes,self.nw.clone()))
     }
 
-    pub(super) fn conflict_single_node(&self, node: NodeId) -> Result<Path,String> {
-        self.conflict(Segment::new(node, node))
-    }
+    // pub(super) fn conflict_single_node(&self, node: NodeId) -> Result<Path,String> {
+        // self.conflict(Segment::new(node, node))
+    // }
 
     pub(crate) fn position_of(&self, node: NodeId) -> Result<usize, String> {
         let pos = self.nodes.binary_search_by(|other| self.nw.node(*other)
@@ -342,9 +342,9 @@ impl Tour {
             self.removable_by_pos(start_pos_res.unwrap(), end_pos_res.unwrap()).is_ok()}
     }
 
-    pub(crate) fn removable_single_node(&self, node: NodeId) -> bool {
-        self.removable(Segment::new(node, node))
-    }
+    // pub(crate) fn removable_single_node(&self, node: NodeId) -> bool {
+        // self.removable(Segment::new(node, node))
+    // }
 
 
     /// start_position is here the position of the first node that should be removed

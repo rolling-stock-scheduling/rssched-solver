@@ -300,7 +300,7 @@ impl fmt::Display for TimePoint {
 ////////////////////////////////////////////////////////////////////
 
 impl Duration {
-    pub(crate) fn new(string: &str) -> Duration { // "hh:mm:
+    pub(crate) fn new(string: &str) -> Duration { // "hh:mm"
         let splitted: Vec<&str> = string.split(&[':'][..]).collect();
         assert!(splitted.len() == 2, "Wrong duration format! string: {}", string);
 
@@ -315,13 +315,36 @@ impl Duration {
     }
 
     pub(crate) fn from_iso(string: &str) -> Duration { //"P10DT0H31M0S"
-        let splitted: Vec<&str> = string.split(&['P','D','T','H','M','S'][..]).collect();
-        assert!(splitted.len() == 7, "Wrong duration format! string: {}", string);
+        let splitted: Vec<&str> = string.split_inclusive(&['P','D','T','H','M','S'][..]).collect();
+        assert!(splitted.len() <= 7, "Wrong duration format! string: {}", string);
 
-        let days: u32 = splitted[1].parse().expect("Error at days.");
-        let hours: u32 = splitted[3].parse().expect("Error at hour.");
-        let minutes: u8 = splitted[4].parse().expect("Error at minute.");
+        let mut days: u32 = 0;
+        let mut hours: u32 = 0;
+        let mut minutes: u8 = 0;
+        let mut seconds: u8 = 0;
+
+        for &s in splitted.iter() {
+            match s.chars().last().unwrap() {
+                'D' => {days = s.replace('D', "").parse().expect("Error at days.")},
+                'H' => {hours = s.replace('H', "").parse().expect("Error at hours.")},
+                'M' => {minutes = s.replace('M', "").parse().expect("Error at minutes.")},
+                'S' => {seconds = s.replace('S', "").parse().expect("Error at seconds.")},
+                _ => {}
+            }
+        }
+
         assert!(minutes < 60, "Wrong minute format.");
+        assert!(seconds < 60, "Wrong seconds format.");
+
+        // seconds are rounded up
+        if seconds > 0 {
+            minutes += 1;
+        }
+
+        if minutes == 60 {
+            hours += 1;
+            minutes = 0;
+        }
 
         Duration::Length(DurationLength{
             hours: hours + 24 * days,
