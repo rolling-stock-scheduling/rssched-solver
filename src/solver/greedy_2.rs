@@ -1,4 +1,5 @@
 use crate::schedule::Schedule;
+use crate::config::Config;
 use crate::locations::Locations;
 use crate::units::Units;
 use crate::network::Network;
@@ -8,6 +9,7 @@ use crate::base_types::{UnitId,NodeId};
 use std::sync::Arc;
 
 pub struct Greedy2 {
+    config: Arc<Config>,
     loc: Arc<Locations>,
     units: Arc<Units>,
     nw: Arc<Network>
@@ -15,12 +17,12 @@ pub struct Greedy2 {
 
 impl Solver for Greedy2 {
 
-    fn initialize(loc: Arc<Locations>, units: Arc<Units>, nw: Arc<Network>) -> Greedy2 {
-        Greedy2{loc, units, nw}
+    fn initialize(config: Arc<Config>, loc: Arc<Locations>, units: Arc<Units>, nw: Arc<Network>) -> Greedy2 {
+        Greedy2{config, loc, units, nw}
     }
 
     fn solve(&self) -> Schedule {
-        let mut schedule = Schedule::initialize(self.loc.clone(), self.units.clone(), self.nw.clone());
+        let mut schedule = Schedule::initialize(self.config.clone(), self.loc.clone(), self.units.clone(), self.nw.clone());
 
         // Sort service and maintanence nodes by start time
         let mut nodes_sorted_by_start: Vec<NodeId> = self.nw.service_nodes().chain(self.nw.maintenance_nodes()).collect();

@@ -300,6 +300,15 @@ impl fmt::Display for TimePoint {
 ////////////////////////////////////////////////////////////////////
 
 impl Duration {
+    pub(crate) fn in_min(&self) -> u32 {
+        match self {
+            Duration::Infinity => panic!("Cannot get minutes of Duration::Infinity."),
+            Duration::Length(l) => l.hours * 60 + (l.minutes as u32)
+        }
+    }
+}
+
+impl Duration {
     pub(crate) fn new(string: &str) -> Duration { // "hh:mm"
         let splitted: Vec<&str> = string.split(&[':'][..]).collect();
         assert!(splitted.len() == 2, "Wrong duration format! string: {}", string);

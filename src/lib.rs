@@ -44,11 +44,11 @@ pub fn run(path: &str) {
     let start_time = stdtime::Instant::now();
 
     // execute greedy algorithm
-    // let greedy_3 = Greedy3::initialize(loc.clone(), units.clone(), nw.clone());
+    // let greedy_3 = Greedy3::initialize(config.clone(), loc.clone(), units.clone(), nw.clone());
     // let final_schedule = greedy_3.solve();
 
     // Execute local search (which runs greedy to get an initial solution)
-    let local_search_solver = LocalSearch1::initialize(loc.clone(), units.clone(), nw.clone());
+    let local_search_solver = LocalSearch1::initialize(config.clone(), loc.clone(), units.clone(), nw.clone());
     let final_schedule = local_search_solver.solve();
 
 
@@ -68,7 +68,7 @@ pub fn run(path: &str) {
     final_schedule.write_to_csv(&format!("{}{}", path, "ETH_leistungsketten.csv")).unwrap();
 
     println!();
-    let loaded_schedule = Schedule::load_from_csv(&format!("{}{}", path, "SBB_leistungsketten.csv"), loc.clone(), units.clone(), nw.clone());
+    let loaded_schedule = Schedule::load_from_csv(&format!("{}{}", path, "SBB_leistungsketten.csv"), config.clone(), loc.clone(), units.clone(), nw.clone());
     println!("SBB_Solution:");
     loaded_schedule.objective_value().print();
 

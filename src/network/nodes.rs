@@ -71,7 +71,7 @@ impl ServiceTrip {
     pub(crate) fn departure_side(&self) -> StationSide {
         self.departure_side
     }
-    
+
     pub(crate) fn arrival_side(&self) -> StationSide {
         self.arrival_side
     }

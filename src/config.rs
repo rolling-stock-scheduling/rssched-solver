@@ -8,7 +8,7 @@ use yaml_rust::yaml::Yaml;
 pub(crate) struct Config {
     pub durations_between_activities: ConfigDurationsBetweenActivities,
     objective : ConfigObjective,
-    maintenance: ConfigMaintenance,
+    pub maintenance: ConfigMaintenance,
 }
 
 pub(crate) struct ConfigDurationsBetweenActivities {
@@ -40,8 +40,8 @@ pub(crate) struct ConfigBathtub {
 }
 
 pub(crate) struct ConfigMaintenance {
-    duration: Duration,
-    distance: Distance,
+    pub duration: Duration,
+    pub distance: Distance,
     bathtub_limits: ConfigBathtubLimits
 }
 
@@ -55,7 +55,7 @@ pub(crate) struct ConfigBathtubLimits {
 impl Config {
     pub(crate) fn from_yaml(path: &str) -> Config {
 
-        fn dist_from_yaml(yaml: &Yaml) -> Distance {
+       fn dist_from_yaml(yaml: &Yaml) -> Distance {
             match yaml {
                 Yaml::Real(string) => Distance::from_km_str(&string),
                 Yaml::Integer(int) => Distance::from_km(*int as f32),

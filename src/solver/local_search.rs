@@ -4,6 +4,7 @@ pub mod swap_factory;
 
 pub mod local_improver;
 
+use crate::config::Config;
 use crate::locations::Locations;
 use crate::units::Units;
 use crate::network::Network;
@@ -26,6 +27,7 @@ use super::greedy_3::Greedy3;
 
 
 pub struct LocalSearch1 {
+    config: Arc<Config>,
     loc: Arc<Locations>,
     units: Arc<Units>,
     nw: Arc<Network>
@@ -33,22 +35,22 @@ pub struct LocalSearch1 {
 
 impl Solver for LocalSearch1 {
 
-    fn initialize(loc: Arc<Locations>, units: Arc<Units>, nw: Arc<Network>) -> LocalSearch1 {
-        LocalSearch1{loc, units, nw}
+    fn initialize(config: Arc<Config>, loc: Arc<Locations>, units: Arc<Units>, nw: Arc<Network>) -> LocalSearch1 {
+        LocalSearch1{config, loc, units, nw}
     }
 
     fn solve(&self) -> Schedule {
         // empty schedule:
-        // let mut schedule = Schedule::initialize(self.loc.clone(), self.units.clone(), self.nw.clone());
+        // let mut schedule = Schedule::initialize(self.config.clone(), self.loc.clone(), self.units.clone(), self.nw.clone());
 
 
         // greedy schedule:
-        let greedy = Greedy3::initialize(self.loc.clone(), self.units.clone(), self.nw.clone());
+        let greedy = Greedy3::initialize(self.config.clone(), self.loc.clone(), self.units.clone(), self.nw.clone());
         let mut schedule = greedy.solve();
 
 
         // load SBB-schedule:
-        // let mut schedule = Schedule::load_from_csv("test_instances/21-10-tage-2/SBB_leistungsketten.csv", self.loc.clone(), self.units.clone(), self.nw.clone());
+        // let mut schedule = Schedule::load_from_csv("test_instances/21-10-tage-2/SBB_leistungsketten.csv", self.config.clone(), self.loc.clone(), self.units.clone(), self.nw.clone());
 
 
 
