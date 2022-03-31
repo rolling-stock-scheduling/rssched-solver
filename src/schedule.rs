@@ -56,19 +56,27 @@ struct ObjectiveInfo {
     dead_head_distance: Distance,
     maintenance_distance_violation: Distance,
     maintenance_duration_violation: Duration,
-    continuous_idle_time_cost: Cost // usually this is negative (so a bonus)
+    continuous_idle_time_cost: Cost, // usually this is negative (so a bonus)
+    maintenance_distance_bathtub_cost: Cost,
+    maintenance_duration_bathtub_cost: Cost
 }
 
 impl ObjectiveInfo {
     fn new(unit: &Unit, tour: &Tour) -> ObjectiveInfo {
-        let (maintenance_distance_violation, maintenance_duration_violation) = tour.maintenance_violation(unit);
+        let (maintenance_distance_violation,
+             maintenance_duration_violation,
+             maintenance_distance_bathtub_cost,
+             maintenance_duration_bathtub_cost) = tour.maintenance_violation_and_cost(unit);
+
         let continuous_idle_time_cost = tour.continuous_idle_time_cost();
         ObjectiveInfo {
             overhead_time: tour.overhead_time(),
             dead_head_distance: tour.dead_head_distance(),
             maintenance_distance_violation,
             maintenance_duration_violation,
-            continuous_idle_time_cost
+            continuous_idle_time_cost,
+            maintenance_distance_bathtub_cost,
+            maintenance_duration_bathtub_cost,
         }
     }
 }
@@ -191,10 +199,10 @@ impl Schedule {
 
     /// Reassign the complete tour of the provider (must be dummy-unit) to the receiver.
     /// Conflicts are removed from the tour.
-    pub(crate) fn override_reassign_all(&self, dummy_provider: UnitId, receiver: UnitId) -> Result<(Schedule, Option<UnitId>), String> {
-        let tour = &self.dummies.get(&dummy_provider).expect("Can only assign_all if provider is a dummy-unit.").1;
-        self.override_reassign(Segment::new(tour.first_node(), tour.last_node()), dummy_provider, receiver)
-    }
+    // pub(crate) fn override_reassign_all(&self, dummy_provider: UnitId, receiver: UnitId) -> Result<(Schedule, Option<UnitId>), String> {
+        // let tour = &self.dummies.get(&dummy_provider).expect("Can only assign_all if provider is a dummy-unit.").1;
+        // self.override_reassign(Segment::new(tour.first_node(), tour.last_node()), dummy_provider, receiver)
+    // }
 
     /// Tries to insert all nodes of provider's segment into receiver's tour.
     /// Nodes that causes conflcits are rejected and stay in provider's tour.
@@ -658,6 +666,8 @@ impl Schedule {
 
         // sum up in the deterministic ordering given by units.iter():
         let continuous_idle_time_cost = units.iter().map(|u| unit_objective_info.get(&u).unwrap().continuous_idle_time_cost).sum();
+        let maintenance_distance_bathtub_cost = units.iter().map(|u| unit_objective_info.get(&u).unwrap().maintenance_distance_bathtub_cost).sum();
+        let maintenance_duration_bathtub_cost = units.iter().map(|u| unit_objective_info.get(&u).unwrap().maintenance_duration_bathtub_cost).sum();
 
         ObjectiveValue::new(overhead_time,
                             number_of_dummy_units,
@@ -666,6 +676,8 @@ impl Schedule {
                             maintenance_duration_violation,
                             dead_head_distance,
                             continuous_idle_time_cost,
+                            maintenance_distance_bathtub_cost,
+                            maintenance_duration_bathtub_cost,
                             config)
     }
 

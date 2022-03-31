@@ -1,5 +1,6 @@
 use crate::base_types::UnitId;
-use crate::units::{Unit, Units};
+use crate::units::Units;
+// use crate::units::Unit;
 use std::fmt;
 
 use std::iter::Iterator;
@@ -38,13 +39,13 @@ impl TrainFormation {
         self.formation.iter().copied()
     }
 
-    pub(crate) fn get_as_units(&self) -> Vec<&Unit> {
-        self.formation.iter().map(|&id| self.units.get_unit(id)).collect()
-    }
+    // pub(crate) fn get_as_units(&self) -> Vec<&Unit> {
+        // self.formation.iter().map(|&id| self.units.get_unit(id)).collect()
+    // }
 
-    pub(crate) fn len(&self) -> usize {
-        self.formation.len()
-    }
+    // pub(crate) fn len(&self) -> usize {
+        // self.formation.len()
+    // }
 }
 
 impl fmt::Display for TrainFormation {

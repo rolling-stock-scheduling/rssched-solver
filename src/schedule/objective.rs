@@ -3,7 +3,6 @@ use crate::distance::Distance;
 use crate::time::Duration;
 use crate::config::Config;
 use core::cmp::Ordering;
-use crate::network::nodes::Node;
 use crate::base_types::Cost;
 
 use std::sync::Arc;
@@ -20,10 +19,11 @@ pub(crate) struct ObjectiveValue {
     maintenance_distance_violation: Distance,
     maintenance_duration_violation: Duration,
     soft_objective_cost: Cost,
-    // soft_maintenance_sum:
     // unsatisfied_recommendation: u32, // number of unsatisfied recommended activity links (given by the reference plan)
     dead_head_distance: Distance, // total dead_head_distance traveled
     continuous_idle_time_cost: Cost,
+    maintenance_distance_bathtub_cost: Cost,
+    maintenance_duration_bathtub_cost: Cost,
 }
 
 impl ObjectiveValue {
@@ -35,6 +35,8 @@ impl ObjectiveValue {
         println!("* soft_objective_cost: {:2.1}", self.soft_objective_cost);
         println!("    - dead_head_distance: {}", self.dead_head_distance);
         println!("    - continuous_idle_time_cost: {:2.1}", self.continuous_idle_time_cost);
+        println!("    - maintenance_distance_bathtub_cost: {:2.1}", self.maintenance_distance_bathtub_cost);
+        println!("    - maintenance_duration_bathtub_cost: {:2.1}", self.maintenance_duration_bathtub_cost);
     }
 
     pub fn new(overhead_time: Duration,
@@ -44,7 +46,15 @@ impl ObjectiveValue {
                maintenance_duration_violation: Duration,
                dead_head_distance: Distance,
                continuous_idle_time_cost: Cost,
+               maintenance_distance_bathtub_cost: Cost,
+               maintenance_duration_bathtub_cost: Cost,
                config: Arc<Config>) -> ObjectiveValue {
+
+        let soft_objective_cost = dead_head_distance.as_km_cost()
+            + continuous_idle_time_cost
+            + maintenance_distance_bathtub_cost
+            + maintenance_duration_bathtub_cost;
+
         ObjectiveValue {
             overhead_time,
             number_of_dummy_units,
@@ -52,9 +62,11 @@ impl ObjectiveValue {
             maintenance_distance_violation,
             maintenance_duration_violation,
             maintenance_penalty : MaintenancePenalty::new(maintenance_duration_violation, maintenance_distance_violation, config),
-            soft_objective_cost : dead_head_distance.as_km_cost() + continuous_idle_time_cost,
+            soft_objective_cost,
             dead_head_distance,
             continuous_idle_time_cost,
+            maintenance_distance_bathtub_cost,
+            maintenance_duration_bathtub_cost
         }
     }
 }

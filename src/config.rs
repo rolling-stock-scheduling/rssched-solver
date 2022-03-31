@@ -23,7 +23,7 @@ pub(crate) struct ConfigObjective {
     cost_of_used_unit: Cost,
     cost_of_violated_activity_link: Cost,
     pub continuous_idle_time: ConfigContinuousIdleTime,
-    bathtub: ConfigBathtub
+    pub bathtub: ConfigBathtub
 }
 
 pub(crate) struct ConfigContinuousIdleTime {
@@ -33,23 +33,23 @@ pub(crate) struct ConfigContinuousIdleTime {
 }
 
 pub(crate) struct ConfigBathtub {
-    marginal_cost_per_deceeded_km: Cost,
-    marginal_cost_per_exceeded_km: Cost,
-    marginal_cost_per_deceeded_second: Cost,
-    marginal_cost_per_exceeded_second: Cost
+    pub marginal_cost_per_deceeded_km: Cost,
+    pub marginal_cost_per_exceeded_km: Cost,
+    pub marginal_cost_per_deceeded_second: Cost,
+    pub marginal_cost_per_exceeded_second: Cost
 }
 
 pub(crate) struct ConfigMaintenance {
     pub duration: Duration,
     pub distance: Distance,
-    bathtub_limits: ConfigBathtubLimits
+    pub bathtub_limits: ConfigBathtubLimits
 }
 
 pub(crate) struct ConfigBathtubLimits {
-    distance_upper_limit: Distance,
-    distance_lower_limit: Distance,
-    duration_upper_limit: Duration,
-    duration_lower_limit: Duration
+    pub distance_upper_limit: Distance,
+    pub distance_lower_limit: Distance,
+    pub duration_upper_limit: Duration,
+    pub duration_lower_limit: Duration
 }
 
 impl Config {

@@ -187,9 +187,9 @@ impl Network {
 
     /// provides all nodes that are can reach node (in decreasing order according to the
     /// end time)
-    // pub(crate) fn all_predecessors(&self, node: NodeId) -> impl Iterator<Item=NodeId> + '_ {
-        // self.nodes_sorted_by_end.iter().rev().copied().filter(move |&n| self.can_reach(n, node))
-    // }
+    pub(crate) fn all_predecessors(&self, node: NodeId) -> impl Iterator<Item=NodeId> + '_ {
+        self.nodes_sorted_by_end.iter().rev().copied().filter(move |&n| self.can_reach(n, node))
+    }
 
     pub(crate) fn all_nodes(&self) -> impl Iterator<Item=NodeId> + '_ {
         self.nodes_sorted_by_start.iter().copied()

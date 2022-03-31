@@ -35,7 +35,7 @@ pub(crate) struct Locations {
 pub(crate) enum Location {
     Station(Station),
     Nowhere, // distance to Nowhere is always infinity
-    Everywhere // distance to Everywehre is always zero (except for Nowhere)
+    // Everywhere // distance to Everywehre is always zero (except for Nowhere)
 }
 
 struct DeadHeadTrip{
@@ -184,21 +184,21 @@ impl Location {
     }
 }
 
-impl Location {
-    fn as_station(&self) -> Station {
-        match self {
-            Location::Station(s) => *s,
-            _ => {panic!("Location is NOWHERE or EVERYWHERE!")},
-        }
-    }
-}
+// impl Location {
+    // fn as_station(&self) -> Station {
+        // match self {
+            // Location::Station(s) => *s,
+            // _ => {panic!("Location is NOWHERE or EVERYWHERE!")},
+        // }
+    // }
+// }
 
 impl fmt::Display for Location {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Location::Station(s) => write!(f, "{}", s),
             Location::Nowhere => write!(f, "NOWHERE!"),
-            Location::Everywhere => write!(f, "EVERYWHERE!")
+            // Location::Everywhere => write!(f, "EVERYWHERE!")
         }
     }
 }

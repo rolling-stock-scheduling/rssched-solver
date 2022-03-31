@@ -150,12 +150,12 @@ impl Node {
         }
     }
 
-    pub(crate) fn travel_time(&self) -> Duration {
-        match self {
-            Node::Service(s) => s.arrival - s.departure,
-            _ => Duration::zero()
-        }
-    }
+    // pub(crate) fn travel_time(&self) -> Duration {
+        // match self {
+            // Node::Service(s) => s.arrival - s.departure,
+            // _ => Duration::zero()
+        // }
+    // }
 
     pub(crate) fn demand(&self) -> Demand {
         match self {

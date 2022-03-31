@@ -258,14 +258,12 @@ impl Sub<DurationLength> for TimePoint {
 
         let mut other_day = 0;
         let mut other_hour = other.hours;
-        let mut other_minute = other.minutes;
 
-
-        if other_minute > minute {
+        if other.minutes > minute {
             minute += 60;
             other_hour += 1;
         }
-        minute -= other_minute;
+        minute -= other.minutes;
 
         if other_hour > hour {
             let day_diff: u32 = (other_hour - hour) / 24 + 1;

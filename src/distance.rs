@@ -16,7 +16,7 @@ impl Distance {
             Distance::Infinity => {panic!("Distance is infinity")},
         }
     }
-    
+
     pub fn as_km_cost(&self) -> Cost {
         match self {
             Distance::Distance(d) => *d as Cost / 1000.0,

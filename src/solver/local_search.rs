@@ -5,7 +5,6 @@ pub mod swap_factory;
 pub mod local_improver;
 
 use crate::config::Config;
-use crate::locations::Locations;
 use crate::units::Units;
 use crate::network::Network;
 use crate::solver::Solver;
@@ -14,9 +13,13 @@ use crate::time::Duration;
 use std::sync::Arc;
 
 use swap_factory::LimitedExchanges;
-use local_improver::{LocalImprover, TakeFirstRecursion, TakeAnyParallelRecursion, TakeFirstParallelRecursion, Minimizer};
-use super::greedy_1::Greedy1;
-use super::greedy_2::Greedy2;
+use local_improver::LocalImprover;
+// use local_improver::Minimizer;
+// use local_improver::TakeFirstRecursion;
+// use local_improver::TakeFirstParallelRecursion;
+use local_improver::TakeAnyParallelRecursion;
+// use super::greedy_1::Greedy1;
+// use super::greedy_2::Greedy2;
 use super::greedy_3::Greedy3;
 
 

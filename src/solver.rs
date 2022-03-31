@@ -5,7 +5,6 @@ pub mod local_search;
 
 use crate::schedule::Schedule;
 use crate::config::Config;
-use crate::locations::Locations;
 use crate::units::Units;
 use crate::network::Network;
 use std::sync::Arc;

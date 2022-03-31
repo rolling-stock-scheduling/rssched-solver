@@ -1,11 +1,9 @@
 use crate::schedule::Schedule;
 use crate::config::Config;
-use crate::locations::Locations;
 use crate::units::Units;
 use crate::network::Network;
 use crate::solver::Solver;
 use crate::base_types::{UnitId,NodeId};
-use crate::distance::Distance;
 
 use std::sync::Arc;
 

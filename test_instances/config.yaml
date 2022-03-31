@@ -18,7 +18,7 @@ objective:
   continuous_idle_time:
     minimum: PT1H
     exponent: 1.1
-    cost_factor: -5.0
+    cost_factor: -2.5
   # soft constraint for the Wartungs-limiten
   bathtub:
     # 400 km deviation costs the equivalent of a violated reference verknuepfung
@@ -31,12 +31,11 @@ objective:
 
 ivog:
   duration: P30D
-  # TODO: ARTRM-7 set to 12500.0 after refactoring
-  distance: 125000.0
+  distance: 12500.0
   bathtub:
     distance:
-      ub: 12500
-      lb: 0
+      ub: 12000
+      lb: 8000
     duration:
-      ub: P20D
-      lb: P10D
+      ub: P25D
+      lb: P15D

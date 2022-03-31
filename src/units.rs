@@ -25,9 +25,9 @@ pub(crate) struct Unit {
 #[derive(Debug,Clone,Copy,PartialEq,Eq)]
 pub(crate) enum UnitType {
     Standard,
-    Giruno,
-    FVDosto,
-    Astoro
+    // Giruno,
+    // FVDosto,
+    // Astoro
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -56,9 +56,9 @@ impl Units {
 }
 
 impl Units {
-    pub(crate) fn len(&self) -> usize {
-        self.units.len()
-    }
+    // pub(crate) fn len(&self) -> usize {
+        // self.units.len()
+    // }
 
     pub(crate) fn iter(&self) -> impl Iterator<Item = UnitId> + '_ {
         self.ids_sorted.iter().copied()
@@ -79,9 +79,9 @@ impl Units {
 
 // methods
 impl Unit {
-    pub(crate) fn id(&self) -> UnitId {
-        self.id
-    }
+    // pub(crate) fn id(&self) -> UnitId {
+        // self.id
+    // }
 
     pub(crate) fn unit_type(&self) -> UnitType {
         self.unit_type

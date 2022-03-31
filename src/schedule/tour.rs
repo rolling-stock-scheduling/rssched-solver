@@ -87,37 +87,65 @@ impl Tour {
         self.nodes.len()
     }
 
-    // pub(crate) fn distance(&self) -> Distance {
-        // self.service_distance + self.dead_head_distance
-    // }
-
     pub(crate) fn dead_head_distance(&self) -> Distance {
         self.dead_head_distance
     }
-
-    // pub(crate) fn travel_time(&self) -> Duration { // Care: does not count Maintenance
-        // let service_tt: Duration = self.nodes.iter().map(|&n| self.nw.node(n).travel_time()).sum();
-        // let dead_head_tt = self.nodes.iter().tuple_windows().map(
-            // |(&a,&b)| self.loc.travel_time(self.nw.node(a).end_location(), self.nw.node(b).start_location())).sum();
-        // service_tt + dead_head_tt
-    // }
 
     /// return the overhead_time (dead head travel time + idle time) of the tour.
     pub(crate) fn overhead_time(&self) -> Duration {
         self.overhead_time
     }
 
-    /// computes and returns the amount of distance and duration violation this tour causes.
-    pub(crate) fn maintenance_violation(&self, unit: &Unit) -> (Distance, Duration) {
+    /// computes and returns the amount of distance and duration violation this tour causes if the
+    /// unit uses it.
+    /// Additionally, computes and returns the distance and the duration cost by the bathtub function for
+    /// maintenance.
+    pub(crate) fn maintenance_violation_and_cost(&self, unit: &Unit) -> (Distance, Duration, Cost, Cost) {
+
+        let mut dist_violation = Distance::zero();
+        let mut duration_violation = Duration::zero();
+
+        let dist_limit = self.config.maintenance.distance;
+        let duration_limit = self.config.maintenance.duration;
+
+        let mut distance_cost = COST_ZERO;
+        let mut duration_cost = COST_ZERO;
+
+        let bathtub_cost = &self.config.objective.bathtub;
+        let bathtub_limits = &self.config.maintenance.bathtub_limits;
+
+        for (distance_counter, duration_counter) in self.maintenance_counter(unit).into_iter() {
+
+            dist_violation = dist_violation + std::cmp::max(distance_counter, dist_limit) - dist_limit;
+
+            duration_violation = duration_violation + std::cmp::max(duration_counter, duration_limit) - duration_limit;
+
+            distance_cost += bathtub_cost.marginal_cost_per_exceeded_km *
+                (std::cmp::max(distance_counter, bathtub_limits.distance_upper_limit) - bathtub_limits.distance_upper_limit).as_km_cost();
+
+            distance_cost += bathtub_cost.marginal_cost_per_deceeded_km *
+                (bathtub_limits.distance_lower_limit - std::cmp::min(distance_counter, bathtub_limits.distance_lower_limit)).as_km_cost();
+
+            duration_cost += bathtub_cost.marginal_cost_per_exceeded_second *
+                (std::cmp::max(duration_counter, bathtub_limits.duration_upper_limit) - bathtub_limits.duration_upper_limit).in_min() as Cost * 60.0;
+
+            duration_cost += bathtub_cost.marginal_cost_per_deceeded_second *
+                (bathtub_limits.duration_lower_limit - std::cmp::min(duration_counter, bathtub_limits.duration_lower_limit)).in_min() as Cost * 60.0;
+
+        }
+        (dist_violation, duration_violation, distance_cost, duration_cost)
+    }
+
+    /// computes for each maintenance or end point the distance and duration counter of the unit
+    /// using this tour.
+    pub(crate) fn maintenance_counter(&self, unit: &Unit) -> Vec<(Distance, Duration)> {
+
+        let mut counter: Vec<(Distance, Duration)> = Vec::new();
 
         let mut distance_counter = unit.initial_dist_counter();
         let mut last_maintenance: Time = unit.start_time() - unit.initial_duration_counter();
 
-        let maintenance_dist_limit = self.config.maintenance.distance;
-        let maintenance_duration_limit = self.config.maintenance.duration;
 
-        let mut dist_violation = Distance::zero();
-        let mut duration_violation = Duration::zero();
 
         for (&p, &n) in self.nodes_iter().tuple_windows() {
             distance_counter = distance_counter + self.nw.dead_head_distance_between(p, n);
@@ -129,21 +157,20 @@ impl Tour {
                     distance_counter = node.travel_distance()
                 },
                 Node::Maintenance(_) => {
-                    dist_violation = dist_violation + std::cmp::max(distance_counter, maintenance_dist_limit) - maintenance_dist_limit;
+                    counter.push((distance_counter, node.start_time() - last_maintenance));
                     distance_counter = Distance::zero();
-                    duration_violation = duration_violation + std::cmp::max(node.start_time() - last_maintenance, maintenance_duration_limit) - maintenance_duration_limit;
                     last_maintenance = node.end_time();
                 },
                 Node::End(e) => {
                     distance_counter = distance_counter + e.dist_till_maintenance();
-                    dist_violation = dist_violation + std::cmp::max(distance_counter, maintenance_dist_limit) - maintenance_dist_limit;
-                    duration_violation = duration_violation + std::cmp::max(node.start_time() + e.duration_till_maintenance() - last_maintenance, maintenance_duration_limit) - maintenance_duration_limit;
+                    counter.push((distance_counter, node.start_time() + e.duration_till_maintenance() - last_maintenance));
                 },
                 _ => {}
             }
         }
-        (dist_violation, duration_violation)
+        counter
     }
+
 
     /// computes the idle time cost (which is usually negative, so it is a bonus).
     pub(crate) fn continuous_idle_time_cost(&self) -> Cost {

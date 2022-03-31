@@ -14,9 +14,9 @@ mod solver;
 
 
 use solver::Solver;
-use solver::greedy_1::Greedy1;
-use solver::greedy_2::Greedy2;
-use solver::greedy_3::Greedy3;
+// use solver::greedy_1::Greedy1;
+// use solver::greedy_2::Greedy2;
+// use solver::greedy_3::Greedy3;
 use solver::local_search::LocalSearch1;
 
 use network::Network;
@@ -25,7 +25,6 @@ use locations::Locations;
 use config::Config;
 
 use schedule::Schedule;
-use schedule::path::Segment;
 
 use std::sync::Arc;
 use std::time as stdtime;
@@ -54,6 +53,9 @@ pub fn run(path: &str) {
 
     let end_time = stdtime::Instant::now();
     let runtime_duration = end_time.duration_since(start_time);
+
+    println!("\n\nFinal schedule (long version):");
+    final_schedule.print_long();
 
     println!("\n\nFinal schedule:");
     final_schedule.print();
