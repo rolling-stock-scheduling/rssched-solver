@@ -24,3 +24,5 @@ pub(crate) type NodeId = CopyStr<32>;
 pub(crate) type Meter = u64;
 
 pub(crate) type Cost = f32;
+
+pub(crate) const COST_ZERO: f32 = 0.0f32;

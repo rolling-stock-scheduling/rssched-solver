@@ -3,6 +3,8 @@ use crate::distance::Distance;
 use crate::time::Duration;
 use crate::config::Config;
 use core::cmp::Ordering;
+use crate::network::nodes::Node;
+use crate::base_types::Cost;
 
 use std::sync::Arc;
 use std::fmt;
@@ -18,6 +20,7 @@ pub(crate) struct ObjectiveValue {
     // maintenance_sum:
     // unsatisfied_recommendation: u32, // number of unsatisfied recommended activity links (given by the reference plan)
     dead_head_distance: Distance, // total dead_head_distance traveled
+    continuous_idle_time_cost: Cost,
     maintenance_distance_violation: Distance,
     maintenance_duration_violation: Duration,
 }
@@ -29,6 +32,7 @@ impl ObjectiveValue {
         println!("* dummy_overhead_time: {}", self.dummy_overhead_time);
         println!("* maintenance_violation: {} ({}; {})", self.maintenance_penalty, self.maintenance_distance_violation, self.maintenance_duration_violation);
         println!("* dead_head_distance: {}", self.dead_head_distance);
+        println!("* continuous_idle_time_cost: {}", self.continuous_idle_time_cost);
     }
 
     pub fn new(overhead_time: Duration,
@@ -37,6 +41,7 @@ impl ObjectiveValue {
                maintenance_distance_violation: Distance,
                maintenance_duration_violation: Duration,
                dead_head_distance: Distance,
+               continuous_idle_time_cost: Cost,
                config: Arc<Config>) -> ObjectiveValue {
         ObjectiveValue {
             overhead_time,
@@ -45,7 +50,8 @@ impl ObjectiveValue {
             maintenance_distance_violation,
             maintenance_duration_violation,
             maintenance_penalty : MaintenancePenalty::new(maintenance_duration_violation, maintenance_distance_violation, config),
-            dead_head_distance
+            dead_head_distance,
+            continuous_idle_time_cost,
         }
     }
 }
@@ -99,4 +105,9 @@ impl fmt::Display for MaintenancePenalty {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:3.2}%", self.penalty * 100.0)
     }
+}
+
+pub(crate) fn compute_idle_time_cost (idle_time: Duration, config: &Arc<Config>) -> Cost {
+    let para = &config.objective.continuous_idle_time;
+    para.cost_factor * ((std::cmp::max(idle_time, para.minimum) - para.minimum).in_min() as Cost).powf(para.exponent)
 }

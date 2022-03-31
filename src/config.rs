@@ -7,7 +7,7 @@ use yaml_rust::yaml::Yaml;
 
 pub(crate) struct Config {
     pub durations_between_activities: ConfigDurationsBetweenActivities,
-    objective : ConfigObjective,
+    pub objective : ConfigObjective,
     pub maintenance: ConfigMaintenance,
 }
 
@@ -22,14 +22,14 @@ pub(crate) struct ConfigDurationsBetweenActivities {
 pub(crate) struct ConfigObjective {
     cost_of_used_unit: Cost,
     cost_of_violated_activity_link: Cost,
-    continuous_idle_time: ConfigContinuousIdleTime,
+    pub continuous_idle_time: ConfigContinuousIdleTime,
     bathtub: ConfigBathtub
 }
 
 pub(crate) struct ConfigContinuousIdleTime {
-    minimum: Duration,
-    exponent: f32,
-    cost_factor: f32
+    pub minimum: Duration,
+    pub exponent: f32,
+    pub cost_factor: f32
 }
 
 pub(crate) struct ConfigBathtub {

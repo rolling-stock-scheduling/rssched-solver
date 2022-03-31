@@ -59,7 +59,28 @@ impl Network {
     }
 
     pub(crate) fn start_node_of(&self, unit_id: UnitId) -> NodeId {
-        self.nodes.get(self.start_nodes.get(&unit_id).unwrap()).unwrap().id()
+        *self.start_nodes.get(&unit_id).unwrap()
+    }
+
+    pub(crate) fn idle_time_between(&self, node1: NodeId, node2: NodeId) -> Duration {
+        let idle_start = self.node(node1).end_time() + self.dead_head_time_between(node1, node2);
+        let idle_end = self.node(node2).start_time();
+        if idle_start <= idle_end {
+            idle_end - idle_start
+        } else {
+            println!("negative idle time!");
+            Duration::zero()
+        }
+    }
+
+    pub(crate) fn dead_head_time_between(&self, node1: NodeId, node2: NodeId) -> Duration {
+        // TODO: Adjust if it is a recommended activity_link
+        self.loc.travel_time(self.node(node1).end_location(), self.node(node2).start_location())
+    }
+
+    pub(crate) fn dead_head_distance_between(&self, node1: NodeId, node2: NodeId) -> Distance {
+        // TODO: Adjust if it is a recommended activity_link
+        self.loc.distance(self.node(node1).end_location(), self.node(node2).start_location())
     }
 
     /// returns True iff node1 can reach node2
@@ -79,15 +100,15 @@ impl Network {
 
         if n1.end_location() == n2.start_location() {
             // no dead_head_trip
-            self.duration_between_activities_without_dead_head_trip(n1, n2)
+            self.shunting_duration_between_activities_without_dead_head_trip(n1, n2)
 
         } else {
             // dead_head_trip
-            self.duration_between_activities_with_dead_head_trip(n1, n2)
+            self.loc.travel_time(n1.end_location(), n2.start_location()) + self.shunting_duration_between_activities_with_dead_head_trip(n1, n2)
         }
     }
 
-    fn duration_between_activities_without_dead_head_trip(&self, n1: &Node, n2: &Node) -> Duration {
+    fn shunting_duration_between_activities_without_dead_head_trip(&self, n1: &Node, n2: &Node) -> Duration {
         if let Node::Service(s1) = n1 {
             if let Node::Service(s2) = n2 {
                 // both nodes are service trips
@@ -120,7 +141,7 @@ impl Network {
 
     }
 
-    fn duration_between_activities_with_dead_head_trip(&self, n1: &Node, n2: &Node) -> Duration {
+    fn shunting_duration_between_activities_with_dead_head_trip(&self, n1: &Node, n2: &Node) -> Duration {
         let (dht_start_side, dht_end_side) = self.loc.station_sides(n1.end_location(), n2.start_location());
         let previous: Duration = match n1 {
             Node::Service(s1) => {
@@ -152,7 +173,7 @@ impl Network {
 
 
 
-        previous + self.loc.travel_time(n1.end_location(), n2.start_location()) + next
+        previous + next
 
 
     }

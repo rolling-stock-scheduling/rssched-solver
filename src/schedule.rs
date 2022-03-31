@@ -17,7 +17,7 @@ use crate::network::nodes::Node;
 use crate::units::{Units,Unit,UnitType};
 use crate::locations::Locations;
 use crate::distance::Distance;
-use crate::base_types::{NodeId,UnitId};
+use crate::base_types::{NodeId,UnitId,Cost};
 use crate::time::{Time,Duration};
 
 use std::collections::VecDeque;
@@ -57,17 +57,20 @@ struct ObjectiveInfo {
     overhead_time: Duration,
     dead_head_distance: Distance,
     maintenance_distance_violation: Distance,
-    maintenance_duration_violation: Duration
+    maintenance_duration_violation: Duration,
+    continuous_idle_time_cost: Cost // usually this is negative (so a bonus)
 }
 
 impl ObjectiveInfo {
     fn new(unit: &Unit, tour: &Tour) -> ObjectiveInfo {
         let (maintenance_distance_violation, maintenance_duration_violation) = tour.maintenance_violation(unit);
+        let continuous_idle_time_cost = tour.continuous_idle_time_cost();
         ObjectiveInfo {
             overhead_time: tour.overhead_time(),
             dead_head_distance: tour.dead_head_distance(),
             maintenance_distance_violation,
-            maintenance_duration_violation
+            maintenance_duration_violation,
+            continuous_idle_time_cost
         }
     }
 }
@@ -303,7 +306,7 @@ impl Schedule {
         }
 
 
-        let objective_value = Schedule::sum_up_objective_info(&unit_objective_info, &dummy_objective_info, self.config.clone());
+        let objective_value = Schedule::sum_up_objective_info(&unit_objective_info, &dummy_objective_info, self.config.clone(), &self.units);
 
 
         Ok(Schedule{tours,
@@ -412,7 +415,7 @@ impl Schedule {
         }
 
 
-        let objective_value = Schedule::sum_up_objective_info(&unit_objective_info, &dummy_objective_info, self.config.clone());
+        let objective_value = Schedule::sum_up_objective_info(&unit_objective_info, &dummy_objective_info, self.config.clone(), &self.units);
 
 
         Ok((Schedule{tours,
@@ -643,22 +646,32 @@ impl Schedule {
             dummy_objective_info.insert(*dummy, Duration::zero());
         }
 
-        let objective_value = Schedule::sum_up_objective_info(&unit_objective_info, &dummy_objective_info, config);
+        let objective_value = Schedule::sum_up_objective_info(&unit_objective_info, &dummy_objective_info, config, &units);
 
 
         (unit_objective_info, dummy_objective_info, objective_value)
 
     }
 
-    fn sum_up_objective_info(unit_objective_info: &HashMap<UnitId, ObjectiveInfo>, dummy_objective_info: &HashMap<UnitId, Duration>, config: Arc<Config>) -> ObjectiveValue {
+    fn sum_up_objective_info(unit_objective_info: &HashMap<UnitId, ObjectiveInfo>, dummy_objective_info: &HashMap<UnitId, Duration>, config: Arc<Config>, units: &Arc<Units>) -> ObjectiveValue {
         let overhead_time = unit_objective_info.values().map(|info| info.overhead_time).sum();
         let number_of_dummy_units = dummy_objective_info.len();
         let dummy_overhead_time: Duration = dummy_objective_info.values().copied().sum();
-        let dead_head_distance = unit_objective_info.values().map(|info| info.dead_head_distance).sum();
         let maintenance_distance_violation = unit_objective_info.values().map(|info| info.maintenance_distance_violation).sum();
         let maintenance_duration_violation = unit_objective_info.values().map(|info| info.maintenance_duration_violation).sum();
+        let dead_head_distance = unit_objective_info.values().map(|info| info.dead_head_distance).sum();
 
-        ObjectiveValue::new(overhead_time, number_of_dummy_units, dummy_overhead_time, maintenance_distance_violation, maintenance_duration_violation, dead_head_distance, config)
+        // sum up in the deterministic ordering given by units.iter():
+        let continuous_idle_time_cost = units.iter().map(|u| unit_objective_info.get(&u).unwrap().continuous_idle_time_cost).sum();
+
+        ObjectiveValue::new(overhead_time,
+                            number_of_dummy_units,
+                            dummy_overhead_time,
+                            maintenance_distance_violation,
+                            maintenance_duration_violation,
+                            dead_head_distance,
+                            continuous_idle_time_cost,
+                            config)
     }
 
 

@@ -6,8 +6,9 @@ use crate::locations::Locations;
 use crate::units::{Unit,UnitType};
 use crate::network::Network;
 use crate::network::nodes::Node;
-use crate::base_types::NodeId;
+use crate::base_types::{NodeId,Cost,COST_ZERO};
 use crate::schedule::path::{Path,Segment};
+use crate::schedule::objective;
 
 use std::cmp::Ordering;
 
@@ -30,6 +31,7 @@ pub(crate) struct Tour {
     overhead_time: Duration,
     service_distance: Distance,
     dead_head_distance: Distance,
+    continuous_idle_time_cost: Cost,
 
     config: Arc<Config>,
     loc: Arc<Locations>,
@@ -120,7 +122,7 @@ impl Tour {
         let mut duration_violation = Duration::zero();
 
         for (&p, &n) in self.nodes_iter().tuple_windows() {
-            distance_counter = distance_counter + self.loc.distance(self.nw.node(p).end_location(), self.nw.node(n).start_location());
+            distance_counter = distance_counter + self.nw.dead_head_distance_between(p, n);
 
             let node = self.nw.node(n);
 
@@ -145,6 +147,10 @@ impl Tour {
         (dist_violation, duration_violation)
     }
 
+    /// computes the idle time cost (which is usually negative, so it is a bonus).
+    pub(crate) fn continuous_idle_time_cost(&self) -> Cost {
+        self.continuous_idle_time_cost
+    }
 
     /// return the usefule_time (end - start for each node, including maintenance_slots) of the tour.
     // pub(crate) fn useful_time(&self) -> Duration {
@@ -180,21 +186,35 @@ impl Tour {
         // compute useful_time, service_distance and dead_head_distance for the path:
         let path_useful_time = path.iter().map(|n| self.nw.node(*n).useful_duration()).sum();
         let path_service_distance = path.iter().map(|n| self.nw.node(*n).travel_distance()).sum();
-        let path_dead_head_distance =
+        let path_dead_head_distance: Distance =
             if start_pos == 0 {
                 Distance::zero()
             } else {
-                self.loc.distance(self.nw.node(*self.nodes.get(start_pos-1).unwrap()).end_location(), self.nw.node(path.first()).start_location())
+                self.nw.dead_head_distance_between(self.nodes[start_pos-1], path.first())
             } +
 
-            path.iter().tuple_windows().map(|(&a,&b)| self.loc.distance(self.nw.node(a).end_location(),self.nw.node(b).start_location())).sum() +
+            path.iter().tuple_windows().map(|(&a,&b)| self.nw.dead_head_distance_between(a,b)).sum() +
 
             if end_pos >= self.nodes.len() || path.is_empty() {
                 Distance::zero()
             } else {
-                self.loc.distance(self.nw.node(path.last()).end_location(), self.nw.node(*self.nodes.get(end_pos).unwrap()).start_location())
+                self.nw.dead_head_distance_between(path.last(), self.nodes[end_pos])
             };
 
+        let path_continuous_idle_time_cost: Cost =
+            if start_pos == 0 {
+                COST_ZERO
+            } else {
+                objective::compute_idle_time_cost(self.nw.idle_time_between(self.nodes[start_pos-1], path.first()), &self.config)
+            } +
+
+            path.iter().tuple_windows().map(|(&a,&b)| objective::compute_idle_time_cost(self.nw.idle_time_between(a,b), &self.config)).sum::<Cost>() +
+
+            if end_pos >= self.nodes.len() || path.is_empty() {
+                COST_ZERO
+            } else {
+                objective::compute_idle_time_cost(self.nw.idle_time_between(path.last(), self.nodes[end_pos]), &self.config)
+            };
 
         // remove all elements in start_pos..end_pos and replace them by
         // node_sequence. Removed nodes are returned.
@@ -211,16 +231,31 @@ impl Tour {
             if start_pos == 0 || start_pos >= self.nodes.len() {
                 Distance::zero()
             } else {
-                self.loc.distance(self.nw.node(self.nodes[start_pos-1]).end_location(), self.nw.node(self.nodes[start_pos]).start_location())
+                self.nw.dead_head_distance_between(self.nodes[start_pos-1], self.nodes[start_pos])
             } +
-            (start_pos..end_pos).tuple_windows().map(
-            |(i,j)| self.loc.distance(self.nw.node(self.nodes[i]).end_location(),self.nw.node(self.nodes[j]).start_location())).sum() +
+            (start_pos..end_pos).tuple_windows().map(|(i,j)|
+                self.nw.dead_head_distance_between(self.nodes[i], self.nodes[j])).sum() +
             if end_pos == self.nodes.len() || (start_pos == end_pos && start_pos > 0) || end_pos == 0 {
                 Distance::zero()
             } else {
-                self.loc.distance(self.nw.node(*self.nodes.get(end_pos-1).unwrap()).end_location(), self.nw.node(*self.nodes.get(end_pos).unwrap()).start_location())
+                self.nw.dead_head_distance_between(self.nodes[end_pos-1], self.nodes[end_pos])
             };
 
+        let removed_continuous_idle_time_cost: Cost =
+            if start_pos == 0 || start_pos >= self.nodes.len() {
+                COST_ZERO
+            } else {
+                objective::compute_idle_time_cost(self.nw.idle_time_between(self.nodes[start_pos-1], self.nodes[start_pos]), &self.config)
+            } +
+
+            (start_pos..end_pos).tuple_windows().map(|(i,j)|
+                objective::compute_idle_time_cost(self.nw.idle_time_between(self.nodes[i], self.nodes[j]),&self.config)).sum::<Cost>() +
+
+            if end_pos == self.nodes.len() || (start_pos == end_pos && start_pos > 0) || end_pos == 0 {
+                COST_ZERO
+            } else {
+                objective::compute_idle_time_cost(self.nw.idle_time_between(self.nodes[end_pos-1], self.nodes[end_pos]), &self.config)
+            };
 
         // compute the overhead_time, service_distance and dead_head_distance for the new tour:
         let overhead_time = if self.is_dummy {
@@ -234,8 +269,9 @@ impl Tour {
         };
         let service_distance = self.service_distance + path_service_distance - removed_service_distance;
         let dead_head_distance = self.dead_head_distance + path_dead_head_distance - removed_dead_head_distance;
+        let continuous_idle_time_cost = self.continuous_idle_time_cost + path_continuous_idle_time_cost - removed_continuous_idle_time_cost;
 
-        Ok(Tour::new_trusted(self.unit_type, new_tour_nodes, self.is_dummy, overhead_time, service_distance, dead_head_distance, self.config.clone(), self.loc.clone(),self.nw.clone()))
+        Ok(Tour::new_trusted(self.unit_type, new_tour_nodes, self.is_dummy, overhead_time, service_distance, dead_head_distance, continuous_idle_time_cost, self.config.clone(), self.loc.clone(),self.nw.clone()))
     }
 
     // pub(super) fn insert_single_node(&self, node: NodeId) -> Result<Tour,String> {
@@ -261,14 +297,14 @@ impl Tour {
             if start_pos == 0 {
                 Distance::zero()
             } else {
-                self.loc.distance(self.nw.node(*self.nodes.get(start_pos-1).unwrap()).end_location(), self.nw.node(*self.nodes.get(start_pos).unwrap()).start_location())
+                self.nw.dead_head_distance_between(self.nodes[start_pos-1], self.nodes[start_pos])
             } +
-            (start_pos..end_pos+1).tuple_windows().map(
-            |(i,j)| self.loc.distance(self.nw.node(self.nodes[i]).end_location(),self.nw.node(self.nodes[j]).start_location())).sum() +
+            (start_pos..end_pos+1).tuple_windows().map(|(i,j)|
+                self.nw.dead_head_distance_between(self.nodes[i], self.nodes[j])).sum() +
             if end_pos == self.nodes.len() - 1 {
                 Distance::zero()
             } else {
-                self.loc.distance(self.nw.node(self.nodes[end_pos]).end_location(), self.nw.node(self.nodes[end_pos+1]).start_location())
+                self.nw.dead_head_distance_between(self.nodes[end_pos], self.nodes[end_pos+1])
             };
 
         // compute the dead_head_distance for the new gap that is created:
@@ -276,9 +312,33 @@ impl Tour {
             if start_pos == 0 || end_pos == self.nodes.len() - 1 {
                 Distance::zero()
             } else {
-                self.loc.distance(self.nw.node(self.nodes[start_pos-1]).end_location(), self.nw.node(self.nodes[end_pos+1]).start_location())
+                self.nw.dead_head_distance_between(self.nodes[start_pos-1], self.nodes[end_pos+1])
             };
 
+        // compute the continuous_idle_time_cost for the removed segment:
+        let removed_continuous_idle_time_cost: Cost =
+            if start_pos == 0 {
+                COST_ZERO
+            } else {
+                objective::compute_idle_time_cost(self.nw.idle_time_between(self.nodes[start_pos-1], self.nodes[start_pos]), &self.config)
+            } +
+
+            (start_pos..end_pos+1).tuple_windows().map(|(i,j)|
+                objective::compute_idle_time_cost(self.nw.idle_time_between(self.nodes[i], self.nodes[j]), &self.config)).sum::<Cost>() +
+
+            if end_pos == self.nodes.len() - 1 {
+                COST_ZERO
+            } else {
+                objective::compute_idle_time_cost(self.nw.idle_time_between(self.nodes[end_pos], self.nodes[end_pos+1]), &self.config)
+            };
+
+        // compute the continuous_idle_time_cost for the new gap that is created:
+        let added_continuous_idle_time_cost: Cost =
+            if start_pos == 0 || end_pos == self.nodes.len() - 1 {
+                COST_ZERO
+            } else {
+                objective::compute_idle_time_cost(self.nw.idle_time_between(self.nodes[start_pos-1], self.nodes[end_pos+1]), &self.config)
+            };
 
         // remove the segment from the tour:
         let mut tour_nodes: Vec<NodeId> = self.nodes[..start_pos].to_vec();
@@ -301,9 +361,10 @@ impl Tour {
             };
         let service_distance = self.service_distance - removed_service_distance;
         let dead_head_distance = self.dead_head_distance + added_dead_head_distance - removed_dead_head_distance;
+        let continuous_idle_time_cost = self.continuous_idle_time_cost + added_continuous_idle_time_cost - removed_continuous_idle_time_cost;
 
 
-        Ok((Tour::new_trusted(self.unit_type, tour_nodes, self.is_dummy, overhead_time, service_distance, dead_head_distance, self.config.clone(), self.loc.clone(),self.nw.clone()), Path::new_trusted(removed_nodes,self.nw.clone())))
+        Ok((Tour::new_trusted(self.unit_type, tour_nodes, self.is_dummy, overhead_time, service_distance, dead_head_distance, continuous_idle_time_cost, self.config.clone(), self.loc.clone(),self.nw.clone()), Path::new_trusted(removed_nodes,self.nw.clone())))
     }
 
     // pub(crate) fn remove_single_node(&self, node: NodeId) -> Result<Tour,String> {
@@ -569,8 +630,17 @@ impl Tour {
     }
 
     /// Creates a new tour from a vector of NodeIds. Trusts that the vector leads to a valid Tour.
-    pub(super) fn new_trusted(unit_type: UnitType, nodes: Vec<NodeId>, is_dummy: bool, overhead_time: Duration, service_distance: Distance, dead_head_distance: Distance, config: Arc<Config>, loc: Arc<Locations>, nw: Arc<Network>) -> Tour {
-        Tour{unit_type, nodes, is_dummy, overhead_time, service_distance, dead_head_distance, config, loc, nw}
+    pub(super) fn new_trusted(unit_type: UnitType,
+                              nodes: Vec<NodeId>,
+                              is_dummy: bool,
+                              overhead_time: Duration,
+                              service_distance: Distance,
+                              dead_head_distance: Distance,
+                              continuous_idle_time_cost: Cost,
+                              config: Arc<Config>,
+                              loc: Arc<Locations>,
+                              nw: Arc<Network>) -> Tour {
+        Tour{unit_type, nodes, is_dummy, overhead_time, service_distance, dead_head_distance, continuous_idle_time_cost, config, loc, nw}
     }
 
     pub(super) fn new_dummy_by_path(unit_type: UnitType, path: Path, config: Arc<Config>, loc: Arc<Locations>, nw: Arc<Network>) -> Tour {
@@ -581,8 +651,9 @@ impl Tour {
         let overhead_time = nodes.iter().tuple_windows().map(|(&a,&b)| nw.node(b).start_time() - nw.node(a).end_time()).sum();
         let service_distance = nodes.iter().map(|&n| nw.node(n).travel_distance()).sum();
         let dead_head_distance = nodes.iter().tuple_windows().map(
-            |(&a,&b)| loc.distance(nw.node(a).end_location(),nw.node(b).start_location())).sum();
-        Tour{unit_type, nodes, is_dummy, overhead_time, service_distance, dead_head_distance, config, loc, nw}
+            |(&a,&b)| nw.dead_head_distance_between(a,b)).sum();
+        let continuous_idle_time_cost = nodes.iter().tuple_windows().map(|(&a,&b)| objective::compute_idle_time_cost(nw.idle_time_between(a,b),&config)).sum();
+        Tour{unit_type, nodes, is_dummy, overhead_time, service_distance, dead_head_distance, continuous_idle_time_cost, config, loc, nw}
     }
 }
 
