@@ -44,11 +44,11 @@ pub fn run(path: &str) {
     let start_time = stdtime::Instant::now();
 
     // execute greedy algorithm
-    // let greedy_3 = Greedy3::initialize(config.clone(), loc.clone(), units.clone(), nw.clone());
+    // let greedy_3 = Greedy3::initialize(config.clone(), units.clone(), nw.clone());
     // let final_schedule = greedy_3.solve();
 
     // Execute local search (which runs greedy to get an initial solution)
-    let local_search_solver = LocalSearch1::initialize(config.clone(), loc.clone(), units.clone(), nw.clone());
+    let local_search_solver = LocalSearch1::initialize(config.clone(), units.clone(), nw.clone());
     let final_schedule = local_search_solver.solve();
 
 
@@ -68,122 +68,10 @@ pub fn run(path: &str) {
     final_schedule.write_to_csv(&format!("{}{}", path, "ETH_leistungsketten.csv")).unwrap();
 
     println!();
-    let loaded_schedule = Schedule::load_from_csv(&format!("{}{}", path, "SBB_leistungsketten.csv"), config.clone(), loc.clone(), units.clone(), nw.clone());
+    let loaded_schedule = Schedule::load_from_csv(&format!("{}{}", path, "SBB_leistungsketten.csv"), config.clone(), units.clone(), nw.clone());
     println!("SBB_Solution:");
     loaded_schedule.objective_value().print();
 
 }
 
 
-
-
-
-
-
-
-
-
-
-
-//////////////////////////////////////////
-//////////// manual test /////////////////
-//////////////////////////////////////////
-
-// use crate::solver::local_search::swaps::{Swap,PathExchange};
-// fn manual_swap_test(units: Arc<Units>, schedule: Schedule) {
-
-    // let unit_a = units.iter().next().unwrap();
-    // let unit_b = units.iter().last().unwrap();
-
-    // let tour_a = schedule.tour_of(unit_a);
-    // let tour_b = schedule.tour_of(unit_b);
-
-    // let node = *tour_a.nodes_iter().nth(2).unwrap();
-
-    // println!("removable: {}", tour_a.removable_single_node(node));
-
-    // let swap = PathExchange::new(Segment::new(node, node), unit_a, unit_b);
-
-    // let new_schedule = swap.apply(&schedule).unwrap();
-
-
-    // println!("BEFORE:");
-    // println!("{}: {}", unit_a, tour_a);
-    // println!("AFTER:");
-    // println!("{}: {}", unit_a, new_schedule.tour_of(unit_a));
-    // println!("BEFORE:");
-    // println!("{}: {}", unit_b, tour_b);
-    // println!("AFTER:");
-    // println!("{}: {}", unit_b, new_schedule.tour_of(unit_b));
-
-    // println!("\n\nAFTER dummy_tours:");
-    // for dummy in new_schedule.dummy_iter(){
-        // println!("{}: {}", dummy, new_schedule.tour_of(dummy));
-    // }
-
-    // println!("\nnew_schedule:");
-    // new_schedule.print();
-// }
-
-// fn manual_test(units: Arc<Units>, schedule: Schedule) {
-    // let unit1 = units.iter().next().unwrap();
-    // let unit2 = units.iter().last().unwrap();
-
-    // let tour1 = schedule.tour_of(unit1);
-    // let tour2 = schedule.tour_of(unit2);
-
-    // let dummy1 = schedule.dummy_iter().next().unwrap();
-    // let dummy2 = schedule.dummy_iter().last().unwrap();
-    // println!("dummy2: {}", dummy2);
-
-
-    // let from = 5;
-    // let to = 10;
-    // let segment = Segment::new(*tour1.nodes_iter().nth(from).unwrap(),*tour1.nodes_iter().nth(to).unwrap());
-
-    // let (new_schedule,_) = schedule.override_reassign_all(dummy2,unit2).unwrap();
-    // let dummy3 = new_schedule.dummy_iter().next().unwrap();
-    // let dummy4 = new_schedule.dummy_iter().last().unwrap();
-    // let (newest_schedule,_) = new_schedule.override_reassign_all(dummy3, dummy4).unwrap();
-
-
-    // println!("BEFORE:");
-    // tour1.print();
-    // println!("MIDDLE:");
-    // new_schedule.tour_of(unit1).print();
-    // println!("AFTER:");
-    // newest_schedule.tour_of(unit1).print();
-    // println!("BEFORE:");
-    // tour2.print();
-    // println!("MIDDLE:");
-    // new_schedule.tour_of(unit2).print();
-    // println!("AFTER:");
-    // newest_schedule.tour_of(unit2).print();
-
-    // println!("\n\nBEFORE dummy_tours:");
-    // for dummy in schedule.dummy_iter(){
-        // println!("dummy-unit: {}", dummy);
-        // schedule.tour_of(dummy).print();
-        // for n in schedule.tour_of(dummy).nodes_iter() {
-            // println!("{}", schedule.covered_by(*n));
-        // }
-    // }
-    // println!("\n\nMIDDLE dummy_tours:");
-    // for dummy in new_schedule.dummy_iter(){
-        // println!("dummy-unit: {}", dummy);
-        // new_schedule.tour_of(dummy).print();
-    // }
-    // println!("\n\nAFTER dummy_tours:");
-    // for dummy in newest_schedule.dummy_iter(){
-        // println!("dummy-unit: {}", dummy);
-        // newest_schedule.tour_of(dummy).print();
-    // }
-
-    // println!("BEFORE:");
-    // schedule.objective_value().print();
-    // println!("MIDDLE:");
-    // new_schedule.objective_value().print();
-    // println!("AFTER:");
-    // newest_schedule.objective_value().print();
-
-// }

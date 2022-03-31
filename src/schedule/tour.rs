@@ -2,7 +2,6 @@ use std::fmt;
 use crate::config::Config;
 use crate::distance::Distance;
 use crate::time::{Time, Duration};
-use crate::locations::Locations;
 use crate::units::{Unit,UnitType};
 use crate::network::Network;
 use crate::network::nodes::Node;
@@ -34,7 +33,6 @@ pub(crate) struct Tour {
     continuous_idle_time_cost: Cost,
 
     config: Arc<Config>,
-    loc: Arc<Locations>,
     nw: Arc<Network>,
 }
 
@@ -271,7 +269,7 @@ impl Tour {
         let dead_head_distance = self.dead_head_distance + path_dead_head_distance - removed_dead_head_distance;
         let continuous_idle_time_cost = self.continuous_idle_time_cost + path_continuous_idle_time_cost - removed_continuous_idle_time_cost;
 
-        Ok(Tour::new_trusted(self.unit_type, new_tour_nodes, self.is_dummy, overhead_time, service_distance, dead_head_distance, continuous_idle_time_cost, self.config.clone(), self.loc.clone(),self.nw.clone()))
+        Ok(Tour::new_trusted(self.unit_type, new_tour_nodes, self.is_dummy, overhead_time, service_distance, dead_head_distance, continuous_idle_time_cost, self.config.clone(), self.nw.clone()))
     }
 
     // pub(super) fn insert_single_node(&self, node: NodeId) -> Result<Tour,String> {
@@ -364,7 +362,7 @@ impl Tour {
         let continuous_idle_time_cost = self.continuous_idle_time_cost + added_continuous_idle_time_cost - removed_continuous_idle_time_cost;
 
 
-        Ok((Tour::new_trusted(self.unit_type, tour_nodes, self.is_dummy, overhead_time, service_distance, dead_head_distance, continuous_idle_time_cost, self.config.clone(), self.loc.clone(),self.nw.clone()), Path::new_trusted(removed_nodes,self.nw.clone())))
+        Ok((Tour::new_trusted(self.unit_type, tour_nodes, self.is_dummy, overhead_time, service_distance, dead_head_distance, continuous_idle_time_cost, self.config.clone(), self.nw.clone()), Path::new_trusted(removed_nodes,self.nw.clone())))
     }
 
     // pub(crate) fn remove_single_node(&self, node: NodeId) -> Result<Tour,String> {
@@ -583,8 +581,8 @@ impl Tour {
     /// * only Service or MaintenanceNodes in the middle
     /// * each node can reach is successor
     /// If one of the checks fails an error message is returned.
-    pub(super) fn new(unit_type: UnitType, nodes: Vec<NodeId>, config: Arc<Config>, loc: Arc<Locations>, nw: Arc<Network>) -> Result<Tour, String> {
-        Tour::new_allow_invalid(unit_type, nodes, config, loc, nw).map_err(|(_, error_msg)| error_msg)
+    pub(super) fn new(unit_type: UnitType, nodes: Vec<NodeId>, config: Arc<Config>, nw: Arc<Network>) -> Result<Tour, String> {
+        Tour::new_allow_invalid(unit_type, nodes, config, nw).map_err(|(_, error_msg)| error_msg)
     }
 
     /// Creates a new tour from a vector of NodeIds. Checks that the tour is valid:
@@ -594,7 +592,7 @@ impl Tour {
     /// * each node can reach is successor
     /// If one of the checks fails an error is returned containing the error message but also the
     /// invalid tour.
-    pub(super) fn new_allow_invalid(unit_type: UnitType, nodes: Vec<NodeId>, config: Arc<Config>, loc: Arc<Locations>, nw: Arc<Network>) -> Result<Tour, (Tour, String)> {
+    pub(super) fn new_allow_invalid(unit_type: UnitType, nodes: Vec<NodeId>, config: Arc<Config>, nw: Arc<Network>) -> Result<Tour, (Tour, String)> {
         let mut error_msg = String::new();
         if !matches!(nw.node(nodes[0]),Node::Start(_)) {
             error_msg.push_str(&format!("Tour needs to start with a StartNode, not with: {}.\n", nw.node(nodes[0])));
@@ -614,19 +612,19 @@ impl Tour {
             }
         }
         if error_msg.len() > 0 {
-            Err((Tour::new_computing(unit_type, nodes, false, config, loc, nw), error_msg))
+            Err((Tour::new_computing(unit_type, nodes, false, config, nw), error_msg))
         } else {
-            Ok(Tour::new_computing(unit_type, nodes, false, config, loc, nw))
+            Ok(Tour::new_computing(unit_type, nodes, false, config, nw))
         }
     }
 
-    pub(super) fn new_dummy(unit_type: UnitType, nodes: Vec<NodeId>, config: Arc<Config>, loc: Arc<Locations>, nw: Arc<Network>) -> Result<Tour, String> {
+    pub(super) fn new_dummy(unit_type: UnitType, nodes: Vec<NodeId>, config: Arc<Config>, nw: Arc<Network>) -> Result<Tour, String> {
         for (&a,&b) in nodes.iter().tuple_windows() {
             if !nw.can_reach(a,b) {
                 return Err(format!("Not a valid Dummy-Tour: {} cannot reach {}.\n", nw.node(a), nw.node(b)));
             }
         }
-        Ok(Tour::new_computing(unit_type, nodes, true, config, loc, nw))
+        Ok(Tour::new_computing(unit_type, nodes, true, config, nw))
     }
 
     /// Creates a new tour from a vector of NodeIds. Trusts that the vector leads to a valid Tour.
@@ -638,22 +636,21 @@ impl Tour {
                               dead_head_distance: Distance,
                               continuous_idle_time_cost: Cost,
                               config: Arc<Config>,
-                              loc: Arc<Locations>,
                               nw: Arc<Network>) -> Tour {
-        Tour{unit_type, nodes, is_dummy, overhead_time, service_distance, dead_head_distance, continuous_idle_time_cost, config, loc, nw}
+        Tour{unit_type, nodes, is_dummy, overhead_time, service_distance, dead_head_distance, continuous_idle_time_cost, config, nw}
     }
 
-    pub(super) fn new_dummy_by_path(unit_type: UnitType, path: Path, config: Arc<Config>, loc: Arc<Locations>, nw: Arc<Network>) -> Tour {
-        Tour::new_computing(unit_type, path.consume(), true, config, loc, nw)
+    pub(super) fn new_dummy_by_path(unit_type: UnitType, path: Path, config: Arc<Config>, nw: Arc<Network>) -> Tour {
+        Tour::new_computing(unit_type, path.consume(), true, config, nw)
     }
 
-    fn new_computing(unit_type: UnitType, nodes: Vec<NodeId>, is_dummy: bool, config: Arc<Config>, loc: Arc<Locations>, nw: Arc<Network>) -> Tour {
+    fn new_computing(unit_type: UnitType, nodes: Vec<NodeId>, is_dummy: bool, config: Arc<Config>, nw: Arc<Network>) -> Tour {
         let overhead_time = nodes.iter().tuple_windows().map(|(&a,&b)| nw.node(b).start_time() - nw.node(a).end_time()).sum();
         let service_distance = nodes.iter().map(|&n| nw.node(n).travel_distance()).sum();
         let dead_head_distance = nodes.iter().tuple_windows().map(
             |(&a,&b)| nw.dead_head_distance_between(a,b)).sum();
         let continuous_idle_time_cost = nodes.iter().tuple_windows().map(|(&a,&b)| objective::compute_idle_time_cost(nw.idle_time_between(a,b),&config)).sum();
-        Tour{unit_type, nodes, is_dummy, overhead_time, service_distance, dead_head_distance, continuous_idle_time_cost, config, loc, nw}
+        Tour{unit_type, nodes, is_dummy, overhead_time, service_distance, dead_head_distance, continuous_idle_time_cost, config, nw}
     }
 }
 

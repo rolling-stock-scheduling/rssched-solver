@@ -15,7 +15,6 @@ use crate::config::Config;
 use crate::network::Network;
 use crate::network::nodes::Node;
 use crate::units::{Units,Unit,UnitType};
-use crate::locations::Locations;
 use crate::distance::Distance;
 use crate::base_types::{NodeId,UnitId,Cost};
 use crate::time::{Time,Duration};
@@ -47,7 +46,6 @@ pub(crate) struct Schedule {
     objective_value: ObjectiveValue,
 
     config: Arc<Config>,
-    loc: Arc<Locations>,
     units: Arc<Units>,
     nw: Arc<Network>,
 }
@@ -318,7 +316,6 @@ impl Schedule {
             dummy_objective_info,
             objective_value,
             config:self.config.clone(),
-            loc:self.loc.clone(),
             units:self.units.clone(),
             nw:self.nw.clone()})
     }
@@ -403,7 +400,7 @@ impl Schedule {
             }
 
             let new_dummy_type = self.type_of(receiver);
-            let new_dummy_tour = Tour::new_dummy_by_path(new_dummy_type, replaced_path, self.config.clone(), self.loc.clone(), self.nw.clone());
+            let new_dummy_tour = Tour::new_dummy_by_path(new_dummy_type, replaced_path, self.config.clone(), self.nw.clone());
 
             dummy_objective_info.insert(new_dummy, new_dummy_tour.overhead_time());
             dummies.insert(new_dummy, (new_dummy_type, new_dummy_tour));
@@ -427,7 +424,6 @@ impl Schedule {
             dummy_objective_info,
             objective_value,
             config:self.config.clone(),
-            loc:self.loc.clone(),
             units:self.units.clone(),
             nw:self.nw.clone()},
             new_dummy_opt))
@@ -571,7 +567,7 @@ impl Eq for Schedule {}
 
 // static functions
 impl Schedule {
-    pub(crate) fn initialize(config: Arc<Config>, loc: Arc<Locations>, units: Arc<Units>, nw: Arc<Network>) -> Schedule {
+    pub(crate) fn initialize(config: Arc<Config>, units: Arc<Units>, nw: Arc<Network>) -> Schedule {
 
         let mut tours: HashMap<UnitId, Tour> = HashMap::new();
         let mut covered_by: HashMap<NodeId, TrainFormation> = HashMap::new();
@@ -587,7 +583,7 @@ impl Schedule {
             let pos = end_nodes.iter().position(|&e| nw.node(e).unit_type() == unit.unit_type() && nw.can_reach(start_node, e)).unwrap_or_else(|| panic!("No suitable end_node found for start_node: {}", start_node));
             let end_node = end_nodes.remove(pos).unwrap();
 
-            tours.insert(unit_id, Tour::new(unit.unit_type(), vec!(start_node, end_node), config.clone(), loc.clone(), nw.clone()).unwrap());
+            tours.insert(unit_id, Tour::new(unit.unit_type(), vec!(start_node, end_node), config.clone(), nw.clone()).unwrap());
 
             covered_by.insert(start_node, TrainFormation::new(vec!(unit_id), units.clone()));
             covered_by.insert(end_node, TrainFormation::new(vec!(unit_id), units.clone()));
@@ -602,7 +598,7 @@ impl Schedule {
         for node in nw.service_nodes().chain(nw.maintenance_nodes()) {
             let mut formation = Vec::new();
             for t in nw.node(node).demand().get_valid_types() {
-                let trivial_tour = Tour::new_dummy(t, vec!(node), config.clone(), loc.clone(), nw.clone()).unwrap();
+                let trivial_tour = Tour::new_dummy(t, vec!(node), config.clone(), nw.clone()).unwrap();
                 let new_dummy_id = UnitId::from(format!("dummy{:05}", dummy_counter).as_str());
 
                 dummies.insert(new_dummy_id,(t,trivial_tour));
@@ -629,7 +625,6 @@ impl Schedule {
                  dummy_objective_info,
                  objective_value,
                  config,
-                 loc,
                  units,
                  nw}
     }
@@ -675,7 +670,7 @@ impl Schedule {
     }
 
 
-    pub(crate) fn load_from_csv(path: &str, config: Arc<Config>, loc: Arc<Locations>, units: Arc<Units>, nw: Arc<Network>) -> Schedule {
+    pub(crate) fn load_from_csv(path: &str, config: Arc<Config>, units: Arc<Units>, nw: Arc<Network>) -> Schedule {
 
         let mut tour_nodes: HashMap<UnitId, Vec<NodeId>> = HashMap::new();
         for unit in units.iter() {
@@ -730,7 +725,7 @@ impl Schedule {
             let mut nodes = tour_nodes.remove(&unit).unwrap();
             nodes.push(nw.start_node_of(unit));
             nodes.sort_by(|n1, n2| nw.node(*n1).cmp_start_time(nw.node(*n2)));
-            let tour = match Tour::new_allow_invalid(units.get_unit(unit).unit_type(), nodes, config.clone(), loc.clone(), nw.clone()) {
+            let tour = match Tour::new_allow_invalid(units.get_unit(unit).unit_type(), nodes, config.clone(), nw.clone()) {
                 Err((tour, error_msg)) => {
                     println!("{}", error_msg);
                     tour
@@ -748,7 +743,7 @@ impl Schedule {
             let mut formation = covering.remove(&node).unwrap();
             let types = formation.iter().map(|u| units.get_unit(*u).unit_type()).collect();
             for t in nw.node(node).demand().get_missing_types(&types) {
-                let trivial_tour = Tour::new_dummy(t, vec!(node), config.clone(), loc.clone(), nw.clone()).unwrap();
+                let trivial_tour = Tour::new_dummy(t, vec!(node), config.clone(), nw.clone()).unwrap();
                 let new_dummy_id = UnitId::from(format!("dummy{:05}", dummy_counter).as_str());
 
                 dummies.insert(new_dummy_id,(t,trivial_tour));
@@ -783,7 +778,6 @@ impl Schedule {
                  dummy_objective_info,
                  objective_value,
                  config,
-                 loc,
                  units,
                  nw}
 

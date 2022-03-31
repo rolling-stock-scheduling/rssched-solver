@@ -10,19 +10,18 @@ use std::sync::Arc;
 
 pub struct Greedy2 {
     config: Arc<Config>,
-    loc: Arc<Locations>,
     units: Arc<Units>,
     nw: Arc<Network>
 }
 
 impl Solver for Greedy2 {
 
-    fn initialize(config: Arc<Config>, loc: Arc<Locations>, units: Arc<Units>, nw: Arc<Network>) -> Greedy2 {
-        Greedy2{config, loc, units, nw}
+    fn initialize(config: Arc<Config>, units: Arc<Units>, nw: Arc<Network>) -> Greedy2 {
+        Greedy2{config, units, nw}
     }
 
     fn solve(&self) -> Schedule {
-        let mut schedule = Schedule::initialize(self.config.clone(), self.loc.clone(), self.units.clone(), self.nw.clone());
+        let mut schedule = Schedule::initialize(self.config.clone(), self.units.clone(), self.nw.clone());
 
         // Sort service and maintanence nodes by start time
         let mut nodes_sorted_by_start: Vec<NodeId> = self.nw.service_nodes().chain(self.nw.maintenance_nodes()).collect();

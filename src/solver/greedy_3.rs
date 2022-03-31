@@ -11,19 +11,18 @@ use std::sync::Arc;
 
 pub struct Greedy3 {
     config: Arc<Config>,
-    loc: Arc<Locations>,
     units: Arc<Units>,
     nw: Arc<Network>
 }
 
 impl Solver for Greedy3 {
 
-    fn initialize(config: Arc<Config>, loc: Arc<Locations>, units: Arc<Units>, nw: Arc<Network>) -> Greedy3 {
-        Greedy3{config, loc, units, nw}
+    fn initialize(config: Arc<Config>, units: Arc<Units>, nw: Arc<Network>) -> Greedy3 {
+        Greedy3{config, units, nw}
     }
 
     fn solve(&self) -> Schedule {
-        let mut schedule = Schedule::initialize(self.config.clone(), self.loc.clone(), self.units.clone(), self.nw.clone());
+        let mut schedule = Schedule::initialize(self.config.clone(), self.units.clone(), self.nw.clone());
 
         // Sort service and maintanence nodes by start time
         let mut nodes_sorted_by_start: Vec<NodeId> = self.nw.service_nodes().chain(self.nw.maintenance_nodes()).collect();
@@ -37,17 +36,16 @@ impl Solver for Greedy3 {
 
         //  For each node find an existing tour that can cover it while minimizing the added deadhead trip distance
         for node in nodes_sorted_by_start{
-            let node_start_loc = self.nw.node(node).start_location();
             for dummy_id in schedule.clone().covered_by(node).iter() {
                 // Sort last_nodes by deadhead trip distance to 'node' in increasing order
                 // Use a tie breaking rule given by candidate's end time or/and unit ID
                 last_nodes.sort_by(|n1, n2| {
-                    self.loc.travel_time(self.nw.node(n1.1).end_location(), node_start_loc).partial_cmp(
-                    &self.loc.travel_time(self.nw.node(n2.1).end_location(), node_start_loc)).unwrap().then(
+                    self.nw.dead_head_time_between(n1.1,node).cmp(
+                        &self.nw.dead_head_time_between(n2.1,node))
                         // break ties by candidate's end time
-                        //self.nw.node(n2.1).cmp_end_time(self.nw.node(n1.1))).then(
-                            // and/or break ties by candidate's unit ID
-                            self.nw.node(n1.1).id().partial_cmp(&self.nw.node(n2.1).id()).unwrap())
+                        .then(self.nw.node(n2.1).cmp_end_time(self.nw.node(n1.1)))
+                        // and/or break ties by candidate's unit ID
+                        .then(self.nw.node(n1.1).id().cmp(&self.nw.node(n2.1).id()))
                 });
                 // Find an existing tour that can cover 'node' while minimizing the deadhead distance
                 let candidate = last_nodes.iter().enumerate().find(|(_,(u,_))| {

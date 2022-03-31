@@ -11,7 +11,7 @@ use crate::network::Network;
 use std::sync::Arc;
 
 pub(crate) trait Solver {
-    fn initialize(config: Arc<Config>, loc: Arc<Locations>, units: Arc<Units>, nw: Arc<Network>) -> Self;
+    fn initialize(config: Arc<Config>, units: Arc<Units>, nw: Arc<Network>) -> Self;
 
     fn solve(&self) -> Schedule;
 }
