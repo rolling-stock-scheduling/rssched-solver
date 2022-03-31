@@ -34,7 +34,7 @@ impl ObjectiveValue {
         println!("* maintenance_violation: {} ({}; {})", self.maintenance_penalty, self.maintenance_distance_violation, self.maintenance_duration_violation);
         println!("* soft_objective_cost: {:2.1}", self.soft_objective_cost);
         println!("    - dead_head_distance: {}", self.dead_head_distance);
-        println!("    - continuous_idle_time_cost: {:2.1})", self.continuous_idle_time_cost);
+        println!("    - continuous_idle_time_cost: {:2.1}", self.continuous_idle_time_cost);
     }
 
     pub fn new(overhead_time: Duration,
