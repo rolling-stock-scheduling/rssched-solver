@@ -1,6 +1,6 @@
 use std::fmt;
 use std::ops::{Add,Sub};
-use crate::base_types::Meter;
+use crate::base_types::{Meter,Cost};
 
 #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Debug)]
 pub enum Distance {
@@ -13,6 +13,13 @@ impl Distance {
     pub fn in_meter(&self) -> Meter {
         match self {
             Distance::Distance(d) => *d,
+            Distance::Infinity => {panic!("Distance is infinity")},
+        }
+    }
+    
+    pub fn as_km_cost(&self) -> Cost {
+        match self {
+            Distance::Distance(d) => *d as Cost / 1000.0,
             Distance::Infinity => {panic!("Distance is infinity")},
         }
     }
