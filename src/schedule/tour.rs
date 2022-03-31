@@ -386,15 +386,13 @@ impl Tour {
 // Nodes ar compared by start time (ties are by end_time then id)
 impl Ord for Tour {
     fn cmp(&self, other: &Self) -> Ordering {
-        match self.nodes.len().cmp(&other.nodes.len()) {
-            Ordering::Equal => {
-                match self.nodes.iter().zip(other.nodes.iter()).map(|(node, other_node)| self.nw.node(*node).cmp_start_time(self.nw.node(*other_node))).find(|ord| *ord != Ordering::Equal) {
-                    None => Ordering::Equal,
-                    Some(other) => other
-                    }
-                }
-            other => other
-        }
+        self.nodes.len().cmp(&other.nodes.len())
+            .then(match self.nodes.iter().zip(other.nodes.iter())
+                          .map(|(node, other_node)| self.nw.node(*node).cmp_start_time(self.nw.node(*other_node)))
+                          .find(|ord| *ord != Ordering::Equal) {
+                None => Ordering::Equal,
+                Some(other) => other
+            })
     }
 }
 

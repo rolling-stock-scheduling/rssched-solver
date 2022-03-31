@@ -523,30 +523,24 @@ impl Schedule {
 impl Ord for Schedule {
     fn cmp(&self, other: &Self) -> Ordering {
         // first compare objective
-        match self.objective_value.cmp(&other.objective_value) {
-            Ordering::Equal => {
-                // then compare real unit tours
-                match self.units.iter().map(|u| self.tour_of(u).cmp(other.tour_of(u))).find(|ord| *ord != Ordering::Equal) {
-                    Some(other) => other,
-                    None => {
-                        // finally compare dummy_tours. For this first sort the dummy tours and
-                        // then compare from small to long.
-                        let mut dummy_tours: Vec<_> = self.dummies.values().collect();
-                        dummy_tours.sort_by(|tuple, other_tuple| tuple.1.cmp(&other_tuple.1));
-                        let mut other_dummy_tours: Vec<_> = other.dummies.values().collect();
-                        other_dummy_tours.sort_by(|tuple, other_tuple| tuple.1.cmp(&other_tuple.1));
-                        match dummy_tours.iter().zip(other_dummy_tours.iter())
-                                .map(|(&tuple, &other_tuple)| tuple.1.cmp(&other_tuple.1)).find(|ord| *ord != Ordering::Equal) {
-                            Some(other) => other,
-                            None => Ordering::Equal
-                        }
+        self.objective_value.cmp(&other.objective_value)
+            // then compare real unit tours
+            .then(match self.units.iter().map(|u| self.tour_of(u).cmp(other.tour_of(u))).find(|ord| *ord != Ordering::Equal) {
+                Some(other) => other,
+                None => {
+                    // finally compare dummy_tours. For this first sort the dummy tours and
+                    // then compare from small to long.
+                    let mut dummy_tours: Vec<_> = self.dummies.values().collect();
+                    dummy_tours.sort_by(|tuple, other_tuple| tuple.1.cmp(&other_tuple.1));
+                    let mut other_dummy_tours: Vec<_> = other.dummies.values().collect();
+                    other_dummy_tours.sort_by(|tuple, other_tuple| tuple.1.cmp(&other_tuple.1));
+                    match dummy_tours.iter().zip(other_dummy_tours.iter())
+                            .map(|(&tuple, &other_tuple)| tuple.1.cmp(&other_tuple.1)).find(|ord| *ord != Ordering::Equal) {
+                        Some(other) => other,
+                        None => Ordering::Equal
                     }
                 }
-
-
-            }
-            other => other,
-        }
+            })
     }
 }
 

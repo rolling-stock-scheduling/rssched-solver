@@ -177,26 +177,16 @@ impl Node {
 
     /// compare to nodes according to the start_time (ties are broken by end_time and then id)
     pub(crate) fn cmp_start_time(&self, other: &Node)  -> Ordering {
-        match self.start_time().partial_cmp(&other.start_time()) {
-            Some(Ordering::Equal) =>
-                match self.end_time().partial_cmp(&other.end_time()) {
-                    Some(Ordering::Equal) => self.id().partial_cmp(&other.id()),
-                    other => other
-                }
-            other => other
-        }.unwrap()
+        self.start_time().cmp(&other.start_time())
+            .then(self.end_time().cmp(&other.end_time()))
+            .then(self.id().cmp(&other.id()))
     }
 
     /// compare to nodes according to the end_time (ties are broken by start_time and then id)
     pub(crate) fn cmp_end_time(&self, other: &Node)  -> Ordering {
-        match self.end_time().partial_cmp(&other.end_time()) {
-            Some(Ordering::Equal) =>
-                match self.start_time().partial_cmp(&other.start_time()) {
-                    Some(Ordering::Equal) => self.id().partial_cmp(&other.id()),
-                    other => other
-                }
-            other => other
-        }.unwrap()
+        self.end_time().cmp(&other.end_time())
+            .then(self.start_time().cmp(&other.start_time()))
+            .then(self.id().cmp(&other.id()))
     }
 
     pub(crate) fn print(&self) {

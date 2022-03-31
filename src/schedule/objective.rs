@@ -8,7 +8,7 @@ use std::sync::Arc;
 use std::fmt;
 
 /// objective value of schedule (to be minimized)
-#[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Copy, Clone)]
 pub(crate) struct ObjectiveValue {
     overhead_time: Duration, // idle_time + dead_head_time for the tours only (its minimal if all service trips are covered
     number_of_dummy_units : usize,
@@ -49,6 +49,30 @@ impl ObjectiveValue {
         }
     }
 }
+
+impl Ord for ObjectiveValue {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.overhead_time.cmp(&other.overhead_time)
+            .then(self.number_of_dummy_units.cmp(&other.number_of_dummy_units))
+            .then(self.dummy_overhead_time.cmp(&other.dummy_overhead_time))
+            .then(self.maintenance_penalty.cmp(&other.maintenance_penalty))
+            .then(self.dead_head_distance.cmp(&other.dead_head_distance))
+    }
+}
+
+impl PartialOrd for ObjectiveValue {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for ObjectiveValue {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other).is_eq()
+    }
+}
+
+impl Eq for ObjectiveValue {}
 
 #[derive(Copy, Clone, PartialEq, PartialOrd)]
 pub(crate) struct MaintenancePenalty {
