@@ -52,7 +52,7 @@ impl Solver for LocalSearch1 {
 
 
         // load SBB-schedule:
-        // let mut schedule = Schedule::load_from_csv("test_instances/21-10-tage-2/SBB_leistungsketten.csv", self.config.clone(), self.units.clone(), self.nw.clone());
+        // let mut schedule = Schedule::load_from_csv("test_instances/21-10-tage-7/SBB_leistungsketten.csv", self.config.clone(), self.units.clone(), self.nw.clone());
 
 
 
