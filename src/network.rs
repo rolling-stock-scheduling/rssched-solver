@@ -89,11 +89,11 @@ impl Network {
         let n2 = self.nodes.get(&node2).unwrap();
 
 
-        n1.end_time() + self.duration_between_activities(n1,n2) <= n2.start_time()
+        n1.end_time() + self.required_duration_between_activities(n1,n2) <= n2.start_time()
     }
 
 
-    fn duration_between_activities(&self, n1: &Node, n2: &Node) -> Duration {
+    fn required_duration_between_activities(&self, n1: &Node, n2: &Node) -> Duration {
 
         // TODO: Check if the nodes are present as activity links: JOINT or REFERENCE.
         // if yes, return Duration::zero()
@@ -202,7 +202,7 @@ impl Network {
          - self.total_useful_duration()
     }
 
-    pub(crate) fn total_useful_duration(&self) -> Duration {
+    fn total_useful_duration(&self) -> Duration {
         self.service_nodes.iter().chain(self.maintenance_nodes.iter())
             .map(|n| (0..self.node(*n).demand().number_of_units())
             .map(|_| self.node(*n).duration()).sum()).sum()

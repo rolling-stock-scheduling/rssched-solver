@@ -138,7 +138,7 @@ impl Tour {
 
     /// computes for each maintenance or end point the distance and duration counter of the unit
     /// using this tour.
-    pub(crate) fn maintenance_counter(&self, unit: &Unit) -> Vec<(Distance, Duration)> {
+    fn maintenance_counter(&self, unit: &Unit) -> Vec<(Distance, Duration)> {
 
         let mut counter: Vec<(Distance, Duration)> = Vec::new();
 
