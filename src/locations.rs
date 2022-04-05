@@ -61,10 +61,11 @@ impl Locations {
             let first_station_code = record.get(0).unwrap();
             let second_station_code = record.get(1).unwrap();
 
-            let travel_time_formatted = record.get(2).unwrap().split('T').last().unwrap().split('M').next().unwrap().replace('H',":");
+            let distance = Distance::from_km(record.get(2).unwrap().parse().unwrap());
+
+            let travel_time_formatted = record.get(3).unwrap().split('T').last().unwrap().split('M').next().unwrap().replace('H',":");
             let travel_time = Duration::new(&travel_time_formatted);
 
-            let distance = Distance::from_km(record.get(3).unwrap().parse().unwrap());
 
             let first_side = StationSide::from(record.get(4).unwrap());
 

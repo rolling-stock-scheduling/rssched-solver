@@ -440,7 +440,7 @@ impl Schedule {
 
     pub(crate) fn write_to_csv(&self, path: &str) -> Result<(), Box<dyn Error>> {
         let mut writer = csv::WriterBuilder::new().delimiter(b';').from_path(path)?;
-        writer.write_record(&["fahrzeuggruppeId","sortierZeit","typ","bpAb","bpAn","kundenfahrtId","endpunktId","wartungsfensterId"])?;
+        writer.write_record(&["fahrzeuggruppeId","sortierZeit","zeitAb", "zeitAn","typ","bpAb","bpAn","kettenLabel","kundenfahrtId","endpunktId","wartungsfensterId"])?;
         for unit in self.units.iter() {
             let tour = self.tours.get(&unit).unwrap();
             for (prev_node_id, node_id) in tour.nodes_iter().tuple_windows() {
@@ -454,11 +454,14 @@ impl Schedule {
 
                 if prev_node.end_location() != node.start_location() {
                     // add dead_head_trip
-                    let dhd_ab = format!("{}", prev_node.end_location());
-                    let dhd_an = format!("{}", node.start_location());
-                    let dhd_sortier_zeit = prev_node.end_time().as_iso();
+                    let dht_sortier_zeit = prev_node.end_time().as_iso();
+                    let dht_ab = format!("{}", prev_node.end_location());
+                    let dht_an = format!("{}", node.start_location());
+                    let dht_zeit_ab = prev_node.end_time().as_iso();
+                    let dht_zeit_an = (prev_node.end_time() + self.nw.dead_head_time_between(prev_node.id(),node.id())).as_iso();
+                    let dht_ketten_label = String::from(""); //TODO
                     let empty = String::from("");
-                    writer.write_record(&[fahrzeuggruppen_id.clone(),dhd_sortier_zeit,String::from("BETRIEBSFAHRT"),dhd_ab,dhd_an,empty.clone(),empty.clone(),empty])?;
+                    writer.write_record(&[fahrzeuggruppen_id.clone(),dht_sortier_zeit,dht_zeit_ab,dht_zeit_an,String::from("BETRIEBSFAHRT"),dht_ab,dht_an,dht_ketten_label,empty.clone(),empty.clone(),empty])?;
                 }
 
 
@@ -470,10 +473,19 @@ impl Schedule {
                     Node::End(_) => {"ENDPUNKT"},
                     _ => ""
                 });
+
+                let (zeit_ab, zeit_an) = match node {
+                    Node::End(_) => (String::from(""), node.start_time().as_iso()),
+                    _ => (node.start_time().as_iso(), node.end_time().as_iso())
+                };
+
+
                 let (bp_ab, bp_an) = match node {
                     Node::End(_) => (String::from(""), format!("{}", node.start_location())),
                     _ => (format!("{}", node.start_location()), format!("{}", node.end_location()))
                 };
+
+                let ketten_label = String::from(""); //TODO
 
                 let long_id = format!("{}", node.id());
                 let id: &str = long_id.split(':').collect::<Vec<_>>().get(1).unwrap(); // remove the "ST:", "MS:", "EP:"
@@ -489,7 +501,7 @@ impl Schedule {
                     Node::Maintenance(_) => id,
                     _ => ""
                 });
-                writer.write_record(&[fahrzeuggruppen_id,sortier_zeit,typ,bp_ab,bp_an,kundenfahrt_id,endpunkt_id,wartungsfenster_id])?;
+                writer.write_record(&[fahrzeuggruppen_id,sortier_zeit,zeit_ab,zeit_an,typ,bp_ab,bp_an,ketten_label,kundenfahrt_id,endpunkt_id,wartungsfenster_id])?;
             }
         }
 
@@ -699,13 +711,13 @@ impl Schedule {
             let record = result.expect("Some recond cannot be read while reading service_trips");
             let unit = UnitId::from(record.get(0).unwrap());
             let _sort_time = Time::new(record.get(1).unwrap());
-            let activity_type = record.get(2).unwrap();
-            // let _start_location = loc.get_location(record.get(3).unwrap());
-            // let _end_location = loc.get_location(record.get(4).unwrap());
+            let activity_type = record.get(4).unwrap();
+            // let _start_location = loc.get_location(record.get(5).unwrap());
+            // let _end_location = loc.get_location(record.get(6).unwrap());
 
-            let service_trip_id = record.get(5).unwrap();
-            let end_point_id = record.get(6).unwrap();
-            let maintenance_shift_id = record.get(7).unwrap();
+            let service_trip_id = record.get(8).unwrap();
+            let end_point_id = record.get(9).unwrap();
+            let maintenance_shift_id = record.get(10).unwrap();
 
 
             // asserts:

@@ -29,35 +29,32 @@ use super::greedy_3::Greedy3;
 
 
 
-pub struct LocalSearch1 {
+pub struct LocalSearch {
     config: Arc<Config>,
     units: Arc<Units>,
-    nw: Arc<Network>
+    nw: Arc<Network>,
+    initial_schedule: Option<Schedule>
 }
 
-impl Solver for LocalSearch1 {
+impl LocalSearch {
+    pub(crate) fn set_initial_schedule(&mut self, schedule: Schedule) {
+        self.initial_schedule = Some(schedule);
+    }
+}
 
-    fn initialize(config: Arc<Config>, units: Arc<Units>, nw: Arc<Network>) -> LocalSearch1 {
-        LocalSearch1{config, units, nw}
+impl Solver for LocalSearch {
+
+    fn initialize(config: Arc<Config>, units: Arc<Units>, nw: Arc<Network>) -> LocalSearch {
+        LocalSearch{config, units, nw, initial_schedule: None}
     }
 
     fn solve(&self) -> Schedule {
-        // empty schedule:
-        // let mut schedule = Schedule::initialize(self.config.clone(), self.units.clone(), self.nw.clone());
 
-
-        // greedy schedule:
-        let greedy = Greedy3::initialize(self.config.clone(), self.units.clone(), self.nw.clone());
-        let mut schedule = greedy.solve();
-
-
-        // load SBB-schedule:
-        // let mut schedule = Schedule::load_from_csv("test_instances/21-10-tage-7/SBB_leistungsketten.csv", self.config.clone(), self.units.clone(), self.nw.clone());
-
-
-
-
-
+        // if there is not start schedule, create new empty schedule:
+        let mut schedule: Schedule = match &self.initial_schedule{
+            Some(sched) => sched.clone(),
+            None => Schedule::initialize(self.config.clone(), self.units.clone(), self.nw.clone())
+        };
 
 
         // Phase 1: limited exchanges:
@@ -94,7 +91,7 @@ impl Solver for LocalSearch1 {
     }
 }
 
-impl LocalSearch1 {
+impl LocalSearch {
     fn find_local_optimum(&self, schedule: Schedule, local_improver: impl LocalImprover) -> Schedule {
         let mut old_schedule = schedule;
         while let Some(new_schedule) = local_improver.improve(&old_schedule) {

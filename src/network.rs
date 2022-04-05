@@ -252,11 +252,11 @@ impl Network {
         let mut reader = csv::ReaderBuilder::new().delimiter(b';').from_path(path_maintenance).expect("csv-file for loading maintenance_slots not found");
         for result in reader.records() {
             let record = result.expect("Some recond cannot be read while reading maintenance_slots");
-            let id = NodeId::from(&format!("MS:{}", record.get(0).unwrap()));
-            let location = loc.get_location(record.get(1).unwrap());
-            let start_time = Time::new(record.get(2).unwrap());
-            let end_time = Time::new(record.get(3).unwrap());
-            let name = format!("!{}:{}!",location,record.get(0).unwrap());
+            let location = loc.get_location(record.get(0).unwrap());
+            let start_time = Time::new(record.get(1).unwrap());
+            let end_time = Time::new(record.get(2).unwrap());
+            let id = NodeId::from(&format!("MS:{}", record.get(3).unwrap()));
+            let name = format!("!{}:{}!",location,record.get(3).unwrap());
 
             let maintenance_slot = Node::create_maintenance_node(
                 id,
