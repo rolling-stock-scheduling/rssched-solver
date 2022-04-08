@@ -18,9 +18,6 @@ use local_improver::LocalImprover;
 // use local_improver::TakeFirstRecursion;
 // use local_improver::TakeFirstParallelRecursion;
 use local_improver::TakeAnyParallelRecursion;
-// use super::greedy_1::Greedy1;
-// use super::greedy_2::Greedy2;
-use super::greedy_3::Greedy3;
 
 
 
@@ -66,11 +63,12 @@ impl Solver for LocalSearch {
 
         let recursion_depth = 5;
         let recursion_width = 5;
+        let soft_objective_threshold = 10.0;
 
         // let limited_local_improver = Minimizer::new(swap_factory);
-        // let limited_local_improver = TakeFirstRecursion::new(swap_factory,recursion_depth, Some(25));
-        // let limited_local_improver = TakeFirstParallelRecursion::new(swap_factory,recursion_depth, Some(recursion_width));
-        let limited_local_improver = TakeAnyParallelRecursion::new(swap_factory,recursion_depth, Some(recursion_width));
+        // let limited_local_improver = TakeFirstRecursion::new(swap_factory,recursion_depth, Some(25), soft_objective_threshold);
+        // let limited_local_improver = TakeFirstParallelRecursion::new(swap_factory,recursion_depth, Some(recursion_width), soft_objective_threshold);
+        let limited_local_improver = TakeAnyParallelRecursion::new(swap_factory,recursion_depth, Some(recursion_width), soft_objective_threshold);
 
         schedule = self.find_local_optimum(schedule, limited_local_improver);
         // self.find_local_optimum(schedule, limited_local_improver)
@@ -82,9 +80,9 @@ impl Solver for LocalSearch {
         let swap_factory = LimitedExchanges::new(Some(segment_limit), None, false, self.nw.clone());
 
         // let unlimited_local_improver = Minimizer::new(swap_factory);
-        // let unlimited_local_improver = TakeFirstRecursion::new(swap_factory,0,None);
-        // let unlimited_local_improver = TakeFirstParallelRecursion::new(swap_factory,0,None);
-        let unlimited_local_improver = TakeAnyParallelRecursion::new(swap_factory,0,Some(recursion_width));
+        // let unlimited_local_improver = TakeFirstRecursion::new(swap_factory,0,None,soft_objective_threshold);
+        // let unlimited_local_improver = TakeFirstParallelRecursion::new(swap_factory,0,None,soft_objective_threshold);
+        let unlimited_local_improver = TakeAnyParallelRecursion::new(swap_factory,0,Some(recursion_width), soft_objective_threshold);
 
         self.find_local_optimum(schedule, unlimited_local_improver)
 

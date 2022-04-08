@@ -71,6 +71,21 @@ impl ObjectiveValue {
     }
 }
 
+impl ObjectiveValue {
+    pub fn cmp_with_threshold(&self, other: &Self, threshold: Cost) -> Ordering {
+        self.overhead_time.cmp(&other.overhead_time)
+            .then(self.number_of_dummy_units.cmp(&other.number_of_dummy_units))
+            .then(self.dummy_overhead_time.cmp(&other.dummy_overhead_time))
+            .then(self.maintenance_penalty.cmp(&other.maintenance_penalty))
+            .then(
+                match self.soft_objective_cost - other.soft_objective_cost {
+                    diff if diff > threshold => Ordering::Greater,
+                    diff if diff < -threshold => Ordering::Less,
+                    _ => Ordering::Equal
+                })
+    }
+}
+
 impl Ord for ObjectiveValue {
     fn cmp(&self, other: &Self) -> Ordering {
         self.overhead_time.cmp(&other.overhead_time)

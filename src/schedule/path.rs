@@ -32,7 +32,10 @@ impl Path {
     /// crates a new Path and asserts that it is a path in the network
     pub(crate) fn new(node_sequence: Vec<NodeId>, nw: Arc<Network>) -> Path {
         for (&a,&b) in node_sequence.iter().tuple_windows() {
-            assert!(nw.can_reach(a,b),"Not a valid Path");
+            assert!(nw.can_reach(a,b),"Not a valid Path: {} cannot reach {}.", a, b);
+            // if !nw.can_reach(a,b) {
+                // println!("Not a valid Path: {} cannot reach {}.", a, b);
+            // }
         }
         Path{node_sequence, nw}
     }

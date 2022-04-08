@@ -257,7 +257,7 @@ impl Schedule {
             };
 
             let mut node_sequence = remaining_path.consume();
-            remaining_path = Path::new(node_sequence.split_off(end_pos+1), self.nw.clone());
+            remaining_path = Path::new_trusted(node_sequence.split_off(end_pos+1), self.nw.clone());
             let sub_segment = Segment::new(sub_segment_start, sub_segment_end);
             let remove_result = new_tour_provider.remove(sub_segment);
 

@@ -1,4 +1,5 @@
 use crate::schedule::Schedule;
+use crate::base_types::Cost;
 
 use super::swap_factory::SwapFactory;
 use crate::schedule::objective::ObjectiveValue;
@@ -61,6 +62,7 @@ pub(crate) struct TakeFirstRecursion<F: SwapFactory> {
     swap_factory: F,
     recursion_depth: u8,
     recursion_width: Option<usize>, // number of schedule that are considered for recursion (the one with best value are taken)
+    soft_objective_threshold: Cost,
 }
 
 
@@ -73,8 +75,8 @@ impl<F: SwapFactory> LocalImprover for TakeFirstRecursion<F> {
 
 impl<F: SwapFactory> TakeFirstRecursion<F> {
 
-    pub(crate) fn new(swap_factory: F, recursion_depth: u8, recursion_width: Option<usize>) -> TakeFirstRecursion<F> {
-        TakeFirstRecursion{swap_factory, recursion_depth, recursion_width}
+    pub(crate) fn new(swap_factory: F, recursion_depth: u8, recursion_width: Option<usize>, soft_objective_threshold: Cost) -> TakeFirstRecursion<F> {
+        TakeFirstRecursion{swap_factory, recursion_depth, recursion_width, soft_objective_threshold}
     }
 
 
@@ -98,7 +100,7 @@ impl<F: SwapFactory> TakeFirstRecursion<F> {
                     schedules_for_recursion.truncate(width);
                 }
             }
-            new_sched.objective_value() < objective_to_beat
+            new_sched.objective_value().cmp_with_threshold(&objective_to_beat, self.soft_objective_threshold).is_lt()
         });
 
         if result.is_none() {
@@ -137,6 +139,7 @@ pub(crate) struct TakeFirstParallelRecursion<F: SwapFactory + Send + Sync> {
     swap_factory: F,
     recursion_depth: u8,
     recursion_width: Option<usize>, // number of schedule that are considered per schedule for the next recursion (the one with best objectivevalue are taken for each schedule, dublicates are removed)
+    soft_objective_threshold: Cost, // improvement must be better than this threshold
 }
 
 
@@ -149,8 +152,8 @@ impl<F: SwapFactory + Send + Sync> LocalImprover for TakeFirstParallelRecursion<
 
 impl<F: SwapFactory + Send + Sync> TakeFirstParallelRecursion<F> {
 
-    pub(crate) fn new(swap_factory: F, recursion_depth: u8, recursion_width: Option<usize>) -> TakeFirstParallelRecursion<F> {
-        TakeFirstParallelRecursion{swap_factory, recursion_depth, recursion_width}
+    pub(crate) fn new(swap_factory: F, recursion_depth: u8, recursion_width: Option<usize>, soft_objective_threshold: Cost) -> TakeFirstParallelRecursion<F> {
+        TakeFirstParallelRecursion{swap_factory, recursion_depth, recursion_width, soft_objective_threshold}
     }
 
 
@@ -194,7 +197,7 @@ impl<F: SwapFactory + Send + Sync> TakeFirstParallelRecursion<F> {
                         if let Ok(best_i) = found_receiver.try_recv() {
                             counter_limit = best_i;
                         }
-                        new_sched.objective_value() < objective_to_beat || *i > counter_limit
+                        new_sched.objective_value().cmp_with_threshold(&objective_to_beat, self.soft_objective_threshold).is_lt() || *i > counter_limit
                     });
 
                     match result {
@@ -267,7 +270,7 @@ impl<F: SwapFactory + Send + Sync> TakeFirstParallelRecursion<F> {
 
 
 ///////////////////////////////////////////////////////////
-/////////////////// TakeAnyParallelRecursion //////////////////////
+/////////////// TakeAnyParallelRecursion //////////////////
 ///////////////////////////////////////////////////////////
 
 /// This improver uses parallel computation at two steps. In the recursion when multiple schedules
@@ -283,6 +286,7 @@ pub(crate) struct TakeAnyParallelRecursion<F: SwapFactory + Send + Sync> {
     swap_factory: F,
     recursion_depth: u8,
     recursion_width: Option<usize>, // number of schedule that are considered per schedule for the next recursion (the one with best objectivevalue are taken for each schedule, dublicates are removed)
+    soft_objective_threshold: Cost, // improvement must be better than this threshold
 }
 
 
@@ -295,8 +299,8 @@ impl<F: SwapFactory + Send + Sync> LocalImprover for TakeAnyParallelRecursion<F>
 
 impl<F: SwapFactory + Send + Sync> TakeAnyParallelRecursion<F> {
 
-    pub(crate) fn new(swap_factory: F, recursion_depth: u8, recursion_width: Option<usize>) -> TakeAnyParallelRecursion<F> {
-        TakeAnyParallelRecursion{swap_factory, recursion_depth, recursion_width}
+    pub(crate) fn new(swap_factory: F, recursion_depth: u8, recursion_width: Option<usize>, soft_objective_threshold: Cost) -> TakeAnyParallelRecursion<F> {
+        TakeAnyParallelRecursion{swap_factory, recursion_depth, recursion_width, soft_objective_threshold}
     }
 
 
@@ -344,7 +348,7 @@ impl<F: SwapFactory + Send + Sync> TakeAnyParallelRecursion<F> {
 
                         let found_receiver_mutex = found_receiver_mutex.lock().unwrap();
                         let found = found_receiver_mutex.try_recv();
-                        new_sched.objective_value() < objective_to_beat || found.is_ok()
+                        new_sched.objective_value().cmp_with_threshold(&objective_to_beat, self.soft_objective_threshold).is_lt() || found.is_ok()
                     });
 
 
