@@ -1,18 +1,17 @@
-
+use crate::base_types::Cost;
+use crate::config::Config;
 use crate::distance::Distance;
 use crate::time::Duration;
-use crate::config::Config;
 use core::cmp::Ordering;
-use crate::base_types::Cost;
 
-use std::sync::Arc;
 use std::fmt;
+use std::sync::Arc;
 
 /// objective value of schedule (to be minimized)
 #[derive(Copy, Clone)]
 pub(crate) struct ObjectiveValue {
-    overhead_time: Duration, // idle_time + dead_head_time for the tours only (its minimal if all service trips are covered
-    number_of_dummy_units : usize,
+    overhead_time: Duration, // idle_time + dead_head_time for the tours only (its minimal if all service trips are covered)
+    number_of_dummy_units: usize,
     dummy_overhead_time: Duration, // idle_time + dead_head_time of dummy tours.
     // coupling_conflicts: u32,
     maintenance_penalty: MaintenancePenalty, // proporital combination of duration violation and distance violation
@@ -31,25 +30,40 @@ impl ObjectiveValue {
         println!("* overhead_time: {}", self.overhead_time);
         println!("* number_of_dummy_units: {}", self.number_of_dummy_units);
         println!("* dummy_overhead_time: {}", self.dummy_overhead_time);
-        println!("* maintenance_violation: {} ({}; {})", self.maintenance_penalty, self.maintenance_distance_violation, self.maintenance_duration_violation);
+        println!(
+            "* maintenance_violation: {} ({}; {})",
+            self.maintenance_penalty,
+            self.maintenance_distance_violation,
+            self.maintenance_duration_violation
+        );
         println!("* soft_objective_cost: {:2.1}", self.soft_objective_cost);
         println!("    - dead_head_distance: {}", self.dead_head_distance);
-        println!("    - continuous_idle_time_cost: {:2.1}", self.continuous_idle_time_cost);
-        println!("    - maintenance_distance_bathtub_cost: {:2.1}", self.maintenance_distance_bathtub_cost);
-        println!("    - maintenance_duration_bathtub_cost: {:2.1}", self.maintenance_duration_bathtub_cost);
+        println!(
+            "    - continuous_idle_time_cost: {:2.1}",
+            self.continuous_idle_time_cost
+        );
+        println!(
+            "    - maintenance_distance_bathtub_cost: {:2.1}",
+            self.maintenance_distance_bathtub_cost
+        );
+        println!(
+            "    - maintenance_duration_bathtub_cost: {:2.1}",
+            self.maintenance_duration_bathtub_cost
+        );
     }
 
-    pub fn new(overhead_time: Duration,
-               number_of_dummy_units: usize,
-               dummy_overhead_time: Duration,
-               maintenance_distance_violation: Distance,
-               maintenance_duration_violation: Duration,
-               dead_head_distance: Distance,
-               continuous_idle_time_cost: Cost,
-               maintenance_distance_bathtub_cost: Cost,
-               maintenance_duration_bathtub_cost: Cost,
-               config: Arc<Config>) -> ObjectiveValue {
-
+    pub fn new(
+        overhead_time: Duration,
+        number_of_dummy_units: usize,
+        dummy_overhead_time: Duration,
+        maintenance_distance_violation: Distance,
+        maintenance_duration_violation: Duration,
+        dead_head_distance: Distance,
+        continuous_idle_time_cost: Cost,
+        maintenance_distance_bathtub_cost: Cost,
+        maintenance_duration_bathtub_cost: Cost,
+        config: Arc<Config>,
+    ) -> ObjectiveValue {
         let soft_objective_cost = dead_head_distance.as_km_cost()
             + continuous_idle_time_cost
             + maintenance_distance_bathtub_cost
@@ -61,38 +75,47 @@ impl ObjectiveValue {
             dummy_overhead_time,
             maintenance_distance_violation,
             maintenance_duration_violation,
-            maintenance_penalty : MaintenancePenalty::new(maintenance_duration_violation, maintenance_distance_violation, config),
+            maintenance_penalty: MaintenancePenalty::new(
+                maintenance_duration_violation,
+                maintenance_distance_violation,
+                config,
+            ),
             soft_objective_cost,
             dead_head_distance,
             continuous_idle_time_cost,
             maintenance_distance_bathtub_cost,
-            maintenance_duration_bathtub_cost
+            maintenance_duration_bathtub_cost,
         }
     }
 }
 
 impl ObjectiveValue {
     pub fn cmp_with_threshold(&self, other: &Self, threshold: Cost) -> Ordering {
-        self.overhead_time.cmp(&other.overhead_time)
+        self.overhead_time
+            .cmp(&other.overhead_time)
             .then(self.number_of_dummy_units.cmp(&other.number_of_dummy_units))
             .then(self.dummy_overhead_time.cmp(&other.dummy_overhead_time))
             .then(self.maintenance_penalty.cmp(&other.maintenance_penalty))
-            .then(
-                match self.soft_objective_cost - other.soft_objective_cost {
-                    diff if diff > threshold => Ordering::Greater,
-                    diff if diff < -threshold => Ordering::Less,
-                    _ => Ordering::Equal
-                })
+            .then(match self.soft_objective_cost - other.soft_objective_cost {
+                diff if diff > threshold => Ordering::Greater,
+                diff if diff < -threshold => Ordering::Less,
+                _ => Ordering::Equal,
+            })
     }
 }
 
 impl Ord for ObjectiveValue {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.overhead_time.cmp(&other.overhead_time)
+        self.overhead_time
+            .cmp(&other.overhead_time)
             .then(self.number_of_dummy_units.cmp(&other.number_of_dummy_units))
             .then(self.dummy_overhead_time.cmp(&other.dummy_overhead_time))
             .then(self.maintenance_penalty.cmp(&other.maintenance_penalty))
-            .then(self.soft_objective_cost.partial_cmp(&other.soft_objective_cost).unwrap())
+            .then(
+                self.soft_objective_cost
+                    .partial_cmp(&other.soft_objective_cost)
+                    .unwrap(),
+            )
     }
 }
 
@@ -110,24 +133,22 @@ impl PartialEq for ObjectiveValue {
 
 impl Eq for ObjectiveValue {}
 
-
-
-
-
-
-
-
-
 #[derive(Copy, Clone, PartialEq, PartialOrd)]
 pub(crate) struct MaintenancePenalty {
-    penalty: f32
+    penalty: f32,
 }
 
 impl MaintenancePenalty {
-    pub(crate) fn new(maintenance_duration_violation: Duration, maintenance_distance_violation: Distance, config: Arc<Config>) -> MaintenancePenalty {
-        let penalty = maintenance_duration_violation.in_min() as f32 / config.maintenance.duration.in_min() as f32
-            + maintenance_distance_violation.in_meter() as f32 / config.maintenance.distance.in_meter() as f32;
-        MaintenancePenalty{penalty}
+    pub(crate) fn new(
+        maintenance_duration_violation: Duration,
+        maintenance_distance_violation: Distance,
+        config: Arc<Config>,
+    ) -> MaintenancePenalty {
+        let penalty = maintenance_duration_violation.in_min() as f32
+            / config.maintenance.duration.in_min() as f32
+            + maintenance_distance_violation.in_meter() as f32
+                / config.maintenance.distance.in_meter() as f32;
+        MaintenancePenalty { penalty }
     }
 }
 
@@ -145,13 +166,9 @@ impl fmt::Display for MaintenancePenalty {
     }
 }
 
-
-
-
-
-
-
-pub(crate) fn compute_idle_time_cost (idle_time: Duration, config: &Arc<Config>) -> Cost {
+pub(crate) fn compute_idle_time_cost(idle_time: Duration, config: &Arc<Config>) -> Cost {
     let para = &config.objective.continuous_idle_time;
-    para.cost_factor * ((std::cmp::max(idle_time, para.minimum) - para.minimum).in_min() as Cost / 60.0).powf(para.exponent)
+    para.cost_factor
+        * ((std::cmp::max(idle_time, para.minimum) - para.minimum).in_min() as Cost / 60.0)
+            .powf(para.exponent)
 }

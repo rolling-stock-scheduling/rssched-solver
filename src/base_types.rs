@@ -1,10 +1,10 @@
 use crate::utilities::CopyStr;
 
 /// the side on which units are leaving or entering the station
-#[derive(Copy,Clone,PartialEq,Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub(crate) enum StationSide {
-    Back, // corresponds to 0
-    Front // corresponds to 1
+    Back,  // corresponds to 0
+    Front, // corresponds to 1
 }
 
 impl StationSide {
@@ -12,7 +12,7 @@ impl StationSide {
         match string {
             "0" => StationSide::Back,
             "1" => StationSide::Front,
-            _ => panic!("StationSide is neither '0' nor '1'")
+            _ => panic!("StationSide is neither '0' nor '1'"),
         }
     }
 }

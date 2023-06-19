@@ -1,24 +1,24 @@
-use super::swaps::{Swap, PathExchange};
-use crate::schedule::Schedule;
-use crate::schedule::path::Segment;
-use crate::time::Duration;
-use crate::network::Network;
-use std::sync::Arc;
+use super::swaps::{PathExchange, Swap};
 use crate::base_types::UnitId;
+use crate::network::Network;
+use crate::schedule::path::Segment;
+use crate::schedule::Schedule;
+use crate::time::Duration;
+use std::sync::Arc;
 
 use std::iter;
 
 /// Computes for a given schedule all Swaps in the neighborhood.
 pub(crate) trait SwapFactory: Clone + Send {
-    fn create_swap_iterator<'a>(&'a self, schedule: &'a Schedule) -> Box<dyn Iterator<Item = Box<dyn Swap + Send>>+ Send + 'a>;
+    fn create_swap_iterator<'a>(
+        &'a self,
+        schedule: &'a Schedule,
+    ) -> Box<dyn Iterator<Item = Box<dyn Swap + Send>> + Send + 'a>;
 }
-
-
 
 ///////////////////////////////////////////////////////////
 ////////////////// LimitedExchanges ///////////////////////
 ///////////////////////////////////////////////////////////
-
 
 /// Takes all PathExchanges where the segment time length is smaller than the threshold.
 /// The length of a segment is measured from the start_time of the first node to the end_time of
@@ -28,21 +28,30 @@ pub(crate) struct LimitedExchanges {
     segment_length_limit: Option<Duration>,
     overhead_threshold: Option<Duration>,
     only_dummy_provider: bool,
-    nw: Arc<Network>
+    nw: Arc<Network>,
 }
 
 impl LimitedExchanges {
-    pub(crate) fn new(segment_length_limit: Option<Duration>,
-                      overhead_threshold: Option<Duration>,
-                      only_dummy_provider: bool,
-                      nw: Arc<Network>) -> LimitedExchanges {
-        LimitedExchanges{segment_length_limit, overhead_threshold, only_dummy_provider, nw}
+    pub(crate) fn new(
+        segment_length_limit: Option<Duration>,
+        overhead_threshold: Option<Duration>,
+        only_dummy_provider: bool,
+        nw: Arc<Network>,
+    ) -> LimitedExchanges {
+        LimitedExchanges {
+            segment_length_limit,
+            overhead_threshold,
+            only_dummy_provider,
+            nw,
+        }
     }
 }
 
 impl SwapFactory for LimitedExchanges {
-    fn create_swap_iterator<'a> (&'a self, schedule : &'a Schedule) -> Box<dyn Iterator<Item = Box<dyn Swap + Send>> + Send + 'a> {
-
+    fn create_swap_iterator<'a>(
+        &'a self,
+        schedule: &'a Schedule,
+    ) -> Box<dyn Iterator<Item = Box<dyn Swap + Send>> + Send + 'a> {
         let providers: Vec<_> = if self.only_dummy_provider {
             schedule.dummy_iter().collect()
         } else {
@@ -50,8 +59,7 @@ impl SwapFactory for LimitedExchanges {
         };
         Box::new(
             // as provider first take dummies then real units:
-            providers.into_iter()
-            .flat_map(move |provider|
+            providers.into_iter().flat_map(move |provider|
                 // create segment of provider's tour
                 self.segments(provider, schedule)
                 .flat_map(move |seg|
@@ -64,15 +72,21 @@ impl SwapFactory for LimitedExchanges {
                     .map(move |receiver| -> Box<dyn Swap + Send> {
                         Box::new(PathExchange::new(seg, provider, receiver))
                     })
-                )
-            )
+                )),
         )
     }
 }
 
 impl LimitedExchanges {
-    fn segments<'a>(&'a self, provider: UnitId, schedule: &'a Schedule) -> impl Iterator<Item = Segment> + 'a {
-        let threshold = match self.overhead_threshold{None => Duration::zero(), Some(d) => d};
+    fn segments<'a>(
+        &'a self,
+        provider: UnitId,
+        schedule: &'a Schedule,
+    ) -> impl Iterator<Item = Segment> + 'a {
+        let threshold = match self.overhead_threshold {
+            None => Duration::zero(),
+            Some(d) => d,
+        };
         let tour = schedule.tour_of(provider);
         // all nodes of provider's tour might be the start of a segment
         tour.movable_nodes().enumerate()
@@ -98,15 +112,19 @@ impl LimitedExchanges {
         )
         // test whether the segment can be removed
         .filter(move |seg| schedule.tour_of(provider).removable(*seg))
-
     }
 
-    fn dummy_and_real_units<'a>(&'a self, schedule: &'a Schedule) -> impl Iterator<Item = UnitId> + 'a {
+    fn dummy_and_real_units<'a>(
+        &'a self,
+        schedule: &'a Schedule,
+    ) -> impl Iterator<Item = UnitId> + 'a {
         schedule.dummy_iter().chain(schedule.real_units_iter())
     }
 
-    fn real_and_dummy_units<'a>(&'a self, schedule: &'a Schedule) -> impl Iterator<Item = UnitId> + 'a {
+    fn real_and_dummy_units<'a>(
+        &'a self,
+        schedule: &'a Schedule,
+    ) -> impl Iterator<Item = UnitId> + 'a {
         schedule.real_units_iter().chain(schedule.dummy_iter())
     }
 }
-

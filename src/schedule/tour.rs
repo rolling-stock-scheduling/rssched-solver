@@ -1,13 +1,13 @@
-use std::fmt;
+use crate::base_types::{Cost, NodeId, COST_ZERO};
 use crate::config::Config;
 use crate::distance::Distance;
-use crate::time::{Time, Duration};
-use crate::units::{Unit,UnitType};
-use crate::network::Network;
 use crate::network::nodes::Node;
-use crate::base_types::{NodeId,Cost,COST_ZERO};
-use crate::schedule::path::{Path,Segment};
+use crate::network::Network;
 use crate::schedule::objective;
+use crate::schedule::path::{Path, Segment};
+use crate::time::{Duration, Time};
+use crate::units::{Unit, UnitType};
+use std::fmt;
 
 use std::cmp::Ordering;
 
@@ -37,12 +37,12 @@ pub(crate) struct Tour {
 }
 
 impl Tour {
-    pub(crate) fn nodes_iter(&self) -> impl Iterator<Item=&NodeId> +'_{
+    pub(crate) fn nodes_iter(&self) -> impl Iterator<Item = &NodeId> + '_ {
         self.nodes.iter()
     }
 
     /// return an iterator over all nodes (by start time) skipping the StartNode
-    pub(crate) fn movable_nodes(&self) -> impl Iterator<Item=&NodeId> {
+    pub(crate) fn movable_nodes(&self) -> impl Iterator<Item = &NodeId> {
         let mut iter = self.nodes.iter();
         if !self.is_dummy {
             iter.next(); // skip StartNode
@@ -79,7 +79,7 @@ impl Tour {
         *self.nodes.first().unwrap()
     }
 
-    pub(crate) fn nth_node(&self,pos: usize) -> NodeId {
+    pub(crate) fn nth_node(&self, pos: usize) -> NodeId {
         *self.nodes.get(pos).unwrap()
     }
 
@@ -100,8 +100,10 @@ impl Tour {
     /// unit uses it.
     /// Additionally, computes and returns the distance and the duration cost by the bathtub function for
     /// maintenance.
-    pub(crate) fn maintenance_violation_and_cost(&self, unit: &Unit) -> (Distance, Duration, Cost, Cost) {
-
+    pub(crate) fn maintenance_violation_and_cost(
+        &self,
+        unit: &Unit,
+    ) -> (Distance, Duration, Cost, Cost) {
         let mut dist_violation = Distance::zero();
         let mut duration_violation = Duration::zero();
 
@@ -115,37 +117,50 @@ impl Tour {
         let bathtub_limits = &self.config.maintenance.bathtub_limits;
 
         for (distance_counter, duration_counter) in self.maintenance_counter(unit).into_iter() {
+            dist_violation =
+                dist_violation + std::cmp::max(distance_counter, dist_limit) - dist_limit;
 
-            dist_violation = dist_violation + std::cmp::max(distance_counter, dist_limit) - dist_limit;
+            duration_violation = duration_violation
+                + std::cmp::max(duration_counter, duration_limit)
+                - duration_limit;
 
-            duration_violation = duration_violation + std::cmp::max(duration_counter, duration_limit) - duration_limit;
+            distance_cost += bathtub_cost.marginal_cost_per_exceeded_km
+                * (std::cmp::max(distance_counter, bathtub_limits.distance_upper_limit)
+                    - bathtub_limits.distance_upper_limit)
+                    .as_km_cost();
 
-            distance_cost += bathtub_cost.marginal_cost_per_exceeded_km *
-                (std::cmp::max(distance_counter, bathtub_limits.distance_upper_limit) - bathtub_limits.distance_upper_limit).as_km_cost();
+            distance_cost += bathtub_cost.marginal_cost_per_deceeded_km
+                * (bathtub_limits.distance_lower_limit
+                    - std::cmp::min(distance_counter, bathtub_limits.distance_lower_limit))
+                .as_km_cost();
 
-            distance_cost += bathtub_cost.marginal_cost_per_deceeded_km *
-                (bathtub_limits.distance_lower_limit - std::cmp::min(distance_counter, bathtub_limits.distance_lower_limit)).as_km_cost();
+            duration_cost += bathtub_cost.marginal_cost_per_exceeded_second
+                * (std::cmp::max(duration_counter, bathtub_limits.duration_upper_limit)
+                    - bathtub_limits.duration_upper_limit)
+                    .in_min() as Cost
+                * 60.0;
 
-            duration_cost += bathtub_cost.marginal_cost_per_exceeded_second *
-                (std::cmp::max(duration_counter, bathtub_limits.duration_upper_limit) - bathtub_limits.duration_upper_limit).in_min() as Cost * 60.0;
-
-            duration_cost += bathtub_cost.marginal_cost_per_deceeded_second *
-                (bathtub_limits.duration_lower_limit - std::cmp::min(duration_counter, bathtub_limits.duration_lower_limit)).in_min() as Cost * 60.0;
-
+            duration_cost += bathtub_cost.marginal_cost_per_deceeded_second
+                * (bathtub_limits.duration_lower_limit
+                    - std::cmp::min(duration_counter, bathtub_limits.duration_lower_limit))
+                .in_min() as Cost
+                * 60.0;
         }
-        (dist_violation, duration_violation, distance_cost, duration_cost)
+        (
+            dist_violation,
+            duration_violation,
+            distance_cost,
+            duration_cost,
+        )
     }
 
     /// computes for each maintenance or end point the distance and duration counter of the unit
     /// using this tour.
     fn maintenance_counter(&self, unit: &Unit) -> Vec<(Distance, Duration)> {
-
         let mut counter: Vec<(Distance, Duration)> = Vec::new();
 
         let mut distance_counter = unit.initial_dist_counter();
         let mut last_maintenance: Time = unit.start_time() - unit.initial_duration_counter();
-
-
 
         for (&p, &n) in self.nodes_iter().tuple_windows() {
             distance_counter = distance_counter + self.nw.dead_head_distance_between(p, n);
@@ -153,24 +168,24 @@ impl Tour {
             let node = self.nw.node(n);
 
             match node {
-                Node::Service(_) => {
-                    distance_counter = node.travel_distance()
-                },
+                Node::Service(_) => distance_counter = node.travel_distance(),
                 Node::Maintenance(_) => {
                     counter.push((distance_counter, node.start_time() - last_maintenance));
                     distance_counter = Distance::zero();
                     last_maintenance = node.end_time();
-                },
+                }
                 Node::End(e) => {
                     distance_counter = distance_counter + e.dist_till_maintenance();
-                    counter.push((distance_counter, node.start_time() + e.duration_till_maintenance() - last_maintenance));
-                },
+                    counter.push((
+                        distance_counter,
+                        node.start_time() + e.duration_till_maintenance() - last_maintenance,
+                    ));
+                }
                 _ => {}
             }
         }
         counter
     }
-
 
     /// computes the idle time cost (which is usually negative, so it is a bonus).
     pub(crate) fn continuous_idle_time_cost(&self) -> Cost {
@@ -179,21 +194,27 @@ impl Tour {
 
     /// return the usefule_time (end - start for each node, including maintenance_slots) of the tour.
     // pub(crate) fn useful_time(&self) -> Duration {
-        // self.nodes.iter().map(|&n| self.nw.node(n).useful_duration()).sum()
+    // self.nodes.iter().map(|&n| self.nw.node(n).useful_duration()).sum()
     // }
 
-    pub(crate) fn sub_path(&self, segment: Segment) -> Result<Path,String> {
-        let start_pos = self.earliest_not_reaching_node(segment.start()).ok_or_else(||String::from("segment.start() not part of Tour."))?;
+    pub(crate) fn sub_path(&self, segment: Segment) -> Result<Path, String> {
+        let start_pos = self
+            .earliest_not_reaching_node(segment.start())
+            .ok_or_else(|| String::from("segment.start() not part of Tour."))?;
         if segment.start() != self.nodes[start_pos] {
             return Err(String::from("segment.start() not part of Tour."));
         }
-        let end_pos = self.earliest_not_reaching_node(segment.end()).ok_or_else(|| String::from("segment.end() not part of Tour."))?;
+        let end_pos = self
+            .earliest_not_reaching_node(segment.end())
+            .ok_or_else(|| String::from("segment.end() not part of Tour."))?;
         if segment.end() != self.nodes[end_pos] {
             return Err(String::from("segment.end() not part of Tour."));
         }
 
-        Ok(Path::new_trusted(self.nodes[start_pos..end_pos+1].to_vec(), self.nw.clone()))
-
+        Ok(Path::new_trusted(
+            self.nodes[start_pos..end_pos + 1].to_vec(),
+            self.nw.clone(),
+        ))
     }
 
     /// inserts the provided node sequence on the correct position (time-wise). The sequence will
@@ -201,160 +222,239 @@ impl Tour {
     /// Assumes that provided node sequence is feasible.
     /// For unit tours it fails if sequence is not reachable from the start node. If end_node cannot be reached,
     /// sequence must itself end with a end_node (or it fails).
-    pub(super) fn insert(&self, path: Path) -> Result<Tour,String> {
+    pub(super) fn insert(&self, path: Path) -> Result<Tour, String> {
         let segment = Segment::new(path.first(), path.last());
 
-        let (start_pos,end_pos) = self.get_insert_positions(segment);
+        let (start_pos, end_pos) = self.get_insert_positions(segment);
 
         self.test_if_valid_replacement(segment, start_pos, end_pos)?;
 
         // compute useful_time, service_distance and dead_head_distance for the path:
-        let path_useful_time = path.iter().map(|n| self.nw.node(*n).useful_duration()).sum();
-        let path_service_distance = path.iter().map(|n| self.nw.node(*n).travel_distance()).sum();
-        let path_dead_head_distance: Distance =
-            if start_pos == 0 {
+        let path_useful_time = path
+            .iter()
+            .map(|n| self.nw.node(*n).useful_duration())
+            .sum();
+        let path_service_distance = path
+            .iter()
+            .map(|n| self.nw.node(*n).travel_distance())
+            .sum();
+        let path_dead_head_distance: Distance = if start_pos == 0 {
+            Distance::zero()
+        } else {
+            self.nw
+                .dead_head_distance_between(self.nodes[start_pos - 1], path.first())
+        } + path
+            .iter()
+            .tuple_windows()
+            .map(|(&a, &b)| self.nw.dead_head_distance_between(a, b))
+            .sum()
+            + if end_pos >= self.nodes.len() || path.is_empty() {
                 Distance::zero()
             } else {
-                self.nw.dead_head_distance_between(self.nodes[start_pos-1], path.first())
-            } +
-
-            path.iter().tuple_windows().map(|(&a,&b)| self.nw.dead_head_distance_between(a,b)).sum() +
-
-            if end_pos >= self.nodes.len() || path.is_empty() {
-                Distance::zero()
-            } else {
-                self.nw.dead_head_distance_between(path.last(), self.nodes[end_pos])
+                self.nw
+                    .dead_head_distance_between(path.last(), self.nodes[end_pos])
             };
 
-        let path_continuous_idle_time_cost: Cost =
-            if start_pos == 0 {
+        let path_continuous_idle_time_cost: Cost = if start_pos == 0 {
+            COST_ZERO
+        } else {
+            objective::compute_idle_time_cost(
+                self.nw
+                    .idle_time_between(self.nodes[start_pos - 1], path.first()),
+                &self.config,
+            )
+        } + path
+            .iter()
+            .tuple_windows()
+            .map(|(&a, &b)| {
+                objective::compute_idle_time_cost(self.nw.idle_time_between(a, b), &self.config)
+            })
+            .sum::<Cost>()
+            + if end_pos >= self.nodes.len() || path.is_empty() {
                 COST_ZERO
             } else {
-                objective::compute_idle_time_cost(self.nw.idle_time_between(self.nodes[start_pos-1], path.first()), &self.config)
-            } +
-
-            path.iter().tuple_windows().map(|(&a,&b)| objective::compute_idle_time_cost(self.nw.idle_time_between(a,b), &self.config)).sum::<Cost>() +
-
-            if end_pos >= self.nodes.len() || path.is_empty() {
-                COST_ZERO
-            } else {
-                objective::compute_idle_time_cost(self.nw.idle_time_between(path.last(), self.nodes[end_pos]), &self.config)
+                objective::compute_idle_time_cost(
+                    self.nw.idle_time_between(path.last(), self.nodes[end_pos]),
+                    &self.config,
+                )
             };
 
         // remove all elements in start_pos..end_pos and replace them by
         // node_sequence. Removed nodes are returned.
         let mut new_tour_nodes = self.nodes.clone();
-        new_tour_nodes.splice(start_pos..end_pos,path.consume());
-
-
+        new_tour_nodes.splice(start_pos..end_pos, path.consume());
 
         // compute useful_time, service_distance and dead_head_distance for the segment that is
         // removed:
-        let removed_useful_time = (start_pos..end_pos).map(|i| self.nw.node(self.nodes[i]).useful_duration()).sum();
-        let removed_service_distance = (start_pos..end_pos).map(|i| self.nw.node(self.nodes[i]).travel_distance()).sum();
+        let removed_useful_time = (start_pos..end_pos)
+            .map(|i| self.nw.node(self.nodes[i]).useful_duration())
+            .sum();
+        let removed_service_distance = (start_pos..end_pos)
+            .map(|i| self.nw.node(self.nodes[i]).travel_distance())
+            .sum();
         let removed_dead_head_distance: Distance =
             if start_pos == 0 || start_pos >= self.nodes.len() {
                 Distance::zero()
             } else {
-                self.nw.dead_head_distance_between(self.nodes[start_pos-1], self.nodes[start_pos])
-            } +
-            (start_pos..end_pos).tuple_windows().map(|(i,j)|
-                self.nw.dead_head_distance_between(self.nodes[i], self.nodes[j])).sum() +
-            if end_pos == self.nodes.len() || (start_pos == end_pos && start_pos > 0) || end_pos == 0 {
-                Distance::zero()
-            } else {
-                self.nw.dead_head_distance_between(self.nodes[end_pos-1], self.nodes[end_pos])
-            };
+                self.nw
+                    .dead_head_distance_between(self.nodes[start_pos - 1], self.nodes[start_pos])
+            } + (start_pos..end_pos)
+                .tuple_windows()
+                .map(|(i, j)| {
+                    self.nw
+                        .dead_head_distance_between(self.nodes[i], self.nodes[j])
+                })
+                .sum()
+                + if end_pos == self.nodes.len()
+                    || (start_pos == end_pos && start_pos > 0)
+                    || end_pos == 0
+                {
+                    Distance::zero()
+                } else {
+                    self.nw
+                        .dead_head_distance_between(self.nodes[end_pos - 1], self.nodes[end_pos])
+                };
 
         let removed_continuous_idle_time_cost: Cost =
             if start_pos == 0 || start_pos >= self.nodes.len() {
                 COST_ZERO
             } else {
-                objective::compute_idle_time_cost(self.nw.idle_time_between(self.nodes[start_pos-1], self.nodes[start_pos]), &self.config)
-            } +
-
-            (start_pos..end_pos).tuple_windows().map(|(i,j)|
-                objective::compute_idle_time_cost(self.nw.idle_time_between(self.nodes[i], self.nodes[j]),&self.config)).sum::<Cost>() +
-
-            if end_pos == self.nodes.len() || (start_pos == end_pos && start_pos > 0) || end_pos == 0 {
-                COST_ZERO
-            } else {
-                objective::compute_idle_time_cost(self.nw.idle_time_between(self.nodes[end_pos-1], self.nodes[end_pos]), &self.config)
-            };
+                objective::compute_idle_time_cost(
+                    self.nw
+                        .idle_time_between(self.nodes[start_pos - 1], self.nodes[start_pos]),
+                    &self.config,
+                )
+            } + (start_pos..end_pos)
+                .tuple_windows()
+                .map(|(i, j)| {
+                    objective::compute_idle_time_cost(
+                        self.nw.idle_time_between(self.nodes[i], self.nodes[j]),
+                        &self.config,
+                    )
+                })
+                .sum::<Cost>()
+                + if end_pos == self.nodes.len()
+                    || (start_pos == end_pos && start_pos > 0)
+                    || end_pos == 0
+                {
+                    COST_ZERO
+                } else {
+                    objective::compute_idle_time_cost(
+                        self.nw
+                            .idle_time_between(self.nodes[end_pos - 1], self.nodes[end_pos]),
+                        &self.config,
+                    )
+                };
 
         // compute the overhead_time, service_distance and dead_head_distance for the new tour:
         let overhead_time = if self.is_dummy {
             // for a dummy the total time (start of the first node - end of the last node)
             // might have changed.
-            let total_time_original = self.nw.node(*self.nodes.last().unwrap()).end_time() - self.nw.node(*self.nodes.first().unwrap()).start_time();
-            let total_time_new = self.nw.node(*new_tour_nodes.last().unwrap()).end_time() - self.nw.node(*new_tour_nodes.first().unwrap()).start_time();
-            self.overhead_time + total_time_new + removed_useful_time - path_useful_time - total_time_original
+            let total_time_original = self.nw.node(*self.nodes.last().unwrap()).end_time()
+                - self.nw.node(*self.nodes.first().unwrap()).start_time();
+            let total_time_new = self.nw.node(*new_tour_nodes.last().unwrap()).end_time()
+                - self.nw.node(*new_tour_nodes.first().unwrap()).start_time();
+            self.overhead_time + total_time_new + removed_useful_time
+                - path_useful_time
+                - total_time_original
         } else {
             self.overhead_time + removed_useful_time - path_useful_time
         };
-        let service_distance = self.service_distance + path_service_distance - removed_service_distance;
-        let dead_head_distance = self.dead_head_distance + path_dead_head_distance - removed_dead_head_distance;
-        let continuous_idle_time_cost = self.continuous_idle_time_cost + path_continuous_idle_time_cost - removed_continuous_idle_time_cost;
+        let service_distance =
+            self.service_distance + path_service_distance - removed_service_distance;
+        let dead_head_distance =
+            self.dead_head_distance + path_dead_head_distance - removed_dead_head_distance;
+        let continuous_idle_time_cost = self.continuous_idle_time_cost
+            + path_continuous_idle_time_cost
+            - removed_continuous_idle_time_cost;
 
-        Ok(Tour::new_trusted(self.unit_type, new_tour_nodes, self.is_dummy, overhead_time, service_distance, dead_head_distance, continuous_idle_time_cost, self.config.clone(), self.nw.clone()))
+        Ok(Tour::new_trusted(
+            self.unit_type,
+            new_tour_nodes,
+            self.is_dummy,
+            overhead_time,
+            service_distance,
+            dead_head_distance,
+            continuous_idle_time_cost,
+            self.config.clone(),
+            self.nw.clone(),
+        ))
     }
 
     // pub(super) fn insert_single_node(&self, node: NodeId) -> Result<Tour,String> {
-        // self.insert(Path::new(vec!(node), self.nw.clone()))
+    // self.insert(Path::new(vec!(node), self.nw.clone()))
     // }
-
 
     /// remove the segment of the tour. The subpath between segment.start() and segment.end() is removed and the new
     /// shortened Tour as well as the removed nodes (as Path) are returned.
     /// Fails if either segment.start() or segment.end() are not part of the Tour or if the Start or EndNode would
     /// get removed.
-    pub(crate) fn remove(&self, segment: Segment) -> Result<(Tour, Path),String> {
-
-        let start_pos= self.position_of(segment.start())?;
-        let end_pos= self.position_of(segment.end())?;
+    pub(crate) fn remove(&self, segment: Segment) -> Result<(Tour, Path), String> {
+        let start_pos = self.position_of(segment.start())?;
+        let end_pos = self.position_of(segment.end())?;
 
         self.removable_by_pos(start_pos, end_pos)?;
 
         // compute usefile_time, service_distance and dead_head_distance for the removed segment:
-        let removed_useful_time = (start_pos..end_pos+1).map(|i| self.nw.node(self.nodes[i]).useful_duration()).sum();
-        let removed_service_distance = (start_pos..end_pos+1).map(|i| self.nw.node(self.nodes[i]).travel_distance()).sum();
-        let removed_dead_head_distance: Distance =
-            if start_pos == 0 {
+        let removed_useful_time = (start_pos..end_pos + 1)
+            .map(|i| self.nw.node(self.nodes[i]).useful_duration())
+            .sum();
+        let removed_service_distance = (start_pos..end_pos + 1)
+            .map(|i| self.nw.node(self.nodes[i]).travel_distance())
+            .sum();
+        let removed_dead_head_distance: Distance = if start_pos == 0 {
+            Distance::zero()
+        } else {
+            self.nw
+                .dead_head_distance_between(self.nodes[start_pos - 1], self.nodes[start_pos])
+        } + (start_pos..end_pos + 1)
+            .tuple_windows()
+            .map(|(i, j)| {
+                self.nw
+                    .dead_head_distance_between(self.nodes[i], self.nodes[j])
+            })
+            .sum()
+            + if end_pos == self.nodes.len() - 1 {
                 Distance::zero()
             } else {
-                self.nw.dead_head_distance_between(self.nodes[start_pos-1], self.nodes[start_pos])
-            } +
-            (start_pos..end_pos+1).tuple_windows().map(|(i,j)|
-                self.nw.dead_head_distance_between(self.nodes[i], self.nodes[j])).sum() +
-            if end_pos == self.nodes.len() - 1 {
-                Distance::zero()
-            } else {
-                self.nw.dead_head_distance_between(self.nodes[end_pos], self.nodes[end_pos+1])
+                self.nw
+                    .dead_head_distance_between(self.nodes[end_pos], self.nodes[end_pos + 1])
             };
 
         // compute the dead_head_distance for the new gap that is created:
-        let added_dead_head_distance =
-            if start_pos == 0 || end_pos == self.nodes.len() - 1 {
-                Distance::zero()
-            } else {
-                self.nw.dead_head_distance_between(self.nodes[start_pos-1], self.nodes[end_pos+1])
-            };
+        let added_dead_head_distance = if start_pos == 0 || end_pos == self.nodes.len() - 1 {
+            Distance::zero()
+        } else {
+            self.nw
+                .dead_head_distance_between(self.nodes[start_pos - 1], self.nodes[end_pos + 1])
+        };
 
         // compute the continuous_idle_time_cost for the removed segment:
-        let removed_continuous_idle_time_cost: Cost =
-            if start_pos == 0 {
+        let removed_continuous_idle_time_cost: Cost = if start_pos == 0 {
+            COST_ZERO
+        } else {
+            objective::compute_idle_time_cost(
+                self.nw
+                    .idle_time_between(self.nodes[start_pos - 1], self.nodes[start_pos]),
+                &self.config,
+            )
+        } + (start_pos..end_pos + 1)
+            .tuple_windows()
+            .map(|(i, j)| {
+                objective::compute_idle_time_cost(
+                    self.nw.idle_time_between(self.nodes[i], self.nodes[j]),
+                    &self.config,
+                )
+            })
+            .sum::<Cost>()
+            + if end_pos == self.nodes.len() - 1 {
                 COST_ZERO
             } else {
-                objective::compute_idle_time_cost(self.nw.idle_time_between(self.nodes[start_pos-1], self.nodes[start_pos]), &self.config)
-            } +
-
-            (start_pos..end_pos+1).tuple_windows().map(|(i,j)|
-                objective::compute_idle_time_cost(self.nw.idle_time_between(self.nodes[i], self.nodes[j]), &self.config)).sum::<Cost>() +
-
-            if end_pos == self.nodes.len() - 1 {
-                COST_ZERO
-            } else {
-                objective::compute_idle_time_cost(self.nw.idle_time_between(self.nodes[end_pos], self.nodes[end_pos+1]), &self.config)
+                objective::compute_idle_time_cost(
+                    self.nw
+                        .idle_time_between(self.nodes[end_pos], self.nodes[end_pos + 1]),
+                    &self.config,
+                )
             };
 
         // compute the continuous_idle_time_cost for the new gap that is created:
@@ -362,62 +462,82 @@ impl Tour {
             if start_pos == 0 || end_pos == self.nodes.len() - 1 {
                 COST_ZERO
             } else {
-                objective::compute_idle_time_cost(self.nw.idle_time_between(self.nodes[start_pos-1], self.nodes[end_pos+1]), &self.config)
+                objective::compute_idle_time_cost(
+                    self.nw
+                        .idle_time_between(self.nodes[start_pos - 1], self.nodes[end_pos + 1]),
+                    &self.config,
+                )
             };
 
         // remove the segment from the tour:
         let mut tour_nodes: Vec<NodeId> = self.nodes[..start_pos].to_vec();
-        tour_nodes.extend(self.nodes[end_pos+1..].iter().copied());
-        let removed_nodes: Vec<NodeId> = self.nodes[start_pos..end_pos+1].to_vec();
-
+        tour_nodes.extend(self.nodes[end_pos + 1..].iter().copied());
+        let removed_nodes: Vec<NodeId> = self.nodes[start_pos..end_pos + 1].to_vec();
 
         // compute the overhead_time, service_distance and dead_head_distance for the new tour:
-        let overhead_time =
-            if self.is_dummy {
-                if tour_nodes.len() == 0 {
-                    Duration::zero()
-                } else {
-                    let total_time_original = self.nw.node(*self.nodes.last().unwrap()).end_time() - self.nw.node(*self.nodes.first().unwrap()).start_time();
-                    let total_time_new = self.nw.node(*tour_nodes.last().unwrap()).end_time() - self.nw.node(*tour_nodes.first().unwrap()).start_time();
-                    self.overhead_time + removed_useful_time + total_time_new - total_time_original
-                }
+        let overhead_time = if self.is_dummy {
+            if tour_nodes.len() == 0 {
+                Duration::zero()
             } else {
-                self.overhead_time + removed_useful_time
-            };
+                let total_time_original = self.nw.node(*self.nodes.last().unwrap()).end_time()
+                    - self.nw.node(*self.nodes.first().unwrap()).start_time();
+                let total_time_new = self.nw.node(*tour_nodes.last().unwrap()).end_time()
+                    - self.nw.node(*tour_nodes.first().unwrap()).start_time();
+                self.overhead_time + removed_useful_time + total_time_new - total_time_original
+            }
+        } else {
+            self.overhead_time + removed_useful_time
+        };
         let service_distance = self.service_distance - removed_service_distance;
-        let dead_head_distance = self.dead_head_distance + added_dead_head_distance - removed_dead_head_distance;
-        let continuous_idle_time_cost = self.continuous_idle_time_cost + added_continuous_idle_time_cost - removed_continuous_idle_time_cost;
+        let dead_head_distance =
+            self.dead_head_distance + added_dead_head_distance - removed_dead_head_distance;
+        let continuous_idle_time_cost = self.continuous_idle_time_cost
+            + added_continuous_idle_time_cost
+            - removed_continuous_idle_time_cost;
 
-
-        Ok((Tour::new_trusted(self.unit_type, tour_nodes, self.is_dummy, overhead_time, service_distance, dead_head_distance, continuous_idle_time_cost, self.config.clone(), self.nw.clone()), Path::new_trusted(removed_nodes,self.nw.clone())))
+        Ok((
+            Tour::new_trusted(
+                self.unit_type,
+                tour_nodes,
+                self.is_dummy,
+                overhead_time,
+                service_distance,
+                dead_head_distance,
+                continuous_idle_time_cost,
+                self.config.clone(),
+                self.nw.clone(),
+            ),
+            Path::new_trusted(removed_nodes, self.nw.clone()),
+        ))
     }
 
     // pub(crate) fn remove_single_node(&self, node: NodeId) -> Result<Tour,String> {
-        // self.remove(Segment::new(node, node)).map(|tuple| tuple.0)
+    // self.remove(Segment::new(node, node)).map(|tuple| tuple.0)
     // }
 
     /// for a given segment (in general of another tour) returns all nodes that are conflicting
     /// when the segment would have been inserted. These nodes form a path.
     /// Fails if the segment insertion would not lead  to a valid Tour (for example start node
     /// cannot reach segment.start(), or segment.end() cannot reach end node).
-    pub(super) fn conflict(&self, segment: Segment) -> Result<Path,String> {
-
-        let (start_pos,end_pos) = self.get_insert_positions(segment);
+    pub(super) fn conflict(&self, segment: Segment) -> Result<Path, String> {
+        let (start_pos, end_pos) = self.get_insert_positions(segment);
 
         self.test_if_valid_replacement(segment, start_pos, end_pos)?;
 
         let conflicted_nodes = self.nodes[start_pos..end_pos].to_vec();
-        Ok(Path::new_trusted(conflicted_nodes,self.nw.clone()))
+        Ok(Path::new_trusted(conflicted_nodes, self.nw.clone()))
     }
 
     // pub(super) fn conflict_single_node(&self, node: NodeId) -> Result<Path,String> {
-        // self.conflict(Segment::new(node, node))
+    // self.conflict(Segment::new(node, node))
     // }
 
     pub(crate) fn position_of(&self, node: NodeId) -> Result<usize, String> {
-        let pos = self.nodes.binary_search_by(|other| self.nw.node(*other)
-                                              .cmp_start_time(self.nw.node(node))).map_err(|_| "Node not part of tour.")?;
-        assert!(node == self.nodes[pos],"fehler");
+        let pos = self
+            .nodes
+            .binary_search_by(|other| self.nw.node(*other).cmp_start_time(self.nw.node(node)))
+            .map_err(|_| "Node not part of tour.")?;
+        assert!(node == self.nodes[pos], "fehler");
         Ok(pos)
     }
 
@@ -427,13 +547,14 @@ impl Tour {
         if start_pos_res.is_err() || end_pos_res.is_err() {
             false
         } else {
-            self.removable_by_pos(start_pos_res.unwrap(), end_pos_res.unwrap()).is_ok()}
+            self.removable_by_pos(start_pos_res.unwrap(), end_pos_res.unwrap())
+                .is_ok()
+        }
     }
 
     // pub(crate) fn removable_single_node(&self, node: NodeId) -> bool {
-        // self.removable(Segment::new(node, node))
+    // self.removable(Segment::new(node, node))
     // }
-
 
     /// start_position is here the position of the first node that should be removed
     /// end_position is here the position in the tour of the last node that should be removed
@@ -442,43 +563,58 @@ impl Tour {
         if !self.is_dummy && start_position == 0 {
             return Err(String::from("StartNode cannot be removed."));
         }
-        if !self.is_dummy && end_position == self.nodes.len()-1 {
+        if !self.is_dummy && end_position == self.nodes.len() - 1 {
             return Err(String::from("EndNode cannot be removed."));
         }
         if start_position > end_position {
             return Err(String::from("segment.start() comes after segment.end()."));
         }
 
-        if start_position > 0 && end_position < self.nodes.len() - 1 && !self.nw.can_reach(self.nodes[start_position-1],self.nodes[end_position+1]) {
+        if start_position > 0
+            && end_position < self.nodes.len() - 1
+            && !self
+                .nw
+                .can_reach(self.nodes[start_position - 1], self.nodes[end_position + 1])
+        {
             return Err(format!("Removing nodes ({} to {}) makes the tour invalid. Dead-head-trip is slower than service-trips.", self.nodes[start_position], self.nodes[end_position]));
         }
         Ok(())
-
     }
 
     pub(crate) fn print(&self) {
-        println!("{}tour with {} nodes:", if self.is_dummy {"dummy-"} else {""}, self.nodes.len(),);
+        println!(
+            "{}tour with {} nodes:",
+            if self.is_dummy { "dummy-" } else { "" },
+            self.nodes.len(),
+        );
         for node in self.nodes.iter() {
             print!("\t* ");
             self.nw.node(*node).print();
         }
     }
-
 }
-
 
 // one tour is bigger than the other if the number of nodes are bigger.
 // Ties are broken by comparing nodes from start to finish.
 // Nodes ar compared by start time (ties are by end_time then id)
 impl Ord for Tour {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.nodes.len().cmp(&other.nodes.len())
-            .then(match self.nodes.iter().zip(other.nodes.iter())
-                          .map(|(node, other_node)| self.nw.node(*node).cmp_start_time(self.nw.node(*other_node)))
-                          .find(|ord| *ord != Ordering::Equal) {
+        self.nodes.len().cmp(&other.nodes.len()).then(
+            match self
+                .nodes
+                .iter()
+                .zip(other.nodes.iter())
+                .map(|(node, other_node)| {
+                    self.nw
+                        .node(*node)
+                        .cmp_start_time(self.nw.node(*other_node))
+                })
+                .find(|ord| *ord != Ordering::Equal)
+            {
                 None => Ordering::Equal,
-                Some(other) => other
-            })
+                Some(other) => other,
+            },
+        )
     }
 }
 
@@ -497,12 +633,14 @@ impl PartialEq for Tour {
 
 impl Eq for Tour {}
 
-
-
 // private methods
 impl Tour {
-    fn test_if_valid_replacement(&self, segment: Segment, start_pos: Position, end_pos: Position) -> Result<(), String> {
-
+    fn test_if_valid_replacement(
+        &self,
+        segment: Segment,
+        start_pos: Position,
+        end_pos: Position,
+    ) -> Result<(), String> {
         // first test if end nodes make sense:
         let mut has_endnode = false;
         let last_node = self.nw.node(segment.end());
@@ -525,42 +663,52 @@ impl Tour {
         }
 
         Ok(())
-
     }
 
     /// return the range of the conflicting nodes. start..end must be replaced by path.
     /// that means start is the first conflicting node and end-1 is the last conflciting node
-    fn get_insert_positions(&self, segment: Segment) -> (Position,Position) {
+    fn get_insert_positions(&self, segment: Segment) -> (Position, Position) {
         let first = segment.start();
         let last = segment.end();
 
-
-        let start_pos = self.earliest_not_reaching_node(first).unwrap_or(self.nodes.len());
+        let start_pos = self
+            .earliest_not_reaching_node(first)
+            .unwrap_or(self.nodes.len());
         let end_pos = match self.latest_not_reached_by_node(last) {
             None => 0,
-            Some(p) => p+1
+            Some(p) => p + 1,
         };
-        (start_pos,end_pos)
+        (start_pos, end_pos)
     }
 
     pub(crate) fn earliest_not_reaching_node(&self, node: NodeId) -> Option<Position> {
         if self.nw.can_reach(*self.nodes.last().unwrap(), node) {
             return None; // all tour-nodes can reach node, even the last
         }
-        let candidate = self.earliest_arrival_after(self.nw.node(node).start_time(), 0, self.nodes.len());
-        let mut pos = candidate.unwrap_or(self.nodes.len()-1);
-        while pos > 0 && !self.nw.can_reach(self.nodes[pos-1],node) {
+        let candidate =
+            self.earliest_arrival_after(self.nw.node(node).start_time(), 0, self.nodes.len());
+        let mut pos = candidate.unwrap_or(self.nodes.len() - 1);
+        while pos > 0 && !self.nw.can_reach(self.nodes[pos - 1], node) {
             pos -= 1;
         }
         Some(pos)
     }
 
-    fn earliest_arrival_after(&self, time: Time, left: Position, right: Position) -> Option<Position> {
-        if left+1 == right {
-            if self.nw.node(self.nodes[left]).end_time() >= time { Some(left) } else { None }
+    fn earliest_arrival_after(
+        &self,
+        time: Time,
+        left: Position,
+        right: Position,
+    ) -> Option<Position> {
+        if left + 1 == right {
+            if self.nw.node(self.nodes[left]).end_time() >= time {
+                Some(left)
+            } else {
+                None
+            }
         } else {
             let mid = left + (right - left) / 2;
-            if self.nw.node(self.nodes[mid-1]).end_time() >= time {
+            if self.nw.node(self.nodes[mid - 1]).end_time() >= time {
                 self.earliest_arrival_after(time, left, mid)
             } else {
                 self.earliest_arrival_after(time, mid, right)
@@ -575,19 +723,29 @@ impl Tour {
             return None; // node can reach all nodes, even the first
         }
         // the candidate cannot be reached by node for sure.
-        let candidate = self.latest_departure_before(self.nw.node(node).end_time(), 0, self.nodes.len());
+        let candidate =
+            self.latest_departure_before(self.nw.node(node).end_time(), 0, self.nodes.len());
         // but later nodes might also not be reached by node.
 
         let mut pos = candidate.unwrap_or(0);
-        while pos < self.nodes.len()-1 && !self.nw.can_reach(node, self.nodes[pos+1]) {
+        while pos < self.nodes.len() - 1 && !self.nw.can_reach(node, self.nodes[pos + 1]) {
             pos += 1;
         }
         Some(pos)
     }
 
-    fn latest_departure_before(&self, time: Time, left: Position, right: Position) -> Option<Position> {
-        if left+1 == right {
-            if self.nw.node(self.nodes[left]).start_time() <= time { Some(left) } else { None }
+    fn latest_departure_before(
+        &self,
+        time: Time,
+        left: Position,
+        right: Position,
+    ) -> Option<Position> {
+        if left + 1 == right {
+            if self.nw.node(self.nodes[left]).start_time() <= time {
+                Some(left)
+            } else {
+                None
+            }
         } else {
             let mid = left + (right - left) / 2;
             if self.nw.node(self.nodes[mid]).start_time() <= time {
@@ -597,18 +755,21 @@ impl Tour {
             }
         }
     }
-
 }
 
 impl Tour {
-
     /// Creates a new tour from a vector of NodeIds. Checks that the tour is valid:
     /// * starts with a StartNode
     /// * end with an EndNode
     /// * only Service or MaintenanceNodes in the middle
     /// * each node can reach is successor
     /// If one of the checks fails an error message is returned.
-    pub(super) fn new(unit_type: UnitType, nodes: Vec<NodeId>, config: Arc<Config>, nw: Arc<Network>) -> Result<Tour, String> {
+    pub(super) fn new(
+        unit_type: UnitType,
+        nodes: Vec<NodeId>,
+        config: Arc<Config>,
+        nw: Arc<Network>,
+    ) -> Result<Tour, String> {
         Tour::new_allow_invalid(unit_type, nodes, config, nw).map_err(|(_, error_msg)| error_msg)
     }
 
@@ -619,68 +780,141 @@ impl Tour {
     /// * each node can reach is successor
     /// If one of the checks fails an error is returned containing the error message but also the
     /// invalid tour.
-    pub(super) fn new_allow_invalid(unit_type: UnitType, nodes: Vec<NodeId>, config: Arc<Config>, nw: Arc<Network>) -> Result<Tour, (Tour, String)> {
+    pub(super) fn new_allow_invalid(
+        unit_type: UnitType,
+        nodes: Vec<NodeId>,
+        config: Arc<Config>,
+        nw: Arc<Network>,
+    ) -> Result<Tour, (Tour, String)> {
         let mut error_msg = String::new();
-        if !matches!(nw.node(nodes[0]),Node::Start(_)) {
-            error_msg.push_str(&format!("Tour needs to start with a StartNode, not with: {}.\n", nw.node(nodes[0])));
+        if !matches!(nw.node(nodes[0]), Node::Start(_)) {
+            error_msg.push_str(&format!(
+                "Tour needs to start with a StartNode, not with: {}.\n",
+                nw.node(nodes[0])
+            ));
         }
-        if !matches!(nw.node(nodes[nodes.len()-1]), Node::End(_)) {
-            error_msg.push_str(&format!("Tour needs to end with a EndNode, not with: {},\n", nw.node(nodes[nodes.len()-1])));
+        if !matches!(nw.node(nodes[nodes.len() - 1]), Node::End(_)) {
+            error_msg.push_str(&format!(
+                "Tour needs to end with a EndNode, not with: {},\n",
+                nw.node(nodes[nodes.len() - 1])
+            ));
         }
         for i in 1..nodes.len() - 1 {
             let n = nw.node(nodes[i]);
             if !matches!(n, Node::Service(_)) && !matches!(n, Node::Maintenance(_)) {
-                error_msg.push_str(&format!("Tour can only have Service or Maintenance Nodes in the middle, not: {}.\n", n));
+                error_msg.push_str(&format!(
+                    "Tour can only have Service or Maintenance Nodes in the middle, not: {}.\n",
+                    n
+                ));
             }
         }
-        for (&a,&b) in nodes.iter().tuple_windows() {
-            if !nw.can_reach(a,b) {
-                error_msg.push_str(&format!("Not a valid Tour: {} cannot reach {}.\n", nw.node(a), nw.node(b)));
+        for (&a, &b) in nodes.iter().tuple_windows() {
+            if !nw.can_reach(a, b) {
+                error_msg.push_str(&format!(
+                    "Not a valid Tour: {} cannot reach {}.\n",
+                    nw.node(a),
+                    nw.node(b)
+                ));
             }
         }
         if error_msg.len() > 0 {
-            Err((Tour::new_computing(unit_type, nodes, false, config, nw), error_msg))
+            Err((
+                Tour::new_computing(unit_type, nodes, false, config, nw),
+                error_msg,
+            ))
         } else {
             Ok(Tour::new_computing(unit_type, nodes, false, config, nw))
         }
     }
 
-    pub(super) fn new_dummy(unit_type: UnitType, nodes: Vec<NodeId>, config: Arc<Config>, nw: Arc<Network>) -> Result<Tour, String> {
-        for (&a,&b) in nodes.iter().tuple_windows() {
-            if !nw.can_reach(a,b) {
-                return Err(format!("Not a valid Dummy-Tour: {} cannot reach {}.\n", nw.node(a), nw.node(b)));
+    pub(super) fn new_dummy(
+        unit_type: UnitType,
+        nodes: Vec<NodeId>,
+        config: Arc<Config>,
+        nw: Arc<Network>,
+    ) -> Result<Tour, String> {
+        for (&a, &b) in nodes.iter().tuple_windows() {
+            if !nw.can_reach(a, b) {
+                return Err(format!(
+                    "Not a valid Dummy-Tour: {} cannot reach {}.\n",
+                    nw.node(a),
+                    nw.node(b)
+                ));
             }
         }
         Ok(Tour::new_computing(unit_type, nodes, true, config, nw))
     }
 
     /// Creates a new tour from a vector of NodeIds. Trusts that the vector leads to a valid Tour.
-    pub(super) fn new_trusted(unit_type: UnitType,
-                              nodes: Vec<NodeId>,
-                              is_dummy: bool,
-                              overhead_time: Duration,
-                              service_distance: Distance,
-                              dead_head_distance: Distance,
-                              continuous_idle_time_cost: Cost,
-                              config: Arc<Config>,
-                              nw: Arc<Network>) -> Tour {
-        Tour{unit_type, nodes, is_dummy, overhead_time, service_distance, dead_head_distance, continuous_idle_time_cost, config, nw}
+    pub(super) fn new_trusted(
+        unit_type: UnitType,
+        nodes: Vec<NodeId>,
+        is_dummy: bool,
+        overhead_time: Duration,
+        service_distance: Distance,
+        dead_head_distance: Distance,
+        continuous_idle_time_cost: Cost,
+        config: Arc<Config>,
+        nw: Arc<Network>,
+    ) -> Tour {
+        Tour {
+            unit_type,
+            nodes,
+            is_dummy,
+            overhead_time,
+            service_distance,
+            dead_head_distance,
+            continuous_idle_time_cost,
+            config,
+            nw,
+        }
     }
 
-    pub(super) fn new_dummy_by_path(unit_type: UnitType, path: Path, config: Arc<Config>, nw: Arc<Network>) -> Tour {
+    pub(super) fn new_dummy_by_path(
+        unit_type: UnitType,
+        path: Path,
+        config: Arc<Config>,
+        nw: Arc<Network>,
+    ) -> Tour {
         Tour::new_computing(unit_type, path.consume(), true, config, nw)
     }
 
-    fn new_computing(unit_type: UnitType, nodes: Vec<NodeId>, is_dummy: bool, config: Arc<Config>, nw: Arc<Network>) -> Tour {
-        let overhead_time = nodes.iter().tuple_windows().map(|(&a,&b)| nw.node(b).start_time() - nw.node(a).end_time()).sum();
+    fn new_computing(
+        unit_type: UnitType,
+        nodes: Vec<NodeId>,
+        is_dummy: bool,
+        config: Arc<Config>,
+        nw: Arc<Network>,
+    ) -> Tour {
+        let overhead_time = nodes
+            .iter()
+            .tuple_windows()
+            .map(|(&a, &b)| nw.node(b).start_time() - nw.node(a).end_time())
+            .sum();
         let service_distance = nodes.iter().map(|&n| nw.node(n).travel_distance()).sum();
-        let dead_head_distance = nodes.iter().tuple_windows().map(
-            |(&a,&b)| nw.dead_head_distance_between(a,b)).sum();
-        let continuous_idle_time_cost = nodes.iter().tuple_windows().map(|(&a,&b)| objective::compute_idle_time_cost(nw.idle_time_between(a,b),&config)).sum();
-        Tour{unit_type, nodes, is_dummy, overhead_time, service_distance, dead_head_distance, continuous_idle_time_cost, config, nw}
+        let dead_head_distance = nodes
+            .iter()
+            .tuple_windows()
+            .map(|(&a, &b)| nw.dead_head_distance_between(a, b))
+            .sum();
+        let continuous_idle_time_cost = nodes
+            .iter()
+            .tuple_windows()
+            .map(|(&a, &b)| objective::compute_idle_time_cost(nw.idle_time_between(a, b), &config))
+            .sum();
+        Tour {
+            unit_type,
+            nodes,
+            is_dummy,
+            overhead_time,
+            service_distance,
+            dead_head_distance,
+            continuous_idle_time_cost,
+            config,
+            nw,
+        }
     }
 }
-
 
 impl fmt::Display for Tour {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -692,4 +926,3 @@ impl fmt::Display for Tour {
         Ok(())
     }
 }
-

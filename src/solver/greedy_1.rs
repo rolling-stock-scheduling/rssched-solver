@@ -1,26 +1,26 @@
-use crate::schedule::Schedule;
+use crate::base_types::{NodeId, UnitId};
 use crate::config::Config;
-use crate::units::Units;
 use crate::network::Network;
+use crate::schedule::Schedule;
 use crate::solver::Solver;
-use crate::base_types::{UnitId, NodeId};
+use crate::units::Units;
 
 use std::sync::Arc;
 
 pub struct Greedy1 {
     config: Arc<Config>,
     units: Arc<Units>,
-    nw: Arc<Network>
+    nw: Arc<Network>,
 }
 
 impl Solver for Greedy1 {
-
     fn initialize(config: Arc<Config>, units: Arc<Units>, nw: Arc<Network>) -> Greedy1 {
-        Greedy1{config, units, nw}
+        Greedy1 { config, units, nw }
     }
 
     fn solve(&self) -> Schedule {
-        let mut schedule = Schedule::initialize(self.config.clone(), self.units.clone(), self.nw.clone());
+        let mut schedule =
+            Schedule::initialize(self.config.clone(), self.units.clone(), self.nw.clone());
         for unit in self.units.iter() {
             let mut node = self.nw.start_node_of(unit);
             let mut new_node_opt = get_fitting_node(&schedule, node, unit);
@@ -34,11 +34,22 @@ impl Solver for Greedy1 {
         }
         schedule
     }
+
+    fn foo(&self) -> Schedule {
+        println!("hi");
+        self.solve()
+    }
 }
 
-fn get_fitting_node(schedule: &Schedule, node: NodeId, unit_id: UnitId) -> Option<(NodeId,UnitId)> {
-    schedule.uncovered_successors(node)
-        .find(|(n,_)| schedule.conflict_single_node(*n, unit_id)
-              .map(|c| c.is_empty()).unwrap_or(false))
-
+fn get_fitting_node(
+    schedule: &Schedule,
+    node: NodeId,
+    unit_id: UnitId,
+) -> Option<(NodeId, UnitId)> {
+    schedule.uncovered_successors(node).find(|(n, _)| {
+        schedule
+            .conflict_single_node(*n, unit_id)
+            .map(|c| c.is_empty())
+            .unwrap_or(false)
+    })
 }

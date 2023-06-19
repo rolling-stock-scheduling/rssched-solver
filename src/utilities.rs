@@ -3,13 +3,13 @@ use std::fmt;
 /// a string of constant size that implements the Copy-trait.
 /// it is used as Station (N = 4) (given by the abbreviation code)
 /// and for the UnitId (N = 10)
-#[derive(Hash,Eq,PartialEq,Copy,Clone,PartialOrd,Ord)]
+#[derive(Hash, Eq, PartialEq, Copy, Clone, PartialOrd, Ord)]
 pub(crate) struct CopyStr<const N: usize> {
-    code: [u8;N],
-    len: usize
+    code: [u8; N],
+    len: usize,
 }
 
-impl<const N: usize> CopyStr<N>{
+impl<const N: usize> CopyStr<N> {
     pub(crate) fn from(string: &str) -> Self {
         let raw = string.as_bytes();
         let len = raw.len();
@@ -21,7 +21,10 @@ impl<const N: usize> CopyStr<N>{
         let (writearea, _) = writable.split_at_mut(len);
         writearea.copy_from_slice(raw);
 
-        CopyStr{code: writable, len}
+        CopyStr {
+            code: writable,
+            len,
+        }
     }
 }
 

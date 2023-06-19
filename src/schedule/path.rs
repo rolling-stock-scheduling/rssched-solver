@@ -13,13 +13,13 @@ use std::iter::Iterator;
 pub(crate) struct Path {
     node_sequence: Vec<NodeId>,
 
-    nw: Arc<Network>
+    nw: Arc<Network>,
 }
 
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug, Clone, Copy)]
 pub(crate) struct Segment {
     start: NodeId,
-    end: NodeId
+    end: NodeId,
 }
 
 ////////////////////////////////////////////
@@ -28,27 +28,31 @@ pub(crate) struct Segment {
 
 // static functions
 impl Path {
-
     /// crates a new Path and asserts that it is a path in the network
     pub(crate) fn new(node_sequence: Vec<NodeId>, nw: Arc<Network>) -> Path {
-        for (&a,&b) in node_sequence.iter().tuple_windows() {
-            assert!(nw.can_reach(a,b),"Not a valid Path: {} cannot reach {}.", a, b);
+        for (&a, &b) in node_sequence.iter().tuple_windows() {
+            assert!(
+                nw.can_reach(a, b),
+                "Not a valid Path: {} cannot reach {}.",
+                a,
+                b
+            );
             // if !nw.can_reach(a,b) {
-                // println!("Not a valid Path: {} cannot reach {}.", a, b);
+            // println!("Not a valid Path: {} cannot reach {}.", a, b);
             // }
         }
-        Path{node_sequence, nw}
+        Path { node_sequence, nw }
     }
 
     /// crates a new Path but does NOT assert that it is a path in the network
     pub(crate) fn new_trusted(node_sequence: Vec<NodeId>, nw: Arc<Network>) -> Path {
-        Path{node_sequence, nw}
+        Path { node_sequence, nw }
     }
 }
 
 // methods
 impl Path {
-    pub(crate) fn iter(&self) -> impl Iterator<Item=&NodeId> + '_ {
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &NodeId> + '_ {
         self.node_sequence.iter()
     }
 
@@ -61,7 +65,7 @@ impl Path {
     }
 
     pub(crate) fn last(&self) -> NodeId {
-        self.node_sequence[self.node_sequence.len()-1]
+        self.node_sequence[self.node_sequence.len() - 1]
     }
 
     pub(crate) fn consume(self) -> Vec<NodeId> {
@@ -84,16 +88,14 @@ impl fmt::Display for Path {
     }
 }
 
-
 ////////////////////////////////////////////
 ////////////// Segment /////////////////////
 ////////////////////////////////////////////
 
-
 // static functions
 impl Segment {
     pub(crate) fn new(start: NodeId, end: NodeId) -> Segment {
-        Segment{start, end}
+        Segment { start, end }
     }
 }
 

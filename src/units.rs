@@ -1,9 +1,9 @@
-use std::fmt;
-use crate::distance::Distance;
-use crate::time::{Time,Duration};
-use crate::locations::{Locations,Location};
 use crate::base_types::UnitId;
+use crate::distance::Distance;
+use crate::locations::{Location, Locations};
+use crate::time::{Duration, Time};
 use std::collections::HashMap;
+use std::fmt;
 use std::iter::Iterator;
 use std::sync::Arc;
 
@@ -19,10 +19,10 @@ pub(crate) struct Unit {
     start_time: Time,
     start_location: Location,
     initial_duration_counter: Duration, // time passed since last maintenance (at start_node)
-    initial_dist_counter: Distance, // distance since last maintenance (at start_node)
+    initial_dist_counter: Distance,     // distance since last maintenance (at start_node)
 }
 
-#[derive(Debug,Clone,Copy,PartialEq,Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum UnitType {
     Standard,
     // Giruno,
@@ -37,7 +37,10 @@ pub(crate) enum UnitType {
 impl Units {
     pub(crate) fn load_from_csv(path: &str, loc: Arc<Locations>) -> Units {
         let mut units: HashMap<UnitId, Unit> = HashMap::new();
-        let mut reader = csv::ReaderBuilder::new().delimiter(b';').from_path(path).expect("csv-file for loading units not found");
+        let mut reader = csv::ReaderBuilder::new()
+            .delimiter(b';')
+            .from_path(path)
+            .expect("csv-file for loading units not found");
         for result in reader.records() {
             let record = result.expect("Some recond cannot be read while reading units");
             let id = UnitId::from(record.get(0).unwrap());
@@ -45,19 +48,29 @@ impl Units {
             let start_time = Time::new(record.get(1).unwrap());
             let start_location = loc.get_location(record.get(2).unwrap());
             let initial_duration_counter = Duration::from_iso(record.get(3).unwrap());
-            let initial_dist_counter =  Distance::from_km(record.get(4).unwrap().parse().unwrap());
-            units.insert(id,Unit{id,unit_type,start_time,start_location,initial_duration_counter,initial_dist_counter});
+            let initial_dist_counter = Distance::from_km(record.get(4).unwrap().parse().unwrap());
+            units.insert(
+                id,
+                Unit {
+                    id,
+                    unit_type,
+                    start_time,
+                    start_location,
+                    initial_duration_counter,
+                    initial_dist_counter,
+                },
+            );
         }
 
         let mut ids_sorted: Vec<UnitId> = units.keys().copied().collect();
         ids_sorted.sort();
-        Units{units, ids_sorted}
+        Units { units, ids_sorted }
     }
 }
 
 impl Units {
     // pub(crate) fn len(&self) -> usize {
-        // self.units.len()
+    // self.units.len()
     // }
 
     pub(crate) fn iter(&self) -> impl Iterator<Item = UnitId> + '_ {
@@ -80,7 +93,7 @@ impl Units {
 // methods
 impl Unit {
     // pub(crate) fn id(&self) -> UnitId {
-        // self.id
+    // self.id
     // }
 
     pub(crate) fn unit_type(&self) -> UnitType {
@@ -104,10 +117,12 @@ impl Unit {
     }
 }
 
-
-
 impl fmt::Display for Unit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "unit {} ({:?}; {}; {})", self.id, self.unit_type, self.initial_dist_counter, self.initial_duration_counter)
+        write!(
+            f,
+            "unit {} ({:?}; {}; {})",
+            self.id, self.unit_type, self.initial_dist_counter, self.initial_duration_counter
+        )
     }
 }
