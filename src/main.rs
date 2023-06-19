@@ -1,6 +1,3 @@
-// extern crate sbb;
-// use sbb;
-
 fn main() {
     // sbb::run("test_instances/21-06-tage-1/");
     // sbb::run("test_instances/21-06-tage-2/");
