@@ -105,7 +105,9 @@ impl LocalSearch {
     ) -> Schedule {
         let mut old_schedule = schedule;
         while let Some(new_schedule) = local_improver.improve(&old_schedule) {
-            new_schedule.objective_value().print();
+            new_schedule
+                .objective_value()
+                .print(Some(&old_schedule.objective_value()));
             // schedule.print();
             if new_schedule.number_of_dummy_units() < 5 {
                 for dummy in new_schedule.dummy_iter() {

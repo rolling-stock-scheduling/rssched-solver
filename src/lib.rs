@@ -81,7 +81,7 @@ pub fn run(path: &str) {
     let optimal = nw.minimal_overhead();
     println!("min_overhead: {}", optimal);
     println!("ETH_Solution:");
-    final_schedule.objective_value().print();
+    final_schedule.objective_value().print(None);
 
     println!("Running time: {:0.2}sec", runtime_duration.as_secs_f32());
 
@@ -97,5 +97,5 @@ pub fn run(path: &str) {
         nw.clone(),
     );
     println!("SBB_Solution:");
-    loaded_schedule.objective_value().print();
+    loaded_schedule.objective_value().print(None);
 }
