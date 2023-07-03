@@ -8,6 +8,8 @@ mod locations;
 mod network;
 mod units;
 
+mod json_serialisation;
+
 mod schedule;
 
 mod solver;

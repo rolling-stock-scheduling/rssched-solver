@@ -347,6 +347,13 @@ impl Duration {
         Duration::Length(DurationLength { hours, minutes })
     }
 
+    pub(crate) fn from_seconds(seconds: u32) -> Duration {
+        Duration::Length(DurationLength {
+            hours: seconds / 3600,
+            minutes: (seconds % 3600 / 60) as u8,
+        })
+    }
+
     pub(crate) fn from_iso(string: &str) -> Duration {
         //"P10DT0H31M0S"
         let splitted: Vec<&str> = string

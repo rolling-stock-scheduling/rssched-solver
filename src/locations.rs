@@ -8,7 +8,8 @@ use crate::time::Duration;
 
 use crate::utilities::CopyStr;
 
-type Station = CopyStr<4>; // Stations are represented by String codes of length 2 to 4.
+pub(crate) type Station = CopyStr<10>; // Stations are represented by String codes of length up to
+                                       // 10.
 
 /// a type for storing the pair-wise distances and travel times between all stations.
 /// Distances are stored as a Vec<Vec<Distance>>-matrix.
@@ -36,11 +37,27 @@ pub(crate) enum Location {
              // Everywhere // distance to Everywehre is always zero (except for Nowhere)
 }
 
-struct DeadHeadTrip {
+pub(crate) struct DeadHeadTrip {
     distance: Distance,
     travel_time: Duration,
     origin_side: StationSide,
     destination_side: StationSide,
+}
+
+impl DeadHeadTrip {
+    pub(crate) fn new(
+        distance: Distance,
+        travel_time: Duration,
+        origin_side: StationSide,
+        destination_side: StationSide,
+    ) -> DeadHeadTrip {
+        DeadHeadTrip {
+            distance,
+            travel_time,
+            origin_side,
+            destination_side,
+        }
+    }
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -49,6 +66,16 @@ struct DeadHeadTrip {
 
 // static functions
 impl Locations {
+    pub(crate) fn new(
+        stations: HashSet<Station>,
+        dead_head_trips: HashMap<Station, HashMap<Station, DeadHeadTrip>>,
+    ) -> Locations {
+        Locations {
+            stations,
+            dead_head_trips,
+        }
+    }
+
     pub(crate) fn load_from_csv(path: &str) -> Locations {
         let mut stations: HashSet<Station> = HashSet::new();
         let mut dead_head_trips: HashMap<Station, HashMap<Station, DeadHeadTrip>> = HashMap::new();
