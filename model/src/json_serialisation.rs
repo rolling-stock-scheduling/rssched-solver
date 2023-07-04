@@ -1,19 +1,16 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Result;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::prelude::*;
 
-use crate::base_types::StationSide;
-use crate::distance::Distance;
-use crate::locations::{DeadHeadTrip, Locations, Station};
-use crate::time::Duration;
+use crate::base_types::{Distance, Duration, LocationId, StationSide};
+use crate::locations::{DeadHeadTrip, Locations};
 
 type Integer = u32;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-struct UnitType {
+struct VehicleType {
     id: String,
     name: String,
     number_of_seats: Integer,
@@ -30,7 +27,7 @@ struct Location {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-struct UpperBoundForUnitTypes {
+struct UpperBoundForVehicleTypes {
     unit_type: String,
     upper_bound: Integer,
 }
@@ -40,7 +37,7 @@ struct UpperBoundForUnitTypes {
 struct Depot {
     id: String,
     location: String,
-    upper_bound_for_unit_types: Vec<UpperBoundForUnitTypes>,
+    upper_bound_for_unit_types: Vec<UpperBoundForVehicleTypes>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -90,7 +87,7 @@ struct Parameters {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct JsonInput {
-    unit_types: Vec<UnitType>,
+    unit_types: Vec<VehicleType>,
     locations: Vec<Location>,
     depots: Vec<Depot>,
     routes: Vec<Route>,
@@ -107,21 +104,22 @@ fn load_json_input(path: &str) -> JsonInput {
 }
 
 fn create_locations(json_input: &JsonInput) -> Locations {
-    let mut stations: HashSet<Station> = HashSet::new();
-    let mut dead_head_trips: HashMap<Station, HashMap<Station, DeadHeadTrip>> = HashMap::new();
+    let mut stations: HashSet<LocationId> = HashSet::new();
+    let mut dead_head_trips: HashMap<LocationId, HashMap<LocationId, DeadHeadTrip>> =
+        HashMap::new();
 
     // add stations
     for location in &json_input.locations {
-        stations.insert(Station::from(&location.id));
+        stations.insert(LocationId::from(&location.id));
     }
 
     // add dead head trips
     for (i, origin) in json_input.dead_head_trips.indices.iter().enumerate() {
-        let origin_station = Station::from(&origin);
-        let mut destination_map: HashMap<Station, DeadHeadTrip> = HashMap::new();
+        let origin_station = LocationId::from(&origin);
+        let mut destination_map: HashMap<LocationId, DeadHeadTrip> = HashMap::new();
         for (j, destination) in json_input.dead_head_trips.indices.iter().enumerate() {
             destination_map.insert(
-                Station::from(&destination),
+                LocationId::from(&destination),
                 DeadHeadTrip::new(
                     Distance::from_meter(
                         json_input.dead_head_trips.distances_in_meter[i][j] as u64,

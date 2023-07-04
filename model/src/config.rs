@@ -1,6 +1,4 @@
-use crate::base_types::Cost;
-use crate::distance::Distance;
-use crate::time::Duration;
+use crate::base_types::{Cost, Distance, Duration};
 
 use yaml_rust::yaml::Yaml;
 use yaml_rust::YamlLoader;
@@ -20,8 +18,8 @@ pub struct ConfigDurationsBetweenActivities {
 }
 
 pub struct ConfigObjective {
-    cost_of_used_unit: Cost,
-    cost_of_violated_activity_link: Cost,
+    pub cost_of_used_vehicle: Cost,
+    pub cost_of_violated_activity_link: Cost,
     pub continuous_idle_time: ConfigContinuousIdleTime,
     pub bathtub: ConfigBathtub,
 }
@@ -112,7 +110,7 @@ impl Config {
             event,
         };
 
-        let cost_of_used_unit =
+        let cost_of_used_vehicle =
             cost_from_yaml(&config["objective"]["cost_per_fahrzeuggruppe_planned"]);
         let cost_of_violated_activity_link = cost_from_yaml(
             &config["objective"]["cost_per_violated_reference_leistungsverknuepfung"],
@@ -151,7 +149,7 @@ impl Config {
         };
 
         let objective = ConfigObjective {
-            cost_of_used_unit,
+            cost_of_used_vehicle,
             cost_of_violated_activity_link,
             continuous_idle_time,
             bathtub,

@@ -1,9 +1,8 @@
 use super::swaps::{PathExchange, Swap};
-use crate::base_types::UnitId;
-use crate::network::Network;
 use crate::schedule::path::Segment;
 use crate::schedule::Schedule;
-use crate::time::Duration;
+use sbb_model::base_types::{Duration, VehicleId};
+use sbb_model::network::Network;
 use std::sync::Arc;
 
 use std::iter;
@@ -55,16 +54,16 @@ impl SwapFactory for LimitedExchanges {
         let providers: Vec<_> = if self.only_dummy_provider {
             schedule.dummy_iter().collect()
         } else {
-            self.dummy_and_real_units(schedule).collect()
+            self.dummy_and_real_vehicles(schedule).collect()
         };
         Box::new(
-            // as provider first take dummies then real units:
+            // as provider first take dummies then real Vehicles:
             providers.into_iter().flat_map(move |provider|
                 // create segment of provider's tour
                 self.segments(provider, schedule)
                 .flat_map(move |seg|
-                    // as receiver first take the real units then the dummies
-                    self.real_and_dummy_units(schedule)
+                    // as receiver first take the real Vehicles then the dummies
+                    self.real_and_dummy_vehicles(schedule)
                     // skip provider as receiver, test if receiver could in principle take the
                     // segment
                     .filter(move |&u| u != provider && schedule.conflict(seg, u).is_ok())
@@ -80,7 +79,7 @@ impl SwapFactory for LimitedExchanges {
 impl LimitedExchanges {
     fn segments<'a>(
         &'a self,
-        provider: UnitId,
+        provider: VehicleId,
         schedule: &'a Schedule,
     ) -> impl Iterator<Item = Segment> + 'a {
         let threshold = match self.overhead_threshold {
@@ -100,7 +99,7 @@ impl LimitedExchanges {
             // only take the nodes such that the segment is not longer than the threshold
             .take_while(move |seg_end| self.segment_length_limit.is_none()
                         || self.nw.node(*seg_end).end_time() - self.nw.node(*seg_start).start_time() <= self.segment_length_limit.unwrap())
-            // if provider is a real unit, add the last_node as segment end. (note that is not taken twice as EndNodes
+            // if provider is a real vehicle, add the last_node as segment end. (note that is not taken twice as EndNodes
             // end at time Infinity
             .chain(iter::once(schedule.tour_of(provider).last_node())
                    .filter(move |_n| self.segment_length_limit.is_some()
@@ -114,17 +113,17 @@ impl LimitedExchanges {
         .filter(move |seg| schedule.tour_of(provider).removable(*seg))
     }
 
-    fn dummy_and_real_units<'a>(
+    fn dummy_and_real_vehicles<'a>(
         &'a self,
         schedule: &'a Schedule,
-    ) -> impl Iterator<Item = UnitId> + 'a {
-        schedule.dummy_iter().chain(schedule.real_units_iter())
+    ) -> impl Iterator<Item = VehicleId> + 'a {
+        schedule.dummy_iter().chain(schedule.real_vehicles_iter())
     }
 
-    fn real_and_dummy_units<'a>(
+    fn real_and_dummy_vehicles<'a>(
         &'a self,
         schedule: &'a Schedule,
-    ) -> impl Iterator<Item = UnitId> + 'a {
-        schedule.real_units_iter().chain(schedule.dummy_iter())
+    ) -> impl Iterator<Item = VehicleId> + 'a {
+        schedule.real_vehicles_iter().chain(schedule.dummy_iter())
     }
 }

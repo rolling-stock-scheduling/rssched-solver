@@ -11,7 +11,7 @@ use solver::local_search::LocalSearch;
 use sbb_model::config::Config;
 use sbb_model::locations::Locations;
 use sbb_model::network::Network;
-use sbb_model::units::Units;
+use sbb_model::vehicles::Vehicles;
 
 use schedule::Schedule;
 
@@ -28,7 +28,7 @@ pub fn run(path: &str) {
         "{}{}",
         path, "relationen.csv"
     )));
-    let units = Arc::new(Units::load_from_csv(
+    let vehicles = Arc::new(Vehicles::load_from_csv(
         &format!("{}{}", path, "fahrzeuggruppen.csv"),
         loc.clone(),
     ));
@@ -38,23 +38,23 @@ pub fn run(path: &str) {
         &format!("{}{}", path, "endpunkte.csv"),
         config.clone(),
         loc.clone(),
-        units.clone(),
+        vehicles.clone(),
     ));
 
     let start_time = stdtime::Instant::now();
 
     // initialize local search
     let mut local_search_solver =
-        LocalSearch::initialize(config.clone(), units.clone(), nw.clone());
+        LocalSearch::initialize(config.clone(), vehicles.clone(), nw.clone());
 
     // set initial_schedule:
 
     // use greedy algorithm
-    let greedy_3 = Greedy3::initialize(config.clone(), units.clone(), nw.clone());
+    let greedy_3 = Greedy3::initialize(config.clone(), vehicles.clone(), nw.clone());
     local_search_solver.set_initial_schedule(greedy_3.solve());
 
     // load SBB-schedule:
-    // local_search_solver.set_initial_schedule(Schedule::load_from_csv(&format!("{}{}", path, "leistungsketten.csv"), config.clone(), units.clone(), nw.clone()));
+    // local_search_solver.set_initial_schedule(Schedule::load_from_csv(&format!("{}{}", path, "leistungsketten.csv"), config.clone(), Vehicles.clone(), nw.clone()));
 
     // execute local search:
     let final_schedule = local_search_solver.solve();
@@ -83,7 +83,7 @@ pub fn run(path: &str) {
     let loaded_schedule = Schedule::load_from_csv(
         &format!("{}{}", path, "leistungsketten.csv"),
         config.clone(),
-        units.clone(),
+        vehicles.clone(),
         nw.clone(),
     );
     println!("SBB_Solution:");

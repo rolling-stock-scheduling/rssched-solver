@@ -4,12 +4,12 @@ pub mod swap_factory;
 
 pub mod local_improver;
 
-use crate::config::Config;
-use crate::network::Network;
 use crate::schedule::Schedule;
 use crate::solver::Solver;
-use crate::time::Duration;
-use crate::units::Units;
+use sbb_model::base_types::Duration;
+use sbb_model::config::Config;
+use sbb_model::network::Network;
+use sbb_model::vehicles::Vehicles;
 use std::sync::Arc;
 
 use local_improver::LocalImprover;
@@ -21,7 +21,7 @@ use local_improver::TakeAnyParallelRecursion;
 
 pub struct LocalSearch {
     config: Arc<Config>,
-    units: Arc<Units>,
+    vehicles: Arc<Vehicles>,
     nw: Arc<Network>,
     initial_schedule: Option<Schedule>,
 }
@@ -33,10 +33,10 @@ impl LocalSearch {
 }
 
 impl Solver for LocalSearch {
-    fn initialize(config: Arc<Config>, units: Arc<Units>, nw: Arc<Network>) -> LocalSearch {
+    fn initialize(config: Arc<Config>, vehicles: Arc<Vehicles>, nw: Arc<Network>) -> LocalSearch {
         LocalSearch {
             config,
-            units,
+            vehicles,
             nw,
             initial_schedule: None,
         }
@@ -46,13 +46,15 @@ impl Solver for LocalSearch {
         // if there is not start schedule, create new empty schedule:
         let mut schedule: Schedule = match &self.initial_schedule {
             Some(sched) => sched.clone(),
-            None => Schedule::initialize(self.config.clone(), self.units.clone(), self.nw.clone()),
+            None => {
+                Schedule::initialize(self.config.clone(), self.vehicles.clone(), self.nw.clone())
+            }
         };
 
         // Phase 1: limited exchanges:
         println!("\n\n\n*** Phase 1: limited exchanges with recursion ***");
         let segment_limit = Duration::new("3:00");
-        let overhead_threshold = Duration::new("0:40"); // tours of real-unit-providers are not splitted at nodes under these duration
+        let overhead_threshold = Duration::new("0:40"); // tours of real-vehicle-providers are not splitted at nodes under these duration
         let only_dummy_provider = false;
         let swap_factory = LimitedExchanges::new(
             Some(segment_limit),
@@ -109,7 +111,7 @@ impl LocalSearch {
                 .objective_value()
                 .print(Some(&old_schedule.objective_value()));
             // schedule.print();
-            if new_schedule.number_of_dummy_units() < 5 {
+            if new_schedule.number_of_dummy_vehicles() < 5 {
                 for dummy in new_schedule.dummy_iter() {
                     println!("{}: {}", dummy, new_schedule.tour_of(dummy));
                 }

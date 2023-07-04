@@ -1,15 +1,13 @@
-pub(crate) mod nodes;
+pub mod nodes;
 use nodes::Node;
 
-pub(crate) mod demand;
+pub mod demand;
 use demand::Demand;
 
-use crate::base_types::{NodeId, StationSide, UnitId};
+use crate::base_types::{DateTime, Distance, Duration, LocationId, NodeId, StationSide, VehicleId};
 use crate::config::Config;
-use crate::distance::Distance;
 use crate::locations::Locations;
-use crate::time::{Duration, Time};
-use crate::units::{UnitType, Units};
+use crate::vehicles::{VehicleType, Vehicles};
 
 use std::collections::HashMap;
 use std::fmt;
@@ -18,13 +16,13 @@ use std::iter::Iterator;
 
 use std::sync::Arc;
 
-pub(crate) struct Network {
+pub struct Network {
     nodes: HashMap<NodeId, Node>,
 
     // nodes are by default sorted by start_time
     service_nodes: Vec<NodeId>,
     maintenance_nodes: Vec<NodeId>,
-    start_nodes: HashMap<UnitId, NodeId>,
+    start_nodes: HashMap<VehicleId, NodeId>,
     end_nodes: Vec<NodeId>,
     nodes_sorted_by_start: Vec<NodeId>,
     nodes_sorted_by_end: Vec<NodeId>,
@@ -36,32 +34,32 @@ pub(crate) struct Network {
 
 // methods
 impl Network {
-    pub(crate) fn node(&self, id: NodeId) -> &Node {
+    pub fn node(&self, id: NodeId) -> &Node {
         self.nodes.get(&id).unwrap()
     }
 
     /// return the number of nodes in the network.
-    pub(crate) fn size(&self) -> usize {
+    pub fn size(&self) -> usize {
         self.nodes.len()
     }
 
-    pub(crate) fn service_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
+    pub fn service_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
         self.service_nodes.iter().copied()
     }
 
-    pub(crate) fn maintenance_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
+    pub fn maintenance_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
         self.maintenance_nodes.iter().copied()
     }
 
-    pub(crate) fn end_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
+    pub fn end_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
         self.end_nodes.iter().copied()
     }
 
-    pub(crate) fn start_node_of(&self, unit_id: UnitId) -> NodeId {
-        *self.start_nodes.get(&unit_id).unwrap()
+    pub fn start_node_of(&self, vehicle_id: VehicleId) -> NodeId {
+        *self.start_nodes.get(&vehicle_id).unwrap()
     }
 
-    pub(crate) fn idle_time_between(&self, node1: NodeId, node2: NodeId) -> Duration {
+    pub fn idle_time_between(&self, node1: NodeId, node2: NodeId) -> Duration {
         let idle_start = self.node(node1).end_time() + self.dead_head_time_between(node1, node2);
         let idle_end = self.node(node2).start_time();
         if idle_start <= idle_end {
@@ -72,7 +70,7 @@ impl Network {
         }
     }
 
-    pub(crate) fn dead_head_time_between(&self, node1: NodeId, node2: NodeId) -> Duration {
+    pub fn dead_head_time_between(&self, node1: NodeId, node2: NodeId) -> Duration {
         // TODO: Adjust if it is a recommended activity_link
         self.loc.travel_time(
             self.node(node1).end_location(),
@@ -80,7 +78,7 @@ impl Network {
         )
     }
 
-    pub(crate) fn dead_head_distance_between(&self, node1: NodeId, node2: NodeId) -> Distance {
+    pub fn dead_head_distance_between(&self, node1: NodeId, node2: NodeId) -> Distance {
         // TODO: Adjust if it is a recommended activity_link
         self.loc.distance(
             self.node(node1).end_location(),
@@ -89,7 +87,7 @@ impl Network {
     }
 
     /// returns True iff node1 can reach node2
-    pub(crate) fn can_reach(&self, node1: NodeId, node2: NodeId) -> bool {
+    pub fn can_reach(&self, node1: NodeId, node2: NodeId) -> bool {
         let n1 = self.nodes.get(&node1).unwrap();
         let n2 = self.nodes.get(&node2).unwrap();
 
@@ -184,7 +182,7 @@ impl Network {
 
     /// provides all nodes that are reachable from node (in increasing order according to the
     /// starting time)
-    pub(crate) fn all_successors(&self, node: NodeId) -> impl Iterator<Item = NodeId> + '_ {
+    pub fn all_successors(&self, node: NodeId) -> impl Iterator<Item = NodeId> + '_ {
         // TODO: Could use binary_search for speed up
         self.nodes_sorted_by_start
             .iter()
@@ -194,7 +192,7 @@ impl Network {
 
     /// provides all nodes that are can reach node (in decreasing order according to the
     /// end time)
-    pub(crate) fn all_predecessors(&self, node: NodeId) -> impl Iterator<Item = NodeId> + '_ {
+    pub fn all_predecessors(&self, node: NodeId) -> impl Iterator<Item = NodeId> + '_ {
         self.nodes_sorted_by_end
             .iter()
             .rev()
@@ -202,11 +200,11 @@ impl Network {
             .filter(move |&n| self.can_reach(n, node))
     }
 
-    pub(crate) fn all_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
+    pub fn all_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
         self.nodes_sorted_by_start.iter().copied()
     }
 
-    pub(crate) fn minimal_overhead(&self) -> Duration {
+    pub fn minimal_overhead(&self) -> Duration {
         let earliest_start_time = self
             .start_nodes
             .values()
@@ -230,7 +228,7 @@ impl Network {
             .iter()
             .chain(self.maintenance_nodes.iter())
             .map(|n| {
-                (0..self.node(*n).demand().number_of_units())
+                (0..self.node(*n).demand().number_of_vehicles())
                     .map(|_| self.node(*n).duration())
                     .sum()
             })
@@ -241,13 +239,13 @@ impl Network {
 
 // static functions
 impl Network {
-    pub(crate) fn load_from_csv(
+    pub fn load_from_csv(
         path_service: &str,
         path_maintenance: &str,
         path_endpoints: &str,
         config: Arc<Config>,
         loc: Arc<Locations>,
-        units: Arc<Units>,
+        vehicles: Arc<Vehicles>,
     ) -> Network {
         let mut nodes: HashMap<NodeId, Node> = HashMap::new();
 
@@ -260,11 +258,11 @@ impl Network {
             let record = result.expect("Some recond cannot be read while reading service_trips");
             let _driving_day = record.get(0).unwrap();
             let _train_number = record.get(1).unwrap();
-            let start_time = Time::new(record.get(2).unwrap());
-            let start_location = loc.get_location(record.get(3).unwrap());
+            let start_time = DateTime::new(record.get(2).unwrap());
+            let start_location = loc.get_location(LocationId::from(record.get(3).unwrap()));
             let start_side = StationSide::from(record.get(4).unwrap());
-            let end_time = Time::new(record.get(5).unwrap());
-            let end_location = loc.get_location(record.get(6).unwrap());
+            let end_time = DateTime::new(record.get(5).unwrap());
+            let end_location = loc.get_location(LocationId::from(record.get(6).unwrap()));
             let end_side = StationSide::from(record.get(7).unwrap());
             let length = Distance::from_km(record.get(8).unwrap().parse().unwrap());
             let demand_amount: u8 = record.get(9).unwrap().parse().unwrap();
@@ -295,9 +293,9 @@ impl Network {
         for result in reader.records() {
             let record =
                 result.expect("Some recond cannot be read while reading maintenance_slots");
-            let location = loc.get_location(record.get(0).unwrap());
-            let start_time = Time::new(record.get(1).unwrap());
-            let end_time = Time::new(record.get(2).unwrap());
+            let location = loc.get_location(LocationId::from(record.get(0).unwrap()));
+            let start_time = DateTime::new(record.get(1).unwrap());
+            let end_time = DateTime::new(record.get(2).unwrap());
             let id = NodeId::from(&format!("MS:{}", record.get(3).unwrap()));
             let name = format!("!{}:{}!", location, record.get(3).unwrap());
 
@@ -307,20 +305,20 @@ impl Network {
             maintenance_nodes.push(id);
         }
 
-        let mut start_nodes: HashMap<UnitId, NodeId> = HashMap::new();
-        for unit_id in units.iter() {
-            let unit = units.get_unit(unit_id);
-            let node_id = NodeId::from(&format!("SN:{}", unit_id));
-            let name = format!("|{}@{}", unit_id, unit.start_location());
+        let mut start_nodes: HashMap<VehicleId, NodeId> = HashMap::new();
+        for vehicle_id in vehicles.iter() {
+            let vehicle = vehicles.get_vehicle(vehicle_id);
+            let node_id = NodeId::from(&format!("SN:{}", vehicle_id));
+            let name = format!("|{}@{}", vehicle_id, vehicle.start_location());
             let start_node = Node::create_start_node(
                 node_id,
-                unit_id,
-                unit.start_location(),
-                unit.start_time(),
+                vehicle_id,
+                vehicle.start_location(),
+                vehicle.start_time(),
                 name,
             );
             nodes.insert(node_id, start_node);
-            start_nodes.insert(unit_id, node_id);
+            start_nodes.insert(vehicle_id, node_id);
         }
 
         let mut end_nodes: Vec<NodeId> = Vec::new();
@@ -331,16 +329,16 @@ impl Network {
         for result in reader.records() {
             let record = result.expect("Some recond cannot be read while reading end_points");
             let id = NodeId::from(&format!("EN:{}", record.get(0).unwrap()));
-            let unit_type = UnitType::Standard;
-            let time = Time::new(record.get(1).unwrap());
-            let location = loc.get_location(record.get(2).unwrap());
+            let vehicle_type = VehicleType::Standard;
+            let time = DateTime::new(record.get(1).unwrap());
+            let location = loc.get_location(LocationId::from(record.get(2).unwrap()));
             let duration_till_maintenance = Duration::from_iso(record.get(3).unwrap());
             let dist_till_maintenance = Distance::from_km(record.get(4).unwrap().parse().unwrap());
             let name = format!("{}:{}|", location, record.get(0).unwrap());
 
             let end_point = Node::create_end_node(
                 id,
-                unit_type,
+                vehicle_type,
                 location,
                 time,
                 duration_till_maintenance,

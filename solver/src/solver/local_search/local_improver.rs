@@ -1,5 +1,5 @@
-use crate::base_types::Cost;
 use crate::schedule::Schedule;
+use sbb_model::base_types::Cost;
 
 use super::swap_factory::SwapFactory;
 use crate::schedule::objective::ObjectiveValue;

@@ -1,27 +1,24 @@
 use super::demand::Demand;
-use crate::base_types::{NodeId, StationSide, UnitId};
-use crate::distance::Distance;
-use crate::locations::Location;
-use crate::time::{Duration, Time};
-use crate::units::UnitType;
+use crate::base_types::{DateTime, Distance, Duration, Location, NodeId, StationSide, VehicleId};
+use crate::vehicles::VehicleType;
 
 use core::cmp::Ordering;
 
 use std::fmt;
 
-pub(crate) enum Node {
+pub enum Node {
     Service(ServiceTrip),
     Maintenance(MaintenanceSlot),
     Start(StartPoint),
     End(EndPoint),
 }
 
-pub(crate) struct ServiceTrip {
+pub struct ServiceTrip {
     id: NodeId,
     origin: Location,
     destination: Location,
-    departure: Time,
-    arrival: Time,
+    departure: DateTime,
+    arrival: DateTime,
     departure_side: StationSide,
     arrival_side: StationSide,
     travel_distance: Distance,
@@ -29,55 +26,55 @@ pub(crate) struct ServiceTrip {
     name: String,
 }
 
-pub(crate) struct MaintenanceSlot {
+pub struct MaintenanceSlot {
     id: NodeId,
     location: Location,
-    start: Time,
-    end: Time,
+    start: DateTime,
+    end: DateTime,
     name: String,
 }
 
-pub(crate) struct StartPoint {
+pub struct StartPoint {
     node_id: NodeId,
-    unit_id: UnitId,
+    vehicle_id: VehicleId,
     location: Location,
-    time: Time,
+    time: DateTime,
     name: String,
 }
 
-pub(crate) struct EndPoint {
+pub struct EndPoint {
     id: NodeId,
-    unit_type: UnitType,
+    vehicle_type: VehicleType,
     location: Location,
-    time: Time,
+    time: DateTime,
     duration_till_maintenance: Duration,
     dist_till_maintenance: Distance,
     name: String,
 }
 
 impl EndPoint {
-    pub(crate) fn dist_till_maintenance(&self) -> Distance {
+    pub fn dist_till_maintenance(&self) -> Distance {
         self.dist_till_maintenance
     }
 
-    pub(crate) fn duration_till_maintenance(&self) -> Duration {
+    pub fn duration_till_maintenance(&self) -> Duration {
         self.duration_till_maintenance
     }
 }
 
 impl ServiceTrip {
-    pub(crate) fn departure_side(&self) -> StationSide {
+    pub fn departure_side(&self) -> StationSide {
         self.departure_side
     }
 
-    pub(crate) fn arrival_side(&self) -> StationSide {
+    pub fn arrival_side(&self) -> StationSide {
         self.arrival_side
     }
 }
 
 // methods
 impl Node {
-    pub(crate) fn id(&self) -> NodeId {
+    pub fn id(&self) -> NodeId {
         match self {
             Node::Service(s) => s.id,
             Node::Maintenance(m) => m.id,
@@ -86,29 +83,29 @@ impl Node {
         }
     }
 
-    pub(crate) fn start_time(&self) -> Time {
+    pub fn start_time(&self) -> DateTime {
         match self {
             Node::Service(s) => s.departure,
             Node::Maintenance(m) => m.start,
-            Node::Start(_) => Time::Earliest,
+            Node::Start(_) => DateTime::Earliest,
             Node::End(e) => e.time,
         }
     }
 
-    pub(crate) fn end_time(&self) -> Time {
+    pub fn end_time(&self) -> DateTime {
         match self {
             Node::Service(s) => s.arrival,
             Node::Maintenance(m) => m.end,
             Node::Start(s) => s.time,
-            Node::End(_) => Time::Latest,
+            Node::End(_) => DateTime::Latest,
         }
     }
 
-    pub(crate) fn duration(&self) -> Duration {
+    pub fn duration(&self) -> Duration {
         self.end_time() - self.start_time()
     }
 
-    pub(crate) fn useful_duration(&self) -> Duration {
+    pub fn useful_duration(&self) -> Duration {
         if matches!(self, Node::Service(_)) || matches!(self, Node::Maintenance(_)) {
             self.duration()
         } else {
@@ -116,7 +113,7 @@ impl Node {
         }
     }
 
-    pub(crate) fn start_location(&self) -> Location {
+    pub fn start_location(&self) -> Location {
         match self {
             Node::Service(s) => s.origin,
             Node::Maintenance(m) => m.location,
@@ -125,7 +122,7 @@ impl Node {
         }
     }
 
-    pub(crate) fn end_location(&self) -> Location {
+    pub fn end_location(&self) -> Location {
         match self {
             Node::Service(s) => s.destination,
             Node::Maintenance(m) => m.location,
@@ -134,28 +131,21 @@ impl Node {
         }
     }
 
-    pub(crate) fn travel_distance(&self) -> Distance {
+    pub fn travel_distance(&self) -> Distance {
         match self {
             Node::Service(s) => s.travel_distance,
             _ => Distance::zero(),
         }
     }
 
-    pub(crate) fn unit_type(&self) -> UnitType {
+    pub fn vehicle_type(&self) -> VehicleType {
         match self {
-            Node::End(e) => e.unit_type,
+            Node::End(e) => e.vehicle_type,
             _ => panic!("Node is not an EndPoint."),
         }
     }
 
-    // pub(crate) fn travel_time(&self) -> Duration {
-    // match self {
-    // Node::Service(s) => s.arrival - s.departure,
-    // _ => Duration::zero()
-    // }
-    // }
-
-    pub(crate) fn demand(&self) -> Demand {
+    pub fn demand(&self) -> Demand {
         match self {
             Node::Service(s) => s.demand,
             Node::Maintenance(_) => Demand::new(1),
@@ -164,7 +154,7 @@ impl Node {
         }
     }
 
-    pub(crate) fn name(&self) -> &str {
+    pub fn name(&self) -> &str {
         match self {
             Node::Service(s) => &s.name,
             Node::Maintenance(m) => &m.name,
@@ -174,7 +164,7 @@ impl Node {
     }
 
     /// compare to nodes according to the start_time (ties are broken by end_time and then id)
-    pub(crate) fn cmp_start_time(&self, other: &Node) -> Ordering {
+    pub fn cmp_start_time(&self, other: &Node) -> Ordering {
         self.start_time()
             .cmp(&other.start_time())
             .then(self.end_time().cmp(&other.end_time()))
@@ -182,14 +172,14 @@ impl Node {
     }
 
     /// compare to nodes according to the end_time (ties are broken by start_time and then id)
-    pub(crate) fn cmp_end_time(&self, other: &Node) -> Ordering {
+    pub fn cmp_end_time(&self, other: &Node) -> Ordering {
         self.end_time()
             .cmp(&other.end_time())
             .then(self.start_time().cmp(&other.start_time()))
             .then(self.id().cmp(&other.id()))
     }
 
-    pub(crate) fn print(&self) {
+    pub fn print(&self) {
         match self {
             Node::Service(s) => println!(
                 "{} (id: {}) from {} ({}) to {} ({}), {}",
@@ -201,11 +191,11 @@ impl Node {
             ),
             Node::Start(s) => println!(
                 "{} (id: {}) of {} at {} ({})",
-                s.name, s.node_id, s.unit_id, s.location, s.time
+                s.name, s.node_id, s.vehicle_id, s.location, s.time
             ),
             Node::End(e) => println!(
                 "{} (id: {}) for {:?} at {} ({})",
-                e.name, e.id, e.unit_type, e.location, e.time
+                e.name, e.id, e.vehicle_type, e.location, e.time
             ),
         }
     }
@@ -218,8 +208,8 @@ impl Node {
         id: NodeId,
         origin: Location,
         destination: Location,
-        departure: Time,
-        arrival: Time,
+        departure: DateTime,
+        arrival: DateTime,
         departure_side: StationSide,
         arrival_side: StationSide,
         travel_distance: Distance,
@@ -244,8 +234,8 @@ impl Node {
     pub(super) fn create_maintenance_node(
         id: NodeId,
         location: Location,
-        start: Time,
-        end: Time,
+        start: DateTime,
+        end: DateTime,
         name: String,
     ) -> Node {
         Node::Maintenance(MaintenanceSlot {
@@ -257,17 +247,17 @@ impl Node {
         })
     }
 
-    // factory for creating start and end node of a unit
+    // factory for creating start and end node of a vehicle
     pub(super) fn create_start_node(
         node_id: NodeId,
-        unit_id: UnitId,
+        vehicle_id: VehicleId,
         location: Location,
-        time: Time,
+        time: DateTime,
         name: String,
     ) -> Node {
         Node::Start(StartPoint {
             node_id,
-            unit_id,
+            vehicle_id,
             location,
             time,
             name,
@@ -276,16 +266,16 @@ impl Node {
 
     pub(super) fn create_end_node(
         id: NodeId,
-        unit_type: UnitType,
+        vehicle_type: VehicleType,
         location: Location,
-        time: Time,
+        time: DateTime,
         duration_till_maintenance: Duration,
         dist_till_maintenance: Distance,
         name: String,
     ) -> Node {
         Node::End(EndPoint {
             id,
-            unit_type,
+            vehicle_type,
             location,
             time,
             duration_till_maintenance,

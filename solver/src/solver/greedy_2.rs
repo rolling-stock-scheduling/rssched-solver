@@ -1,26 +1,30 @@
-use crate::base_types::{NodeId, UnitId};
-use crate::config::Config;
-use crate::network::Network;
 use crate::schedule::Schedule;
 use crate::solver::Solver;
-use crate::units::Units;
+use sbb_model::base_types::{NodeId, VehicleId};
+use sbb_model::config::Config;
+use sbb_model::network::Network;
+use sbb_model::vehicles::Vehicles;
 
 use std::sync::Arc;
 
 pub struct Greedy2 {
     config: Arc<Config>,
-    units: Arc<Units>,
+    vehicles: Arc<Vehicles>,
     nw: Arc<Network>,
 }
 
 impl Solver for Greedy2 {
-    fn initialize(config: Arc<Config>, units: Arc<Units>, nw: Arc<Network>) -> Greedy2 {
-        Greedy2 { config, units, nw }
+    fn initialize(config: Arc<Config>, vehicles: Arc<Vehicles>, nw: Arc<Network>) -> Greedy2 {
+        Greedy2 {
+            config,
+            vehicles,
+            nw,
+        }
     }
 
     fn solve(&self) -> Schedule {
         let mut schedule =
-            Schedule::initialize(self.config.clone(), self.units.clone(), self.nw.clone());
+            Schedule::initialize(self.config.clone(), self.vehicles.clone(), self.nw.clone());
 
         // Sort service and maintanence nodes by start time
         let mut nodes_sorted_by_start: Vec<NodeId> = self
@@ -31,9 +35,9 @@ impl Solver for Greedy2 {
         nodes_sorted_by_start.sort_by(|n1, n2| self.nw.node(*n1).cmp_start_time(self.nw.node(*n2)));
 
         // Last node in each non-dummy tour excluding end node. Initialize to start nodes.
-        let mut last_nodes: Vec<(UnitId, NodeId)> = Vec::new();
-        for unit_id in self.units.iter() {
-            last_nodes.push((unit_id, self.nw.start_node_of(unit_id)));
+        let mut last_nodes: Vec<(VehicleId, NodeId)> = Vec::new();
+        for vehicle_id in self.vehicles.iter() {
+            last_nodes.push((vehicle_id, self.nw.start_node_of(vehicle_id)));
         }
 
         //  For each node find an existing tour that can cover it while minimizing the wasted time
@@ -47,9 +51,9 @@ impl Solver for Greedy2 {
                     conflict_result.is_ok() && conflict_result.unwrap().is_empty()
                 });
                 // update tour
-                if let Some((index, &(new_unit, _))) = candidate {
-                    schedule = schedule.reassign_all(dummy_id, new_unit).unwrap();
-                    last_nodes[index] = (new_unit, node);
+                if let Some((index, &(new_vehicle, _))) = candidate {
+                    schedule = schedule.reassign_all(dummy_id, new_vehicle).unwrap();
+                    last_nodes[index] = (new_vehicle, node);
                 }
             }
         }

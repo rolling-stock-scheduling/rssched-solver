@@ -2,14 +2,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
 
-use crate::base_types::StationSide;
-use crate::distance::Distance;
-use crate::time::Duration;
-
-use crate::utilities::CopyStr;
-
-pub(crate) type Station = CopyStr<10>; // Stations are represented by String codes of length up to
-                                       // 10.
+use crate::base_types::{Distance, Duration, Location, LocationId, StationSide};
 
 /// a type for storing the pair-wise distances and travel times between all stations.
 /// Distances are stored as a Vec<Vec<Distance>>-matrix.
@@ -25,19 +18,12 @@ pub(crate) type Station = CopyStr<10>; // Stations are represented by String cod
 ///
 /// A DeadHeadMetrics instance can only be created together with the Vec<Distance> of wrapped
 /// stations. Use loactions::create_locations for that. Hence, the indices should always be consistent.
-pub(crate) struct Locations {
-    stations: HashSet<Station>,
-    dead_head_trips: HashMap<Station, HashMap<Station, DeadHeadTrip>>,
+pub struct Locations {
+    stations: HashSet<LocationId>,
+    dead_head_trips: HashMap<LocationId, HashMap<LocationId, DeadHeadTrip>>,
 }
 
-#[derive(Hash, Eq, PartialEq, Copy, Clone)]
-pub(crate) enum Location {
-    Station(Station),
-    Nowhere, // distance to Nowhere is always infinity
-             // Everywhere // distance to Everywehre is always zero (except for Nowhere)
-}
-
-pub(crate) struct DeadHeadTrip {
+pub struct DeadHeadTrip {
     distance: Distance,
     travel_time: Duration,
     origin_side: StationSide,
@@ -45,7 +31,7 @@ pub(crate) struct DeadHeadTrip {
 }
 
 impl DeadHeadTrip {
-    pub(crate) fn new(
+    pub fn new(
         distance: Distance,
         travel_time: Duration,
         origin_side: StationSide,
@@ -66,9 +52,9 @@ impl DeadHeadTrip {
 
 // static functions
 impl Locations {
-    pub(crate) fn new(
-        stations: HashSet<Station>,
-        dead_head_trips: HashMap<Station, HashMap<Station, DeadHeadTrip>>,
+    pub fn new(
+        stations: HashSet<LocationId>,
+        dead_head_trips: HashMap<LocationId, HashMap<LocationId, DeadHeadTrip>>,
     ) -> Locations {
         Locations {
             stations,
@@ -76,9 +62,10 @@ impl Locations {
         }
     }
 
-    pub(crate) fn load_from_csv(path: &str) -> Locations {
-        let mut stations: HashSet<Station> = HashSet::new();
-        let mut dead_head_trips: HashMap<Station, HashMap<Station, DeadHeadTrip>> = HashMap::new();
+    pub fn load_from_csv(path: &str) -> Locations {
+        let mut stations: HashSet<LocationId> = HashSet::new();
+        let mut dead_head_trips: HashMap<LocationId, HashMap<LocationId, DeadHeadTrip>> =
+            HashMap::new();
         let mut reader = csv::ReaderBuilder::new()
             .delimiter(b';')
             .from_path(path)
@@ -107,9 +94,9 @@ impl Locations {
             let second_side = StationSide::from(record.get(5).unwrap());
 
             fn insert(
-                distances: &mut HashMap<Station, HashMap<Station, DeadHeadTrip>>,
-                origin: &Station,
-                destination: &Station,
+                distances: &mut HashMap<LocationId, HashMap<LocationId, DeadHeadTrip>>,
+                origin: &LocationId,
+                destination: &LocationId,
                 dead_head_trip: DeadHeadTrip,
             ) {
                 match distances.get_mut(origin) {
@@ -122,11 +109,11 @@ impl Locations {
                 .insert(*destination, dead_head_trip);
             }
 
-            stations.insert(Station::from(first_station_code));
-            stations.insert(Station::from(second_station_code));
+            stations.insert(LocationId::from(first_station_code));
+            stations.insert(LocationId::from(second_station_code));
 
-            let first_station = Station::from(first_station_code);
-            let second_station = Station::from(second_station_code);
+            let first_station = LocationId::from(first_station_code);
+            let second_station = LocationId::from(second_station_code);
 
             insert(
                 &mut dead_head_trips,
@@ -185,22 +172,21 @@ impl Locations {
 
 // methods
 impl Locations {
-    // pub(crate) fn get_all_locations(&self) -> Vec<Location> {
+    // pub fn get_all_locations(&self) -> Vec<Location> {
     // let mut stations: Vec<Station> = self.stations.iter().copied().collect();
     // stations.sort();
     // stations.iter().map(|s| Location::of(*s)).collect()
     // }
 
-    pub(crate) fn get_location(&self, code: &str) -> Location {
-        let station = Station::from(code);
-        if self.stations.contains(&station) {
-            Location::of(station)
+    pub fn get_location(&self, location_id: LocationId) -> Location {
+        if self.stations.contains(&location_id) {
+            Location::of(location_id)
         } else {
             panic!("Station code is invalid.");
         }
     }
 
-    pub(crate) fn distance(&self, a: Location, b: Location) -> Distance {
+    pub fn distance(&self, a: Location, b: Location) -> Distance {
         match self.get_dead_head_trip(a, b) {
             Some(d) => d.distance,
             None => {
@@ -213,7 +199,7 @@ impl Locations {
         }
     }
 
-    pub(crate) fn travel_time(&self, a: Location, b: Location) -> Duration {
+    pub fn travel_time(&self, a: Location, b: Location) -> Duration {
         match self.get_dead_head_trip(a, b) {
             Some(d) => d.travel_time,
             None => {
@@ -226,9 +212,9 @@ impl Locations {
         }
     }
 
-    /// returns the StationSides of a dead-head trip. First entry is on which side the unit leaves
-    /// the origin, second entry is on which side the unit enters the destination
-    pub(crate) fn station_sides(&self, a: Location, b: Location) -> (StationSide, StationSide) {
+    /// returns the StationSides of a dead-head trip. First entry is on which side the vehicle leaves
+    /// the origin, second entry is on which side the vehicle enters the destination
+    pub fn station_sides(&self, a: Location, b: Location) -> (StationSide, StationSide) {
         match self.get_dead_head_trip(a, b) {
             None => (StationSide::Front, StationSide::Back), // if some of the locations are Infinity, sides should not play any role
             Some(d) => (d.origin_side, d.destination_side),
@@ -261,7 +247,7 @@ impl Location {
     // Location::Location(Station::from(station_code))
     // }
 
-    fn of(station: Station) -> Location {
+    fn of(station: LocationId) -> Location {
         Location::Station(station)
     }
 }

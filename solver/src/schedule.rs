@@ -11,13 +11,10 @@ use objective::ObjectiveValue;
 pub(crate) mod train_formation;
 use train_formation::TrainFormation;
 
-use crate::base_types::{Cost, NodeId, UnitId};
-use crate::config::Config;
-use crate::distance::Distance;
-use crate::network::nodes::Node;
-use crate::network::Network;
-use crate::time::{Duration, Time};
-use crate::units::{Unit, UnitType, Units};
+use sbb_model::base_types::{Cost, DateTime, Distance, Duration, NodeId, VehicleId};
+use sbb_model::config::Config;
+use sbb_model::network::{nodes::Node, Network};
+use sbb_model::vehicles::{Vehicle, VehicleType, Vehicles};
 
 use im::HashMap;
 use std::collections::VecDeque;
@@ -32,20 +29,20 @@ use std::sync::Arc;
 // schedule is create.
 #[derive(Clone)]
 pub(crate) struct Schedule {
-    tours: HashMap<UnitId, Tour>,
+    tours: HashMap<VehicleId, Tour>,
     covered_by: HashMap<NodeId, TrainFormation>,
 
     // non-covered or only partially covered service nodes are stored seperately
-    dummies: HashMap<UnitId, (UnitType, Tour)>,
-    dummy_ids_sorted: Vec<UnitId>,
+    dummies: HashMap<VehicleId, (VehicleType, Tour)>,
+    dummy_ids_sorted: Vec<VehicleId>,
     dummy_counter: usize,
 
-    unit_objective_info: HashMap<UnitId, ObjectiveInfo>, // for each unit we store the overhead_time and the dead_head_distance
-    dummy_objective_info: HashMap<UnitId, Duration>, // for each dummy we store the overhead_time
+    vehicle_objective_info: HashMap<VehicleId, ObjectiveInfo>, // for each vehicle we store the overhead_time and the dead_head_distance
+    dummy_objective_info: HashMap<VehicleId, Duration>, // for each dummy we store the overhead_time
     objective_value: ObjectiveValue,
 
     config: Arc<Config>,
-    units: Arc<Units>,
+    vehicles: Arc<Vehicles>,
     nw: Arc<Network>,
 }
 
@@ -61,13 +58,13 @@ struct ObjectiveInfo {
 }
 
 impl ObjectiveInfo {
-    fn new(unit: &Unit, tour: &Tour) -> ObjectiveInfo {
+    fn new(vehicle: &Vehicle, tour: &Tour) -> ObjectiveInfo {
         let (
             maintenance_distance_violation,
             maintenance_duration_violation,
             maintenance_distance_bathtub_cost,
             maintenance_duration_bathtub_cost,
-        ) = tour.maintenance_violation_and_cost(unit);
+        ) = tour.maintenance_violation_and_cost(vehicle);
 
         let continuous_idle_time_cost = tour.continuous_idle_time_cost();
         ObjectiveInfo {
@@ -84,12 +81,12 @@ impl ObjectiveInfo {
 
 // methods
 impl Schedule {
-    pub(crate) fn tour_of(&self, unit: UnitId) -> &Tour {
-        self.tours.get(&unit).unwrap_or_else(|| {
+    pub(crate) fn tour_of(&self, vehicle: VehicleId) -> &Tour {
+        self.tours.get(&vehicle).unwrap_or_else(|| {
             &self
                 .dummies
-                .get(&unit)
-                .unwrap_or_else(|| panic!("{} is neither real nor dummy unit", unit))
+                .get(&vehicle)
+                .unwrap_or_else(|| panic!("{} is neither real nor dummy vehicle", vehicle))
                 .1
         })
     }
@@ -98,23 +95,23 @@ impl Schedule {
         self.covered_by.get(&node).unwrap()
     }
 
-    pub(crate) fn type_of(&self, unit: UnitId) -> UnitType {
+    pub(crate) fn type_of(&self, vehicle: VehicleId) -> VehicleType {
         self.dummies
-            .get(&unit)
+            .get(&vehicle)
             .map(|tuple| tuple.0)
-            .unwrap_or_else(|| self.units.get_unit(unit).unit_type())
+            .unwrap_or_else(|| self.vehicles.get_vehicle(vehicle).vehicle_type())
     }
 
-    pub(crate) fn is_dummy(&self, unit: UnitId) -> bool {
-        self.dummies.contains_key(&unit)
+    pub(crate) fn is_dummy(&self, vehicle: VehicleId) -> bool {
+        self.dummies.contains_key(&vehicle)
     }
 
     // pub(crate) fn total_overhead_time(&self) -> Duration {
     // self.tours.values().map(|t| t.overhead_time()).sum()
     // }
 
-    // pub(crate) fn overhead_time_of(&self, unit: UnitId) -> Duration {
-    // self.tours.get(&unit).unwrap().overhead_time()
+    // pub(crate) fn overhead_time_of(&self, vehicle: VehicleId) -> Duration {
+    // self.tours.get(&vehicle).unwrap().overhead_time()
     // }
 
     // pub(crate) fn total_dummy_overhead_time(&self) -> Duration {
@@ -129,7 +126,7 @@ impl Schedule {
     // self.tours.values().map(|t| t.dead_head_distance()).sum()
     // }
 
-    pub(crate) fn number_of_dummy_units(&self) -> usize {
+    pub(crate) fn number_of_dummy_vehicles(&self) -> usize {
         self.dummies.len()
     }
 
@@ -137,9 +134,9 @@ impl Schedule {
         self.objective_value
     }
 
-    // returns the first (seen from head to tail) dummy_unit that covers the node.
-    // If node is fully-covered by real units, None is returned.
-    fn get_dummy_cover_of(&self, node: NodeId) -> Option<UnitId> {
+    // returns the first (seen from head to tail) dummy_vehicle that covers the node.
+    // If node is fully-covered by real Vehicles, None is returned.
+    fn get_dummy_cover_of(&self, node: NodeId) -> Option<VehicleId> {
         self.covered_by
             .get(&node)
             .unwrap()
@@ -147,31 +144,31 @@ impl Schedule {
             .find(|u| self.dummies.contains_key(u))
     }
 
-    // pub(crate) fn uncovered_nodes(&self) -> impl Iterator<Item = (NodeId,UnitId)> + '_ {
+    // pub(crate) fn uncovered_nodes(&self) -> impl Iterator<Item = (NodeId,VehicleId)> + '_ {
     // self.dummy_iter().flat_map(|u| self.tour_of(u).nodes_iter().map(move |n| (*n,u)))
     // }
 
-    pub(crate) fn dummy_iter(&self) -> impl Iterator<Item = UnitId> + '_ {
+    pub(crate) fn dummy_iter(&self) -> impl Iterator<Item = VehicleId> + '_ {
         self.dummy_ids_sorted.iter().copied()
     }
 
-    /// returns all unit ids of real units (sorted)
-    pub(crate) fn real_units_iter(&self) -> impl Iterator<Item = UnitId> + '_ {
-        self.units.iter()
+    /// returns all vehicle ids of real Vehicles (sorted)
+    pub(crate) fn real_vehicles_iter(&self) -> impl Iterator<Item = VehicleId> + '_ {
+        self.vehicles.iter()
     }
 
     pub(crate) fn uncovered_successors(
         &self,
         node: NodeId,
-    ) -> impl Iterator<Item = (NodeId, UnitId)> + '_ {
+    ) -> impl Iterator<Item = (NodeId, VehicleId)> + '_ {
         self.nw
             .all_successors(node)
             .filter_map(|n| self.get_dummy_cover_of(n).map(|u| (n, u)))
     }
 
-    /// Simulates inserting the node_sequence into the tour of unit. Return all nodes (as a Path) that would
+    /// Simulates inserting the node_sequence into the tour of vehicle. Return all nodes (as a Path) that would
     /// have been removed from the tour.
-    pub(crate) fn conflict(&self, segment: Segment, receiver: UnitId) -> Result<Path, String> {
+    pub(crate) fn conflict(&self, segment: Segment, receiver: VehicleId) -> Result<Path, String> {
         let tour: Tour = self.tour_of(receiver).clone();
         let result = tour.conflict(segment)?;
         Ok(result)
@@ -180,13 +177,13 @@ impl Schedule {
     pub(crate) fn conflict_single_node(
         &self,
         node: NodeId,
-        receiver: UnitId,
+        receiver: VehicleId,
     ) -> Result<Path, String> {
         self.conflict(Segment::new(node, node), receiver)
     }
 
-    // pub(crate) fn conflict_all(&self, dummy_provider: UnitId, receiver: UnitId) -> Result<Path, String> {
-    // let tour = &self.dummies.get(&dummy_provider).expect("Can only assign_all if provider is a dummy-unit.").1;
+    // pub(crate) fn conflict_all(&self, dummy_provider: VehicleId, receiver: VehicleId) -> Result<Path, String> {
+    // let tour = &self.dummies.get(&dummy_provider).expect("Can only assign_all if provider is a dummy-vehicle.").1;
     // self.conflict(Segment::new(tour.first_node(), tour.last_node()), receiver)
     // }
 
@@ -195,8 +192,8 @@ impl Schedule {
     pub(crate) fn reassign(
         &self,
         segment: Segment,
-        provider: UnitId,
-        receiver: UnitId,
+        provider: VehicleId,
+        receiver: VehicleId,
     ) -> Result<Schedule, String> {
         if !self.conflict(segment, receiver)?.is_empty() {
             return Err(String::from("There are conflcits. Abort reassign()!"));
@@ -207,21 +204,21 @@ impl Schedule {
 
     /// Reassigns a single node of provider to the tour of receiver.
     /// Aborts if there are any conflicts.
-    // pub(crate) fn reassign_single_node(&self, node: NodeId, provider: UnitId, receiver: UnitId) -> Result<Schedule,String> {
+    // pub(crate) fn reassign_single_node(&self, node: NodeId, provider: VehicleId, receiver: VehicleId) -> Result<Schedule,String> {
     // self.reassign(Segment::new(node, node), provider, receiver)
     // }
 
-    /// Reassign the complete tour of the provider (must be dummy-unit) to the receiver.
+    /// Reassign the complete tour of the provider (must be dummy-vehicle) to the receiver.
     /// Aborts if there are any conflicts.
     pub(crate) fn reassign_all(
         &self,
-        dummy_provider: UnitId,
-        receiver: UnitId,
+        dummy_provider: VehicleId,
+        receiver: VehicleId,
     ) -> Result<Schedule, String> {
         let tour = &self
             .dummies
             .get(&dummy_provider)
-            .expect("Can only assign_all if provider is a dummy-unit.")
+            .expect("Can only assign_all if provider is a dummy-vehicle.")
             .1;
         self.reassign(
             Segment::new(tour.first_node(), tour.last_node()),
@@ -232,14 +229,14 @@ impl Schedule {
 
     /// Reassigns a single node of provider to the tour of receiver.
     /// Conflicts are removed from the tour.
-    // pub(crate) fn override_reassign_single_node(&self, node: NodeId, provider: UnitId, receiver: UnitId) -> Result<(Schedule, Option<UnitId>),String> {
+    // pub(crate) fn override_reassign_single_node(&self, node: NodeId, provider: VehicleId, receiver: VehicleId) -> Result<(Schedule, Option<VehicleId>),String> {
     // self.override_reassign(Segment::new(node, node), provider, receiver)
     // }
 
-    /// Reassign the complete tour of the provider (must be dummy-unit) to the receiver.
+    /// Reassign the complete tour of the provider (must be dummy-vehicle) to the receiver.
     /// Conflicts are removed from the tour.
-    // pub(crate) fn override_reassign_all(&self, dummy_provider: UnitId, receiver: UnitId) -> Result<(Schedule, Option<UnitId>), String> {
-    // let tour = &self.dummies.get(&dummy_provider).expect("Can only assign_all if provider is a dummy-unit.").1;
+    // pub(crate) fn override_reassign_all(&self, dummy_provider: VehicleId, receiver: VehicleId) -> Result<(Schedule, Option<VehicleId>), String> {
+    // let tour = &self.dummies.get(&dummy_provider).expect("Can only assign_all if provider is a dummy-vehicle.").1;
     // self.override_reassign(Segment::new(tour.first_node(), tour.last_node()), dummy_provider, receiver)
     // }
 
@@ -249,15 +246,15 @@ impl Schedule {
     pub(crate) fn fit_reassign(
         &self,
         segment: Segment,
-        provider: UnitId,
-        receiver: UnitId,
+        provider: VehicleId,
+        receiver: VehicleId,
     ) -> Result<Schedule, String> {
         // do lazy clones of schedule:
         let mut tours = self.tours.clone();
         let mut covered_by = self.covered_by.clone();
         let mut dummies = self.dummies.clone();
         let mut dummy_ids_sorted = self.dummy_ids_sorted.clone();
-        let mut unit_objective_info = self.unit_objective_info.clone();
+        let mut vehicle_objective_info = self.vehicle_objective_info.clone();
         let mut dummy_objective_info = self.dummy_objective_info.clone();
 
         let tour_provider = self.tour_of(provider);
@@ -345,9 +342,9 @@ impl Schedule {
                 dummy_objective_info.insert(provider, new_tour_provider.overhead_time());
                 dummies.insert(provider, (self.type_of(provider), new_tour_provider));
             } else {
-                unit_objective_info.insert(
+                vehicle_objective_info.insert(
                     provider,
-                    ObjectiveInfo::new(self.units.get_unit(provider), &new_tour_provider),
+                    ObjectiveInfo::new(self.vehicles.get_vehicle(provider), &new_tour_provider),
                 );
                 tours.insert(provider, new_tour_provider);
             }
@@ -362,9 +359,9 @@ impl Schedule {
             dummy_objective_info.insert(receiver, new_tour_receiver.overhead_time());
             dummies.insert(receiver, (self.type_of(receiver), new_tour_receiver));
         } else {
-            unit_objective_info.insert(
+            vehicle_objective_info.insert(
                 receiver,
-                ObjectiveInfo::new(self.units.get_unit(receiver), &new_tour_receiver),
+                ObjectiveInfo::new(self.vehicles.get_vehicle(receiver), &new_tour_receiver),
             );
             tours.insert(receiver, new_tour_receiver);
         }
@@ -376,10 +373,10 @@ impl Schedule {
         }
 
         let objective_value = Schedule::sum_up_objective_info(
-            &unit_objective_info,
+            &vehicle_objective_info,
             &dummy_objective_info,
             self.config.clone(),
-            &self.units,
+            &self.vehicles,
         );
 
         Ok(Schedule {
@@ -388,19 +385,19 @@ impl Schedule {
             dummies,
             dummy_ids_sorted,
             dummy_counter: self.dummy_counter,
-            unit_objective_info,
+            vehicle_objective_info,
             dummy_objective_info,
             objective_value,
             config: self.config.clone(),
-            units: self.units.clone(),
+            vehicles: self.vehicles.clone(),
             nw: self.nw.clone(),
         })
     }
 
     pub(crate) fn fit_reassign_all(
         &self,
-        provider: UnitId,
-        receiver: UnitId,
+        provider: VehicleId,
+        receiver: VehicleId,
     ) -> Result<Schedule, String> {
         let provider_tour = self.tour_of(provider);
         self.fit_reassign(
@@ -410,7 +407,7 @@ impl Schedule {
         )
     }
 
-    /// Remove segment from provider's tour and inserts the nodes into the tour of receiver unit.
+    /// Remove segment from provider's tour and inserts the nodes into the tour of receiver vehicle.
     /// All conflicting nodes are removed from the tour and in the case that there are conflcits
     /// a new dummy tour is created.
     /// If path ends with an endnode it is replaces the old endpoint. (Path is suffix of the tour.)
@@ -418,16 +415,16 @@ impl Schedule {
     pub(crate) fn override_reassign(
         &self,
         segment: Segment,
-        provider: UnitId,
-        receiver: UnitId,
-    ) -> Result<(Schedule, Option<UnitId>), String> {
+        provider: VehicleId,
+        receiver: VehicleId,
+    ) -> Result<(Schedule, Option<VehicleId>), String> {
         // do lazy clones of schedule:
         let mut tours = self.tours.clone();
         let mut covered_by = self.covered_by.clone();
         let mut dummies = self.dummies.clone();
         let mut dummy_ids_sorted = self.dummy_ids_sorted.clone();
         let mut dummy_counter = self.dummy_counter;
-        let mut unit_objective_info = self.unit_objective_info.clone();
+        let mut vehicle_objective_info = self.vehicle_objective_info.clone();
         let mut dummy_objective_info = self.dummy_objective_info.clone();
 
         let tour_provider = self.tour_of(provider);
@@ -452,9 +449,12 @@ impl Schedule {
                 dummy_objective_info.insert(provider, shrinked_tour_provider.overhead_time());
                 dummies.insert(provider, (self.type_of(provider), shrinked_tour_provider));
             } else {
-                unit_objective_info.insert(
+                vehicle_objective_info.insert(
                     provider,
-                    ObjectiveInfo::new(self.units.get_unit(provider), &shrinked_tour_provider),
+                    ObjectiveInfo::new(
+                        self.vehicles.get_vehicle(provider),
+                        &shrinked_tour_provider,
+                    ),
                 );
                 tours.insert(provider, shrinked_tour_provider);
             }
@@ -469,9 +469,9 @@ impl Schedule {
             dummy_objective_info.insert(receiver, new_tour_receiver.overhead_time());
             dummies.insert(receiver, (self.type_of(receiver), new_tour_receiver));
         } else {
-            unit_objective_info.insert(
+            vehicle_objective_info.insert(
                 receiver,
-                ObjectiveInfo::new(self.units.get_unit(receiver), &new_tour_receiver),
+                ObjectiveInfo::new(self.vehicles.get_vehicle(receiver), &new_tour_receiver),
             );
             tours.insert(receiver, new_tour_receiver);
         }
@@ -479,7 +479,7 @@ impl Schedule {
         let mut new_dummy_opt = None;
         // insert new dummy tour consisting of conflicting nodes removed from receiver's tour
         if !replaced_path.is_empty() {
-            let new_dummy = UnitId::from(format!("dummy{:05}", dummy_counter).as_str());
+            let new_dummy = VehicleId::from(format!("dummy{:05}", dummy_counter).as_str());
 
             new_dummy_opt = Some(new_dummy);
 
@@ -511,10 +511,10 @@ impl Schedule {
         }
 
         let objective_value = Schedule::sum_up_objective_info(
-            &unit_objective_info,
+            &vehicle_objective_info,
             &dummy_objective_info,
             self.config.clone(),
-            &self.units,
+            &self.vehicles,
         );
 
         Ok((
@@ -524,11 +524,11 @@ impl Schedule {
                 dummies,
                 dummy_ids_sorted,
                 dummy_counter,
-                unit_objective_info,
+                vehicle_objective_info,
                 dummy_objective_info,
                 objective_value,
                 config: self.config.clone(),
-                units: self.units.clone(),
+                vehicles: self.vehicles.clone(),
                 nw: self.nw.clone(),
             },
             new_dummy_opt,
@@ -550,14 +550,14 @@ impl Schedule {
             "endpunktId",
             "wartungsfensterId",
         ])?;
-        for unit in self.units.iter() {
-            let tour = self.tours.get(&unit).unwrap();
+        for vehicle in self.vehicles.iter() {
+            let tour = self.tours.get(&vehicle).unwrap();
             for (prev_node_id, node_id) in tour.nodes_iter().tuple_windows() {
                 let node = self.nw.node(*node_id);
 
                 let prev_node = self.nw.node(*prev_node_id);
 
-                let fahrzeuggruppen_id = format!("{}", unit);
+                let fahrzeuggruppen_id = format!("{}", vehicle);
 
                 if prev_node.end_location() != node.start_location() {
                     // add dead_head_trip
@@ -647,9 +647,9 @@ impl Schedule {
             self.tours.len(),
             self.dummies.len()
         );
-        for unit in self.units.iter() {
-            print!("     {}: ", unit);
-            self.tours.get(&unit).unwrap().print();
+        for vehicle in self.vehicles.iter() {
+            print!("     {}: ", vehicle);
+            self.tours.get(&vehicle).unwrap().print();
         }
         for dummy in self.dummy_iter() {
             print!("     {}: ", dummy);
@@ -658,8 +658,8 @@ impl Schedule {
     }
 
     pub(crate) fn print(&self) {
-        for unit in self.units.iter() {
-            println!("{}: {}", unit, self.tours.get(&unit).unwrap());
+        for vehicle in self.vehicles.iter() {
+            println!("{}: {}", vehicle, self.tours.get(&vehicle).unwrap());
         }
         for dummy in self.dummy_iter() {
             println!("{}: {}", dummy, self.dummies.get(&dummy).unwrap().1);
@@ -676,10 +676,10 @@ impl Ord for Schedule {
         // first compare objective
         self.objective_value
             .cmp(&other.objective_value)
-            // then compare real unit tours
+            // then compare real vehicle tours
             .then(
                 match self
-                    .units
+                    .vehicles
                     .iter()
                     .map(|u| self.tour_of(u).cmp(other.tour_of(u)))
                     .find(|ord| *ord != Ordering::Equal)
@@ -730,24 +730,29 @@ impl Eq for Schedule {}
 
 // static functions
 impl Schedule {
-    pub(crate) fn initialize(config: Arc<Config>, units: Arc<Units>, nw: Arc<Network>) -> Schedule {
-        let mut tours: HashMap<UnitId, Tour> = HashMap::new();
+    pub(crate) fn initialize(
+        config: Arc<Config>,
+        vehicles: Arc<Vehicles>,
+        nw: Arc<Network>,
+    ) -> Schedule {
+        let mut tours: HashMap<VehicleId, Tour> = HashMap::new();
         let mut covered_by: HashMap<NodeId, TrainFormation> = HashMap::new();
 
         // create trivial tours from start_point directly to end point
-        // end_ponints are picked greedily from earliest to latest (unit_type must fit)
+        // end_ponints are picked greedily from earliest to latest (vehicle_type must fit)
         let mut end_nodes: VecDeque<NodeId> = nw.end_nodes().collect();
         end_nodes
             .make_contiguous()
             .sort_by(|&e1, &e2| nw.node(e1).start_time().cmp(&nw.node(e2).start_time()));
 
-        for unit_id in units.iter() {
-            let unit = units.get_unit(unit_id);
-            let start_node = nw.start_node_of(unit_id);
+        for vehicle_id in vehicles.iter() {
+            let vehicle = vehicles.get_vehicle(vehicle_id);
+            let start_node = nw.start_node_of(vehicle_id);
             let pos = end_nodes
                 .iter()
                 .position(|&e| {
-                    nw.node(e).unit_type() == unit.unit_type() && nw.can_reach(start_node, e)
+                    nw.node(e).vehicle_type() == vehicle.vehicle_type()
+                        && nw.can_reach(start_node, e)
                 })
                 .unwrap_or_else(|| {
                     panic!("No suitable end_node found for start_node: {}", start_node)
@@ -755,9 +760,9 @@ impl Schedule {
             let end_node = end_nodes.remove(pos).unwrap();
 
             tours.insert(
-                unit_id,
+                vehicle_id,
                 Tour::new(
-                    unit.unit_type(),
+                    vehicle.vehicle_type(),
                     vec![start_node, end_node],
                     config.clone(),
                     nw.clone(),
@@ -767,14 +772,20 @@ impl Schedule {
 
             covered_by.insert(
                 start_node,
-                TrainFormation::new(vec![unit_id], units.clone()),
+                TrainFormation::new(vec![vehicle_id], vehicles.clone()),
             );
-            covered_by.insert(end_node, TrainFormation::new(vec![unit_id], units.clone()));
+            covered_by.insert(
+                end_node,
+                TrainFormation::new(vec![vehicle_id], vehicles.clone()),
+            );
         }
-        assert!(end_nodes.is_empty(), "There are more end_nodes than units!");
+        assert!(
+            end_nodes.is_empty(),
+            "There are more end_nodes than Vehicles!"
+        );
 
-        // all service- and maintanence nodes are non covered. We create dummy_units to coverer
-        // them. Each dummy_unit has a Tour of exactly one node.
+        // all service- and maintanence nodes are non covered. We create dummy_Vehicles to coverer
+        // them. Each dummy_vehicle has a Tour of exactly one node.
         let mut dummies = HashMap::new();
         let mut dummy_counter = 0;
 
@@ -783,21 +794,21 @@ impl Schedule {
             for t in nw.node(node).demand().get_valid_types() {
                 let trivial_tour =
                     Tour::new_dummy(t, vec![node], config.clone(), nw.clone()).unwrap();
-                let new_dummy_id = UnitId::from(format!("dummy{:05}", dummy_counter).as_str());
+                let new_dummy_id = VehicleId::from(format!("dummy{:05}", dummy_counter).as_str());
 
                 dummies.insert(new_dummy_id, (t, trivial_tour));
 
                 formation.push(new_dummy_id);
                 dummy_counter += 1;
             }
-            covered_by.insert(node, TrainFormation::new(formation, units.clone()));
+            covered_by.insert(node, TrainFormation::new(formation, vehicles.clone()));
         }
-        let mut dummy_ids_sorted: Vec<UnitId> = dummies.keys().copied().collect();
+        let mut dummy_ids_sorted: Vec<VehicleId> = dummies.keys().copied().collect();
         dummy_ids_sorted.sort();
 
-        // compute objective_value / unit_objective_info
-        let (unit_objective_info, dummy_objective_info, objective_value) =
-            Schedule::compute_objective_value(&tours, &dummies, config.clone(), units.clone());
+        // compute objective_value / vehicle_objective_info
+        let (vehicle_objective_info, dummy_objective_info, objective_value) =
+            Schedule::compute_objective_value(&tours, &dummies, config.clone(), vehicles.clone());
 
         Schedule {
             tours,
@@ -805,94 +816,101 @@ impl Schedule {
             dummies,
             dummy_ids_sorted,
             dummy_counter,
-            unit_objective_info,
+            vehicle_objective_info,
             dummy_objective_info,
             objective_value,
             config,
-            units,
+            vehicles,
             nw,
         }
     }
 
     fn compute_objective_value(
-        tours: &HashMap<UnitId, Tour>,
-        dummies: &HashMap<UnitId, (UnitType, Tour)>,
+        tours: &HashMap<VehicleId, Tour>,
+        dummies: &HashMap<VehicleId, (VehicleType, Tour)>,
         config: Arc<Config>,
-        units: Arc<Units>,
+        vehicles: Arc<Vehicles>,
     ) -> (
-        HashMap<UnitId, ObjectiveInfo>,
-        HashMap<UnitId, Duration>,
+        HashMap<VehicleId, ObjectiveInfo>,
+        HashMap<VehicleId, Duration>,
         ObjectiveValue,
     ) {
-        // compute objective_value / unit_objective_info
-        let mut unit_objective_info: HashMap<UnitId, ObjectiveInfo> = HashMap::new();
-        let mut dummy_objective_info: HashMap<UnitId, Duration> = HashMap::new();
-        for unit in tours.keys() {
-            let tour = tours.get(unit).unwrap();
-            unit_objective_info.insert(*unit, ObjectiveInfo::new(units.get_unit(*unit), tour));
+        // compute objective_value / vehicle_objective_info
+        let mut vehicle_objective_info: HashMap<VehicleId, ObjectiveInfo> = HashMap::new();
+        let mut dummy_objective_info: HashMap<VehicleId, Duration> = HashMap::new();
+        for vehicle in tours.keys() {
+            let tour = tours.get(vehicle).unwrap();
+            vehicle_objective_info.insert(
+                *vehicle,
+                ObjectiveInfo::new(vehicles.get_vehicle(*vehicle), tour),
+            );
         }
         for dummy in dummies.keys() {
             dummy_objective_info.insert(*dummy, Duration::zero());
         }
 
         let objective_value = Schedule::sum_up_objective_info(
-            &unit_objective_info,
+            &vehicle_objective_info,
             &dummy_objective_info,
             config,
-            &units,
+            &vehicles,
         );
 
-        (unit_objective_info, dummy_objective_info, objective_value)
+        (
+            vehicle_objective_info,
+            dummy_objective_info,
+            objective_value,
+        )
     }
 
     fn sum_up_objective_info(
-        unit_objective_info: &HashMap<UnitId, ObjectiveInfo>,
-        dummy_objective_info: &HashMap<UnitId, Duration>,
+        vehicle_objective_info: &HashMap<VehicleId, ObjectiveInfo>,
+        dummy_objective_info: &HashMap<VehicleId, Duration>,
         config: Arc<Config>,
-        units: &Arc<Units>,
+        vehicles: &Arc<Vehicles>,
     ) -> ObjectiveValue {
-        let overhead_time = unit_objective_info
+        let overhead_time = vehicle_objective_info
             .values()
             .map(|info| info.overhead_time)
             .sum();
-        let number_of_dummy_units = dummy_objective_info.len();
+        let number_of_dummy_vehicles = dummy_objective_info.len();
         let dummy_overhead_time: Duration = dummy_objective_info.values().copied().sum();
-        let maintenance_distance_violation = unit_objective_info
+        let maintenance_distance_violation = vehicle_objective_info
             .values()
             .map(|info| info.maintenance_distance_violation)
             .sum();
-        let maintenance_duration_violation = unit_objective_info
+        let maintenance_duration_violation = vehicle_objective_info
             .values()
             .map(|info| info.maintenance_duration_violation)
             .sum();
-        let dead_head_distance = unit_objective_info
+        let dead_head_distance = vehicle_objective_info
             .values()
             .map(|info| info.dead_head_distance)
             .sum();
 
-        // sum up in the deterministic ordering given by units.iter():
-        let continuous_idle_time_cost = units
+        // sum up in the deterministic ordering given by Vehicles.iter():
+        let continuous_idle_time_cost = vehicles
             .iter()
             .map(|u| {
-                unit_objective_info
+                vehicle_objective_info
                     .get(&u)
                     .unwrap()
                     .continuous_idle_time_cost
             })
             .sum();
-        let maintenance_distance_bathtub_cost = units
+        let maintenance_distance_bathtub_cost = vehicles
             .iter()
             .map(|u| {
-                unit_objective_info
+                vehicle_objective_info
                     .get(&u)
                     .unwrap()
                     .maintenance_distance_bathtub_cost
             })
             .sum();
-        let maintenance_duration_bathtub_cost = units
+        let maintenance_duration_bathtub_cost = vehicles
             .iter()
             .map(|u| {
-                unit_objective_info
+                vehicle_objective_info
                     .get(&u)
                     .unwrap()
                     .maintenance_duration_bathtub_cost
@@ -901,7 +919,7 @@ impl Schedule {
 
         ObjectiveValue::new(
             overhead_time,
-            number_of_dummy_units,
+            number_of_dummy_vehicles,
             dummy_overhead_time,
             maintenance_distance_violation,
             maintenance_duration_violation,
@@ -916,15 +934,15 @@ impl Schedule {
     pub(crate) fn load_from_csv(
         path: &str,
         config: Arc<Config>,
-        units: Arc<Units>,
+        vehicles: Arc<Vehicles>,
         nw: Arc<Network>,
     ) -> Schedule {
-        let mut tour_nodes: HashMap<UnitId, Vec<NodeId>> = HashMap::new();
-        for unit in units.iter() {
-            tour_nodes.insert(unit, Vec::new());
+        let mut tour_nodes: HashMap<VehicleId, Vec<NodeId>> = HashMap::new();
+        for vehicle in vehicles.iter() {
+            tour_nodes.insert(vehicle, Vec::new());
         }
 
-        let mut covering: HashMap<NodeId, Vec<UnitId>> = HashMap::new();
+        let mut covering: HashMap<NodeId, Vec<VehicleId>> = HashMap::new();
         for node in nw.all_nodes() {
             covering.insert(node, Vec::new());
         }
@@ -935,8 +953,8 @@ impl Schedule {
             .expect("csv-file for loading schedule not found");
         for result in reader.records() {
             let record = result.expect("Some recond cannot be read while reading service_trips");
-            let unit = UnitId::from(record.get(0).unwrap());
-            let _sort_time = Time::new(record.get(1).unwrap());
+            let vehicle = VehicleId::from(record.get(0).unwrap());
+            let _sort_time = DateTime::new(record.get(1).unwrap());
             let activity_type = record.get(4).unwrap();
             // let _start_location = loc.get_location(record.get(5).unwrap());
             // let _end_location = loc.get_location(record.get(6).unwrap());
@@ -946,35 +964,38 @@ impl Schedule {
             let maintenance_shift_id = record.get(10).unwrap();
 
             // asserts:
-            assert!(units.contains(unit), "ReadError: unit_id is invalid.");
+            assert!(
+                vehicles.contains(vehicle),
+                "ReadError: vehicle_id is invalid."
+            );
 
             match activity_type {
                 "KUNDENFAHRT" => {
                     let node = NodeId::from(&format!("ST:{}", service_trip_id));
-                    tour_nodes.get_mut(&unit).unwrap().push(node);
-                    covering.get_mut(&node).unwrap().push(unit);
+                    tour_nodes.get_mut(&vehicle).unwrap().push(node);
+                    covering.get_mut(&node).unwrap().push(vehicle);
                 }
                 "ENDPUNKT" => {
                     let node = NodeId::from(&format!("EN:{}", end_point_id));
-                    tour_nodes.get_mut(&unit).unwrap().push(node);
-                    covering.get_mut(&node).unwrap().push(unit);
+                    tour_nodes.get_mut(&vehicle).unwrap().push(node);
+                    covering.get_mut(&node).unwrap().push(vehicle);
                 }
                 "WARTUNG" => {
                     let node = NodeId::from(&format!("MS:{}", maintenance_shift_id));
-                    tour_nodes.get_mut(&unit).unwrap().push(node);
-                    covering.get_mut(&node).unwrap().push(unit);
+                    tour_nodes.get_mut(&vehicle).unwrap().push(node);
+                    covering.get_mut(&node).unwrap().push(vehicle);
                 }
                 _ => {}
             };
         }
 
-        let mut tours: HashMap<UnitId, Tour> = HashMap::new();
-        for unit in units.iter() {
-            let mut nodes = tour_nodes.remove(&unit).unwrap();
-            nodes.push(nw.start_node_of(unit));
+        let mut tours: HashMap<VehicleId, Tour> = HashMap::new();
+        for vehicle in vehicles.iter() {
+            let mut nodes = tour_nodes.remove(&vehicle).unwrap();
+            nodes.push(nw.start_node_of(vehicle));
             nodes.sort_by(|n1, n2| nw.node(*n1).cmp_start_time(nw.node(*n2)));
             let tour = match Tour::new_allow_invalid(
-                units.get_unit(unit).unit_type(),
+                vehicles.get_vehicle(vehicle).vehicle_type(),
                 nodes,
                 config.clone(),
                 nw.clone(),
@@ -986,49 +1007,49 @@ impl Schedule {
                 Ok(tour) => tour,
             };
 
-            tours.insert(unit, tour);
+            tours.insert(vehicle, tour);
         }
 
         let mut covered_by: HashMap<NodeId, TrainFormation> = HashMap::new();
-        let mut dummies: HashMap<UnitId, (UnitType, Tour)> = HashMap::new();
+        let mut dummies: HashMap<VehicleId, (VehicleType, Tour)> = HashMap::new();
         let mut dummy_counter = 0;
         for node in nw.service_nodes().chain(nw.maintenance_nodes()) {
             let mut formation = covering.remove(&node).unwrap();
             let types = formation
                 .iter()
-                .map(|u| units.get_unit(*u).unit_type())
+                .map(|u| vehicles.get_vehicle(*u).vehicle_type())
                 .collect();
             for t in nw.node(node).demand().get_missing_types(&types) {
                 let trivial_tour =
                     Tour::new_dummy(t, vec![node], config.clone(), nw.clone()).unwrap();
-                let new_dummy_id = UnitId::from(format!("dummy{:05}", dummy_counter).as_str());
+                let new_dummy_id = VehicleId::from(format!("dummy{:05}", dummy_counter).as_str());
 
                 dummies.insert(new_dummy_id, (t, trivial_tour));
 
                 formation.push(new_dummy_id);
                 dummy_counter += 1;
             }
-            covered_by.insert(node, TrainFormation::new(formation, units.clone()));
+            covered_by.insert(node, TrainFormation::new(formation, vehicles.clone()));
         }
 
         for node in nw.end_nodes() {
             let formation = covering.remove(&node).unwrap();
-            covered_by.insert(node, TrainFormation::new(formation, units.clone()));
+            covered_by.insert(node, TrainFormation::new(formation, vehicles.clone()));
         }
 
-        for unit in units.iter() {
+        for vehicle in vehicles.iter() {
             covered_by.insert(
-                nw.start_node_of(unit),
-                TrainFormation::new(vec![unit], units.clone()),
+                nw.start_node_of(vehicle),
+                TrainFormation::new(vec![vehicle], vehicles.clone()),
             );
         }
 
-        let mut dummy_ids_sorted: Vec<UnitId> = dummies.keys().copied().collect();
+        let mut dummy_ids_sorted: Vec<VehicleId> = dummies.keys().copied().collect();
         dummy_ids_sorted.sort();
 
-        // compute objective_value / unit_objective_info
-        let (unit_objective_info, dummy_objective_info, objective_value) =
-            Schedule::compute_objective_value(&tours, &dummies, config.clone(), units.clone());
+        // compute objective_value / vehicle_objective_info
+        let (vehicle_objective_info, dummy_objective_info, objective_value) =
+            Schedule::compute_objective_value(&tours, &dummies, config.clone(), vehicles.clone());
 
         Schedule {
             tours,
@@ -1036,11 +1057,11 @@ impl Schedule {
             dummies,
             dummy_ids_sorted,
             dummy_counter,
-            unit_objective_info,
+            vehicle_objective_info,
             dummy_objective_info,
             objective_value,
             config,
-            units,
+            vehicles,
             nw,
         }
     }

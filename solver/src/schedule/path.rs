@@ -1,6 +1,6 @@
-use crate::base_types::NodeId;
-use crate::network::Network;
 use itertools::Itertools;
+use sbb_model::base_types::NodeId;
+use sbb_model::network::Network;
 use std::fmt;
 
 use std::sync::Arc;

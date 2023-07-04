@@ -1,8 +1,6 @@
-use crate::base_types::Cost;
-use crate::config::Config;
-use crate::distance::Distance;
-use crate::time::Duration;
 use core::cmp::Ordering;
+use sbb_model::base_types::{Cost, Distance, Duration};
+use sbb_model::config::Config;
 
 use std::fmt::{self, Display};
 use std::ops::Sub;
@@ -12,7 +10,7 @@ use std::sync::Arc;
 #[derive(Copy, Clone)]
 pub(crate) struct ObjectiveValue {
     overhead_time: Duration, // idle_time + dead_head_time for the tours only (its minimal if all service trips are covered)
-    number_of_dummy_units: usize,
+    number_of_dummy_vehicles: usize,
     dummy_overhead_time: Duration, // idle_time + dead_head_time of dummy tours.
     // coupling_conflicts: u32,
     maintenance_penalty: MaintenancePenalty, // proporital combination of duration violation and distance violation
@@ -38,11 +36,11 @@ impl ObjectiveValue {
             )
         );
         println!(
-            "* number_of_dummy_units: {} {}",
-            self.number_of_dummy_units,
+            "* number_of_dummy_Vehicles: {} {}",
+            self.number_of_dummy_vehicles,
             self.print_difference(
-                self.number_of_dummy_units,
-                objective_value_for_comparison.map(|obj| obj.number_of_dummy_units)
+                self.number_of_dummy_vehicles,
+                objective_value_for_comparison.map(|obj| obj.number_of_dummy_vehicles)
             )
         );
         println!(
@@ -141,7 +139,7 @@ impl ObjectiveValue {
 
     pub fn new(
         overhead_time: Duration,
-        number_of_dummy_units: usize,
+        number_of_dummy_vehicles: usize,
         dummy_overhead_time: Duration,
         maintenance_distance_violation: Distance,
         maintenance_duration_violation: Duration,
@@ -158,7 +156,7 @@ impl ObjectiveValue {
 
         ObjectiveValue {
             overhead_time,
-            number_of_dummy_units,
+            number_of_dummy_vehicles,
             dummy_overhead_time,
             maintenance_distance_violation,
             maintenance_duration_violation,
@@ -180,7 +178,10 @@ impl ObjectiveValue {
     pub fn cmp_with_threshold(&self, other: &Self, threshold: Cost) -> Ordering {
         self.overhead_time
             .cmp(&other.overhead_time)
-            .then(self.number_of_dummy_units.cmp(&other.number_of_dummy_units))
+            .then(
+                self.number_of_dummy_vehicles
+                    .cmp(&other.number_of_dummy_vehicles),
+            )
             .then(self.dummy_overhead_time.cmp(&other.dummy_overhead_time))
             .then(self.maintenance_penalty.cmp(&other.maintenance_penalty))
             .then(match self.soft_objective_cost - other.soft_objective_cost {
@@ -195,7 +196,10 @@ impl Ord for ObjectiveValue {
     fn cmp(&self, other: &Self) -> Ordering {
         self.overhead_time
             .cmp(&other.overhead_time)
-            .then(self.number_of_dummy_units.cmp(&other.number_of_dummy_units))
+            .then(
+                self.number_of_dummy_vehicles
+                    .cmp(&other.number_of_dummy_vehicles),
+            )
             .then(self.dummy_overhead_time.cmp(&other.dummy_overhead_time))
             .then(self.maintenance_penalty.cmp(&other.maintenance_penalty))
             .then(

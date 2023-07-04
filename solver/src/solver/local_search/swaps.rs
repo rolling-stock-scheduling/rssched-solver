@@ -1,6 +1,6 @@
-use crate::base_types::UnitId;
 use crate::schedule::path::Segment;
 use crate::schedule::Schedule;
+use sbb_model::base_types::VehicleId;
 
 use std::fmt;
 
@@ -15,12 +15,12 @@ pub(crate) trait Swap: fmt::Display {
 /// the provider's Tour.
 pub(crate) struct PathExchange {
     segment: Segment,
-    provider: UnitId,
-    receiver: UnitId,
+    provider: VehicleId,
+    receiver: VehicleId,
 }
 
 impl PathExchange {
-    pub(crate) fn new(segment: Segment, provider: UnitId, receiver: UnitId) -> PathExchange {
+    pub(crate) fn new(segment: Segment, provider: VehicleId, receiver: VehicleId) -> PathExchange {
         PathExchange {
             segment,
             provider,

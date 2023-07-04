@@ -7,7 +7,6 @@ edition.workspace = true
 [dependencies]
 itertools = "0.10"
 csv = "1.1"
-im = "15.0.0" # for lazy copies of data structures
 yaml-rust = "0.4" # for reading config.yaml
 serde = { version = "1.0", features = ["derive"] } # for reading json-files
 serde_json = "1.0" # for reading json-files

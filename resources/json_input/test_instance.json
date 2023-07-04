@@ -1,11 +1,11 @@
 {
-  "unitTypes": [
+  "vehicleTypes": [
     {
       "id": "IC",
       "name": "Intercity",
       "numberOfSeats": 100,
       "capacityOfPassengers": 200,
-      "unitLengthInMeter": 150
+      "vehicleLengthInMeter": 150
     }
   ],
   "locations": [
@@ -22,9 +22,9 @@
     {
       "id": "depotZH",
       "location": "ZH",
-      "upperBoundForUnitTypes": [
+      "upperBoundForVehicleTypes": [
         {
-          "unitType": "IC",
+          "VehicleType": "IC",
           "upperBound": 2
         }
       ]
@@ -32,9 +32,9 @@
     {
       "id": "depotBN",
       "location": "BN",
-      "upperBoundForUnitTypes": [
+      "upperBoundForVehicleTypes": [
         {
-          "unitType": "IC",
+          "VehicleType": "IC",
           "upperBound": 1
         }
       ]
