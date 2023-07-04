@@ -1,15 +1,3 @@
-mod base_types;
-mod distance;
-mod time;
-mod utilities;
-
-mod config;
-mod locations;
-mod network;
-mod units;
-
-mod json_serialisation;
-
 mod schedule;
 
 mod solver;
@@ -20,10 +8,10 @@ use solver::Solver;
 use solver::greedy_3::Greedy3;
 use solver::local_search::LocalSearch;
 
-use config::Config;
-use locations::Locations;
-use network::Network;
-use units::Units;
+use sbb_model::config::Config;
+use sbb_model::locations::Locations;
+use sbb_model::network::Network;
+use sbb_model::units::Units;
 
 use schedule::Schedule;
 

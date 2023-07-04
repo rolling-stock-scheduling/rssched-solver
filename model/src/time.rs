@@ -5,14 +5,14 @@ use std::ops::Sub;
 // Important: Leap year are integrated. But no daylight-saving.
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)] // care the ordering of the variants is important
-pub(crate) enum Time {
+pub enum Time {
     Earliest, // always earlier than all TimePoints
     Point(TimePoint),
     Latest, // always later than all TimePoints
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)] // care the ordering of attributes is important
-pub(crate) struct TimePoint {
+pub struct TimePoint {
     year: u32,
     month: u8,
     day: u8,
@@ -21,13 +21,13 @@ pub(crate) struct TimePoint {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)] // care the ordering of the variants is important
-pub(crate) enum Duration {
+pub enum Duration {
     Length(DurationLength),
     Infinity, // always longer than all other Durations
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub(crate) struct DurationLength {
+pub struct DurationLength {
     hours: u32,
     minutes: u8,
 }
@@ -37,7 +37,7 @@ pub(crate) struct DurationLength {
 ////////////////////////////////////////////////////////////////////
 
 impl Time {
-    pub(crate) fn new(string: &str) -> Time {
+    pub fn new(string: &str) -> Time {
         //"2009-06-15T13:45:00Z" or "2009-4-15T12:1"
         let shortened = string.replace('Z', "");
         let splitted: Vec<&str> = shortened.split(&['T', '-', ' ', ':'][..]).collect();
@@ -68,7 +68,7 @@ impl Time {
 }
 
 impl Time {
-    pub(crate) fn as_iso(&self) -> String {
+    pub fn as_iso(&self) -> String {
         match self {
             Time::Earliest => String::from("EARLIEST"),
             Time::Point(t) => format!(
@@ -322,7 +322,7 @@ impl fmt::Display for TimePoint {
 ////////////////////////////////////////////////////////////////////
 
 impl Duration {
-    pub(crate) fn in_min(&self) -> u32 {
+    pub fn in_min(&self) -> u32 {
         match self {
             Duration::Infinity => panic!("Cannot get minutes of Duration::Infinity."),
             Duration::Length(l) => l.hours * 60 + (l.minutes as u32),
@@ -331,7 +331,7 @@ impl Duration {
 }
 
 impl Duration {
-    pub(crate) fn new(string: &str) -> Duration {
+    pub fn new(string: &str) -> Duration {
         // "hh:mm"
         let splitted: Vec<&str> = string.split(&[':'][..]).collect();
         assert!(
@@ -347,14 +347,14 @@ impl Duration {
         Duration::Length(DurationLength { hours, minutes })
     }
 
-    pub(crate) fn from_seconds(seconds: u32) -> Duration {
+    pub fn from_seconds(seconds: u32) -> Duration {
         Duration::Length(DurationLength {
             hours: seconds / 3600,
             minutes: (seconds % 3600 / 60) as u8,
         })
     }
 
-    pub(crate) fn from_iso(string: &str) -> Duration {
+    pub fn from_iso(string: &str) -> Duration {
         //"P10DT0H31M0S"
         let splitted: Vec<&str> = string
             .split_inclusive(&['P', 'D', 'T', 'H', 'M', 'S'][..])
@@ -399,7 +399,7 @@ impl Duration {
         })
     }
 
-    pub(crate) fn zero() -> Duration {
+    pub fn zero() -> Duration {
         Duration::Length(DurationLength {
             hours: 0,
             minutes: 0,

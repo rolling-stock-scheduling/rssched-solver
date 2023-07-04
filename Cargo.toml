@@ -1,25 +1,13 @@
-[package]
+[workspace]
+
+members = [
+    "model",
+    "solver",
+]
+
+[workspace.package]
 name = "sbb"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Leon Sering <sering@math.ethz.ch"]
-
-[lib]
-name = "sbb"
-path = "src/lib.rs"
-
-[[bin]]
-name = "sbb_bin"
-path = "src/main.rs"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-itertools = "0.10"
-csv = "1.1"
-im = "15.0.0" # for lazy copies of data structures
-rayon = "1.5.1" # for parallel iterator
-yaml-rust = "0.4" # for reading config.yaml
-serde = { version = "1.0", features = ["derive"] } # for reading json-files
-serde_json = "1.0" # for reading json-files
-
+description = "Solving the rolling-stock scheduling with a local search approach."

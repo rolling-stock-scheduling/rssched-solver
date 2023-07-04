@@ -5,13 +5,13 @@ use crate::time::Duration;
 use yaml_rust::yaml::Yaml;
 use yaml_rust::YamlLoader;
 
-pub(crate) struct Config {
+pub struct Config {
     pub durations_between_activities: ConfigDurationsBetweenActivities,
     pub objective: ConfigObjective,
     pub maintenance: ConfigMaintenance,
 }
 
-pub(crate) struct ConfigDurationsBetweenActivities {
+pub struct ConfigDurationsBetweenActivities {
     pub minimal: Duration,
     pub turn: Duration, // Wende
     pub dead_head_trip: Duration,
@@ -19,33 +19,33 @@ pub(crate) struct ConfigDurationsBetweenActivities {
     pub event: Duration,
 }
 
-pub(crate) struct ConfigObjective {
+pub struct ConfigObjective {
     cost_of_used_unit: Cost,
     cost_of_violated_activity_link: Cost,
     pub continuous_idle_time: ConfigContinuousIdleTime,
     pub bathtub: ConfigBathtub,
 }
 
-pub(crate) struct ConfigContinuousIdleTime {
+pub struct ConfigContinuousIdleTime {
     pub minimum: Duration,
     pub exponent: f32,
     pub cost_factor: f32,
 }
 
-pub(crate) struct ConfigBathtub {
+pub struct ConfigBathtub {
     pub marginal_cost_per_deceeded_km: Cost,
     pub marginal_cost_per_exceeded_km: Cost,
     pub marginal_cost_per_deceeded_second: Cost,
     pub marginal_cost_per_exceeded_second: Cost,
 }
 
-pub(crate) struct ConfigMaintenance {
+pub struct ConfigMaintenance {
     pub duration: Duration,
     pub distance: Distance,
     pub bathtub_limits: ConfigBathtubLimits,
 }
 
-pub(crate) struct ConfigBathtubLimits {
+pub struct ConfigBathtubLimits {
     pub distance_upper_limit: Distance,
     pub distance_lower_limit: Distance,
     pub duration_upper_limit: Duration,
@@ -53,7 +53,7 @@ pub(crate) struct ConfigBathtubLimits {
 }
 
 impl Config {
-    pub(crate) fn from_yaml(path: &str) -> Config {
+    pub fn from_yaml(path: &str) -> Config {
         fn dist_from_yaml(yaml: &Yaml) -> Distance {
             match yaml {
                 Yaml::Real(string) => Distance::from_km_str(&string),

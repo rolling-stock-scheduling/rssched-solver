@@ -99,7 +99,6 @@ struct JsonInput {
     parameters: Parameters,
 }
 
-// method to load json into these structs
 fn load_json_input(path: &str) -> JsonInput {
     let mut file = File::open(path).unwrap();
     let mut data = String::new();
@@ -107,7 +106,6 @@ fn load_json_input(path: &str) -> JsonInput {
     serde_json::from_str(&data).unwrap()
 }
 
-// method to create locations from jsonInput
 fn create_locations(json_input: &JsonInput) -> Locations {
     let mut stations: HashSet<Station> = HashSet::new();
     let mut dead_head_trips: HashMap<Station, HashMap<Station, DeadHeadTrip>> = HashMap::new();
