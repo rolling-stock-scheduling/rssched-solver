@@ -22,24 +22,9 @@ pub fn run(path: &str) {
     println!("\n\n********** RUN: {} **********\n", path);
 
     // load instance: All the objects are static and are multiple times referenced;
-    // network also references locations
-    let config = Arc::new(Config::from_yaml(&format!("{}{}", path, "../config.yaml")));
-    let loc = Arc::new(Locations::load_from_csv(&format!(
-        "{}{}",
-        path, "relationen.csv"
-    )));
-    let vehicles = Arc::new(Vehicles::load_from_csv(
-        &format!("{}{}", path, "fahrzeuggruppen.csv"),
-        loc.clone(),
-    ));
-    let nw = Arc::new(Network::load_from_csv(
-        &format!("{}{}", path, "kundenfahrten.csv"),
-        &format!("{}{}", path, "wartungsfenster.csv"),
-        &format!("{}{}", path, "endpunkte.csv"),
-        config.clone(),
-        loc.clone(),
-        vehicles.clone(),
-    ));
+    // network also references Locations
+
+    // TODO load config, loc, vehicles, and network from json
 
     let start_time = stdtime::Instant::now();
 

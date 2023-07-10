@@ -19,4 +19,3 @@ sbb_model = { path = "../model" }
 itertools = "0.10"
 im = "15.0.0" # for lazy copies of data structures
 rayon = "1.5.1" # for parallel iterator
-csv = "1.1"

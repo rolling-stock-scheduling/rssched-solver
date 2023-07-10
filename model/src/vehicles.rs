@@ -1,9 +1,7 @@
-use crate::base_types::{DateTime, Distance, Duration, Location, LocationId, VehicleId};
-use crate::locations::Locations;
+use crate::base_types::{DateTime, Distance, Duration, Location, VehicleId};
 use std::collections::HashMap;
 use std::fmt;
 use std::iter::Iterator;
-use std::sync::Arc;
 
 pub struct Vehicles {
     vehicles: HashMap<VehicleId, Vehicle>,
@@ -33,47 +31,6 @@ pub enum VehicleType {
 /////////////////////////////////////////////////////////////////////
 
 impl Vehicles {
-    pub fn load_from_csv(path: &str, loc: Arc<Locations>) -> Vehicles {
-        let mut vehicles: HashMap<VehicleId, Vehicle> = HashMap::new();
-        let mut reader = csv::ReaderBuilder::new()
-            .delimiter(b';')
-            .from_path(path)
-            .expect("csv-file for loading Vehicles not found");
-        for result in reader.records() {
-            let record = result.expect("Some recond cannot be read while reading Vehicles");
-            let id = VehicleId::from(record.get(0).unwrap());
-            let vehicle_type = VehicleType::Standard;
-            let start_time = DateTime::new(record.get(1).unwrap());
-            let start_location = loc.get_location(LocationId::from(record.get(2).unwrap()));
-            let initial_duration_counter = Duration::from_iso(record.get(3).unwrap());
-            let initial_dist_counter = Distance::from_km(record.get(4).unwrap().parse().unwrap());
-            vehicles.insert(
-                id,
-                Vehicle {
-                    id,
-                    vehicle_type,
-                    start_time,
-                    start_location,
-                    initial_duration_counter,
-                    initial_dist_counter,
-                },
-            );
-        }
-
-        let mut ids_sorted: Vec<VehicleId> = vehicles.keys().copied().collect();
-        ids_sorted.sort();
-        Vehicles {
-            vehicles,
-            ids_sorted,
-        }
-    }
-}
-
-impl Vehicles {
-    // pub fn len(&self) -> usize {
-    // self.Vehicles.len()
-    // }
-
     pub fn iter(&self) -> impl Iterator<Item = VehicleId> + '_ {
         self.ids_sorted.iter().copied()
     }

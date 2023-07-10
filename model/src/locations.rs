@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::fmt;
 
 use crate::base_types::{Distance, Duration, Location, LocationId, StationSide};
 
@@ -56,113 +55,6 @@ impl Locations {
         stations: HashSet<LocationId>,
         dead_head_trips: HashMap<LocationId, HashMap<LocationId, DeadHeadTrip>>,
     ) -> Locations {
-        Locations {
-            stations,
-            dead_head_trips,
-        }
-    }
-
-    pub fn load_from_csv(path: &str) -> Locations {
-        let mut stations: HashSet<LocationId> = HashSet::new();
-        let mut dead_head_trips: HashMap<LocationId, HashMap<LocationId, DeadHeadTrip>> =
-            HashMap::new();
-        let mut reader = csv::ReaderBuilder::new()
-            .delimiter(b';')
-            .from_path(path)
-            .expect("csv-file for loading locations not found");
-        for result in reader.records() {
-            let record = result.expect("Some recond cannot be read while reading locations");
-            let first_station_code = record.get(0).unwrap();
-            let second_station_code = record.get(1).unwrap();
-
-            let distance = Distance::from_km(record.get(2).unwrap().parse().unwrap());
-
-            let travel_time_formatted = record
-                .get(3)
-                .unwrap()
-                .split('T')
-                .last()
-                .unwrap()
-                .split('M')
-                .next()
-                .unwrap()
-                .replace('H', ":");
-            let travel_time = Duration::new(&travel_time_formatted);
-
-            let first_side = StationSide::from(record.get(4).unwrap());
-
-            let second_side = StationSide::from(record.get(5).unwrap());
-
-            fn insert(
-                distances: &mut HashMap<LocationId, HashMap<LocationId, DeadHeadTrip>>,
-                origin: &LocationId,
-                destination: &LocationId,
-                dead_head_trip: DeadHeadTrip,
-            ) {
-                match distances.get_mut(origin) {
-                    Some(hm) => hm,
-                    None => {
-                        distances.insert(*origin, HashMap::new());
-                        distances.get_mut(origin).unwrap()
-                    }
-                }
-                .insert(*destination, dead_head_trip);
-            }
-
-            stations.insert(LocationId::from(first_station_code));
-            stations.insert(LocationId::from(second_station_code));
-
-            let first_station = LocationId::from(first_station_code);
-            let second_station = LocationId::from(second_station_code);
-
-            insert(
-                &mut dead_head_trips,
-                &first_station,
-                &second_station,
-                DeadHeadTrip {
-                    distance,
-                    travel_time,
-                    origin_side: first_side,
-                    destination_side: second_side,
-                },
-            );
-
-            insert(
-                &mut dead_head_trips,
-                &second_station,
-                &first_station,
-                DeadHeadTrip {
-                    distance,
-                    travel_time,
-                    origin_side: second_side,
-                    destination_side: first_side,
-                },
-            );
-
-            insert(
-                &mut dead_head_trips,
-                &first_station,
-                &first_station,
-                DeadHeadTrip {
-                    distance: Distance::zero(),
-                    travel_time: Duration::zero(),
-                    origin_side: StationSide::Front,
-                    destination_side: StationSide::Back,
-                },
-            );
-
-            insert(
-                &mut dead_head_trips,
-                &second_station,
-                &second_station,
-                DeadHeadTrip {
-                    distance: Distance::zero(),
-                    travel_time: Duration::zero(),
-                    origin_side: StationSide::Front,
-                    destination_side: StationSide::Back,
-                },
-            );
-        }
         Locations {
             stations,
             dead_head_trips,
@@ -234,39 +126,6 @@ impl Locations {
                 _ => None,
             },
             _ => None,
-        }
-    }
-}
-
-/////////////////////////////////////////////////////////////////////
-////////////////////////////// Location /////////////////////////////
-/////////////////////////////////////////////////////////////////////
-
-impl Location {
-    // fn from(station_code: &str) -> Location {
-    // Location::Location(Station::from(station_code))
-    // }
-
-    fn of(station: LocationId) -> Location {
-        Location::Station(station)
-    }
-}
-
-// impl Location {
-// fn as_station(&self) -> Station {
-// match self {
-// Location::Station(s) => *s,
-// _ => {panic!("Location is NOWHERE or EVERYWHERE!")},
-// }
-// }
-// }
-
-impl fmt::Display for Location {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Location::Station(s) => write!(f, "{}", s),
-            Location::Nowhere => write!(f, "NOWHERE!"),
-            // Location::Everywhere => write!(f, "EVERYWHERE!")
         }
     }
 }

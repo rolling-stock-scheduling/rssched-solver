@@ -13,15 +13,13 @@ use train_formation::TrainFormation;
 
 use sbb_model::base_types::{Cost, DateTime, Distance, Duration, NodeId, VehicleId};
 use sbb_model::config::Config;
-use sbb_model::network::{nodes::Node, Network};
+use sbb_model::network::Network;
 use sbb_model::vehicles::{Vehicle, VehicleType, Vehicles};
 
 use im::HashMap;
 use std::collections::VecDeque;
 
-use itertools::Itertools;
 use std::cmp::Ordering;
-use std::error::Error;
 use std::sync::Arc;
 
 // this represents a solution to the rolling stock problem.
@@ -533,112 +531,6 @@ impl Schedule {
             },
             new_dummy_opt,
         ))
-    }
-
-    pub(crate) fn write_to_csv(&self, path: &str) -> Result<(), Box<dyn Error>> {
-        let mut writer = csv::WriterBuilder::new().delimiter(b';').from_path(path)?;
-        writer.write_record(&[
-            "fahrzeuggruppeId",
-            "sortierZeit",
-            "zeitAb",
-            "zeitAn",
-            "typ",
-            "bpAb",
-            "bpAn",
-            "kettenLabel",
-            "kundenfahrtId",
-            "endpunktId",
-            "wartungsfensterId",
-        ])?;
-        for vehicle in self.vehicles.iter() {
-            let tour = self.tours.get(&vehicle).unwrap();
-            for (prev_node_id, node_id) in tour.nodes_iter().tuple_windows() {
-                let node = self.nw.node(*node_id);
-
-                let prev_node = self.nw.node(*prev_node_id);
-
-                let fahrzeuggruppen_id = format!("{}", vehicle);
-
-                if prev_node.end_location() != node.start_location() {
-                    // add dead_head_trip
-                    let dht_sortier_zeit = prev_node.end_time().as_iso();
-                    let dht_ab = format!("{}", prev_node.end_location());
-                    let dht_an = format!("{}", node.start_location());
-                    let dht_zeit_ab = prev_node.end_time().as_iso();
-                    let dht_zeit_an = (prev_node.end_time()
-                        + self.nw.dead_head_time_between(prev_node.id(), node.id()))
-                    .as_iso();
-                    let dht_ketten_label = String::from(""); //TODO
-                    let empty = String::from("");
-                    writer.write_record(&[
-                        fahrzeuggruppen_id.clone(),
-                        dht_sortier_zeit,
-                        dht_zeit_ab,
-                        dht_zeit_an,
-                        String::from("BETRIEBSFAHRT"),
-                        dht_ab,
-                        dht_an,
-                        dht_ketten_label,
-                        empty.clone(),
-                        empty.clone(),
-                        empty,
-                    ])?;
-                }
-
-                let sortier_zeit = node.start_time().as_iso();
-                let typ = String::from(match node {
-                    Node::Service(_) => "KUNDENFAHRT",
-                    Node::Maintenance(_) => "WARTUNG",
-                    Node::End(_) => "ENDPUNKT",
-                    _ => "",
-                });
-
-                let (zeit_ab, zeit_an) = match node {
-                    Node::End(_) => (String::from(""), node.start_time().as_iso()),
-                    _ => (node.start_time().as_iso(), node.end_time().as_iso()),
-                };
-
-                let (bp_ab, bp_an) = match node {
-                    Node::End(_) => (String::from(""), format!("{}", node.start_location())),
-                    _ => (
-                        format!("{}", node.start_location()),
-                        format!("{}", node.end_location()),
-                    ),
-                };
-
-                let ketten_label = String::from(""); //TODO
-
-                let long_id = format!("{}", node.id());
-                let id: &str = long_id.split(':').collect::<Vec<_>>().get(1).unwrap(); // remove the "ST:", "MS:", "EP:"
-                let kundenfahrt_id = String::from(match node {
-                    Node::Service(_) => id,
-                    _ => "",
-                });
-                let endpunkt_id = String::from(match node {
-                    Node::End(_) => id,
-                    _ => "",
-                });
-                let wartungsfenster_id = String::from(match node {
-                    Node::Maintenance(_) => id,
-                    _ => "",
-                });
-                writer.write_record(&[
-                    fahrzeuggruppen_id,
-                    sortier_zeit,
-                    zeit_ab,
-                    zeit_an,
-                    typ,
-                    bp_ab,
-                    bp_an,
-                    ketten_label,
-                    kundenfahrt_id,
-                    endpunkt_id,
-                    wartungsfenster_id,
-                ])?;
-            }
-        }
-
-        Ok(())
     }
 
     pub(crate) fn print_long(&self) {

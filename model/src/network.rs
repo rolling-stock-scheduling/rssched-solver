@@ -2,12 +2,10 @@ pub mod nodes;
 use nodes::Node;
 
 pub mod demand;
-use demand::Demand;
 
-use crate::base_types::{DateTime, Distance, Duration, LocationId, NodeId, StationSide, VehicleId};
+use crate::base_types::{Distance, Duration, NodeId, VehicleId};
 use crate::config::Config;
 use crate::locations::Locations;
-use crate::vehicles::{VehicleType, Vehicles};
 
 use std::collections::HashMap;
 use std::fmt;
@@ -234,163 +232,6 @@ impl Network {
             })
             .sum()
         // node that service trips are counted as big as their demand is
-    }
-}
-
-// static functions
-impl Network {
-    pub fn load_from_csv(
-        path_service: &str,
-        path_maintenance: &str,
-        path_endpoints: &str,
-        config: Arc<Config>,
-        loc: Arc<Locations>,
-        vehicles: Arc<Vehicles>,
-    ) -> Network {
-        let mut nodes: HashMap<NodeId, Node> = HashMap::new();
-
-        let mut service_nodes: Vec<NodeId> = Vec::new();
-        let mut reader = csv::ReaderBuilder::new()
-            .delimiter(b';')
-            .from_path(path_service)
-            .expect("csv-file for loading service_trips not found");
-        for (i, result) in reader.records().enumerate() {
-            let record = result.expect("Some recond cannot be read while reading service_trips");
-            let _driving_day = record.get(0).unwrap();
-            let _train_number = record.get(1).unwrap();
-            let start_time = DateTime::new(record.get(2).unwrap());
-            let start_location = loc.get_location(LocationId::from(record.get(3).unwrap()));
-            let start_side = StationSide::from(record.get(4).unwrap());
-            let end_time = DateTime::new(record.get(5).unwrap());
-            let end_location = loc.get_location(LocationId::from(record.get(6).unwrap()));
-            let end_side = StationSide::from(record.get(7).unwrap());
-            let length = Distance::from_km(record.get(8).unwrap().parse().unwrap());
-            let demand_amount: u8 = record.get(9).unwrap().parse().unwrap();
-            let id = NodeId::from(&format!("ST:{}", record.get(10).unwrap()));
-            let name = format!("{}-{}:{}", start_location, end_location, i);
-
-            let service_trip = Node::create_service_node(
-                id,
-                start_location,
-                end_location,
-                start_time,
-                end_time,
-                start_side,
-                end_side,
-                length,
-                Demand::new(demand_amount),
-                name,
-            );
-            nodes.insert(id, service_trip);
-            service_nodes.push(id);
-        }
-
-        let mut maintenance_nodes: Vec<NodeId> = Vec::new();
-        let mut reader = csv::ReaderBuilder::new()
-            .delimiter(b';')
-            .from_path(path_maintenance)
-            .expect("csv-file for loading maintenance_slots not found");
-        for result in reader.records() {
-            let record =
-                result.expect("Some recond cannot be read while reading maintenance_slots");
-            let location = loc.get_location(LocationId::from(record.get(0).unwrap()));
-            let start_time = DateTime::new(record.get(1).unwrap());
-            let end_time = DateTime::new(record.get(2).unwrap());
-            let id = NodeId::from(&format!("MS:{}", record.get(3).unwrap()));
-            let name = format!("!{}:{}!", location, record.get(3).unwrap());
-
-            let maintenance_slot =
-                Node::create_maintenance_node(id, location, start_time, end_time, name);
-            nodes.insert(id, maintenance_slot);
-            maintenance_nodes.push(id);
-        }
-
-        let mut start_nodes: HashMap<VehicleId, NodeId> = HashMap::new();
-        for vehicle_id in vehicles.iter() {
-            let vehicle = vehicles.get_vehicle(vehicle_id);
-            let node_id = NodeId::from(&format!("SN:{}", vehicle_id));
-            let name = format!("|{}@{}", vehicle_id, vehicle.start_location());
-            let start_node = Node::create_start_node(
-                node_id,
-                vehicle_id,
-                vehicle.start_location(),
-                vehicle.start_time(),
-                name,
-            );
-            nodes.insert(node_id, start_node);
-            start_nodes.insert(vehicle_id, node_id);
-        }
-
-        let mut end_nodes: Vec<NodeId> = Vec::new();
-        let mut reader = csv::ReaderBuilder::new()
-            .delimiter(b';')
-            .from_path(path_endpoints)
-            .expect("csv-file for loading end_points not found");
-        for result in reader.records() {
-            let record = result.expect("Some recond cannot be read while reading end_points");
-            let id = NodeId::from(&format!("EN:{}", record.get(0).unwrap()));
-            let vehicle_type = VehicleType::Standard;
-            let time = DateTime::new(record.get(1).unwrap());
-            let location = loc.get_location(LocationId::from(record.get(2).unwrap()));
-            let duration_till_maintenance = Duration::from_iso(record.get(3).unwrap());
-            let dist_till_maintenance = Distance::from_km(record.get(4).unwrap().parse().unwrap());
-            let name = format!("{}:{}|", location, record.get(0).unwrap());
-
-            let end_point = Node::create_end_node(
-                id,
-                vehicle_type,
-                location,
-                time,
-                duration_till_maintenance,
-                dist_till_maintenance,
-                name,
-            );
-            nodes.insert(id, end_point);
-            end_nodes.push(id);
-        }
-
-        let mut nodes_sorted_by_start: Vec<NodeId> = nodes.keys().copied().collect();
-        nodes_sorted_by_start.sort_by(|n1, n2| {
-            nodes
-                .get(n1)
-                .unwrap()
-                .cmp_start_time(nodes.get(n2).unwrap())
-        });
-        let mut nodes_sorted_by_end: Vec<NodeId> = nodes.keys().copied().collect();
-        nodes_sorted_by_end
-            .sort_by(|n1, n2| nodes.get(n1).unwrap().cmp_end_time(nodes.get(n2).unwrap()));
-
-        // sort all indices by the start_time
-        service_nodes.sort_by(|n1, n2| {
-            nodes
-                .get(n1)
-                .unwrap()
-                .cmp_start_time(nodes.get(n2).unwrap())
-        });
-        maintenance_nodes.sort_by(|n1, n2| {
-            nodes
-                .get(n1)
-                .unwrap()
-                .cmp_start_time(nodes.get(n2).unwrap())
-        });
-        end_nodes.sort_by(|n1, n2| {
-            nodes
-                .get(n1)
-                .unwrap()
-                .cmp_start_time(nodes.get(n2).unwrap())
-        });
-
-        Network {
-            nodes,
-            service_nodes,
-            maintenance_nodes,
-            start_nodes,
-            end_nodes,
-            nodes_sorted_by_start,
-            nodes_sorted_by_end,
-            config,
-            loc,
-        }
     }
 }
 

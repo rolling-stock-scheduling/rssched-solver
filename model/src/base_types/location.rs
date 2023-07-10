@@ -1,4 +1,5 @@
 use crate::utilities::CopyStr;
+use std::fmt;
 
 pub type LocationId = CopyStr<10>; // Stations are represented by String codes of length up to
                                    // 10.
@@ -23,6 +24,26 @@ impl StationSide {
             "0" => StationSide::Back,
             "1" => StationSide::Front,
             _ => panic!("StationSide is neither '0' nor '1'"),
+        }
+    }
+}
+
+/////////////////////////////////////////////////////////////////////
+////////////////////////////// Location /////////////////////////////
+/////////////////////////////////////////////////////////////////////
+
+impl Location {
+    pub(crate) fn of(station: LocationId) -> Location {
+        Location::Station(station)
+    }
+}
+
+impl fmt::Display for Location {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Location::Station(s) => write!(f, "{}", s),
+            Location::Nowhere => write!(f, "NOWHERE!"),
+            // Location::Everywhere => write!(f, "EVERYWHERE!")
         }
     }
 }

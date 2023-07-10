@@ -137,3 +137,6 @@ fn create_locations(json_input: &JsonInput) -> Locations {
 
     Locations::new(stations, dead_head_trips)
 }
+
+//TODO create vehicleTypes, network, config from JsonInput
+//TODO create static function for writing schedule to json
