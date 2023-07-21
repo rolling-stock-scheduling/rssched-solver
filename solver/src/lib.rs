@@ -1,3 +1,5 @@
+mod vehicles;
+
 mod schedule;
 
 mod solver;

@@ -3,7 +3,7 @@ use nodes::Node;
 
 pub mod demand;
 
-use crate::base_types::{Distance, Duration, NodeId, VehicleId};
+use crate::base_types::{Distance, Duration, NodeId};
 use crate::config::Config;
 use crate::locations::Locations;
 
@@ -20,8 +20,8 @@ pub struct Network {
     // nodes are by default sorted by start_time
     service_nodes: Vec<NodeId>,
     maintenance_nodes: Vec<NodeId>,
-    start_nodes: HashMap<VehicleId, NodeId>,
-    end_nodes: Vec<NodeId>,
+    depot_nodes: Vec<NodeId>,
+
     nodes_sorted_by_start: Vec<NodeId>,
     nodes_sorted_by_end: Vec<NodeId>,
 
@@ -49,12 +49,8 @@ impl Network {
         self.maintenance_nodes.iter().copied()
     }
 
-    pub fn end_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
-        self.end_nodes.iter().copied()
-    }
-
-    pub fn start_node_of(&self, vehicle_id: VehicleId) -> NodeId {
-        *self.start_nodes.get(&vehicle_id).unwrap()
+    pub fn depot_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
+        self.depot_nodes.iter().copied()
     }
 
     pub fn idle_time_between(&self, node1: NodeId, node2: NodeId) -> Duration {
@@ -69,7 +65,6 @@ impl Network {
     }
 
     pub fn dead_head_time_between(&self, node1: NodeId, node2: NodeId) -> Duration {
-        // TODO: Adjust if it is a recommended activity_link
         self.loc.travel_time(
             self.node(node1).end_location(),
             self.node(node2).start_location(),
@@ -77,7 +72,6 @@ impl Network {
     }
 
     pub fn dead_head_distance_between(&self, node1: NodeId, node2: NodeId) -> Distance {
-        // TODO: Adjust if it is a recommended activity_link
         self.loc.distance(
             self.node(node1).end_location(),
             self.node(node2).start_location(),
@@ -93,9 +87,6 @@ impl Network {
     }
 
     fn required_duration_between_activities(&self, n1: &Node, n2: &Node) -> Duration {
-        // TODO: Check if the nodes are present as activity links: JOINT or REFERENCE.
-        // if yes, return Duration::zero()
-
         if n1.end_location() == n2.start_location() {
             // no dead_head_trip
             self.shunting_duration_between_activities_without_dead_head_trip(n1, n2)
@@ -115,18 +106,7 @@ impl Network {
             if let Node::Service(s2) = n2 {
                 // both nodes are service trips
 
-                if n1.demand() != n2.demand() {
-                    // different demands mean a new coupling is needed
-                    self.config.durations_between_activities.coupling
-                } else {
-                    if s1.arrival_side() == s2.departure_side() {
-                        // turn
-                        self.config.durations_between_activities.turn
-                    } else {
-                        // minimum
-                        self.config.durations_between_activities.minimal
-                    }
-                }
+                self.config.durations_between_activities.minimal
             } else {
                 // n2 is no service trip
                 Duration::zero()
@@ -146,31 +126,13 @@ impl Network {
             .loc
             .station_sides(n1.end_location(), n2.start_location());
         let previous: Duration = match n1 {
-            Node::Service(s1) => {
-                if dht_start_side == s1.departure_side() {
-                    // turn
-                    self.config.durations_between_activities.dead_head_trip
-                        + self.config.durations_between_activities.turn
-                } else {
-                    // no turn
-                    self.config.durations_between_activities.dead_head_trip
-                }
-            }
+            Node::Service(s1) => self.config.durations_between_activities.dead_head_trip,
             Node::Maintenance(_) => self.config.durations_between_activities.dead_head_trip,
             _ => Duration::zero(),
         };
 
         let next: Duration = match n2 {
-            Node::Service(s2) => {
-                if dht_end_side == s2.arrival_side() {
-                    // turn
-                    self.config.durations_between_activities.dead_head_trip
-                        + self.config.durations_between_activities.turn
-                } else {
-                    // no turn
-                    self.config.durations_between_activities.dead_head_trip
-                }
-            }
+            Node::Service(s2) => self.config.durations_between_activities.dead_head_trip,
             Node::Maintenance(_) => self.config.durations_between_activities.dead_head_trip,
             _ => Duration::zero(),
         };
@@ -201,37 +163,39 @@ impl Network {
     pub fn all_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
         self.nodes_sorted_by_start.iter().copied()
     }
+}
 
-    pub fn minimal_overhead(&self) -> Duration {
-        let earliest_start_time = self
-            .start_nodes
-            .values()
-            .map(|n| self.node(*n).end_time())
-            .min()
-            .unwrap();
-        self.end_nodes
-            .iter()
-            .map(|n| self.node(*n).start_time() - earliest_start_time)
-            .sum::<Duration>()
-            - self
-                .start_nodes
-                .values()
-                .map(|n| self.node(*n).end_time() - earliest_start_time)
-                .sum()
-            - self.total_useful_duration()
-    }
+impl Network {
+    pub fn new(all_nodes: Vec<Node>, config: Arc<Config>, loc: Arc<Locations>) -> Network {
+        let mut nodes = HashMap::new();
+        let mut service_nodes = Vec::new();
+        let mut maintenance_nodes = Vec::new();
+        let mut depot_nodes = Vec::new();
+        for node in all_nodes {
+            let id = node.id();
+            nodes.insert(id, node);
+            match nodes.get(&id).unwrap() {
+                Node::Service(_) => service_nodes.push(id),
+                Node::Maintenance(_) => maintenance_nodes.push(id),
+                Node::Depot(_) => depot_nodes.push(id),
+            }
+        }
+        let mut nodes_sorted_by_start: Vec<NodeId> = nodes.keys().copied().collect();
+        nodes_sorted_by_start.sort_by_key(|&n| nodes.get(&n).unwrap().start_time());
 
-    fn total_useful_duration(&self) -> Duration {
-        self.service_nodes
-            .iter()
-            .chain(self.maintenance_nodes.iter())
-            .map(|n| {
-                (0..self.node(*n).demand().number_of_vehicles())
-                    .map(|_| self.node(*n).duration())
-                    .sum()
-            })
-            .sum()
-        // node that service trips are counted as big as their demand is
+        let mut nodes_sorted_by_end: Vec<NodeId> = nodes_sorted_by_start.clone();
+        nodes_sorted_by_end.sort_by_key(|&n| nodes.get(&n).unwrap().end_time());
+
+        Network {
+            nodes,
+            service_nodes,
+            maintenance_nodes,
+            depot_nodes,
+            nodes_sorted_by_start,
+            nodes_sorted_by_end,
+            config,
+            loc,
+        }
     }
 }
 

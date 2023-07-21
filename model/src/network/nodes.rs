@@ -1,6 +1,7 @@
-use super::demand::Demand;
-use crate::base_types::{DateTime, Distance, Duration, Location, NodeId, StationSide, VehicleId};
-use crate::vehicles::VehicleType;
+use crate::base_types::{
+    DateTime, Distance, Duration, Location, NodeId, PassengerCount, StationSide, VehicleTypeId,
+};
+use crate::depots::Depot;
 
 use core::cmp::Ordering;
 
@@ -9,8 +10,7 @@ use std::fmt;
 pub enum Node {
     Service(ServiceTrip),
     Maintenance(MaintenanceSlot),
-    Start(StartPoint),
-    End(EndPoint),
+    Depot(DepotNode),
 }
 
 pub struct ServiceTrip {
@@ -22,7 +22,7 @@ pub struct ServiceTrip {
     departure_side: StationSide,
     arrival_side: StationSide,
     travel_distance: Distance,
-    demand: Demand,
+    demand: PassengerCount,
     name: String,
 }
 
@@ -34,32 +34,9 @@ pub struct MaintenanceSlot {
     name: String,
 }
 
-pub struct StartPoint {
+pub struct DepotNode {
     node_id: NodeId,
-    vehicle_id: VehicleId,
-    location: Location,
-    time: DateTime,
-    name: String,
-}
-
-pub struct EndPoint {
-    id: NodeId,
-    vehicle_type: VehicleType,
-    location: Location,
-    time: DateTime,
-    duration_till_maintenance: Duration,
-    dist_till_maintenance: Distance,
-    name: String,
-}
-
-impl EndPoint {
-    pub fn dist_till_maintenance(&self) -> Distance {
-        self.dist_till_maintenance
-    }
-
-    pub fn duration_till_maintenance(&self) -> Duration {
-        self.duration_till_maintenance
-    }
+    depot: Depot,
 }
 
 impl ServiceTrip {
@@ -78,8 +55,7 @@ impl Node {
         match self {
             Node::Service(s) => s.id,
             Node::Maintenance(m) => m.id,
-            Node::Start(s) => s.node_id,
-            Node::End(n) => n.id,
+            Node::Depot(d) => d.node_id,
         }
     }
 
@@ -87,8 +63,7 @@ impl Node {
         match self {
             Node::Service(s) => s.departure,
             Node::Maintenance(m) => m.start,
-            Node::Start(_) => DateTime::Earliest,
-            Node::End(e) => e.time,
+            Node::Depot(_) => DateTime::Latest, // Depots can reach all nodes
         }
     }
 
@@ -96,20 +71,14 @@ impl Node {
         match self {
             Node::Service(s) => s.arrival,
             Node::Maintenance(m) => m.end,
-            Node::Start(s) => s.time,
-            Node::End(_) => DateTime::Latest,
+            Node::Depot(_) => DateTime::Earliest, // Depots can be reached from all nodes
         }
     }
 
     pub fn duration(&self) -> Duration {
-        self.end_time() - self.start_time()
-    }
-
-    pub fn useful_duration(&self) -> Duration {
-        if matches!(self, Node::Service(_)) || matches!(self, Node::Maintenance(_)) {
-            self.duration()
-        } else {
-            Duration::zero()
+        match self {
+            Node::Depot(_) => Duration::zero(),
+            _ => self.end_time() - self.start_time(),
         }
     }
 
@@ -117,8 +86,7 @@ impl Node {
         match self {
             Node::Service(s) => s.origin,
             Node::Maintenance(m) => m.location,
-            Node::Start(_) => Location::Nowhere,
-            Node::End(e) => e.location,
+            Node::Depot(d) => d.depot.location(),
         }
     }
 
@@ -126,8 +94,7 @@ impl Node {
         match self {
             Node::Service(s) => s.destination,
             Node::Maintenance(m) => m.location,
-            Node::Start(s) => s.location,
-            Node::End(_) => Location::Nowhere,
+            Node::Depot(d) => d.depot.location(),
         }
     }
 
@@ -138,19 +105,10 @@ impl Node {
         }
     }
 
-    pub fn vehicle_type(&self) -> VehicleType {
+    pub fn vehicle_type(&self) -> VehicleTypeId {
         match self {
-            Node::End(e) => e.vehicle_type,
-            _ => panic!("Node is not an EndPoint."),
-        }
-    }
-
-    pub fn demand(&self) -> Demand {
-        match self {
-            Node::Service(s) => s.demand,
-            Node::Maintenance(_) => Demand::new(1),
-            Node::Start(_) => Demand::new(1),
-            Node::End(_) => Demand::new(1),
+            Node::Depot(d) => d.depot.vehicle_type(),
+            _ => panic!("Node is not an Depot."),
         }
     }
 
@@ -158,8 +116,7 @@ impl Node {
         match self {
             Node::Service(s) => &s.name,
             Node::Maintenance(m) => &m.name,
-            Node::Start(s) => &s.name,
-            Node::End(e) => &e.name,
+            Node::Depot(d) => &d.depot.id().to_string(),
         }
     }
 
@@ -183,19 +140,27 @@ impl Node {
         match self {
             Node::Service(s) => println!(
                 "{} (id: {}) from {} ({}) to {} ({}), {}",
-                s.name, s.id, s.origin, s.departure, s.destination, s.arrival, s.travel_distance
+                self.name(),
+                self.id(),
+                self.start_location(),
+                self.start_time(),
+                self.end_location(),
+                self.end_time(),
+                self.travel_distance()
             ),
             Node::Maintenance(m) => println!(
                 "{} (id: {}) at {} (from {} to {})",
-                m.name, m.id, m.location, m.start, m.end
+                self.name(),
+                self.id(),
+                self.start_location(),
+                self.start_time(),
+                self.end_time()
             ),
-            Node::Start(s) => println!(
-                "{} (id: {}) of {} at {} ({})",
-                s.name, s.node_id, s.vehicle_id, s.location, s.time
-            ),
-            Node::End(e) => println!(
-                "{} (id: {}) for {:?} at {} ({})",
-                e.name, e.id, e.vehicle_type, e.location, e.time
+            Node::Depot(d) => println!(
+                "{} of {} at {}",
+                self.name(),
+                self.vehicle_type(),
+                self.start_location()
             ),
         }
     }
@@ -213,7 +178,7 @@ impl Node {
         departure_side: StationSide,
         arrival_side: StationSide,
         travel_distance: Distance,
-        demand: Demand,
+        demand: PassengerCount,
         name: String,
     ) -> Node {
         Node::Service(ServiceTrip {
@@ -247,41 +212,8 @@ impl Node {
         })
     }
 
-    // factory for creating start and end node of a vehicle
-    pub(super) fn create_start_node(
-        node_id: NodeId,
-        vehicle_id: VehicleId,
-        location: Location,
-        time: DateTime,
-        name: String,
-    ) -> Node {
-        Node::Start(StartPoint {
-            node_id,
-            vehicle_id,
-            location,
-            time,
-            name,
-        })
-    }
-
-    pub(super) fn create_end_node(
-        id: NodeId,
-        vehicle_type: VehicleType,
-        location: Location,
-        time: DateTime,
-        duration_till_maintenance: Duration,
-        dist_till_maintenance: Distance,
-        name: String,
-    ) -> Node {
-        Node::End(EndPoint {
-            id,
-            vehicle_type,
-            location,
-            time,
-            duration_till_maintenance,
-            dist_till_maintenance,
-            name,
-        })
+    pub(super) fn create_depot_node(node_id: NodeId, depot: Depot) -> Node {
+        Node::Depot(DepotNode { node_id, depot })
     }
 }
 

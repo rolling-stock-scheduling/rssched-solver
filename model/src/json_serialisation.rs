@@ -2,9 +2,20 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::prelude::*;
+use std::sync::Arc;
 
-use crate::base_types::{Distance, Duration, LocationId, StationSide};
+use crate::base_types::{
+    DepotId, Distance, Duration, LocationId, NodeId, PassengerCount, StationSide, TrainLength,
+    VehicleTypeId,
+};
+use crate::config::Config;
+use crate::depots::Depot as ModelDepot;
+use crate::depots::Depots;
 use crate::locations::{DeadHeadTrip, Locations};
+use crate::network::nodes::Node;
+use crate::network::Network;
+use crate::vehicle_types::VehicleType as ModelVehicleType;
+use crate::vehicle_types::VehicleTypes;
 
 type Integer = u32;
 
@@ -15,7 +26,7 @@ struct VehicleType {
     name: String,
     number_of_seats: Integer,
     capacity_of_passengers: Integer,
-    unit_length_in_meter: Integer,
+    vehicle_length_in_meter: Integer,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -96,6 +107,24 @@ struct JsonInput {
     parameters: Parameters,
 }
 
+pub fn load_rolling_stock_problem_instance_from_json(
+    path: &str,
+) -> (Arc<Locations>, VehicleTypes, Depots, Network, Arc<Config>) {
+    let json_input = load_json_input(path);
+    let locations = Arc::new(create_locations(&json_input));
+    let vehicle_types = create_vehicle_types(&json_input);
+    let depots = create_depots(&json_input, &locations, &vehicle_types);
+    let config = Arc::new(create_config(&json_input));
+    let network = create_network(
+        &json_input,
+        locations.clone(),
+        &vehicle_types,
+        &depots,
+        config.clone(),
+    );
+    (locations, vehicle_types, depots, network, config)
+}
+
 fn load_json_input(path: &str) -> JsonInput {
     let mut file = File::open(path).unwrap();
     let mut data = String::new();
@@ -138,5 +167,57 @@ fn create_locations(json_input: &JsonInput) -> Locations {
     Locations::new(stations, dead_head_trips)
 }
 
-//TODO create vehicleTypes, network, config from JsonInput
+fn create_vehicle_types(json_input: &JsonInput) -> VehicleTypes {
+    let mut vehicle_types: Vec<ModelVehicleType> = json_input
+        .unit_types
+        .iter()
+        .map(|unit_type| {
+            ModelVehicleType::new(
+                VehicleTypeId::from(&unit_type.id),
+                unit_type.name.clone(),
+                unit_type.number_of_seats as PassengerCount,
+                unit_type.capacity_of_passengers as PassengerCount,
+                unit_type.vehicle_length_in_meter as TrainLength,
+            )
+        })
+        .collect();
+
+    VehicleTypes::new(vehicle_types)
+}
+
+fn create_depots(json_input: &JsonInput, loc: &Locations, vehicle_types: &VehicleTypes) -> Depots {
+    let mut depots: Vec<ModelDepot> = json_input
+        .depots
+        .iter()
+        .map(|depot| {
+            let id = DepotId::from(&depot.id);
+            let location = loc.get_location(LocationId::from(&depot.location));
+            depot
+                .upper_bound_for_unit_types
+                .iter()
+                .map(|unit_type_bound| {
+                    let vehicle_id = VehicleTypeId::from(&unit_type_bound.unit_type);
+                    assert!(vehicle_types.get(&vehicle_id).is_some());
+                    ModelDepot::new(id, location, vehicle_id, Some(unit_type_bound.upper_bound))
+                })
+                .collect::<Vec<_>>()
+        })
+        .flatten()
+        .collect();
+
+    Depots::new(depots)
+}
+
+fn create_network(
+    json_input: &JsonInput,
+    locations: Arc<Locations>,
+    vehicle_types: &VehicleTypes,
+    depots: &Depots,
+    config: Arc<Config>,
+) -> Network {
+    let mut nodes: Vec<Node> = Vec::new();
+    //TODO: creates nodes
+    Network::new(nodes, config, locations)
+}
+//TODO create config from JsonInput
 //TODO create static function for writing schedule to json

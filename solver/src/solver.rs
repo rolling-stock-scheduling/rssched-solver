@@ -13,6 +13,7 @@ pub(crate) trait Solver {
     fn solve(&self) -> Schedule;
 
     fn foo(&self) -> Schedule {
+        println!("foo");
         self.solve()
     }
 }

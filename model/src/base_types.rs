@@ -10,7 +10,15 @@ pub use location::LocationId;
 pub use location::StationSide;
 pub use time::{DateTime, Duration};
 
+pub type VehicleTypeId = CopyStr<10>;
+pub type PassengerCount = u8;
+pub type TrainLength = u8;
+
 pub type VehicleId = CopyStr<10>;
+
+pub type VehicleCount = u32;
+
+pub type DepotId = CopyStr<10>;
 
 pub type NodeId = CopyStr<32>;
 

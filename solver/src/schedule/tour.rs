@@ -228,10 +228,7 @@ impl Tour {
         self.test_if_valid_replacement(segment, start_pos, end_pos)?;
 
         // compute useful_time, service_distance and dead_head_distance for the path:
-        let path_useful_time = path
-            .iter()
-            .map(|n| self.nw.node(*n).useful_duration())
-            .sum();
+        let path_useful_time = path.iter().map(|n| self.nw.node(*n).duration()).sum();
         let path_service_distance = path
             .iter()
             .map(|n| self.nw.node(*n).travel_distance())
@@ -285,7 +282,7 @@ impl Tour {
         // compute useful_time, service_distance and dead_head_distance for the segment that is
         // removed:
         let removed_useful_time = (start_pos..end_pos)
-            .map(|i| self.nw.node(self.nodes[i]).useful_duration())
+            .map(|i| self.nw.node(self.nodes[i]).duration())
             .sum();
         let removed_service_distance = (start_pos..end_pos)
             .map(|i| self.nw.node(self.nodes[i]).travel_distance())
@@ -395,7 +392,7 @@ impl Tour {
 
         // compute usefile_time, service_distance and dead_head_distance for the removed segment:
         let removed_useful_time = (start_pos..end_pos + 1)
-            .map(|i| self.nw.node(self.nodes[i]).useful_duration())
+            .map(|i| self.nw.node(self.nodes[i]).duration())
             .sum();
         let removed_service_distance = (start_pos..end_pos + 1)
             .map(|i| self.nw.node(self.nodes[i]).travel_distance())

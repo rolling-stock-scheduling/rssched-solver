@@ -12,18 +12,17 @@ pub struct Vehicles {
 pub struct Vehicle {
     id: VehicleId,
     vehicle_type: VehicleType,
-    start_time: DateTime,
-    start_location: Location,
-    initial_duration_counter: Duration, // time passed since last maintenance (at start_node)
-    initial_dist_counter: Distance,     // distance since last maintenance (at start_node)
+    start_depot: Location,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum VehicleType {
-    Standard,
-    // Giruno,
-    // FVDosto,
-    // Astoro
+impl Vehicle {
+    pub fn new(id: VehicleId, vehicle_type: VehicleType, start_depot: Location) -> Vehicle {
+        Vehicle {
+            id,
+            vehicle_type,
+            start_depot,
+        }
+    }
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -42,10 +41,40 @@ impl Vehicles {
     pub fn contains(&self, id: VehicleId) -> bool {
         self.vehicles.contains_key(&id)
     }
+
+    pub fn spawn_vehicle(
+        &mut self,
+        id: VehicleId,
+        vehicle_type: VehicleType,
+        start_time: DateTime,
+        start_depot: Location,
+    ) {
+        let vehicle = Vehicle::new(id, vehicle_type, start_depot);
+        self.vehicles.insert(id, vehicle);
+        self.ids_sorted.push(id);
+        self.ids_sorted.sort();
+    }
+}
+
+impl Vehicles {
+    pub fn new(vehicle_vector: Vec<Vehicle>) -> Vehicles {
+        let mut vehicles = HashMap::new();
+        let mut ids_sorted = Vec::new();
+        for vehicle in vehicle_vector {
+            let id = vehicle.id;
+            vehicles.insert(id, vehicle);
+            ids_sorted.push(id);
+        }
+        ids_sorted.sort();
+        Vehicles {
+            vehicles,
+            ids_sorted,
+        }
+    }
 }
 
 /////////////////////////////////////////////////////////////////////
-//////////////////////////////// vehicle ///////////////////////////////
+///////////////////////////// Vehicle ///////////////////////////////
 /////////////////////////////////////////////////////////////////////
 
 // methods
@@ -58,20 +87,8 @@ impl Vehicle {
         self.vehicle_type
     }
 
-    pub fn start_time(&self) -> DateTime {
-        self.start_time
-    }
-
-    pub fn start_location(&self) -> Location {
-        self.start_location
-    }
-
-    pub fn initial_duration_counter(&self) -> Duration {
-        self.initial_duration_counter
-    }
-
-    pub fn initial_dist_counter(&self) -> Distance {
-        self.initial_dist_counter
+    pub fn start_depot(&self) -> Location {
+        self.start_depot
     }
 }
 
@@ -79,8 +96,8 @@ impl fmt::Display for Vehicle {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "vehicle {} ({:?}; {}; {})",
-            self.id, self.vehicle_type, self.initial_dist_counter, self.initial_duration_counter
+            "vehicle {} ({:?}; {};)",
+            self.id, self.vehicle_type, self.start_depot,
         )
     }
 }
