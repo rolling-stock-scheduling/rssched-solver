@@ -1,7 +1,7 @@
 use crate::base_types::{
-    DateTime, Distance, Duration, Location, NodeId, PassengerCount, StationSide, VehicleTypeId,
+    DateTime, DepotId, Distance, Duration, Location, NodeId, PassengerCount, StationSide,
+    VehicleCount, VehicleTypeId,
 };
-use crate::depots::Depot;
 
 use core::cmp::Ordering;
 
@@ -10,7 +10,7 @@ use std::fmt;
 pub enum Node {
     Service(ServiceTrip),
     Maintenance(MaintenanceSlot),
-    Depot(DepotNode),
+    Depot(Depot),
 }
 
 pub struct ServiceTrip {
@@ -34,9 +34,29 @@ pub struct MaintenanceSlot {
     name: String,
 }
 
-pub struct DepotNode {
-    node_id: NodeId,
-    depot: Depot,
+// we have a seperate depot for each vehicle type
+// (id, vehicle_type) is unique
+pub struct Depot {
+    id: NodeId, // depot_id + vehicle_type
+    depot_id: DepotId,
+    location: Location,
+    vehicle_type: VehicleTypeId,
+    upper_bound: Option<VehicleCount>, // number of vehicles that can be spawned. None means no limit.
+}
+
+/*
+impl Depot {
+    pub fn depot_id(&self) -> DepotId {
+        self.depot_id
+    }
+
+    pub fn location(&self) -> Location {
+        self.location
+    }
+
+    pub fn vehicle_type(&self) -> VehicleTypeId {
+        self.vehicle_type
+    }
 }
 
 impl ServiceTrip {
@@ -48,14 +68,14 @@ impl ServiceTrip {
         self.arrival_side
     }
 }
-
+*/
 // methods
 impl Node {
     pub fn id(&self) -> NodeId {
         match self {
             Node::Service(s) => s.id,
             Node::Maintenance(m) => m.id,
-            Node::Depot(d) => d.node_id,
+            Node::Depot(d) => d.id,
         }
     }
 
@@ -86,7 +106,7 @@ impl Node {
         match self {
             Node::Service(s) => s.origin,
             Node::Maintenance(m) => m.location,
-            Node::Depot(d) => d.depot.location(),
+            Node::Depot(d) => d.location,
         }
     }
 
@@ -94,7 +114,7 @@ impl Node {
         match self {
             Node::Service(s) => s.destination,
             Node::Maintenance(m) => m.location,
-            Node::Depot(d) => d.depot.location(),
+            Node::Depot(d) => d.location,
         }
     }
 
@@ -107,7 +127,7 @@ impl Node {
 
     pub fn vehicle_type(&self) -> VehicleTypeId {
         match self {
-            Node::Depot(d) => d.depot.vehicle_type(),
+            Node::Depot(d) => d.vehicle_type,
             _ => panic!("Node is not an Depot."),
         }
     }
@@ -116,7 +136,7 @@ impl Node {
         match self {
             Node::Service(s) => &s.name,
             Node::Maintenance(m) => &m.name,
-            Node::Depot(d) => &d.depot.id().to_string(),
+            Node::Depot(d) => &d.id.to_string(),
         }
     }
 
@@ -169,7 +189,7 @@ impl Node {
 // static functions:
 impl Node {
     // factory for creating a service trip
-    pub(super) fn create_service_node(
+    pub(crate) fn create_service_node(
         id: NodeId,
         origin: Location,
         destination: Location,
@@ -196,7 +216,7 @@ impl Node {
     }
 
     // factory for creating a node for a maintenance slot
-    pub(super) fn create_maintenance_node(
+    pub(crate) fn create_maintenance_node(
         id: NodeId,
         location: Location,
         start: DateTime,
@@ -212,8 +232,19 @@ impl Node {
         })
     }
 
-    pub(super) fn create_depot_node(node_id: NodeId, depot: Depot) -> Node {
-        Node::Depot(DepotNode { node_id, depot })
+    pub(crate) fn create_depot_node(
+        depot_id: DepotId,
+        location: Location,
+        vehicle_type: VehicleTypeId,
+        upper_bound: Option<VehicleCount>,
+    ) -> Node {
+        Node::Depot(Depot {
+            id: NodeId::from(&format!("{}_{}", depot_id, vehicle_type)),
+            depot_id,
+            location,
+            vehicle_type,
+            upper_bound,
+        })
     }
 }
 

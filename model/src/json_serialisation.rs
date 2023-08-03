@@ -5,12 +5,10 @@ use std::io::prelude::*;
 use std::sync::Arc;
 
 use crate::base_types::{
-    DepotId, Distance, Duration, LocationId, NodeId, PassengerCount, StationSide, TrainLength,
-    VehicleTypeId,
+    DateTime, DepotId, Distance, Duration, LocationId, Meter, NodeId, PassengerCount, StationSide,
+    TrainLength, VehicleTypeId,
 };
 use crate::config::Config;
-use crate::depots::Depot as ModelDepot;
-use crate::depots::Depots;
 use crate::locations::{DeadHeadTrip, Locations};
 use crate::network::nodes::Node;
 use crate::network::Network;
@@ -109,20 +107,18 @@ struct JsonInput {
 
 pub fn load_rolling_stock_problem_instance_from_json(
     path: &str,
-) -> (Arc<Locations>, VehicleTypes, Depots, Network, Arc<Config>) {
+) -> (Arc<Locations>, VehicleTypes, Network, Arc<Config>) {
     let json_input = load_json_input(path);
     let locations = Arc::new(create_locations(&json_input));
     let vehicle_types = create_vehicle_types(&json_input);
-    let depots = create_depots(&json_input, &locations, &vehicle_types);
     let config = Arc::new(create_config(&json_input));
     let network = create_network(
         &json_input,
         locations.clone(),
         &vehicle_types,
-        &depots,
         config.clone(),
     );
-    (locations, vehicle_types, depots, network, config)
+    (locations, vehicle_types, network, config)
 }
 
 fn load_json_input(path: &str) -> JsonInput {
@@ -185,8 +181,24 @@ fn create_vehicle_types(json_input: &JsonInput) -> VehicleTypes {
     VehicleTypes::new(vehicle_types)
 }
 
-fn create_depots(json_input: &JsonInput, loc: &Locations, vehicle_types: &VehicleTypes) -> Depots {
-    let mut depots: Vec<ModelDepot> = json_input
+fn create_network(
+    json_input: &JsonInput,
+    locations: Arc<Locations>,
+    vehicle_types: &VehicleTypes,
+    config: Arc<Config>,
+) -> Network {
+    let mut nodes: Vec<Node> = create_depot_nodes(json_input, &locations, vehicle_types);
+    nodes.append(&mut create_service_trip_nodes(json_input, &locations));
+    //TODO: add maintenance nodes
+    Network::new(nodes, config, locations)
+}
+
+fn create_depot_nodes(
+    json_input: &JsonInput,
+    loc: &Locations,
+    vehicle_types: &VehicleTypes,
+) -> Vec<Node> {
+    json_input
         .depots
         .iter()
         .map(|depot| {
@@ -198,26 +210,45 @@ fn create_depots(json_input: &JsonInput, loc: &Locations, vehicle_types: &Vehicl
                 .map(|unit_type_bound| {
                     let vehicle_id = VehicleTypeId::from(&unit_type_bound.unit_type);
                     assert!(vehicle_types.get(&vehicle_id).is_some());
-                    ModelDepot::new(id, location, vehicle_id, Some(unit_type_bound.upper_bound))
+                    Node::create_depot_node(
+                        id,
+                        location,
+                        vehicle_id,
+                        Some(unit_type_bound.upper_bound),
+                    )
                 })
                 .collect::<Vec<_>>()
         })
         .flatten()
-        .collect();
-
-    Depots::new(depots)
+        .collect()
 }
 
-fn create_network(
-    json_input: &JsonInput,
-    locations: Arc<Locations>,
-    vehicle_types: &VehicleTypes,
-    depots: &Depots,
-    config: Arc<Config>,
-) -> Network {
-    let mut nodes: Vec<Node> = Vec::new();
-    //TODO: creates nodes
-    Network::new(nodes, config, locations)
+fn create_service_trip_nodes(json_input: &JsonInput, locations: &Locations) -> Vec<Node> {
+    json_input
+        .service_trips
+        .iter()
+        .map(|service_trip| {
+            let route = json_input
+                .routes
+                .iter()
+                .find(|route| route.id == service_trip.route)
+                .unwrap();
+            let departure = DateTime::new(&service_trip.departure_time);
+            Node::create_service_node(
+                NodeId::from(&service_trip.id),
+                locations.get_location(LocationId::from(&route.origin)),
+                locations.get_location(LocationId::from(&route.destination)),
+                departure,
+                departure + Duration::from_seconds(route.travel_duration_in_seconds),
+                StationSide::Front, // TODO: Read this from json
+                StationSide::Front, // TODO: Read this from json
+                Distance::from_meter(route.travel_distance_in_meter as Meter),
+                service_trip.passenger_demand as PassengerCount,
+                service_trip.name,
+            )
+        })
+        .collect()
 }
+
 //TODO create config from JsonInput
 //TODO create static function for writing schedule to json
