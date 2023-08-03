@@ -100,8 +100,8 @@ impl Network {
         n1: &Node,
         n2: &Node,
     ) -> Duration {
-        if let Node::Service(s1) = n1 {
-            if let Node::Service(s2) = n2 {
+        if let Node::Service(_) = n1 {
+            if let Node::Service(_) = n2 {
                 // both nodes are service trips
 
                 self.config.durations_between_activities.minimal
@@ -120,17 +120,17 @@ impl Network {
         n1: &Node,
         n2: &Node,
     ) -> Duration {
-        let (dht_start_side, dht_end_side) = self
-            .loc
-            .station_sides(n1.end_location(), n2.start_location());
+        // let (dht_start_side, dht_end_side) = self
+        // .loc
+        // .station_sides(n1.end_location(), n2.start_location());
         let previous: Duration = match n1 {
-            Node::Service(s1) => self.config.durations_between_activities.dead_head_trip,
+            Node::Service(_) => self.config.durations_between_activities.dead_head_trip,
             Node::Maintenance(_) => self.config.durations_between_activities.dead_head_trip,
             _ => Duration::zero(),
         };
 
         let next: Duration = match n2 {
-            Node::Service(s2) => self.config.durations_between_activities.dead_head_trip,
+            Node::Service(_) => self.config.durations_between_activities.dead_head_trip,
             Node::Maintenance(_) => self.config.durations_between_activities.dead_head_trip,
             _ => Duration::zero(),
         };

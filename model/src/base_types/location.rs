@@ -4,7 +4,7 @@ use std::fmt;
 pub type LocationId = CopyStr<10>; // Stations are represented by String codes of length up to
                                    // 10.
 
-#[derive(Hash, Eq, PartialEq, Copy, Clone)]
+#[derive(Hash, Eq, PartialEq, Copy, Clone, Debug)]
 pub enum Location {
     Station(LocationId),
     Nowhere, // distance to Nowhere is always infinity
@@ -12,7 +12,7 @@ pub enum Location {
 }
 
 /// the side on which Vehicles are leaving or entering the station
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum StationSide {
     Back,  // corresponds to 0
     Front, // corresponds to 1

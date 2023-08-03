@@ -13,17 +13,18 @@ impl VehicleTypes {
         }
     }
 
-    pub fn get(&self, id: &VehicleTypeId) -> Option<&VehicleType> {
-        self.vehicle_types.get(id)
+    pub fn get(&self, id: VehicleTypeId) -> Option<&VehicleType> {
+        self.vehicle_types.get(&id)
     }
 }
 
+#[derive(Debug, Eq, PartialEq)]
 pub struct VehicleType {
     id: VehicleTypeId,
     name: String,
     number_of_seats: PassengerCount,
     capacity_of_passengers: PassengerCount,
-    vehicle_length_in_meters: TrainLength,
+    vehicle_length: TrainLength,
 }
 
 impl VehicleType {
@@ -32,14 +33,18 @@ impl VehicleType {
         name: String,
         number_of_seats: PassengerCount,
         capacity_of_passengers: PassengerCount,
-        vehicle_length_in_meters: TrainLength,
+        vehicle_length: TrainLength,
     ) -> VehicleType {
         VehicleType {
             id,
             name,
             number_of_seats,
             capacity_of_passengers,
-            vehicle_length_in_meters,
+            vehicle_length,
         }
+    }
+
+    pub fn name(&self) -> &String {
+        &self.name
     }
 }

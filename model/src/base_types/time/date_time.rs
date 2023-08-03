@@ -6,25 +6,26 @@ use super::{duration::DurationLength, Duration};
 
 // Important: Leap year are integrated. But no daylight-saving.
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)] // care the ordering of the variants is important
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)] // care the ordering of the variants is important
 pub enum DateTime {
     Earliest, // always earlier than all TimePoints
     Point(TimePoint),
     Latest, // always later than all TimePoints
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)] // care the ordering of attributes is important
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)] // care the ordering of attributes is important
 pub struct TimePoint {
     year: u32,
     month: u8,
     day: u8,
     hour: u8,
     minute: u8,
+    second: u8,
 }
 
 impl DateTime {
     pub fn new(string: &str) -> DateTime {
-        //"2009-06-15T13:45:00Z" or "2009-4-15T12:1"
+        //"2009-06-15T13:45:13" or "2009-4-15T12:10"
         let shortened = string.replace('Z', "");
         let splitted: Vec<&str> = shortened.split(&['T', '-', ' ', ':'][..]).collect();
         let len = splitted.len();
@@ -42,6 +43,11 @@ impl DateTime {
         assert!(hour <= 24, "Wrong hour format.");
         let minute: u8 = splitted[4].parse().expect("Error at minute.");
         assert!(minute < 60, "Wrong minute format.");
+        let second: u8 = if len == 6 {
+            splitted[5].parse().expect("Error at second.")
+        } else {
+            0
+        };
 
         DateTime::Point(TimePoint {
             year,
@@ -49,6 +55,7 @@ impl DateTime {
             day,
             hour,
             minute,
+            second,
         })
     }
 }
@@ -58,8 +65,8 @@ impl DateTime {
         match self {
             DateTime::Earliest => String::from("EARLIEST"),
             DateTime::Point(t) => format!(
-                "{:#04}-{:#02}-{:#02}T{:#02}:{:#02}:00Z",
-                t.year, t.month, t.day, t.hour, t.minute
+                "{:#04}-{:#02}-{:#02}T{:#02}:{:#02}:{:#02}",
+                t.year, t.month, t.day, t.hour, t.minute, t.second
             ),
             DateTime::Latest => String::from("LATEST"),
         }
@@ -91,6 +98,7 @@ impl Sub for DateTime {
                 Duration::Length(DurationLength {
                     hours: 0,
                     minutes: 0,
+                    seconds: 0,
                 }) // Earliest - Earliest
             }
             DateTime::Latest => {
@@ -98,6 +106,7 @@ impl Sub for DateTime {
                     Duration::Length(DurationLength {
                         hours: 0,
                         minutes: 0,
+                        seconds: 0,
                     }) // Latest - Latest
                 } else {
                     Duration::Infinity // Latest - (something not Latest)
@@ -196,14 +205,32 @@ impl Sub for TimePoint {
         } else {
             self.hour + 24 - other.hour
         }) as u32;
-        let minutes = if self.minute >= other.minute {
+        let mut minutes = if self.minute >= other.minute {
             self.minute - other.minute
         } else {
             hours = if hours > 0 { hours - 1 } else { 23 }; // subtract one of the hours
             self.minute + 60 - other.minute
         };
+        let seconds = if self.second >= other.second {
+            self.second - other.second
+        } else {
+            // subtract one of the minutes
+            minutes = if minutes > 0 {
+                minutes - 1
+            } else {
+                // subtract one of the hours
+                hours = if hours > 0 { hours - 1 } else { 23 };
+                59
+            };
+            self.second + 60 - other.second
+        };
 
-        let mut temp_date = other + DurationLength { hours, minutes };
+        let mut temp_date = other
+            + DurationLength {
+                hours,
+                minutes,
+                seconds,
+            };
         while self != temp_date {
             let days_diff = if self.day > temp_date.day {
                 self.day - temp_date.day
@@ -216,11 +243,16 @@ impl Sub for TimePoint {
                 + DurationLength {
                     hours: hours_diff,
                     minutes: 0,
+                    seconds: 0,
                 };
             hours += hours_diff;
         }
 
-        Duration::Length(DurationLength { hours, minutes })
+        Duration::Length(DurationLength {
+            hours,
+            minutes,
+            seconds,
+        })
     }
 }
 
@@ -228,7 +260,9 @@ impl Add<DurationLength> for TimePoint {
     type Output = Self;
 
     fn add(self, other: DurationLength) -> Self {
-        let sum_of_minutes = self.minute + other.minutes;
+        let sum_of_seconds = self.second + other.seconds;
+        let second = sum_of_seconds % 60;
+        let sum_of_minutes = self.minute + other.minutes + (sum_of_seconds / 60) as u8;
         let minute = sum_of_minutes % 60;
         let sum_of_hours: u32 = self.hour as u32 + other.hours + (sum_of_minutes / 60) as u32;
         let hour = (sum_of_hours % 24) as u8;
@@ -242,6 +276,7 @@ impl Add<DurationLength> for TimePoint {
             day,
             hour,
             minute,
+            second,
         }
     }
 }
@@ -255,24 +290,32 @@ impl Sub<DurationLength> for TimePoint {
         let mut day = self.day as u32;
         let mut hour = self.hour as u32;
         let mut minute = self.minute;
+        let mut second = self.second;
 
-        let mut other_day = 0;
-        let mut other_hour = other.hours;
+        let mut other_days = 0;
+        let mut other_hours = other.hours;
+        let mut other_minutes = other.minutes;
 
-        if other.minutes > minute {
+        if other.seconds > second {
+            second += 60;
+            other_minutes += 1;
+        }
+        second -= other.seconds;
+
+        if other_minutes > minute {
             minute += 60;
-            other_hour += 1;
+            other_hours += 1;
         }
-        minute -= other.minutes;
+        minute -= other_minutes;
 
-        if other_hour > hour {
-            let day_diff: u32 = (other_hour - hour) / 24 + 1;
+        if other_hours > hour {
+            let day_diff: u32 = (other_hours - hour) / 24 + 1;
             hour += day_diff * 24;
-            other_day += day_diff;
+            other_days += day_diff;
         }
-        hour -= other_hour;
+        hour -= other_hours;
 
-        while other_day > day {
+        while other_days > day {
             if month == 1 {
                 year -= 1;
                 month = 12;
@@ -281,7 +324,7 @@ impl Sub<DurationLength> for TimePoint {
             }
             day += TimePoint::get_days_of_month(year, month) as u32;
         }
-        day -= other_day;
+        day -= other_days;
 
         TimePoint {
             year,
@@ -289,16 +332,25 @@ impl Sub<DurationLength> for TimePoint {
             day: day as u8,
             hour: hour as u8,
             minute,
+            second,
         }
     }
 }
 
 impl fmt::Display for TimePoint {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{:02}.{:02}.{}_{:02}:{:02}",
-            self.day, self.month, self.year, self.hour, self.minute
-        )
+        if self.second > 0 {
+            write!(
+                f,
+                "{:02}.{:02}.{}_{:02}:{:02}:{:02}",
+                self.day, self.month, self.year, self.hour, self.minute, self.second
+            )
+        } else {
+            write!(
+                f,
+                "{:02}.{:02}.{}_{:02}:{:02}",
+                self.day, self.month, self.year, self.hour, self.minute
+            )
+        }
     }
 }

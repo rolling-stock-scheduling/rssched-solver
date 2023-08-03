@@ -1,8 +1,0 @@
-ivog:
-  bathtub:
-    distance:
-      ub: 8000
-      lb: 4000
-    duration:
-      ub: "P18D"
-      lb: "P12D"

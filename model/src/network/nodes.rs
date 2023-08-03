@@ -7,12 +7,14 @@ use core::cmp::Ordering;
 
 use std::fmt;
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum Node {
     Service(ServiceTrip),
     Maintenance(MaintenanceSlot),
     Depot(Depot),
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct ServiceTrip {
     id: NodeId,
     origin: Location,
@@ -26,6 +28,7 @@ pub struct ServiceTrip {
     name: String,
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct MaintenanceSlot {
     id: NodeId,
     location: Location,
@@ -36,26 +39,23 @@ pub struct MaintenanceSlot {
 
 // we have a seperate depot for each vehicle type
 // (id, vehicle_type) is unique
+#[derive(Debug, PartialEq, Eq)]
 pub struct Depot {
-    id: NodeId, // depot_id + vehicle_type
+    id: NodeId, // depot_id + '_' + vehicle_type
     depot_id: DepotId,
     location: Location,
     vehicle_type: VehicleTypeId,
     upper_bound: Option<VehicleCount>, // number of vehicles that can be spawned. None means no limit.
+    name: String,
 }
 
-/*
 impl Depot {
     pub fn depot_id(&self) -> DepotId {
         self.depot_id
     }
 
-    pub fn location(&self) -> Location {
-        self.location
-    }
-
-    pub fn vehicle_type(&self) -> VehicleTypeId {
-        self.vehicle_type
+    pub fn vehicle_bound(&self) -> (VehicleTypeId, Option<VehicleCount>) {
+        (self.vehicle_type, self.upper_bound)
     }
 }
 
@@ -67,8 +67,12 @@ impl ServiceTrip {
     pub fn arrival_side(&self) -> StationSide {
         self.arrival_side
     }
+
+    pub fn demand(&self) -> PassengerCount {
+        self.demand
+    }
 }
-*/
+
 // methods
 impl Node {
     pub fn id(&self) -> NodeId {
@@ -136,7 +140,7 @@ impl Node {
         match self {
             Node::Service(s) => &s.name,
             Node::Maintenance(m) => &m.name,
-            Node::Depot(d) => &d.id.to_string(),
+            Node::Depot(d) => &d.name,
         }
     }
 
@@ -158,7 +162,7 @@ impl Node {
 
     pub fn print(&self) {
         match self {
-            Node::Service(s) => println!(
+            Node::Service(_) => println!(
                 "{} (id: {}) from {} ({}) to {} ({}), {}",
                 self.name(),
                 self.id(),
@@ -168,7 +172,7 @@ impl Node {
                 self.end_time(),
                 self.travel_distance()
             ),
-            Node::Maintenance(m) => println!(
+            Node::Maintenance(_) => println!(
                 "{} (id: {}) at {} (from {} to {})",
                 self.name(),
                 self.id(),
@@ -176,7 +180,7 @@ impl Node {
                 self.start_time(),
                 self.end_time()
             ),
-            Node::Depot(d) => println!(
+            Node::Depot(_) => println!(
                 "{} of {} at {}",
                 self.name(),
                 self.vehicle_type(),
@@ -237,6 +241,7 @@ impl Node {
         location: Location,
         vehicle_type: VehicleTypeId,
         upper_bound: Option<VehicleCount>,
+        name: String,
     ) -> Node {
         Node::Depot(Depot {
             id: NodeId::from(&format!("{}_{}", depot_id, vehicle_type)),
@@ -244,6 +249,7 @@ impl Node {
             location,
             vehicle_type,
             upper_bound,
+            name,
         })
     }
 }

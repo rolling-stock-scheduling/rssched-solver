@@ -12,6 +12,7 @@ pub enum Duration {
 pub struct DurationLength {
     pub(super) hours: u32,
     pub(super) minutes: u8,
+    pub(super) seconds: u8,
 }
 
 ////////////////////////////////////////////////////////////////////
@@ -25,34 +26,51 @@ impl Duration {
             Duration::Length(l) => l.hours * 60 + (l.minutes as u32),
         }
     }
+    pub fn in_sec(&self) -> u32 {
+        match self {
+            Duration::Infinity => panic!("Cannot get minutes of Duration::Infinity."),
+            Duration::Length(l) => l.hours * 3600 + 60 * (l.minutes as u32) + l.seconds as u32,
+        }
+    }
 }
 
 impl Duration {
     pub fn new(string: &str) -> Duration {
-        // "hh:mm"
+        // "hh:mm" or "hh:mm:ss"
         let splitted: Vec<&str> = string.split(&[':'][..]).collect();
         assert!(
-            splitted.len() == 2,
+            splitted.len() <= 3 && splitted.len() >= 2,
             "Wrong duration format! string: {}",
             string
         );
 
         let hours: u32 = splitted[0].parse().expect("Error at hour.");
         let minutes: u8 = splitted[1].parse().expect("Error at minute.");
+        let seconds: u8 = if splitted.len() == 2 {
+            0
+        } else {
+            splitted[2].parse().expect("Error at second.")
+        };
         assert!(minutes < 60, "Wrong minute format.");
+        assert!(seconds < 60, "Wrong seconds format.");
 
-        Duration::Length(DurationLength { hours, minutes })
+        Duration::Length(DurationLength {
+            hours,
+            minutes,
+            seconds,
+        })
     }
 
     pub fn from_seconds(seconds: u32) -> Duration {
         Duration::Length(DurationLength {
             hours: seconds / 3600,
             minutes: (seconds % 3600 / 60) as u8,
+            seconds: (seconds % 60) as u8,
         })
     }
 
     pub fn from_iso(string: &str) -> Duration {
-        //"P10DT0H31M0S"
+        //"P10DT0H31M02S"
         let splitted: Vec<&str> = string
             .split_inclusive(&['P', 'D', 'T', 'H', 'M', 'S'][..])
             .collect();
@@ -80,19 +98,10 @@ impl Duration {
         assert!(minutes < 60, "Wrong minute format.");
         assert!(seconds < 60, "Wrong seconds format.");
 
-        // seconds are rounded up
-        if seconds > 0 {
-            minutes += 1;
-        }
-
-        if minutes == 60 {
-            hours += 1;
-            minutes = 0;
-        }
-
         Duration::Length(DurationLength {
             hours: hours + 24 * days,
             minutes,
+            seconds,
         })
     }
 
@@ -100,6 +109,7 @@ impl Duration {
         Duration::Length(DurationLength {
             hours: 0,
             minutes: 0,
+            seconds: 0,
         })
     }
 }
@@ -150,7 +160,13 @@ impl std::iter::Sum<Self> for Duration {
 impl fmt::Display for Duration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Duration::Length(l) => write!(f, "{:02}:{:02}h", l.hours, l.minutes),
+            Duration::Length(l) => {
+                if l.seconds > 0 {
+                    write!(f, "{:02}:{:02}:{:02}h", l.hours, l.minutes, l.seconds)
+                } else {
+                    write!(f, "{:02}:{:02}h", l.hours, l.minutes)
+                }
+            }
             Duration::Infinity => write!(f, "Inf"),
         }
     }
@@ -164,10 +180,16 @@ impl Add for DurationLength {
     type Output = Self;
 
     fn add(self, other: Self) -> Self {
-        let sum_of_minutes = self.minutes + other.minutes;
+        let sum_of_seconds = self.seconds + other.seconds;
+        let seconds = sum_of_seconds % 60;
+        let sum_of_minutes = self.minutes + other.minutes + (sum_of_seconds / 60) as u8;
         let minutes = sum_of_minutes % 60;
         let hours = self.hours + other.hours + (sum_of_minutes / 60) as u32;
-        DurationLength { hours, minutes }
+        DurationLength {
+            hours,
+            minutes,
+            seconds,
+        }
     }
 }
 
@@ -179,14 +201,28 @@ impl Sub for DurationLength {
             self >= other,
             "Cannot subtract a longer duration from a shorter duration."
         );
+        let mut self_seconds = self.seconds;
         let mut self_minutes = self.minutes;
         let mut self_hours = self.hours;
+        if self.seconds < other.seconds {
+            if self_minutes == 0 {
+                self_hours -= 1;
+                self_minutes += 60;
+            }
+            self_minutes -= 1;
+            self_seconds += 60;
+        }
         if self.minutes < other.minutes {
             self_minutes += 60;
             self_hours -= 1;
         }
+        let seconds = self_seconds - other.seconds;
         let minutes = self_minutes - other.minutes;
         let hours = self_hours - other.hours;
-        DurationLength { hours, minutes }
+        DurationLength {
+            hours,
+            minutes,
+            seconds,
+        }
     }
 }
