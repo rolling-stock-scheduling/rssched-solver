@@ -7,13 +7,13 @@ use std::sync::Arc;
 
 use std::iter::Iterator;
 /// Path is similar as Tour a sequence of nodes that form a path in the network.
-/// Instead of a Tour a Path does not need to start with a StartNode nor end with an EndNode
+/// Instead of a Tour a Path does not need to start nor end at a Depot.
 /// It is mainly used for sequence of uncovered nodes.
 #[derive(Clone)]
 pub(crate) struct Path {
     node_sequence: Vec<NodeId>,
 
-    nw: Arc<Network>,
+    network: Arc<Network>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -41,12 +41,18 @@ impl Path {
             // println!("Not a valid Path: {} cannot reach {}.", a, b);
             // }
         }
-        Path { node_sequence, nw }
+        Path {
+            node_sequence,
+            network: nw,
+        }
     }
 
     /// crates a new Path but does NOT assert that it is a path in the network
     pub(crate) fn new_trusted(node_sequence: Vec<NodeId>, nw: Arc<Network>) -> Path {
-        Path { node_sequence, nw }
+        Path {
+            node_sequence,
+            network: nw,
+        }
     }
 }
 
@@ -80,9 +86,9 @@ impl Path {
 impl fmt::Display for Path {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut nodes_iter = self.node_sequence.iter();
-        write!(f, "{}", self.nw.node(*nodes_iter.next().unwrap()))?;
+        write!(f, "{}", self.network.node(*nodes_iter.next().unwrap()))?;
         for node in nodes_iter {
-            write!(f, " - {}", self.nw.node(*node))?;
+            write!(f, " - {}", self.network.node(*node))?;
         }
         Ok(())
     }

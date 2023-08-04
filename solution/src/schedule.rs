@@ -1,4 +1,7 @@
+mod vehicle;
+
 mod tour;
+use sbb_model::vehicle_types::VehicleTypes;
 use tour::Tour;
 
 pub(crate) mod path;
@@ -14,7 +17,7 @@ use train_formation::TrainFormation;
 use sbb_model::base_types::{Cost, DateTime, Distance, Duration, NodeId, VehicleId};
 use sbb_model::config::Config;
 use sbb_model::network::Network;
-use sbb_model::vehicles::{Vehicle, VehicleType, Vehicles};
+use sbb_model::vehicle_types::VehicleType;
 
 use im::HashMap;
 use std::collections::VecDeque;
@@ -22,28 +25,43 @@ use std::collections::VecDeque;
 use std::cmp::Ordering;
 use std::sync::Arc;
 
+// TODO: try to use im::Vector instead of Vec and compare performance.
+
 // this represents a solution to the rolling stock problem.
 // It should be an immutable object. So whenever a modification is applied a copy of the
 // schedule is create.
 #[derive(Clone)]
 pub(crate) struct Schedule {
-    tours: HashMap<VehicleId, Tour>,
+    // all vehicles that are used in the schedule (real and dummy)
+    vehicles: HashMap<VehicleId, VehicleType>,
+
+    // the tours of the real vehicles
+    assigned_tours: HashMap<VehicleId, Tour>,
+
+    // non-covered or only partially covered service nodes are stored seperately.
+    // dummy vehicles must not start nor end at a depot.
+    dummy_tours: HashMap<VehicleId, Tour>,
+
+    // for each node (except for depots) we store the train formation that covers it.
     covered_by: HashMap<NodeId, TrainFormation>,
 
-    // non-covered or only partially covered service nodes are stored seperately
-    dummies: HashMap<VehicleId, (VehicleType, Tour)>,
+    // redundant information for faster access
+    vehicle_ids_sorted: Vec<VehicleId>,
     dummy_ids_sorted: Vec<VehicleId>,
     dummy_counter: usize,
 
+    /*
     vehicle_objective_info: HashMap<VehicleId, ObjectiveInfo>, // for each vehicle we store the overhead_time and the dead_head_distance
     dummy_objective_info: HashMap<VehicleId, Duration>, // for each dummy we store the overhead_time
+    */
     objective_value: ObjectiveValue,
-
     config: Arc<Config>,
-    vehicles: Arc<Vehicles>,
-    nw: Arc<Network>,
+    vehicle_types: Arc<VehicleTypes>,
+    network: Arc<Network>,
 }
 
+//TODO
+/*
 #[derive(Clone)]
 struct ObjectiveInfo {
     overhead_time: Duration,
@@ -56,13 +74,13 @@ struct ObjectiveInfo {
 }
 
 impl ObjectiveInfo {
-    fn new(vehicle: &Vehicle, tour: &Tour) -> ObjectiveInfo {
+    fn new(vehicle_type: VehicleType, tour: &Tour) -> ObjectiveInfo {
         let (
             maintenance_distance_violation,
             maintenance_duration_violation,
             maintenance_distance_bathtub_cost,
             maintenance_duration_bathtub_cost,
-        ) = tour.maintenance_violation_and_cost(vehicle);
+        ) = tour.maintenance_violation_and_cost(vehicle_type);
 
         let continuous_idle_time_cost = tour.continuous_idle_time_cost();
         ObjectiveInfo {
@@ -76,17 +94,22 @@ impl ObjectiveInfo {
         }
     }
 }
-
+*/
 // methods
 impl Schedule {
     pub(crate) fn tour_of(&self, vehicle: VehicleId) -> &Tour {
-        self.tours.get(&vehicle).unwrap_or_else(|| {
-            &self
-                .dummies
-                .get(&vehicle)
-                .unwrap_or_else(|| panic!("{} is neither real nor dummy vehicle", vehicle))
-                .1
-        })
+        &self
+            .assigned_tours
+            .get(&vehicle)
+            .unwrap_or_else(|| {
+                self.dummy_tours.get(&vehicle).unwrap_or_else(|| {
+                    panic!(
+                        "{} is neither real nor dummy vehicle. So there is no tour.",
+                        vehicle
+                    )
+                })
+            })
+            .1
     }
 
     pub(crate) fn covered_by(&self, node: NodeId) -> &TrainFormation {
@@ -94,14 +117,21 @@ impl Schedule {
     }
 
     pub(crate) fn type_of(&self, vehicle: VehicleId) -> VehicleType {
-        self.dummies
+        self.assigned_tours
             .get(&vehicle)
-            .map(|tuple| tuple.0)
-            .unwrap_or_else(|| self.vehicles.get_vehicle(vehicle).vehicle_type())
+            .unwrap_or_else(|| {
+                self.dummy_tours.get(&vehicle).unwrap_or_else(|| {
+                    panic!(
+                        "{} is neither real nor dummy vehicle. So it has no type.",
+                        vehicle
+                    )
+                })
+            })
+            .0
     }
 
     pub(crate) fn is_dummy(&self, vehicle: VehicleId) -> bool {
-        self.dummies.contains_key(&vehicle)
+        self.dummy_tours.contains_key(&vehicle)
     }
 
     // pub(crate) fn total_overhead_time(&self) -> Duration {
@@ -125,7 +155,7 @@ impl Schedule {
     // }
 
     pub(crate) fn number_of_dummy_vehicles(&self) -> usize {
-        self.dummies.len()
+        self.dummy_tours.len()
     }
 
     pub(crate) fn objective_value(&self) -> ObjectiveValue {
@@ -139,7 +169,7 @@ impl Schedule {
             .get(&node)
             .unwrap()
             .iter()
-            .find(|u| self.dummies.contains_key(u))
+            .find(|u| self.dummy_tours.contains_key(u))
     }
 
     // pub(crate) fn uncovered_nodes(&self) -> impl Iterator<Item = (NodeId,VehicleId)> + '_ {
@@ -152,18 +182,21 @@ impl Schedule {
 
     /// returns all vehicle ids of real Vehicles (sorted)
     pub(crate) fn real_vehicles_iter(&self) -> impl Iterator<Item = VehicleId> + '_ {
-        self.vehicles.iter()
+        self.vehicle_ids_sorted.iter().copied()
     }
 
+    /*
     pub(crate) fn uncovered_successors(
         &self,
         node: NodeId,
     ) -> impl Iterator<Item = (NodeId, VehicleId)> + '_ {
-        self.nw
+        self.network
             .all_successors(node)
             .filter_map(|n| self.get_dummy_cover_of(n).map(|u| (n, u)))
     }
+    */
 
+    /*
     /// Simulates inserting the node_sequence into the tour of vehicle. Return all nodes (as a Path) that would
     /// have been removed from the tour.
     pub(crate) fn conflict(&self, segment: Segment, receiver: VehicleId) -> Result<Path, String> {
@@ -214,7 +247,7 @@ impl Schedule {
         receiver: VehicleId,
     ) -> Result<Schedule, String> {
         let tour = &self
-            .dummies
+            .dummy_tours
             .get(&dummy_provider)
             .expect("Can only assign_all if provider is a dummy-vehicle.")
             .1;
@@ -290,13 +323,15 @@ impl Schedule {
                             .iter()
                             .enumerate()
                             .map_while(|(i, &n)| {
-                                if self.nw.node(n).end_time() > self.nw.node(blocker).start_time() {
+                                if self.network.node(n).end_time()
+                                    > self.network.node(blocker).start_time()
+                                {
                                     None
                                 } else {
                                     Some((i, n))
                                 }
                             })
-                            .filter(|(_, n)| self.nw.can_reach(*n, blocker))
+                            .filter(|(_, n)| self.network.can_reach(*n, blocker))
                             .filter(|(_, n)| {
                                 new_tour_provider.removable(Segment::new(sub_segment_start, *n))
                             })
@@ -307,7 +342,7 @@ impl Schedule {
 
             let mut node_sequence = remaining_path.consume();
             remaining_path =
-                Path::new_trusted(node_sequence.split_off(end_pos + 1), self.nw.clone());
+                Path::new_trusted(node_sequence.split_off(end_pos + 1), self.network.clone());
             let sub_segment = Segment::new(sub_segment_start, sub_segment_end);
             let remove_result = new_tour_provider.remove(sub_segment);
 
@@ -388,150 +423,152 @@ impl Schedule {
             objective_value,
             config: self.config.clone(),
             vehicles: self.vehicles.clone(),
-            nw: self.nw.clone(),
+            network: self.network.clone(),
         })
-    }
+    } */
 
-    pub(crate) fn fit_reassign_all(
-        &self,
-        provider: VehicleId,
-        receiver: VehicleId,
-    ) -> Result<Schedule, String> {
-        let provider_tour = self.tour_of(provider);
-        self.fit_reassign(
-            Segment::new(provider_tour.first_node(), provider_tour.last_node()),
-            provider,
-            receiver,
-        )
-    }
-
-    /// Remove segment from provider's tour and inserts the nodes into the tour of receiver vehicle.
-    /// All conflicting nodes are removed from the tour and in the case that there are conflcits
-    /// a new dummy tour is created.
-    /// If path ends with an endnode it is replaces the old endpoint. (Path is suffix of the tour.)
-    /// Otherwise the path must reach the old endnode.
-    pub(crate) fn override_reassign(
-        &self,
-        segment: Segment,
-        provider: VehicleId,
-        receiver: VehicleId,
-    ) -> Result<(Schedule, Option<VehicleId>), String> {
-        // do lazy clones of schedule:
-        let mut tours = self.tours.clone();
-        let mut covered_by = self.covered_by.clone();
-        let mut dummies = self.dummies.clone();
-        let mut dummy_ids_sorted = self.dummy_ids_sorted.clone();
-        let mut dummy_counter = self.dummy_counter;
-        let mut vehicle_objective_info = self.vehicle_objective_info.clone();
-        let mut dummy_objective_info = self.dummy_objective_info.clone();
-
-        let tour_provider = self.tour_of(provider);
-        let tour_receiver = self.tour_of(receiver);
-
-        // remove segment for provider
-        let (shrinked_tour_provider, path) = tour_provider.remove(segment)?;
-
-        // update covered_by:
-        for node in path.iter() {
-            let new_formation = covered_by.get(node).unwrap().replace(provider, receiver);
-            covered_by.insert(*node, new_formation);
-        }
-
-        // insert path into tour
-        let replaced_path = tour_receiver.conflict(segment)?;
-        let new_tour_receiver = tour_receiver.insert(path)?;
-
-        // update shrinked tour of the provider
-        if shrinked_tour_provider.len() > 0 {
-            if self.is_dummy(provider) {
-                dummy_objective_info.insert(provider, shrinked_tour_provider.overhead_time());
-                dummies.insert(provider, (self.type_of(provider), shrinked_tour_provider));
-            } else {
-                vehicle_objective_info.insert(
-                    provider,
-                    ObjectiveInfo::new(
-                        self.vehicles.get_vehicle(provider),
-                        &shrinked_tour_provider,
-                    ),
-                );
-                tours.insert(provider, shrinked_tour_provider);
-            }
-        } else {
-            dummies.remove(&provider); // old_dummy_tour is completely removed
-            dummy_ids_sorted.remove(dummy_ids_sorted.binary_search(&provider).unwrap());
-            dummy_objective_info.remove(&provider);
-        }
-
-        // update extended tour of the receiver
-        if self.is_dummy(receiver) {
-            dummy_objective_info.insert(receiver, new_tour_receiver.overhead_time());
-            dummies.insert(receiver, (self.type_of(receiver), new_tour_receiver));
-        } else {
-            vehicle_objective_info.insert(
+    /*
+        pub(crate) fn fit_reassign_all(
+            &self,
+            provider: VehicleId,
+            receiver: VehicleId,
+        ) -> Result<Schedule, String> {
+            let provider_tour = self.tour_of(provider);
+            self.fit_reassign(
+                Segment::new(provider_tour.first_node(), provider_tour.last_node()),
+                provider,
                 receiver,
-                ObjectiveInfo::new(self.vehicles.get_vehicle(receiver), &new_tour_receiver),
-            );
-            tours.insert(receiver, new_tour_receiver);
+            )
         }
 
-        let mut new_dummy_opt = None;
-        // insert new dummy tour consisting of conflicting nodes removed from receiver's tour
-        if !replaced_path.is_empty() {
-            let new_dummy = VehicleId::from(format!("dummy{:05}", dummy_counter).as_str());
+        /// Remove segment from provider's tour and inserts the nodes into the tour of receiver vehicle.
+        /// All conflicting nodes are removed from the tour and in the case that there are conflcits
+        /// a new dummy tour is created.
+        /// If path ends with an endnode it is replaces the old endpoint. (Path is suffix of the tour.)
+        /// Otherwise the path must reach the old endnode.
+        pub(crate) fn override_reassign(
+            &self,
+            segment: Segment,
+            provider: VehicleId,
+            receiver: VehicleId,
+        ) -> Result<(Schedule, Option<VehicleId>), String> {
+            // do lazy clones of schedule:
+            let mut tours = self.tours.clone();
+            let mut covered_by = self.covered_by.clone();
+            let mut dummies = self.dummies.clone();
+            let mut dummy_ids_sorted = self.dummy_ids_sorted.clone();
+            let mut dummy_counter = self.dummy_counter;
+            let mut vehicle_objective_info = self.vehicle_objective_info.clone();
+            let mut dummy_objective_info = self.dummy_objective_info.clone();
 
-            new_dummy_opt = Some(new_dummy);
+            let tour_provider = self.tour_of(provider);
+            let tour_receiver = self.tour_of(receiver);
 
-            for node in replaced_path.iter() {
-                let new_formation = covered_by.get(node).unwrap().replace(receiver, new_dummy);
+            // remove segment for provider
+            let (shrinked_tour_provider, path) = tour_provider.remove(segment)?;
+
+            // update covered_by:
+            for node in path.iter() {
+                let new_formation = covered_by.get(node).unwrap().replace(provider, receiver);
                 covered_by.insert(*node, new_formation);
             }
 
-            let new_dummy_type = self.type_of(receiver);
-            let new_dummy_tour = Tour::new_dummy_by_path(
-                new_dummy_type,
-                replaced_path,
+            // insert path into tour
+            let replaced_path = tour_receiver.conflict(segment)?;
+            let new_tour_receiver = tour_receiver.insert(path)?;
+
+            // update shrinked tour of the provider
+            if shrinked_tour_provider.len() > 0 {
+                if self.is_dummy(provider) {
+                    dummy_objective_info.insert(provider, shrinked_tour_provider.overhead_time());
+                    dummies.insert(provider, (self.type_of(provider), shrinked_tour_provider));
+                } else {
+                    vehicle_objective_info.insert(
+                        provider,
+                        ObjectiveInfo::new(
+                            self.vehicles.get_vehicle(provider),
+                            &shrinked_tour_provider,
+                        ),
+                    );
+                    tours.insert(provider, shrinked_tour_provider);
+                }
+            } else {
+                dummies.remove(&provider); // old_dummy_tour is completely removed
+                dummy_ids_sorted.remove(dummy_ids_sorted.binary_search(&provider).unwrap());
+                dummy_objective_info.remove(&provider);
+            }
+
+            // update extended tour of the receiver
+            if self.is_dummy(receiver) {
+                dummy_objective_info.insert(receiver, new_tour_receiver.overhead_time());
+                dummies.insert(receiver, (self.type_of(receiver), new_tour_receiver));
+            } else {
+                vehicle_objective_info.insert(
+                    receiver,
+                    ObjectiveInfo::new(self.vehicles.get_vehicle(receiver), &new_tour_receiver),
+                );
+                tours.insert(receiver, new_tour_receiver);
+            }
+
+            let mut new_dummy_opt = None;
+            // insert new dummy tour consisting of conflicting nodes removed from receiver's tour
+            if !replaced_path.is_empty() {
+                let new_dummy = VehicleId::from(format!("dummy{:05}", dummy_counter).as_str());
+
+                new_dummy_opt = Some(new_dummy);
+
+                for node in replaced_path.iter() {
+                    let new_formation = covered_by.get(node).unwrap().replace(receiver, new_dummy);
+                    covered_by.insert(*node, new_formation);
+                }
+
+                let new_dummy_type = self.type_of(receiver);
+                let new_dummy_tour = Tour::new_dummy_by_path(
+                    new_dummy_type,
+                    replaced_path,
+                    self.config.clone(),
+                    self.network.clone(),
+                );
+
+                dummy_objective_info.insert(new_dummy, new_dummy_tour.overhead_time());
+                dummies.insert(new_dummy, (new_dummy_type, new_dummy_tour));
+                dummy_ids_sorted.insert(
+                    dummy_ids_sorted
+                        .binary_search(&new_dummy)
+                        .unwrap_or_else(|e| e),
+                    new_dummy,
+                );
+                // dummy_ids_sorted.push(new_dummy);
+                // dummy_ids_sorted.sort();
+
+                dummy_counter += 1;
+            }
+
+            let objective_value = Schedule::sum_up_objective_info(
+                &vehicle_objective_info,
+                &dummy_objective_info,
                 self.config.clone(),
-                self.nw.clone(),
+                &self.vehicles,
             );
 
-            dummy_objective_info.insert(new_dummy, new_dummy_tour.overhead_time());
-            dummies.insert(new_dummy, (new_dummy_type, new_dummy_tour));
-            dummy_ids_sorted.insert(
-                dummy_ids_sorted
-                    .binary_search(&new_dummy)
-                    .unwrap_or_else(|e| e),
-                new_dummy,
-            );
-            // dummy_ids_sorted.push(new_dummy);
-            // dummy_ids_sorted.sort();
-
-            dummy_counter += 1;
+            Ok((
+                Schedule {
+                    tours,
+                    covered_by,
+                    dummies,
+                    dummy_ids_sorted,
+                    dummy_counter,
+                    vehicle_objective_info,
+                    dummy_objective_info,
+                    objective_value,
+                    config: self.config.clone(),
+                    vehicles: self.vehicles.clone(),
+                    network: self.network.clone(),
+                },
+                new_dummy_opt,
+            ))
         }
-
-        let objective_value = Schedule::sum_up_objective_info(
-            &vehicle_objective_info,
-            &dummy_objective_info,
-            self.config.clone(),
-            &self.vehicles,
-        );
-
-        Ok((
-            Schedule {
-                tours,
-                covered_by,
-                dummies,
-                dummy_ids_sorted,
-                dummy_counter,
-                vehicle_objective_info,
-                dummy_objective_info,
-                objective_value,
-                config: self.config.clone(),
-                vehicles: self.vehicles.clone(),
-                nw: self.nw.clone(),
-            },
-            new_dummy_opt,
-        ))
-    }
+    */
 
     pub(crate) fn print_long(&self) {
         println!(
@@ -713,7 +750,7 @@ impl Schedule {
             objective_value,
             config,
             vehicles,
-            nw,
+            network: nw,
         }
     }
 
@@ -954,7 +991,7 @@ impl Schedule {
             objective_value,
             config,
             vehicles,
-            nw,
+            network: nw,
         }
     }
 }

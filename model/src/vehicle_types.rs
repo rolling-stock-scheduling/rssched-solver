@@ -18,13 +18,13 @@ impl VehicleTypes {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct VehicleType {
     id: VehicleTypeId,
     name: String,
-    number_of_seats: PassengerCount,
-    capacity_of_passengers: PassengerCount,
-    vehicle_length: TrainLength,
+    seats: PassengerCount,
+    capacity: PassengerCount,
+    length: TrainLength,
 }
 
 impl VehicleType {
@@ -38,13 +38,25 @@ impl VehicleType {
         VehicleType {
             id,
             name,
-            number_of_seats,
-            capacity_of_passengers,
-            vehicle_length,
+            seats: number_of_seats,
+            capacity: capacity_of_passengers,
+            length: vehicle_length,
         }
     }
 
     pub fn name(&self) -> &String {
         &self.name
+    }
+
+    pub fn seats(&self) -> PassengerCount {
+        self.seats
+    }
+
+    pub fn capacity(&self) -> PassengerCount {
+        self.capacity
+    }
+
+    pub fn length(&self) -> TrainLength {
+        self.length
     }
 }

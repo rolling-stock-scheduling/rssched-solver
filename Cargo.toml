@@ -2,6 +2,7 @@
 
 members = [
     "model",
+    "solution",
     "solver",
 ]
 

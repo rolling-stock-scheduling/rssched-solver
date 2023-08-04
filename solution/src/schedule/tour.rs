@@ -3,7 +3,6 @@ use crate::schedule::path::{Path, Segment};
 use sbb_model::base_types::{Cost, DateTime, Distance, Duration, NodeId, COST_ZERO};
 use sbb_model::config::Config;
 use sbb_model::network::{nodes::Node, Network};
-use sbb_model::vehicles::{Vehicle, VehicleType};
 use std::fmt;
 
 use std::cmp::Ordering;
@@ -14,17 +13,16 @@ use std::sync::Arc;
 
 type Position = usize; // the position within the tour from 0 to nodes.len()-1
 
-/// this represents a tour of a single vehicle (or dummy vehicle). For real Vehicles it always start at the StartNode of the vehicle and ends
-/// with an EndNode that has the type of the vehicle. For dummy Vehicles only the type must fit.
+/// this represents a tour of a single vehicle (or dummy vehicle). For real Vehicles it always start and ends at a depot.
+/// For dummy Vehicles this does not hold.
 /// It is an immutable objects. So whenever some modification is applied a copy of the tour
 /// is created.
 #[derive(Clone)]
 pub(crate) struct Tour {
-    vehicle_type: VehicleType,
     nodes: Vec<NodeId>, // nodes will always be sorted by start_time
     is_dummy: bool,
 
-    overhead_time: Duration,
+    overhead_time: Duration, // the overhead time (dead_head + idle) of the tour
     service_distance: Distance,
     dead_head_distance: Distance,
     continuous_idle_time_cost: Cost,
@@ -92,108 +90,6 @@ impl Tour {
     pub(crate) fn overhead_time(&self) -> Duration {
         self.overhead_time
     }
-
-    /// computes and returns the amount of distance and duration violation this tour causes if the
-    /// vehicle uses it.
-    /// Additionally, computes and returns the distance and the duration cost by the bathtub function for
-    /// maintenance.
-    pub(crate) fn maintenance_violation_and_cost(
-        &self,
-        vehicle: &Vehicle,
-    ) -> (Distance, Duration, Cost, Cost) {
-        let mut dist_violation = Distance::zero();
-        let mut duration_violation = Duration::zero();
-
-        let dist_limit = self.config.maintenance.distance;
-        let duration_limit = self.config.maintenance.duration;
-
-        let mut distance_cost = COST_ZERO;
-        let mut duration_cost = COST_ZERO;
-
-        let bathtub_cost = &self.config.objective.bathtub;
-        let bathtub_limits = &self.config.maintenance.bathtub_limits;
-
-        for (distance_counter, duration_counter) in self.maintenance_counter(vehicle).into_iter() {
-            dist_violation =
-                dist_violation + std::cmp::max(distance_counter, dist_limit) - dist_limit;
-
-            duration_violation = duration_violation
-                + std::cmp::max(duration_counter, duration_limit)
-                - duration_limit;
-
-            distance_cost += bathtub_cost.marginal_cost_per_exceeded_km
-                * (std::cmp::max(distance_counter, bathtub_limits.distance_upper_limit)
-                    - bathtub_limits.distance_upper_limit)
-                    .as_km_cost();
-
-            distance_cost += bathtub_cost.marginal_cost_per_deceeded_km
-                * (bathtub_limits.distance_lower_limit
-                    - std::cmp::min(distance_counter, bathtub_limits.distance_lower_limit))
-                .as_km_cost();
-
-            duration_cost += bathtub_cost.marginal_cost_per_exceeded_second
-                * (std::cmp::max(duration_counter, bathtub_limits.duration_upper_limit)
-                    - bathtub_limits.duration_upper_limit)
-                    .in_min() as Cost
-                * 60.0;
-
-            duration_cost += bathtub_cost.marginal_cost_per_deceeded_second
-                * (bathtub_limits.duration_lower_limit
-                    - std::cmp::min(duration_counter, bathtub_limits.duration_lower_limit))
-                .in_min() as Cost
-                * 60.0;
-        }
-        (
-            dist_violation,
-            duration_violation,
-            distance_cost,
-            duration_cost,
-        )
-    }
-
-    /// computes for each maintenance or end point the distance and duration counter of the vehicle
-    /// using this tour.
-    fn maintenance_counter(&self, vehicle: &Vehicle) -> Vec<(Distance, Duration)> {
-        let mut counter: Vec<(Distance, Duration)> = Vec::new();
-
-        let mut distance_counter = vehicle.initial_dist_counter();
-        let mut last_maintenance: DateTime =
-            vehicle.start_time() - vehicle.initial_duration_counter();
-
-        for (&p, &n) in self.nodes_iter().tuple_windows() {
-            distance_counter = distance_counter + self.nw.dead_head_distance_between(p, n);
-
-            let node = self.nw.node(n);
-
-            match node {
-                Node::Service(_) => distance_counter = node.travel_distance(),
-                Node::Maintenance(_) => {
-                    counter.push((distance_counter, node.start_time() - last_maintenance));
-                    distance_counter = Distance::zero();
-                    last_maintenance = node.end_time();
-                }
-                Node::End(e) => {
-                    distance_counter = distance_counter + e.dist_till_maintenance();
-                    counter.push((
-                        distance_counter,
-                        node.start_time() + e.duration_till_maintenance() - last_maintenance,
-                    ));
-                }
-                _ => {}
-            }
-        }
-        counter
-    }
-
-    /// computes the idle time cost (which is usually negative, so it is a bonus).
-    pub(crate) fn continuous_idle_time_cost(&self) -> Cost {
-        self.continuous_idle_time_cost
-    }
-
-    /// return the usefule_time (end - start for each node, including maintenance_slots) of the tour.
-    // pub(crate) fn useful_time(&self) -> Duration {
-    // self.nodes.iter().map(|&n| self.nw.node(n).useful_duration()).sum()
-    // }
 
     pub(crate) fn sub_path(&self, segment: Segment) -> Result<Path, String> {
         let start_pos = self
@@ -364,7 +260,6 @@ impl Tour {
             - removed_continuous_idle_time_cost;
 
         Ok(Tour::new_trusted(
-            self.vehicle_type,
             new_tour_nodes,
             self.is_dummy,
             overhead_time,
@@ -492,7 +387,6 @@ impl Tour {
 
         Ok((
             Tour::new_trusted(
-                self.vehicle_type,
                 tour_nodes,
                 self.is_dummy,
                 overhead_time,
@@ -760,12 +654,11 @@ impl Tour {
     /// * each node can reach is successor
     /// If one of the checks fails an error message is returned.
     pub(super) fn new(
-        vehicle_type: VehicleType,
         nodes: Vec<NodeId>,
         config: Arc<Config>,
         nw: Arc<Network>,
     ) -> Result<Tour, String> {
-        Tour::new_allow_invalid(vehicle_type, nodes, config, nw).map_err(|(_, error_msg)| error_msg)
+        Tour::new_allow_invalid(nodes, config, nw).map_err(|(_, error_msg)| error_msg)
     }
 
     /// Creates a new tour from a vector of NodeIds. Checks that the tour is valid:
@@ -776,7 +669,6 @@ impl Tour {
     /// If one of the checks fails an error is returned containing the error message but also the
     /// invalid tour.
     pub(super) fn new_allow_invalid(
-        vehicle_type: VehicleType,
         nodes: Vec<NodeId>,
         config: Arc<Config>,
         nw: Arc<Network>,
@@ -813,17 +705,13 @@ impl Tour {
             }
         }
         if error_msg.len() > 0 {
-            Err((
-                Tour::new_computing(vehicle_type, nodes, false, config, nw),
-                error_msg,
-            ))
+            Err((Tour::new_computing(nodes, false, config, nw), error_msg))
         } else {
-            Ok(Tour::new_computing(vehicle_type, nodes, false, config, nw))
+            Ok(Tour::new_computing(nodes, false, config, nw))
         }
     }
 
     pub(super) fn new_dummy(
-        vehicle_type: VehicleType,
         nodes: Vec<NodeId>,
         config: Arc<Config>,
         nw: Arc<Network>,
@@ -837,12 +725,11 @@ impl Tour {
                 ));
             }
         }
-        Ok(Tour::new_computing(vehicle_type, nodes, true, config, nw))
+        Ok(Tour::new_computing(nodes, true, config, nw))
     }
 
     /// Creates a new tour from a vector of NodeIds. Trusts that the vector leads to a valid Tour.
     pub(super) fn new_trusted(
-        vehicle_type: VehicleType,
         nodes: Vec<NodeId>,
         is_dummy: bool,
         overhead_time: Duration,
@@ -853,7 +740,6 @@ impl Tour {
         nw: Arc<Network>,
     ) -> Tour {
         Tour {
-            vehicle_type,
             nodes,
             is_dummy,
             overhead_time,
@@ -865,17 +751,11 @@ impl Tour {
         }
     }
 
-    pub(super) fn new_dummy_by_path(
-        vehicle_type: VehicleType,
-        path: Path,
-        config: Arc<Config>,
-        nw: Arc<Network>,
-    ) -> Tour {
-        Tour::new_computing(vehicle_type, path.consume(), true, config, nw)
+    pub(super) fn new_dummy_by_path(path: Path, config: Arc<Config>, nw: Arc<Network>) -> Tour {
+        Tour::new_computing(path.consume(), true, config, nw)
     }
 
     fn new_computing(
-        vehicle_type: VehicleType,
         nodes: Vec<NodeId>,
         is_dummy: bool,
         config: Arc<Config>,
@@ -898,7 +778,6 @@ impl Tour {
             .map(|(&a, &b)| objective::compute_idle_time_cost(nw.idle_time_between(a, b), &config))
             .sum();
         Tour {
-            vehicle_type,
             nodes,
             is_dummy,
             overhead_time,
