@@ -15,6 +15,7 @@ pub type PassengerCount = u8;
 pub type TrainLength = u8;
 
 pub type VehicleId = CopyStr<10>;
+pub type DummyId = CopyStr<8>;
 
 pub type VehicleCount = u32;
 

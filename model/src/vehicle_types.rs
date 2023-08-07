@@ -1,20 +1,23 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::base_types::{PassengerCount, TrainLength, VehicleTypeId};
 
 pub struct VehicleTypes {
-    vehicle_types: HashMap<VehicleTypeId, VehicleType>,
+    vehicle_types: HashMap<VehicleTypeId, Arc<VehicleType>>,
 }
 
 impl VehicleTypes {
     pub fn new(vehicle_types: Vec<VehicleType>) -> VehicleTypes {
         VehicleTypes {
-            vehicle_types: vehicle_types.into_iter().map(|vt| (vt.id, vt)).collect(),
+            vehicle_types: vehicle_types
+                .into_iter()
+                .map(|vt| (vt.id, Arc::new(vt)))
+                .collect(),
         }
     }
 
-    pub fn get(&self, id: VehicleTypeId) -> Option<&VehicleType> {
-        self.vehicle_types.get(&id)
+    pub fn get(&self, id: VehicleTypeId) -> Option<Arc<VehicleType>> {
+        self.vehicle_types.get(&id).cloned()
     }
 }
 
@@ -42,6 +45,10 @@ impl VehicleType {
             capacity: capacity_of_passengers,
             length: vehicle_length,
         }
+    }
+
+    pub fn id(&self) -> VehicleTypeId {
+        self.id
     }
 
     pub fn name(&self) -> &String {

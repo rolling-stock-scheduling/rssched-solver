@@ -2,14 +2,13 @@ use std::{fmt, sync::Arc};
 
 use sbb_model::{
     base_types::{PassengerCount, TrainLength, VehicleId, VehicleTypeId},
-    vehicle_types::VehicleTypes,
+    vehicle_types::{VehicleType, VehicleTypes},
 };
 
 #[derive(Clone)]
 pub(super) struct Vehicle {
     id: VehicleId,
-    type_id: VehicleTypeId,
-    vehicle_types: Arc<VehicleTypes>,
+    vehicle_type: Arc<VehicleType>,
 }
 
 impl Vehicle {
@@ -20,8 +19,7 @@ impl Vehicle {
     ) -> Vehicle {
         Vehicle {
             id,
-            type_id,
-            vehicle_types,
+            vehicle_type: vehicle_types.get(type_id).unwrap().clone(),
         }
     }
 
@@ -30,25 +28,25 @@ impl Vehicle {
     }
 
     pub fn type_id(&self) -> VehicleTypeId {
-        self.type_id
+        self.vehicle_type.id()
     }
 
     pub fn seats(&self) -> PassengerCount {
-        self.vehicle_types.get(self.type_id).unwrap().seats()
+        self.vehicle_type.seats()
     }
 
     pub fn capacity(&self) -> PassengerCount {
-        self.vehicle_types.get(self.type_id).unwrap().capacity()
+        self.vehicle_type.capacity()
     }
 
     pub fn length(&self) -> TrainLength {
-        self.vehicle_types.get(self.type_id).unwrap().length()
+        self.vehicle_type.length()
     }
 }
 
 impl fmt::Display for Vehicle {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} ({})", self.id, self.type_id)?;
+        write!(f, "{} ({})", self.id, self.vehicle_type.name())?;
         Ok(())
     }
 }
