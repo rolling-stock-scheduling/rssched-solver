@@ -122,8 +122,4 @@ impl Schedule {
             println!("{}: {}", dummy, self.dummy_tours.get(&dummy).unwrap());
         }
     }
-
-    pub(crate) fn cmp_objective_values(&self, other: &Self) -> Ordering {
-        self.objective_value.cmp(&other.objective_value)
-    }
 }

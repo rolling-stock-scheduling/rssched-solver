@@ -1,0 +1,192 @@
+{
+  "vehicleTypes" : [ {
+    "id" : "vt1",
+    "name" : "Vehicle Type 1",
+    "seats" : 50,
+    "capacity" : 100,
+    "length" : 10
+  }, {
+    "id" : "vt2",
+    "name" : "Vehicle Type 2",
+    "seats" : 40,
+    "capacity" : 80,
+    "length" : 8
+  } ],
+  "locations" : [ {
+    "id" : "loc1",
+    "name" : "Location 1"
+  }, {
+    "id" : "loc2",
+    "name" : "Location 2"
+  }, {
+    "id" : "loc3",
+    "name" : "Location 3"
+      }, {
+    "id" : "loc4",
+    "name" : "Location 4"
+      }, {
+    "id" : "loc5",
+    "name" : "Location 5"
+  } ],
+  "depots" : [ {
+    "id" : "depot1",
+    "location" : "loc1",
+    "capacities" : [ {
+      "vehicleType" : "vt1",
+      "upperBound" : 1
+    }, {
+      "vehicleType" : "vt2",
+      "upperBound" : 1
+    } ]
+  }, {
+    "id" : "depot2",
+    "location" : "loc2",
+    "capacities" : [ {
+      "vehicleType" : "vt2",
+      "upperBound" : 1
+    } ]
+  },
+  {
+    "id" : "depot3",
+    "location" : "loc3",
+    "capacities" : [ {
+      "vehicleType" : "vt1",
+      "upperBound" : 1
+    }, {
+      "vehicleType" : "vt2",
+      "upperBound" : 1
+    } ]
+  }, {
+    "id" : "depot4",
+    "location" : "loc4",
+    "capacities" : [ {
+      "vehicleType" : "vt2",
+      "upperBound" : 1
+    } ]
+  },
+  {
+    "id" : "depot5",
+    "location" : "loc5",
+    "capacities" : [ {
+      "vehicleType" : "vt1",
+      "upperBound" : 1
+    }, {
+      "vehicleType" : "vt2",
+      "upperBound" : 1
+    } ]
+  }],
+  "routes" : [ {
+    "id" : "route1-2",
+    "line" : "Line 1-2",
+    "origin" : "loc1",
+    "destination" : "loc2",
+    "distance" : 1000,
+    "duration" : 1800,
+    "maximalFormationLength" : 80
+  }, {
+    "id" : "route2-3",
+    "line" : "Line 2-3",
+    "origin" : "loc2",
+    "destination" : "loc3",
+    "distance" : 2000,
+    "duration" : 1800,
+    "maximalFormationLength" : 80
+  }, {
+    "id" : "route3-4",
+    "line" : "Line 3",
+    "origin" : "loc3",
+    "destination" : "loc4",
+    "distance" : 3000,
+    "duration" : 1800,
+    "maximalFormationLength" : 80
+  }, {
+    "id" : "route4-5",
+    "line" : "Line 4-5",
+    "origin" : "loc4",
+    "destination" : "loc5",
+    "distance" : 4000,
+    "duration" : 1800,
+    "maximalFormationLength" : 80
+  }, {
+    "id" : "route5-1",
+    "line" : "Line 5",
+    "origin" : "loc5",
+    "destination" : "loc1",
+    "distance" : 5000,
+    "duration" : 1800,
+    "maximalFormationLength" : 80
+  }, {
+    "id" : "route3-1",
+    "line" : "Line 3-1",
+    "origin" : "loc3",
+    "destination" : "loc1",
+    "distance" : 6000,
+    "duration" : 1800,
+    "maximalFormationLength" : 80
+  }, {
+    "id" : "route1-4",
+    "line" : "Line 1-4",
+    "origin" : "loc1",
+    "destination" : "loc4",
+    "distance" : 7000,
+    "duration" : 1800,
+    "maximalFormationLength" : 80
+  } ],
+  "serviceTrips" : [ {
+    "id" : "trip1-2",
+    "route" : "route1-2",
+    "name" : "Trip 1-2",
+    "departure" : "2020-01-01T06:00:00",
+    "passengers" : 80
+  }, {
+    "id" : "trip2-3",
+    "route" : "route2-3",
+    "name" : "Trip 2-3",
+    "departure" : "2020-01-01T07:00:00",
+    "passengers" : 80
+  }, {
+  "id" : "trip3-4",
+  "route" : "route3-4",
+  "name" : "Trip 3-4",
+  "departure" : "2020-01-01T08:00:00",
+  "passengers" : 80
+  }, {
+  "id" : "trip4-5",
+  "route" : "route4-5",
+  "name" : "Trip 4-5",
+  "departure" : "2020-01-01T09:00:00",
+  "passengers" : 80
+  }, {
+  "id" : "trip5-1",
+  "route" : "route5-1",
+  "name" : "Trip 5-1",
+  "departure" : "2020-01-01T10:00:00",
+  "passengers" : 80
+  }, {
+  "id" : "trip3-1",
+  "route" : "route3-1",
+  "name" : "Trip 3-1",
+  "departure" : "2020-01-01T8:00:00",
+  "passengers" : 80
+  }, {
+  "id" : "trip1-4",
+  "route" : "route1-4",
+  "name" : "Trip 1-4",
+  "departure" : "2020-01-01T9:00:00",
+  "passengers" : 80
+  } ],
+  "deadHeadTrips" : {
+    "indices" : [ "loc1", "loc2", "loc3", "loc4", "loc5" ],
+    "durations" : [ [ 0, 2700, 2700, 2700, 2700], [ 2700, 0, 2700, 2700, 2700], [ 2700, 2700, 0, 2700, 2700 ], [ 2700, 2700, 2700, 0, 2700 ], [ 2700, 2700, 2700, 2700, 0]],
+    "distances" : [ [ 0, 12000, 13000, 14000, 15000 ], [ 21000, 0, 23000, 24000, 25000 ], [ 31000, 32000, 0, 34000, 35000 ], [ 41000, 42000, 43000, 0, 45000 ], [ 51000, 52000, 53000, 54000, 0 ] ]
+  },
+  "parameters" : {
+    "shunting" : {
+      "minimalDuration" : 60,
+      "deadHeadTripDuration" : 120
+    },
+    "defaults" : {
+      "maximalFormationLength" : 20
+    }
+  }
+}

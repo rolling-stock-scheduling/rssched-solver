@@ -23,7 +23,7 @@ impl TrainFormation {
         let mut new_formation = self.formation.clone();
         let pos = new_formation
             .iter()
-            .position(|&u| u.id() == old)
+            .position(|u| u.id() == old)
             .expect("vehicle was not part of the TrainFormation");
 
         // replace old by new:

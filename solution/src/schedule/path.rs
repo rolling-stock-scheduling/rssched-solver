@@ -81,6 +81,17 @@ impl Path {
     pub(crate) fn is_empty(&self) -> bool {
         self.node_sequence.is_empty()
     }
+
+    pub(crate) fn drop_first(&self) -> Path {
+        Path::new_trusted(self.node_sequence[1..].to_vec(), self.network.clone())
+    }
+
+    pub(crate) fn drop_last(&self) -> Path {
+        Path::new_trusted(
+            self.node_sequence[..self.node_sequence.len() - 1].to_vec(),
+            self.network.clone(),
+        )
+    }
 }
 
 impl fmt::Display for Path {
