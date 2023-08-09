@@ -7,7 +7,12 @@ use std::sync::Arc;
 
 use std::iter::Iterator;
 /// Path is similar as Tour a sequence of nodes that form a path in the network.
-/// Instead of a Tour a Path does not need to start nor end at a Depot.
+///
+/// Instead of a Tour a Path does not need to start nor end at a depot.
+/// It can start at a StartDepot and end at an EndDepot.
+/// It must have at least one non-depot node
+/// It cannot have any intermediate depots (which is indirectly given as it is a path)
+///
 /// It is mainly used for sequence of uncovered nodes.
 #[derive(Clone)]
 pub(crate) struct Path {
@@ -28,38 +33,40 @@ pub(crate) struct Segment {
 
 // static functions
 impl Path {
-    /// crates a new Path and asserts that it is a path in the network
-    pub(crate) fn new(node_sequence: Vec<NodeId>, nw: Arc<Network>) -> Path {
+    /// crates a new Path and asserts that:
+    /// it is a path in the network,
+    /// it has no intermediate depots,
+    /// it has at least one non-depot nodes.
+    pub(crate) fn new(
+        node_sequence: Vec<NodeId>,
+        nw: Arc<Network>,
+    ) -> Result<Option<Path>, String> {
         for (&a, &b) in node_sequence.iter().tuple_windows() {
-            assert!(
-                nw.can_reach(a, b),
-                "Not a valid Path: {} cannot reach {}.",
-                a,
-                b
-            );
-            // if !nw.can_reach(a,b) {
-            // println!("Not a valid Path: {} cannot reach {}.", a, b);
-            // }
+            if !nw.can_reach(a, b) {
+                return Err(format!("Not a valid Path: {} cannot reach {}.", a, b));
+            };
         }
-        Path {
-            node_sequence,
-            network: nw,
-        }
+        Ok(Path::new_trusted(node_sequence, nw))
     }
 
-    /// crates a new Path but does NOT assert that it is a path in the network
-    pub(crate) fn new_trusted(node_sequence: Vec<NodeId>, nw: Arc<Network>) -> Path {
-        Path {
-            node_sequence,
-            network: nw,
+    /// crates a new Path but does NOT assert if it is a feasible path in the network.
+    /// If node_sequence does not contain any non-depot nodes, None is returned.
+    pub(crate) fn new_trusted(node_sequence: Vec<NodeId>, nw: Arc<Network>) -> Option<Path> {
+        if node_sequence.iter().all(|&node| nw.node(node).is_depot()) {
+            None
+        } else {
+            Some(Path {
+                node_sequence,
+                network: nw,
+            })
         }
     }
 }
 
 // methods
 impl Path {
-    pub(crate) fn iter(&self) -> impl Iterator<Item = &NodeId> + '_ {
-        self.node_sequence.iter()
+    pub(crate) fn iter(&self) -> impl Iterator<Item = NodeId> + '_ {
+        self.node_sequence.iter().copied()
     }
 
     pub(crate) fn len(&self) -> usize {
@@ -78,15 +85,13 @@ impl Path {
         self.node_sequence
     }
 
-    pub(crate) fn is_empty(&self) -> bool {
-        self.node_sequence.is_empty()
-    }
-
-    pub(crate) fn drop_first(&self) -> Path {
+    /// if the path does not contain any non-depots afterwards, None is returned.
+    pub(crate) fn drop_first(&self) -> Option<Path> {
         Path::new_trusted(self.node_sequence[1..].to_vec(), self.network.clone())
     }
 
-    pub(crate) fn drop_last(&self) -> Path {
+    /// if the path does not contain any non-depots afterwards, None is returned.
+    pub(crate) fn drop_last(&self) -> Option<Path> {
         Path::new_trusted(
             self.node_sequence[..self.node_sequence.len() - 1].to_vec(),
             self.network.clone(),

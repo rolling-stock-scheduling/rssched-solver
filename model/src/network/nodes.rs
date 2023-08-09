@@ -11,7 +11,8 @@ use std::fmt;
 pub enum Node {
     Service(ServiceTrip),
     Maintenance(MaintenanceSlot),
-    Depot(Depot),
+    StartDepot(Depot),
+    EndDepot(Depot),
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -75,11 +76,48 @@ impl ServiceTrip {
 
 // methods
 impl Node {
+    pub fn is_service(&self) -> bool {
+        match self {
+            Node::Service(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_maintenance(&self) -> bool {
+        match self {
+            Node::Maintenance(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_start_depot(&self) -> bool {
+        match self {
+            Node::StartDepot(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_end_depot(&self) -> bool {
+        match self {
+            Node::EndDepot(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_depot(&self) -> bool {
+        match self {
+            Node::StartDepot(_) => true,
+            Node::EndDepot(_) => true,
+            _ => false,
+        }
+    }
+
     pub fn id(&self) -> NodeId {
         match self {
             Node::Service(s) => s.id,
             Node::Maintenance(m) => m.id,
-            Node::Depot(d) => d.id,
+            Node::StartDepot(d) => d.id,
+            Node::EndDepot(d) => d.id,
         }
     }
 
@@ -87,7 +125,8 @@ impl Node {
         match self {
             Node::Service(s) => s.departure,
             Node::Maintenance(m) => m.start,
-            Node::Depot(_) => DateTime::Latest, // Depots can reach all nodes
+            Node::StartDepot(_) => DateTime::Earliest, // start depots can not be reached by any nodes
+            Node::EndDepot(_) => DateTime::Latest, // end depots can reach be reached by all nodes
         }
     }
 
@@ -95,13 +134,15 @@ impl Node {
         match self {
             Node::Service(s) => s.arrival,
             Node::Maintenance(m) => m.end,
-            Node::Depot(_) => DateTime::Earliest, // Depots can be reached from all nodes
+            Node::StartDepot(_) => DateTime::Earliest, // start depots can reach all nodes
+            Node::EndDepot(_) => DateTime::Latest,     // end depots can not reach any node
         }
     }
 
     pub fn duration(&self) -> Duration {
         match self {
-            Node::Depot(_) => Duration::zero(),
+            Node::StartDepot(_) => Duration::zero(),
+            Node::EndDepot(_) => Duration::zero(),
             _ => self.end_time() - self.start_time(),
         }
     }
@@ -110,7 +151,8 @@ impl Node {
         match self {
             Node::Service(s) => s.origin,
             Node::Maintenance(m) => m.location,
-            Node::Depot(d) => d.location,
+            Node::StartDepot(d) => Location::Nowhere,
+            Node::EndDepot(d) => d.location,
         }
     }
 
@@ -118,7 +160,8 @@ impl Node {
         match self {
             Node::Service(s) => s.destination,
             Node::Maintenance(m) => m.location,
-            Node::Depot(d) => d.location,
+            Node::StartDepot(d) => d.location,
+            Node::EndDepot(d) => Location::Nowhere,
         }
     }
 
@@ -131,7 +174,8 @@ impl Node {
 
     pub fn vehicle_type(&self) -> VehicleTypeId {
         match self {
-            Node::Depot(d) => d.vehicle_type,
+            Node::StartDepot(d) => d.vehicle_type,
+            Node::EndDepot(d) => d.vehicle_type,
             _ => panic!("Node is not an Depot."),
         }
     }
@@ -140,7 +184,8 @@ impl Node {
         match self {
             Node::Service(s) => &s.name,
             Node::Maintenance(m) => &m.name,
-            Node::Depot(d) => &d.name,
+            Node::StartDepot(d) => &d.name,
+            Node::EndDepot(d) => &d.name,
         }
     }
 
@@ -180,7 +225,13 @@ impl Node {
                 self.start_time(),
                 self.end_time()
             ),
-            Node::Depot(_) => println!(
+            Node::StartDepot(_) => println!(
+                "{} of {} at {}",
+                self.name(),
+                self.vehicle_type(),
+                self.start_location()
+            ),
+            Node::EndDepot(_) => println!(
                 "{} of {} at {}",
                 self.name(),
                 self.vehicle_type(),
@@ -236,15 +287,31 @@ impl Node {
         })
     }
 
-    pub(crate) fn create_depot_node(
+    pub(crate) fn create_start_depot_node(
         depot_id: DepotId,
         location: Location,
         vehicle_type: VehicleTypeId,
         upper_bound: Option<VehicleCount>,
         name: String,
     ) -> Node {
-        Node::Depot(Depot {
-            id: NodeId::from(&format!("{}_{}", depot_id, vehicle_type)),
+        Node::StartDepot(Depot {
+            id: NodeId::from(&format!("start_{}_{}", depot_id, vehicle_type)),
+            depot_id,
+            location,
+            vehicle_type,
+            upper_bound,
+            name,
+        })
+    }
+    pub(crate) fn create_end_depot_node(
+        depot_id: DepotId,
+        location: Location,
+        vehicle_type: VehicleTypeId,
+        upper_bound: Option<VehicleCount>,
+        name: String,
+    ) -> Node {
+        Node::EndDepot(Depot {
+            id: NodeId::from(&format!("end_{}_{}", depot_id, vehicle_type)),
             depot_id,
             location,
             vehicle_type,

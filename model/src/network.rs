@@ -175,7 +175,8 @@ impl Network {
             match nodes.get(&id).unwrap() {
                 Node::Service(_) => service_nodes.push(id),
                 Node::Maintenance(_) => maintenance_nodes.push(id),
-                Node::Depot(_) => depot_nodes.push(id),
+                Node::StartDepot(_) => depot_nodes.push(id),
+                Node::EndDepot(_) => depot_nodes.push(id),
             }
         }
         let mut nodes_sorted_by_start: Vec<NodeId> = nodes.keys().copied().collect();

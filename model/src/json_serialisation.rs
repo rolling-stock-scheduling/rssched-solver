@@ -220,14 +220,28 @@ fn create_depot_nodes(
                     let vehicle_id = VehicleTypeId::from(&vehicle_type_bound.vehicle_type);
                     assert!(vehicle_types.get(vehicle_id).is_some());
                     let vehicle_type = vehicle_types.get(vehicle_id).unwrap();
-                    Node::create_depot_node(
-                        id,
-                        location,
-                        vehicle_id,
-                        Some(vehicle_type_bound.upper_bound),
-                        String::from(format!("{}-{}", vehicle_type.name(), location)),
-                    )
+                    vec![
+                        Node::create_start_depot_node(
+                            id,
+                            location,
+                            vehicle_id,
+                            Some(vehicle_type_bound.upper_bound),
+                            String::from(format!(
+                                "StartDepot:{}-{}",
+                                vehicle_type.name(),
+                                location
+                            )),
+                        ),
+                        Node::create_end_depot_node(
+                            id,
+                            location,
+                            vehicle_id,
+                            Some(vehicle_type_bound.upper_bound),
+                            String::from(format!("EndDepot:{}-{}", vehicle_type.name(), location)),
+                        ),
+                    ]
                 })
+                .flatten()
                 .collect::<Vec<_>>()
         })
         .flatten()
@@ -311,35 +325,65 @@ mod test {
         assert_eq!(loc2, Location::of(LocationId::from("loc2")));
         assert_eq!(loc3, Location::of(LocationId::from("loc3")));
 
-        assert_eq!(network.all_nodes().count(), 5);
+        assert_eq!(network.all_nodes().count(), 8);
         assert_eq!(
-            *network.node(NodeId::from("depot1_vt1")),
-            Node::create_depot_node(
+            *network.node(NodeId::from("start_depot1_vt1")),
+            Node::create_start_depot_node(
                 DepotId::from("depot1"),
                 loc1,
                 VehicleTypeId::from("vt1"),
                 Some(7),
-                String::from("Vehicle Type 1-loc1"),
+                String::from("StartDepot:Vehicle Type 1-loc1"),
             )
         );
         assert_eq!(
-            *network.node(NodeId::from("depot1_vt2")),
-            Node::create_depot_node(
+            *network.node(NodeId::from("start_depot1_vt2")),
+            Node::create_start_depot_node(
                 DepotId::from("depot1"),
                 loc1,
                 VehicleTypeId::from("vt2"),
                 Some(5),
-                String::from("Vehicle Type 2-loc1"),
+                String::from("StartDepot:Vehicle Type 2-loc1"),
             )
         );
         assert_eq!(
-            *network.node(NodeId::from("depot2_vt2")),
-            Node::create_depot_node(
+            *network.node(NodeId::from("start_depot2_vt2")),
+            Node::create_start_depot_node(
                 DepotId::from("depot2"),
                 loc2,
                 VehicleTypeId::from("vt2"),
                 Some(8),
-                String::from("Vehicle Type 2-loc2"),
+                String::from("StartDepot:Vehicle Type 2-loc2"),
+            )
+        );
+        assert_eq!(
+            *network.node(NodeId::from("end_depot1_vt1")),
+            Node::create_end_depot_node(
+                DepotId::from("depot1"),
+                loc1,
+                VehicleTypeId::from("vt1"),
+                Some(7),
+                String::from("EndDepot:Vehicle Type 1-loc1"),
+            )
+        );
+        assert_eq!(
+            *network.node(NodeId::from("end_depot1_vt2")),
+            Node::create_end_depot_node(
+                DepotId::from("depot1"),
+                loc1,
+                VehicleTypeId::from("vt2"),
+                Some(5),
+                String::from("EndDepot:Vehicle Type 2-loc1"),
+            )
+        );
+        assert_eq!(
+            *network.node(NodeId::from("end_depot2_vt2")),
+            Node::create_end_depot_node(
+                DepotId::from("depot2"),
+                loc2,
+                VehicleTypeId::from("vt2"),
+                Some(8),
+                String::from("EndDepot:Vehicle Type 2-loc2"),
             )
         );
 
