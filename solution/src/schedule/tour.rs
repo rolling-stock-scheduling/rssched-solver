@@ -1,13 +1,10 @@
-use crate::schedule::objective;
 #[cfg(test)]
 #[path = "tour_tests.rs"]
 mod tour_tests;
 use crate::schedule::path::{Path, Segment};
-use sbb_model::base_types::{Cost, DateTime, Distance, Duration, NodeId, COST_ZERO};
-use sbb_model::network::{nodes::Node, Network};
-use std::{fmt, iter};
-
-use std::cmp::Ordering;
+use sbb_model::base_types::{DateTime, Distance, Duration, NodeId};
+use sbb_model::network::Network;
+use std::fmt;
 
 use itertools::Itertools;
 
@@ -28,7 +25,7 @@ type Position = usize; // the position within the tour from 0 to nodes.len()-1
 /// It is an immutable objects. So whenever some modification is applied a copy of the tour
 /// is created.
 #[derive(Clone)]
-pub(crate) struct Tour {
+pub struct Tour {
     nodes: Vec<NodeId>, // nodes will always be sorted by start_time; for non-dummy exactly first
     // and last node is a depot
     is_dummy: bool, // true if this is a dummy tour
@@ -81,7 +78,7 @@ impl Tour {
     /// the overhead time (dead_head + idle) between the predecessor and the node itself
     /// for the first non-depot node, as well as a depot, the overhead time is set to be infinity.
     /// (this is to allow for splitting before the first non-depot node in all cases)
-    pub(crate) fn preceding_overhead(&self, node: NodeId) -> Result<Duration, String> {
+    pub fn preceding_overhead(&self, node: NodeId) -> Result<Duration, String> {
         if node == self.first_node() {
             Ok(Duration::Infinity)
         } else {
@@ -93,7 +90,7 @@ impl Tour {
     /// the overhead time (dead_head + idle) between the node itself and its successor
     /// for the last non-depot node, as well as a depot, the overhead time is set to be infinity.
     /// (this is to allow for splitting the tour after the last non-depot node in all cases)
-    pub(crate) fn subsequent_overhead(&self, node: NodeId) -> Result<Duration, String> {
+    pub fn subsequent_overhead(&self, node: NodeId) -> Result<Duration, String> {
         if node == self.last_node() {
             Ok(Duration::Infinity)
         } else {
@@ -142,6 +139,22 @@ impl Tour {
         }
     }
 
+    /// return the position of the node in the tour that is the latest one that cannot reach the
+    /// provided node.
+    /// If all nodes can reach the provided node, None is returned.
+    pub(super) fn earliest_not_reaching_node(&self, node: NodeId) -> Option<Position> {
+        if self.nw.can_reach(*self.nodes.last().unwrap(), node) {
+            return None; // all tour-nodes can reach node, even the last
+        }
+        let candidate =
+            self.earliest_arrival_after(self.nw.node(node).start_time(), 0, self.nodes.len());
+        let mut pos = candidate.unwrap_or(self.nodes.len() - 1);
+        while pos > 0 && !self.nw.can_reach(self.nodes[pos - 1], node) {
+            pos -= 1;
+        }
+        Some(pos)
+    }
+
     pub(crate) fn print(&self) {
         println!(
             "{}tour with {} nodes:",
@@ -162,12 +175,9 @@ impl Tour {
     /// If this path is empty (or consists only of depots) None is returned.
     /// Fails if the segment insertion would not lead  to a valid Tour (for example start node
     /// cannot reach segment.start(), or segment.end() cannot reach end node).
-    pub(super) fn conflict(&self, segment: Segment) -> Result<Option<Path>, String> {
+    pub(super) fn conflict(&self, segment: Segment) -> Option<Path> {
         let (start_pos, end_pos) = self.get_insert_positions(segment);
-        Ok(Path::new_trusted(
-            self.nodes[start_pos..end_pos].to_vec(),
-            self.nw.clone(),
-        ))
+        Path::new_trusted(self.nodes[start_pos..end_pos].to_vec(), self.nw.clone())
     }
 
     /// Returns the tour where the provided path is inserted into the correct position (time-wise). The path will
@@ -391,19 +401,6 @@ impl Tour {
             }
         };
         (start_pos, end_pos)
-    }
-
-    fn earliest_not_reaching_node(&self, node: NodeId) -> Option<Position> {
-        if self.nw.can_reach(*self.nodes.last().unwrap(), node) {
-            return None; // all tour-nodes can reach node, even the last
-        }
-        let candidate =
-            self.earliest_arrival_after(self.nw.node(node).start_time(), 0, self.nodes.len());
-        let mut pos = candidate.unwrap_or(self.nodes.len() - 1);
-        while pos > 0 && !self.nw.can_reach(self.nodes[pos - 1], node) {
-            pos -= 1;
-        }
-        Some(pos)
     }
 
     fn earliest_arrival_after(

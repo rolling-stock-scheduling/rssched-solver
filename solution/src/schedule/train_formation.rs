@@ -24,11 +24,26 @@ impl TrainFormation {
         let pos = new_formation
             .iter()
             .position(|u| u.id() == old)
-            .expect("vehicle was not part of the TrainFormation");
+            .expect("vehicle was not part of the TrainFormation and cannot be replaced");
 
         // replace old by new:
         new_formation.push(new);
         new_formation.swap_remove(pos);
+
+        TrainFormation {
+            formation: new_formation,
+        }
+    }
+
+    pub(crate) fn remove(&self, vehicle: VehicleId) -> TrainFormation {
+        let mut new_formation = self.formation.clone();
+        let pos = new_formation
+            .iter()
+            .position(|u| u.id() == vehicle)
+            .expect("vehicle was not part of the TrainFormation and cannot be removed");
+
+        // remove vehicle:
+        new_formation.remove(pos);
 
         TrainFormation {
             formation: new_formation,

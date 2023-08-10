@@ -22,7 +22,7 @@ pub(crate) struct Path {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct Segment {
+pub struct Segment {
     start: NodeId,
     end: NodeId,
 }

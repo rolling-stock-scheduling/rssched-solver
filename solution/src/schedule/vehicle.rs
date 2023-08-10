@@ -6,7 +6,7 @@ use sbb_model::{
 };
 
 #[derive(Clone)]
-pub(crate) struct Vehicle {
+pub struct Vehicle {
     id: VehicleId,
     vehicle_type: Arc<VehicleType>,
 }
