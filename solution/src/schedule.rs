@@ -74,7 +74,7 @@ impl Schedule {
         }
     }
 
-    fn is_dummy(&self, vehicle: VehicleId) -> bool {
+    pub fn is_dummy(&self, vehicle: VehicleId) -> bool {
         self.dummy_tours.contains_key(&vehicle)
     }
 
@@ -92,7 +92,7 @@ impl Schedule {
             .ok_or_else(|| format!("{} is not an vehicle.", vehicle))
     }
 
-    fn number_of_dummy_tours(&self) -> usize {
+    pub fn number_of_dummy_tours(&self) -> usize {
         self.dummy_tours.len()
     }
 
@@ -456,4 +456,9 @@ impl Schedule {
             new_dummy_opt,
         ))
     }
+
+    // TODO depots of different vehicle types as one depot
+    // TODO change depot of a single tour
+    // TODO modular objective
+    // TODO check visibility of different objects and methods
 }

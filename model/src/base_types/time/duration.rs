@@ -1,4 +1,5 @@
 use std::fmt;
+use std::iter::Sum;
 use std::ops::Add;
 use std::ops::Sub;
 
@@ -148,7 +149,7 @@ impl Sub for Duration {
     }
 }
 
-impl std::iter::Sum<Self> for Duration {
+impl Sum for Duration {
     fn sum<I>(iter: I) -> Self
     where
         I: Iterator<Item = Self>,
