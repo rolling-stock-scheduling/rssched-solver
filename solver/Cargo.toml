@@ -15,6 +15,7 @@ path = "src/main.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+time = { path = "../time" }
 sbb_model = { path = "../model" }
 sbb_solution = { path = "../solution" }
 rayon = "1.5.1" # for parallel iterator

@@ -1,14 +1,12 @@
 mod vehicle;
 
 pub mod tour;
+use sbb_model::base_types::Distance;
 use sbb_model::base_types::VehicleId;
 use sbb_model::vehicle_types::VehicleTypes;
 use tour::Tour;
 
 pub mod path;
-
-pub(crate) mod objective;
-use objective::ObjectiveValue;
 
 pub(crate) mod train_formation;
 use train_formation::TrainFormation;
@@ -19,7 +17,6 @@ use sbb_model::network::Network;
 
 use im::HashMap;
 
-use std::cmp::Ordering;
 use std::sync::Arc;
 
 use self::path::Path;
@@ -52,11 +49,6 @@ pub struct Schedule {
     dummy_ids_sorted: Vec<VehicleId>,
     dummy_counter: usize,
 
-    /*
-    vehicle_objective_info: HashMap<VehicleId, ObjectiveInfo>, // for each vehicle we store the overhead_time and the dead_head_distance
-    dummy_objective_info: HashMap<VehicleId, Duration>, // for each dummy we store the overhead_time
-    */
-    // objective_value: ObjectiveValue,
     config: Arc<Config>,
     vehicle_types: Arc<VehicleTypes>,
     network: Arc<Network>,
@@ -131,6 +123,13 @@ impl Schedule {
         for dummy in self.dummy_iter() {
             println!("{}: {}", dummy, self.dummy_tours.get(&dummy).unwrap());
         }
+    }
+
+    pub fn total_dead_head_distance(&self) -> Distance {
+        self.tours
+            .values()
+            .map(|tour| tour.dead_head_distance())
+            .sum()
     }
 }
 
@@ -298,13 +297,6 @@ impl Schedule {
             covered_by.insert(*node, new_formation);
         }
 
-        // let objective_value = Schedule::sum_up_objective_info(
-        // &vehicle_objective_info,
-        // &dummy_objective_info,
-        // self.config.clone(),
-        // &self.vehicles,
-        // );
-
         Ok(Schedule {
             vehicles: self.vehicles.clone(),
             tours,
@@ -313,9 +305,6 @@ impl Schedule {
             vehicle_ids_sorted,
             dummy_ids_sorted,
             dummy_counter: self.dummy_counter,
-            // vehicle_objective_info,
-            // dummy_objective_info,
-            // objective_value,
             config: self.config.clone(),
             vehicle_types: self.vehicle_types.clone(),
             network: self.network.clone(),
@@ -363,16 +352,8 @@ impl Schedule {
         match shrinked_tour_provider {
             Some(new_tour) => {
                 if self.is_dummy(provider) {
-                    // dummy_objective_info.insert(provider, shrinked_tour_provider.overhead_time());
                     dummy_tours.insert(provider, new_tour);
                 } else {
-                    // vehicle_objective_info.insert(
-                    // provider,
-                    // ObjectiveInfo::new(
-                    // self.vehicles.get_vehicle(provider),
-                    // &shrinked_tour_provider,
-                    // ),
-                    // );
                     tours.insert(provider, new_tour);
                 }
             }
@@ -430,13 +411,6 @@ impl Schedule {
             dummy_counter += 1;
         }
 
-        // let objective_value = Schedule::sum_up_objective_info(
-        // &vehicle_objective_info,
-        // &dummy_objective_info,
-        // self.config.clone(),
-        // &self.vehicles,
-        // );
-
         Ok((
             Schedule {
                 vehicles: self.vehicles.clone(),
@@ -446,9 +420,6 @@ impl Schedule {
                 vehicle_ids_sorted,
                 dummy_ids_sorted,
                 dummy_counter,
-                // vehicle_objective_info,
-                // dummy_objective_info,
-                // objective_value,
                 config: self.config.clone(),
                 vehicle_types: self.vehicle_types.clone(),
                 network: self.network.clone(),

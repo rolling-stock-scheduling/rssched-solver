@@ -87,15 +87,15 @@ impl Network {
     fn required_duration_between_activities(&self, n1: &Node, n2: &Node) -> Duration {
         if n1.end_location() == n2.start_location() {
             // no dead_head_trip
-            self.shunting_duration_between_activities_without_dead_head_trip(n1, n2)
+            self.shunting_duration_between_activities_if_no_dead_head_trip(n1, n2)
         } else {
             // dead_head_trip
             self.loc.travel_time(n1.end_location(), n2.start_location())
-                + self.shunting_duration_between_activities_with_dead_head_trip(n1, n2)
+                + self.shunting_duration_between_activities_if_dead_head_trip(n1, n2)
         }
     }
 
-    fn shunting_duration_between_activities_without_dead_head_trip(
+    fn shunting_duration_between_activities_if_no_dead_head_trip(
         &self,
         n1: &Node,
         n2: &Node,
@@ -115,7 +115,7 @@ impl Network {
         }
     }
 
-    fn shunting_duration_between_activities_with_dead_head_trip(
+    fn shunting_duration_between_activities_if_dead_head_trip(
         &self,
         n1: &Node,
         n2: &Node,

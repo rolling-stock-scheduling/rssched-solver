@@ -5,5 +5,5 @@ pub use date_time::DateTime;
 pub use duration::Duration;
 
 #[cfg(test)]
-#[path = "time_tests.rs"]
-mod time_tests;
+#[path = "tests.rs"]
+mod tests;

@@ -1,5 +1,3 @@
-// visible from outside:
-
 use std::{
     cmp::Ordering,
     fmt,
@@ -7,11 +5,11 @@ use std::{
     ops::{Add, Mul, Sub},
 };
 
-use sbb_model::base_types::{Duration, VehicleId};
+use time::Duration;
 
-use crate::schedule::{tour::Tour, Schedule};
-
-struct ObjectiveValue {
+/// the hierarchical objective value of a schedule
+#[derive(Clone)]
+pub struct ObjectiveValue {
     objective_vector: Vec<ObjBaseValue>,
 }
 
@@ -46,98 +44,6 @@ impl PartialEq for ObjectiveValue {
 
 impl Eq for ObjectiveValue {}
 
-struct ObjectiveTourValue {
-    objective_vector: Vec<ObjBaseValue>,
-}
-
-impl ObjectiveTourValue {
-    fn new(objective_vector: Vec<ObjBaseValue>) -> ObjectiveTourValue {
-        ObjectiveTourValue { objective_vector }
-    }
-    // compare
-}
-impl Ord for ObjectiveTourValue {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.objective_vector
-            .iter()
-            .zip(other.objective_vector.iter())
-            .fold(Ordering::Equal, |acc, (value, other_value)| {
-                acc.then_with(|| value.partial_cmp(other_value).unwrap())
-            })
-    }
-}
-
-impl PartialOrd for ObjectiveTourValue {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl PartialEq for ObjectiveTourValue {
-    fn eq(&self, other: &Self) -> bool {
-        self.cmp(other).is_eq()
-    }
-}
-
-impl Eq for ObjectiveTourValue {}
-
-mod objective_factory {
-    use sbb_model::base_types::VehicleId;
-
-    use crate::schedule::{tour::Tour, Schedule};
-
-    use super::{Indicator, Level, ObjBaseValue, ObjCoefficient, Objective};
-
-    fn build_basic_objective() -> Objective {
-        let number_of_dummy_tours = NumberOfDummiesIndicator::new();
-        let first_level = Level::new(vec![(
-            ObjCoefficient::Integer(1),
-            Box::new(number_of_dummy_tours),
-        )]);
-
-        Objective::new(vec![first_level])
-    }
-
-    struct NumberOfDummiesIndicator {}
-
-    impl NumberOfDummiesIndicator {
-        fn new() -> NumberOfDummiesIndicator {
-            NumberOfDummiesIndicator {}
-        }
-    }
-
-    impl Indicator for NumberOfDummiesIndicator {
-        fn compute_from_schedule(&self, schedule: &Schedule) -> ObjBaseValue {
-            ObjBaseValue::Count(schedule.number_of_dummy_tours() as i32)
-        }
-
-        fn compute_from_tour(&self, tour: &Tour) -> ObjBaseValue {
-            ObjBaseValue::Count(if tour.is_dummy() { 1 } else { 0 })
-        }
-
-        fn compute_from_tour_exchanges(
-            &self,
-            schedule: &Schedule,
-            changes: Vec<(VehicleId, &Tour)>,
-        ) -> ObjBaseValue {
-            let mut count = schedule.number_of_dummy_tours() as i32;
-            for (vehicle, tour) in changes {
-                if schedule.is_dummy(vehicle) {
-                    count += 1;
-                }
-                if tour.is_dummy() {
-                    count -= 1;
-                }
-            }
-            ObjBaseValue::Count(count)
-        }
-
-        fn name(&self) -> String {
-            String::from("number of dummies")
-        }
-    }
-}
-
 /// Defines the values of a schedule that form the objective.
 /// It is static throughout optimization.
 /// It is a hierarchical objective, i.e., it consists of several levels.
@@ -145,44 +51,22 @@ mod objective_factory {
 ///
 /// The objective is to be minimized with the most important level being the first entry of the
 /// vector.
-struct Objective {
-    hierarchy_levels: Vec<Level>, // TODO: some level might not be suitable for ObjectiveTourValue, need flag if it is tour-based or not
+pub struct Objective<T> {
+    hierarchy_levels: Vec<Level<T>>, // TODO: some level might not be suitable for ObjectiveTourValue, need flag if it is tour-based or not
 }
 
-impl Objective {
-    pub fn compute_objective_value(&self, schedule: &Schedule) -> ObjectiveValue {
+impl<T> Objective<T> {
+    pub fn evaluate(&self, solution: &T) -> ObjectiveValue {
         let objective_value_hierarchy: Vec<ObjBaseValue> = self
             .hierarchy_levels
             .iter()
-            .map(|level| level.compute_value(schedule))
-            .collect();
-
-        ObjectiveValue::new(objective_value_hierarchy)
-    }
-    pub fn compute_tour_objective_value(&self, tour: &Tour) -> ObjectiveTourValue {
-        let objective_value_hierarchy: Vec<ObjBaseValue> = self
-            .hierarchy_levels
-            .iter()
-            .map(|level| level.compute_tour_value(tour))
-            .collect();
-
-        ObjectiveTourValue::new(objective_value_hierarchy)
-    }
-    pub fn compute_from_tour_exchanges(
-        &self,
-        schedule: &Schedule,
-        changes: Vec<(VehicleId, &Tour)>,
-    ) -> ObjectiveValue {
-        let objective_value_hierarchy: Vec<ObjBaseValue> = self
-            .hierarchy_levels
-            .iter()
-            .map(|level| level.compute_value_from_tour_exchanges(schedule, changes))
+            .map(|level| level.evaluate(solution))
             .collect();
 
         ObjectiveValue::new(objective_value_hierarchy)
     }
 
-    pub fn new(hierarchy_levels: Vec<Level>) -> Objective {
+    pub fn new(hierarchy_levels: Vec<Level<T>>) -> Objective<T> {
         Objective { hierarchy_levels }
     }
 
@@ -219,42 +103,21 @@ impl Objective {
 
 /////////////////////// LEVEL ///////////////////////
 
-struct Level {
+/// A level of the objective hierarchy.
+struct Level<T> {
     // valueType must be multiplyable with Coefficient
-    summands: Vec<(ObjCoefficient, Box<dyn Indicator>)>,
+    summands: Vec<(ObjCoefficient, Box<dyn Indicator<T>>)>,
 }
 
-impl Level {
-    pub fn compute_value(&self, schedule: &Schedule) -> ObjBaseValue {
+impl<T> Level<T> {
+    pub fn evaluate(&self, solution: &T) -> ObjBaseValue {
         self.summands
             .iter()
-            .map(|(coefficient, indicator)| {
-                *coefficient * indicator.compute_from_schedule(schedule)
-            })
+            .map(|(coefficient, indicator)| coefficient * indicator.evaluate(solution))
             .sum()
     }
 
-    pub fn compute_tour_value(&self, tour: &Tour) -> ObjBaseValue {
-        self.summands
-            .iter()
-            .map(|(coefficient, indicator)| *coefficient * indicator.compute_from_tour(tour))
-            .sum()
-    }
-
-    pub fn compute_value_from_tour_exchanges(
-        &self,
-        schedule: &Schedule,
-        changes: Vec<(VehicleId, &Tour)>,
-    ) -> ObjBaseValue {
-        self.summands
-            .iter()
-            .map(|(coefficient, indicator)| {
-                *coefficient * indicator.compute_from_tour_exchanges(schedule, changes)
-            })
-            .sum()
-    }
-
-    pub fn new(summands: Vec<(ObjCoefficient, Box<dyn Indicator>)>) -> Level {
+    pub fn new(summands: Vec<(ObjCoefficient, Box<dyn Indicator<T>>)>) -> Level<T> {
         Level { summands }
     }
 
@@ -273,23 +136,18 @@ impl Level {
     }
 }
 
-/// e.g., number of dummy_tours, total deadhead distance, ...
-trait Indicator {
-    fn compute_from_schedule(&self, schedule: &Schedule) -> ObjBaseValue;
-    fn compute_from_tour(&self, tour: &Tour) -> ObjBaseValue;
-    fn compute_from_tour_exchanges(
-        &self,
-        schedule: &Schedule,
-        changes: Vec<(VehicleId, &Tour)>,
-    ) -> ObjBaseValue;
+/// An atomic aspect of the solution.
+/// An indicator could be the aspect "number of dummy_tours" or "total deadhead distance", ...
+trait Indicator<T> {
+    fn evaluate(&self, solution: &T) -> ObjBaseValue;
     fn name(&self) -> String;
 }
 
-/// e.g., a count of things, duration, costs
+/// A single value of an indicator. E.g., count of things, durations, costs
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 enum ObjBaseValue {
-    Count(i32),
-    Duration(Duration),
+    Count(i32),         // cannot handle negative values
+    Duration(Duration), // cannot handle negative values
     Costs(f32),
     Maximum,
     Zero,
@@ -386,6 +244,7 @@ impl fmt::Display for ObjBaseValue {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 enum ObjCoefficient {
     Integer(i32),
     Float(f32),
@@ -424,6 +283,14 @@ impl Mul<ObjBaseValue> for ObjCoefficient {
                 ObjBaseValue::Zero => ObjBaseValue::Zero,
             },
         }
+    }
+}
+
+// impl Mul<ObjBaseValue> for &ObjCoefficient, therefore we can use '*' even for references.
+impl Mul<ObjBaseValue> for &ObjCoefficient {
+    type Output = ObjBaseValue;
+    fn mul(self, other: ObjBaseValue) -> ObjBaseValue {
+        (*self).mul(other)
     }
 }
 
