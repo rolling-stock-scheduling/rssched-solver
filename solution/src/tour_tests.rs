@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
 use sbb_model::{
-    base_types::{DateTime, Distance, Duration, NodeId},
+    base_types::{Distance, NodeId},
     json_serialisation::load_rolling_stock_problem_instance_from_json,
     network::Network,
 };
+use time::{DateTime, Duration};
 
-use crate::schedule::path::{Path, Segment};
+use crate::path::{Path, Segment};
 
 use super::Tour;
 

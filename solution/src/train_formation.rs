@@ -2,7 +2,7 @@ use std::fmt;
 
 use sbb_model::base_types::{PassengerCount, TrainLength, VehicleId};
 
-use super::vehicle::Vehicle;
+use crate::vehicle::Vehicle;
 use std::iter::Iterator;
 
 #[derive(Clone)]

@@ -1,6 +1,6 @@
 use crate::base_types::{Cost, Meter};
 use std::fmt;
-use std::ops::{Add, Mul, Sub};
+use std::ops::{Add, Sub};
 
 #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Debug)]
 pub enum Distance {

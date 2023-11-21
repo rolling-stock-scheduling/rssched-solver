@@ -1,9 +1,7 @@
+use time::{DateTime, Duration};
 
 use crate::{
-    base_types::{
-        DateTime, DepotId, Distance, Duration, Location, LocationId, NodeId, StationSide,
-        VehicleTypeId,
-    },
+    base_types::{DepotId, Distance, Location, LocationId, NodeId, StationSide, VehicleTypeId},
     json_serialisation::load_rolling_stock_problem_instance_from_json,
     locations::Locations,
     network::nodes::Node,

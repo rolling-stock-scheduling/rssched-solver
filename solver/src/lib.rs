@@ -1,5 +1,4 @@
-mod schedule;
-
+mod simple_objective;
 mod solver;
 
 use solver::Solver;
@@ -8,14 +7,10 @@ use solver::Solver;
 use solver::greedy_3::Greedy3;
 use solver::local_search::LocalSearch;
 
-use sbb_model::config::Config;
 use sbb_model::json_serialisation::load_rolling_stock_problem_instance_from_json;
-use sbb_model::locations::Locations;
-use sbb_model::network::Network;
 
-use schedule::Schedule;
+use sbb_solution::Schedule;
 
-use std::sync::Arc;
 use std::time as stdtime;
 
 pub fn run(path: &str) {

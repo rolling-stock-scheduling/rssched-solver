@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use crate::base_types::{Distance, Duration, Location, LocationId, StationSide};
+use time::Duration;
+
+use crate::base_types::{Distance, Location, LocationId, StationSide};
 
 /// a type for storing the pair-wise distances and travel times between all stations.
 /// Distances are stored as a Vec<Vec<Distance>>-matrix.

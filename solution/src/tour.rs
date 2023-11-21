@@ -1,10 +1,11 @@
 #[cfg(test)]
 #[path = "tour_tests.rs"]
 mod tour_tests;
-use crate::schedule::path::{Path, Segment};
-use sbb_model::base_types::{DateTime, Distance, Duration, NodeId};
+use crate::path::{Path, Segment};
+use sbb_model::base_types::{Distance, NodeId};
 use sbb_model::network::Network;
 use std::fmt;
+use time::{DateTime, Duration};
 
 use itertools::Itertools;
 

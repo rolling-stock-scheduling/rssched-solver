@@ -7,10 +7,11 @@ use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::prelude::*;
 use std::sync::Arc;
+use time::{DateTime, Duration};
 
 use crate::base_types::{
-    DateTime, DepotId, Distance, Duration, LocationId, Meter, NodeId, PassengerCount, StationSide,
-    TrainLength, VehicleTypeId,
+    DepotId, Distance, LocationId, Meter, NodeId, PassengerCount, StationSide, TrainLength,
+    VehicleTypeId,
 };
 use crate::config::Config;
 use crate::locations::{DeadHeadTrip, Locations};

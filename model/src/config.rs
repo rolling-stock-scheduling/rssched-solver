@@ -1,4 +1,6 @@
-use crate::base_types::{Distance, Duration};
+use time::Duration;
+
+use crate::base_types::Distance;
 
 pub struct Config {
     pub durations_between_activities: ConfigDurationsBetweenActivities,

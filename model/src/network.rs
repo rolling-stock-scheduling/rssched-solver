@@ -1,7 +1,8 @@
 pub mod nodes;
 use nodes::Node;
+use time::Duration;
 
-use crate::base_types::{Distance, Duration, NodeId};
+use crate::base_types::{Distance, NodeId};
 use crate::config::Config;
 use crate::locations::Locations;
 

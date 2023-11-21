@@ -1,6 +1,7 @@
+use time::{DateTime, Duration};
+
 use crate::base_types::{
-    DateTime, DepotId, Distance, Duration, Location, NodeId, PassengerCount, StationSide,
-    VehicleCount, VehicleTypeId,
+    DepotId, Distance, Location, NodeId, PassengerCount, StationSide, VehicleCount, VehicleTypeId,
 };
 
 use core::cmp::Ordering;

@@ -1,9 +1,9 @@
-use crate::schedule::Schedule;
 use crate::solver::Solver;
 use sbb_model::base_types::{NodeId, VehicleId};
 use sbb_model::config::Config;
 use sbb_model::network::Network;
 use sbb_model::vehicles::Vehicles;
+use sbb_solution::Schedule;
 use std::sync::Arc;
 
 pub struct Greedy1 {

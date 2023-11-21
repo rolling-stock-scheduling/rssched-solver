@@ -2,13 +2,11 @@ use crate::utilities::CopyStr;
 
 pub mod distance;
 pub mod location;
-pub mod time;
 
 pub use distance::Distance;
 pub use location::Location;
 pub use location::LocationId;
 pub use location::StationSide;
-pub use time::{DateTime, Duration};
 
 pub type VehicleTypeId = CopyStr<10>;
 pub type PassengerCount = u8;
