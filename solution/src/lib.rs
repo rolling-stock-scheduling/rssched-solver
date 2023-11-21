@@ -1,27 +1,23 @@
+mod path;
+mod tour;
+mod train_formation;
 mod vehicle;
 
-pub mod tour;
 use sbb_model::base_types::Distance;
-use sbb_model::base_types::VehicleId;
-use sbb_model::vehicle_types::VehicleTypes;
-use tour::Tour;
-
-pub mod path;
-
-pub(crate) mod train_formation;
-use train_formation::TrainFormation;
-
 use sbb_model::base_types::NodeId;
+use sbb_model::base_types::VehicleId;
 use sbb_model::config::Config;
 use sbb_model::network::Network;
-
-use im::HashMap;
-
-use std::sync::Arc;
+use sbb_model::vehicle_types::VehicleTypes;
 
 use path::Path;
 use path::Segment;
+use tour::Tour;
+use train_formation::TrainFormation;
 use vehicle::Vehicle;
+
+use im::HashMap;
+use std::sync::Arc;
 
 // TODO: try to use im::Vector instead of Vec and compare performance.
 

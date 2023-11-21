@@ -1,14 +1,14 @@
-pub use base_value::BaseValue;
-pub use coefficient::Coefficient;
-pub use indicator::Indicator;
-pub use level::Level;
-pub use objective_value::ObjectiveValue;
-
 pub mod base_value;
 pub mod coefficient;
 pub mod indicator;
 pub mod level;
 pub mod objective_value;
+
+pub use base_value::BaseValue;
+pub use coefficient::Coefficient;
+pub use indicator::Indicator;
+pub use level::Level;
+pub use objective_value::ObjectiveValue;
 
 /// Defines the values of a schedule that form the objective.
 /// It is constant throughout optimization.
