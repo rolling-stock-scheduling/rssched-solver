@@ -279,5 +279,3 @@ fn create_service_trip_nodes(json_input: &JsonInput, locations: &Locations) -> V
         })
         .collect()
 }
-
-//TODO create static function for writing schedule to json

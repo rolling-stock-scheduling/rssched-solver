@@ -1,3 +1,4 @@
+pub mod json_serialisation;
 mod path;
 mod tour;
 mod train_formation;
@@ -126,6 +127,10 @@ impl Schedule {
             .values()
             .map(|tour| tour.dead_head_distance())
             .sum()
+    }
+
+    pub fn get_network(&self) -> &Network {
+        &self.network
     }
 }
 

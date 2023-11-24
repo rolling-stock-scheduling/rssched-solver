@@ -152,7 +152,7 @@ impl Node {
         match self {
             Node::Service(s) => s.origin,
             Node::Maintenance(m) => m.location,
-            Node::StartDepot(d) => Location::Nowhere,
+            Node::StartDepot(_) => Location::Nowhere,
             Node::EndDepot(d) => d.location,
         }
     }
@@ -162,7 +162,7 @@ impl Node {
             Node::Service(s) => s.destination,
             Node::Maintenance(m) => m.location,
             Node::StartDepot(d) => d.location,
-            Node::EndDepot(d) => Location::Nowhere,
+            Node::EndDepot(_) => Location::Nowhere,
         }
     }
 

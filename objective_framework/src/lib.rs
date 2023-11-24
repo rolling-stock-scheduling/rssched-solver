@@ -1,11 +1,13 @@
 pub mod base_value;
 pub mod coefficient;
+pub mod evaluated_solution;
 pub mod indicator;
 pub mod level;
 pub mod objective_value;
 
 pub use base_value::BaseValue;
 pub use coefficient::Coefficient;
+pub use evaluated_solution::EvaluatedSolution;
 pub use indicator::Indicator;
 pub use level::Level;
 pub use objective_value::ObjectiveValue;
@@ -25,14 +27,15 @@ pub struct Objective<S> {
 
 // methods
 impl<S> Objective<S> {
-    pub fn evaluate(&self, solution: &S) -> ObjectiveValue {
+    /// Consumes solution, computes objective value, and returns both, as EvaluatedSolution.
+    pub fn evaluate(&self, solution: S) -> EvaluatedSolution<S> {
         let objective_value_hierarchy: Vec<BaseValue> = self
             .hierarchy_levels
             .iter()
-            .map(|level| level.evaluate(solution))
+            .map(|level| level.evaluate(&solution))
             .collect();
 
-        ObjectiveValue::new(objective_value_hierarchy)
+        EvaluatedSolution::new(solution, ObjectiveValue::new(objective_value_hierarchy))
     }
 
     pub fn zero(&self) -> ObjectiveValue {
