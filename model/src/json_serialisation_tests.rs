@@ -1,7 +1,9 @@
+use std::collections::HashMap;
+
 use time::{DateTime, Duration};
 
 use crate::{
-    base_types::{DepotId, Distance, Location, LocationId, NodeId, StationSide, VehicleTypeId},
+    base_types::{Distance, Location, LocationId, NodeId, StationSide, VehicleTypeId},
     json_serialisation::load_rolling_stock_problem_instance_from_json,
     locations::Locations,
     network::nodes::Node,
@@ -43,65 +45,47 @@ fn test_load_from_json() {
     assert_eq!(loc2, Location::of(LocationId::from("loc2")));
     assert_eq!(loc3, Location::of(LocationId::from("loc3")));
 
-    assert_eq!(network.all_nodes().count(), 8);
+    assert_eq!(network.all_nodes().count(), 6);
     assert_eq!(
-        *network.node(NodeId::from("start_depot1_vt1")),
+        *network.node(NodeId::from("start_depot1")),
         Node::create_start_depot_node(
-            DepotId::from("depot1"),
+            NodeId::from("start_depot1"),
             loc1,
-            VehicleTypeId::from("vt1"),
-            Some(7),
-            String::from("StartDepot:Vehicle Type 1-loc1"),
+            HashMap::from([
+                (VehicleTypeId::from("vt1"), Some(7)),
+                (VehicleTypeId::from("vt2"), Some(5))
+            ]),
+            String::from("start_depot(depot1,loc1)"),
         )
     );
     assert_eq!(
-        *network.node(NodeId::from("start_depot1_vt2")),
-        Node::create_start_depot_node(
-            DepotId::from("depot1"),
+        *network.node(NodeId::from("end_depot1")),
+        Node::create_end_depot_node(
+            NodeId::from("end_depot1"),
             loc1,
-            VehicleTypeId::from("vt2"),
-            Some(5),
-            String::from("StartDepot:Vehicle Type 2-loc1"),
+            HashMap::from([
+                (VehicleTypeId::from("vt1"), Some(7)),
+                (VehicleTypeId::from("vt2"), Some(5))
+            ]),
+            String::from("end_depot(depot1,loc1)"),
         )
     );
     assert_eq!(
-        *network.node(NodeId::from("start_depot2_vt2")),
+        *network.node(NodeId::from("start_depot2")),
         Node::create_start_depot_node(
-            DepotId::from("depot2"),
+            NodeId::from("start_depot2"),
             loc2,
-            VehicleTypeId::from("vt2"),
-            Some(8),
-            String::from("StartDepot:Vehicle Type 2-loc2"),
+            HashMap::from([(VehicleTypeId::from("vt2"), Some(8))]),
+            String::from("start_depot(depot2,loc2)"),
         )
     );
     assert_eq!(
-        *network.node(NodeId::from("end_depot1_vt1")),
+        *network.node(NodeId::from("end_depot2")),
         Node::create_end_depot_node(
-            DepotId::from("depot1"),
-            loc1,
-            VehicleTypeId::from("vt1"),
-            Some(7),
-            String::from("EndDepot:Vehicle Type 1-loc1"),
-        )
-    );
-    assert_eq!(
-        *network.node(NodeId::from("end_depot1_vt2")),
-        Node::create_end_depot_node(
-            DepotId::from("depot1"),
-            loc1,
-            VehicleTypeId::from("vt2"),
-            Some(5),
-            String::from("EndDepot:Vehicle Type 2-loc1"),
-        )
-    );
-    assert_eq!(
-        *network.node(NodeId::from("end_depot2_vt2")),
-        Node::create_end_depot_node(
-            DepotId::from("depot2"),
+            NodeId::from("end_depot2"),
             loc2,
-            VehicleTypeId::from("vt2"),
-            Some(8),
-            String::from("EndDepot:Vehicle Type 2-loc2"),
+            HashMap::from([(VehicleTypeId::from("vt2"), Some(8))]),
+            String::from("end_depot(depot2,loc2)"),
         )
     );
 

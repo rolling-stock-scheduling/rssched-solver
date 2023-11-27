@@ -9,7 +9,7 @@ use sbb_solution::Schedule;
 use std::sync::Arc;
 
 pub(crate) trait Solver {
-    fn initialize(config: Arc<Config>, vehicle_types: Arc<VehicleTypes>, nw: Arc<Network>) -> Self;
+    fn initialize(vehicle_types: Arc<VehicleTypes>, nw: Arc<Network>, config: Arc<Config>) -> Self;
 
     fn solve(&self) -> EvaluatedSolution<Schedule>;
 }

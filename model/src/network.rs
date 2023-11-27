@@ -2,7 +2,7 @@ pub mod nodes;
 use nodes::Node;
 use time::Duration;
 
-use crate::base_types::{Distance, NodeId};
+use crate::base_types::{Distance, Location, NodeId};
 use crate::config::Config;
 use crate::locations::Locations;
 
@@ -50,6 +50,11 @@ impl Network {
 
     pub fn depot_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
         self.depot_nodes.iter().copied()
+    }
+
+    /// service and maintenance_nodes
+    pub fn coverable_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
+        self.service_nodes().chain(self.maintenance_nodes())
     }
 
     pub fn idle_time_between(&self, node1: NodeId, node2: NodeId) -> Duration {
@@ -161,6 +166,18 @@ impl Network {
 
     pub fn all_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
         self.nodes_sorted_by_start.iter().copied()
+    }
+
+    pub fn depots_sorted_by_distance_to(&self, location: Location) -> Vec<NodeId> {
+        let mut depots = self.depot_nodes.clone();
+        depots.sort_by_key(|&d| self.loc.distance(self.node(d).start_location(), location));
+        depots
+    }
+
+    pub fn depots_sorted_by_distance_from(&self, location: Location) -> Vec<NodeId> {
+        let mut depots = self.depot_nodes.clone();
+        depots.sort_by_key(|&d| self.loc.distance(location, self.node(d).start_location()));
+        depots
     }
 }
 

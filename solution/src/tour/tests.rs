@@ -39,10 +39,10 @@ fn init_test_data() -> TestData {
         trip51: NodeId::from("trip5-1"),
         trip31: NodeId::from("trip3-1"),
         trip14: NodeId::from("trip1-4"),
-        start_depot1: NodeId::from("start_depot1_vt1"),
-        end_depot1: NodeId::from("end_depot1_vt1"),
-        start_depot2: NodeId::from("start_depot2_vt2"),
-        end_depot2: NodeId::from("end_depot2_vt2"),
+        start_depot1: NodeId::from("start_depot1"),
+        end_depot1: NodeId::from("end_depot1"),
+        start_depot2: NodeId::from("start_depot2"),
+        end_depot2: NodeId::from("end_depot2"),
     }
 }
 
@@ -138,11 +138,11 @@ fn basic_methods_test() {
     assert_eq!(tour.nth_node(7), None);
     assert_eq!(tour.start_time(), DateTime::new("2020-01-01T06:00"));
     assert_eq!(tour.end_time(), DateTime::new("2020-01-01T11:15"));
-    assert_eq!(tour.earliest_not_reaching_node(d.trip31), Some(3)); // trip34 on pos 3
-    assert_eq!(tour.earliest_not_reaching_node(d.end_depot1), None); // every node can reach
-                                                                     // end_depot
-    assert_eq!(tour.earliest_not_reaching_node(d.start_depot1), Some(0)); // start_depot1 cannot
-                                                                          // reach start_depot1
+    assert_eq!(tour.latest_not_reaching_node(d.trip31), Some(3)); // trip34 on pos 3
+    assert_eq!(tour.latest_not_reaching_node(d.end_depot1), None); // every node can reach
+                                                                   // end_depot
+    assert_eq!(tour.latest_not_reaching_node(d.start_depot1), Some(0)); // start_depot1 cannot
+                                                                        // reach start_depot1
 
     assert_eq!(dummy_tour.is_dummy(), true);
     assert_eq!(dummy_tour.nodes.len(), 2);

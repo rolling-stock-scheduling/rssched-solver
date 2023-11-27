@@ -10,8 +10,7 @@ use std::sync::Arc;
 use time::{DateTime, Duration};
 
 use crate::base_types::{
-    DepotId, Distance, LocationId, Meter, NodeId, PassengerCount, StationSide, TrainLength,
-    VehicleTypeId,
+    Distance, LocationId, Meter, NodeId, PassengerCount, StationSide, TrainLength, VehicleTypeId,
 };
 use crate::config::Config;
 use crate::locations::{DeadHeadTrip, Locations};
@@ -62,7 +61,7 @@ struct Depot {
 #[serde(rename_all = "camelCase")]
 struct Capacities {
     vehicle_type: String,
-    upper_bound: Integer,
+    upper_bound: Integer, //TODO: Allow Inf
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -125,7 +124,6 @@ pub fn load_rolling_stock_problem_instance_from_json(
     let network = Arc::new(create_network(
         &json_input,
         locations.clone(),
-        &vehicle_types,
         config.clone(),
     ));
     (locations, vehicle_types, network, config)
@@ -198,56 +196,43 @@ fn create_config(json_input: &JsonInput) -> Config {
 fn create_network(
     json_input: &JsonInput,
     locations: Arc<Locations>,
-    vehicle_types: &VehicleTypes,
     config: Arc<Config>,
 ) -> Network {
-    let mut nodes: Vec<Node> = create_depot_nodes(json_input, &locations, vehicle_types);
+    let mut nodes: Vec<Node> = create_depot_nodes(json_input, &locations);
     nodes.append(&mut create_service_trip_nodes(json_input, &locations));
     //TODO: add maintenance nodes
     Network::new(nodes, config, locations)
 }
 
-fn create_depot_nodes(
-    json_input: &JsonInput,
-    loc: &Locations,
-    vehicle_types: &VehicleTypes,
-) -> Vec<Node> {
+fn create_depot_nodes(json_input: &JsonInput, loc: &Locations) -> Vec<Node> {
     json_input
         .depots
         .iter()
         .map(|depot| {
-            let id = DepotId::from(&depot.id);
+            let id = NodeId::from(&depot.id);
             let location = loc.get_location(LocationId::from(&depot.location));
-            depot
-                .capacities
-                .iter()
-                .map(|vehicle_type_bound| {
-                    let vehicle_id = VehicleTypeId::from(&vehicle_type_bound.vehicle_type);
-                    assert!(vehicle_types.get(vehicle_id).is_some());
-                    let vehicle_type = vehicle_types.get(vehicle_id).unwrap();
-                    vec![
-                        Node::create_start_depot_node(
-                            id,
-                            location,
-                            vehicle_id,
-                            Some(vehicle_type_bound.upper_bound),
-                            String::from(format!(
-                                "StartDepot:{}-{}",
-                                vehicle_type.name(),
-                                location
-                            )),
-                        ),
-                        Node::create_end_depot_node(
-                            id,
-                            location,
-                            vehicle_id,
-                            Some(vehicle_type_bound.upper_bound),
-                            String::from(format!("EndDepot:{}-{}", vehicle_type.name(), location)),
-                        ),
-                    ]
-                })
-                .flatten()
-                .collect::<Vec<_>>()
+            let mut capacities: HashMap<VehicleTypeId, Option<PassengerCount>> = HashMap::new();
+            for capacity in &depot.capacities {
+                capacities.insert(
+                    VehicleTypeId::from(&capacity.vehicle_type),
+                    Some(capacity.upper_bound as PassengerCount), // TODO: Accept Inf and map it to
+                                                                  // None
+                );
+            }
+            vec![
+                Node::create_start_depot_node(
+                    NodeId::from(&format!("start_{}", &depot.id)),
+                    location,
+                    capacities.clone(),
+                    format!("start_depot({},{})", id, location),
+                ),
+                Node::create_end_depot_node(
+                    NodeId::from(&format!("end_{}", &depot.id)),
+                    location,
+                    capacities,
+                    format!("end_depot({},{})", id, location),
+                ),
+            ]
         })
         .flatten()
         .collect()

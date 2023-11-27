@@ -15,7 +15,7 @@ use std::iter::Iterator;
 ///
 /// It is mainly used for sequence of uncovered nodes.
 #[derive(Clone)]
-pub(crate) struct Path {
+pub struct Path {
     node_sequence: Vec<NodeId>,
 
     network: Arc<Network>,

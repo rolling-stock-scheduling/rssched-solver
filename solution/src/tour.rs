@@ -1,6 +1,5 @@
 #[cfg(test)]
-#[path = "tour_tests.rs"]
-mod tour_tests;
+mod tests;
 use crate::path::{Path, Segment};
 use sbb_model::base_types::{Distance, NodeId};
 use sbb_model::network::Network;
@@ -143,7 +142,7 @@ impl Tour {
     /// return the position of the node in the tour that is the latest one that cannot reach the
     /// provided node.
     /// If all nodes can reach the provided node, None is returned.
-    pub(super) fn earliest_not_reaching_node(&self, node: NodeId) -> Option<Position> {
+    pub(super) fn latest_not_reaching_node(&self, node: NodeId) -> Option<Position> {
         if self.nw.can_reach(*self.nodes.last().unwrap(), node) {
             return None; // all tour-nodes can reach node, even the last
         }
@@ -346,13 +345,13 @@ impl Tour {
     pub(crate) fn sub_path(&self, segment: Segment) -> Result<Path, String> {
         // TODO: probably problem if segment starts or ends at depot
         let start_pos = self
-            .earliest_not_reaching_node(segment.start())
+            .latest_not_reaching_node(segment.start())
             .ok_or_else(|| String::from("segment.start() not part of Tour."))?;
         if segment.start() != self.nodes[start_pos] {
             return Err(String::from("segment.start() not part of Tour."));
         }
         let end_pos = self
-            .earliest_not_reaching_node(segment.end())
+            .latest_not_reaching_node(segment.end())
             .ok_or_else(|| String::from("segment.end() not part of Tour."))?;
         if segment.end() != self.nodes[end_pos] {
             return Err(String::from("segment.end() not part of Tour."));
@@ -389,7 +388,7 @@ impl Tour {
         let start_pos = if self.nw.node(first).is_depot() {
             0
         } else {
-            self.earliest_not_reaching_node(first)
+            self.latest_not_reaching_node(first)
                 .unwrap_or(self.nodes.len())
         };
 

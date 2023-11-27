@@ -42,7 +42,7 @@ impl Solver for Greedy3 {
 
         //  For each node find an existing tour that can cover it while minimizing the added deadhead trip distance
         for node in nodes_sorted_by_start {
-            for dummy_id in schedule.clone().covered_by(node).iter() {
+            for dummy_id in schedule.clone().train_formations(node).iter() {
                 // Sort last_nodes by deadhead trip distance to 'node' in increasing order
                 // Use a tie breaking rule given by candidate's end time or/and vehicle ID
                 last_nodes.sort_by(|n1, n2| {

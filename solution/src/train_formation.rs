@@ -6,14 +6,20 @@ use crate::vehicle::Vehicle;
 use std::iter::Iterator;
 
 #[derive(Clone)]
-pub(crate) struct TrainFormation {
-    formation: Vec<Vehicle>, // index 0 is at tail, index len()-1 is front
+pub struct TrainFormation {
+    formation: Vec<Vehicle>, // index 0 is at front, index len()-1 is tail
 }
 
 // static functions
 impl TrainFormation {
     pub(crate) fn new(formation: Vec<Vehicle>) -> TrainFormation {
         TrainFormation { formation }
+    }
+
+    pub(crate) fn empty() -> TrainFormation {
+        TrainFormation {
+            formation: Vec::new(),
+        }
     }
 }
 
@@ -44,6 +50,15 @@ impl TrainFormation {
 
         // remove vehicle:
         new_formation.remove(pos);
+
+        TrainFormation {
+            formation: new_formation,
+        }
+    }
+
+    pub(crate) fn add_at_tail(&self, vehicle: Vehicle) -> TrainFormation {
+        let mut new_formation = self.formation.clone();
+        new_formation.push(vehicle);
 
         TrainFormation {
             formation: new_formation,

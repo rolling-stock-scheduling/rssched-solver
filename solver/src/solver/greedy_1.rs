@@ -1,29 +1,30 @@
 use crate::solver::Solver;
+use objective_framework::EvaluatedSolution;
 use sbb_model::base_types::{NodeId, VehicleId};
 use sbb_model::config::Config;
 use sbb_model::network::Network;
-use sbb_model::vehicles::Vehicles;
+use sbb_model::vehicle_types::VehicleTypes;
 use sbb_solution::Schedule;
 use std::sync::Arc;
 
 pub struct Greedy1 {
-    config: Arc<Config>,
-    vehicles: Arc<Vehicles>,
+    vehicles: Arc<VehicleTypes>,
     nw: Arc<Network>,
+    config: Arc<Config>,
 }
 
 impl Solver for Greedy1 {
-    fn initialize(config: Arc<Config>, vehicles: Arc<Vehicles>, nw: Arc<Network>) -> Greedy1 {
+    fn initialize(vehicles: Arc<VehicleTypes>, nw: Arc<Network>, config: Arc<Config>) -> Greedy1 {
         Greedy1 {
-            config,
             vehicles,
             nw,
+            config,
         }
     }
 
-    fn solve(&self) -> Schedule {
+    fn solve(&self) -> EvaluatedSolution<Schedule> {
         let mut schedule =
-            Schedule::initialize(self.config.clone(), self.vehicles.clone(), self.nw.clone());
+            Schedule::empty(self.vehicles.clone(), self.nw.clone(), self.config.clone());
         for vehicle in self.vehicles.iter() {
             let mut node = self.nw.start_node_of(vehicle);
             let mut new_node_opt = get_fitting_node(&schedule, node, vehicle);

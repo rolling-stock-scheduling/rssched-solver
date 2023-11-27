@@ -16,8 +16,6 @@ pub type VehicleId = CopyStr<10>;
 
 pub type VehicleCount = u32;
 
-pub type DepotId = CopyStr<10>;
-
 pub type NodeId = CopyStr<32>;
 
 pub type Meter = u64;

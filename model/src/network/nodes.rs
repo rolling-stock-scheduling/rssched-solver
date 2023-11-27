@@ -1,12 +1,10 @@
 use time::{DateTime, Duration};
 
-use crate::base_types::{
-    DepotId, Distance, Location, NodeId, PassengerCount, StationSide, VehicleCount, VehicleTypeId,
-};
+use crate::base_types::{Distance, Location, NodeId, PassengerCount, StationSide, VehicleTypeId};
 
 use core::cmp::Ordering;
 
-use std::fmt;
+use std::{collections::HashMap, fmt};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Node {
@@ -39,25 +37,17 @@ pub struct MaintenanceSlot {
     name: String,
 }
 
-// we have a seperate depot for each vehicle type
-// (id, vehicle_type) is unique
 #[derive(Debug, PartialEq, Eq)]
 pub struct Depot {
-    id: NodeId, // depot_id + '_' + vehicle_type
-    depot_id: DepotId,
+    id: NodeId,
     location: Location,
-    vehicle_type: VehicleTypeId,
-    upper_bound: Option<VehicleCount>, // number of vehicles that can be spawned. None means no limit.
+    capacities: HashMap<VehicleTypeId, Option<PassengerCount>>, // number of vehicles that can be spawned. None means no limit.
     name: String,
 }
 
 impl Depot {
-    pub fn depot_id(&self) -> DepotId {
-        self.depot_id
-    }
-
-    pub fn vehicle_bound(&self) -> (VehicleTypeId, Option<VehicleCount>) {
-        (self.vehicle_type, self.upper_bound)
+    pub fn capacities(&self) -> HashMap<VehicleTypeId, Option<PassengerCount>> {
+        self.capacities.clone()
     }
 }
 
@@ -91,6 +81,14 @@ impl Node {
         }
     }
 
+    pub fn is_depot(&self) -> bool {
+        match self {
+            Node::StartDepot(_) => true,
+            Node::EndDepot(_) => true,
+            _ => false,
+        }
+    }
+
     pub fn is_start_depot(&self) -> bool {
         match self {
             Node::StartDepot(_) => true,
@@ -100,14 +98,6 @@ impl Node {
 
     pub fn is_end_depot(&self) -> bool {
         match self {
-            Node::EndDepot(_) => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_depot(&self) -> bool {
-        match self {
-            Node::StartDepot(_) => true,
             Node::EndDepot(_) => true,
             _ => false,
         }
@@ -127,7 +117,7 @@ impl Node {
             Node::Service(s) => s.departure,
             Node::Maintenance(m) => m.start,
             Node::StartDepot(_) => DateTime::Earliest, // start depots can not be reached by any nodes
-            Node::EndDepot(_) => DateTime::Latest, // end depots can reach be reached by all nodes
+            Node::EndDepot(_) => DateTime::Latest,     // end depots can be reached by all nodes
         }
     }
 
@@ -136,7 +126,7 @@ impl Node {
             Node::Service(s) => s.arrival,
             Node::Maintenance(m) => m.end,
             Node::StartDepot(_) => DateTime::Earliest, // start depots can reach all nodes
-            Node::EndDepot(_) => DateTime::Latest,     // end depots can not reach any node
+            Node::EndDepot(_) => DateTime::Latest,     // end depots cannot reach any nodes
         }
     }
 
@@ -152,7 +142,7 @@ impl Node {
         match self {
             Node::Service(s) => s.origin,
             Node::Maintenance(m) => m.location,
-            Node::StartDepot(_) => Location::Nowhere,
+            Node::StartDepot(d) => d.location,
             Node::EndDepot(d) => d.location,
         }
     }
@@ -162,7 +152,7 @@ impl Node {
             Node::Service(s) => s.destination,
             Node::Maintenance(m) => m.location,
             Node::StartDepot(d) => d.location,
-            Node::EndDepot(_) => Location::Nowhere,
+            Node::EndDepot(d) => d.location,
         }
     }
 
@@ -170,14 +160,6 @@ impl Node {
         match self {
             Node::Service(s) => s.travel_distance,
             _ => Distance::zero(),
-        }
-    }
-
-    pub fn vehicle_type(&self) -> VehicleTypeId {
-        match self {
-            Node::StartDepot(d) => d.vehicle_type,
-            Node::EndDepot(d) => d.vehicle_type,
-            _ => panic!("Node is not an Depot."),
         }
     }
 
@@ -226,18 +208,8 @@ impl Node {
                 self.start_time(),
                 self.end_time()
             ),
-            Node::StartDepot(_) => println!(
-                "{} of {} at {}",
-                self.name(),
-                self.vehicle_type(),
-                self.start_location()
-            ),
-            Node::EndDepot(_) => println!(
-                "{} of {} at {}",
-                self.name(),
-                self.vehicle_type(),
-                self.start_location()
-            ),
+            Node::StartDepot(_) => println!("{} at {}", self.name(), self.start_location()),
+            Node::EndDepot(_) => println!("{} at {}", self.name(), self.start_location()),
         }
     }
 }
@@ -289,34 +261,29 @@ impl Node {
     }
 
     pub(crate) fn create_start_depot_node(
-        depot_id: DepotId,
+        id: NodeId,
         location: Location,
-        vehicle_type: VehicleTypeId,
-        upper_bound: Option<VehicleCount>,
+        capacities: HashMap<VehicleTypeId, Option<PassengerCount>>,
         name: String,
     ) -> Node {
         Node::StartDepot(Depot {
-            id: NodeId::from(&format!("start_{}_{}", depot_id, vehicle_type)),
-            depot_id,
+            id,
             location,
-            vehicle_type,
-            upper_bound,
+            capacities,
             name,
         })
     }
+
     pub(crate) fn create_end_depot_node(
-        depot_id: DepotId,
+        id: NodeId,
         location: Location,
-        vehicle_type: VehicleTypeId,
-        upper_bound: Option<VehicleCount>,
+        capacities: HashMap<VehicleTypeId, Option<PassengerCount>>,
         name: String,
     ) -> Node {
         Node::EndDepot(Depot {
-            id: NodeId::from(&format!("end_{}_{}", depot_id, vehicle_type)),
-            depot_id,
+            id,
             location,
-            vehicle_type,
-            upper_bound,
+            capacities,
             name,
         })
     }

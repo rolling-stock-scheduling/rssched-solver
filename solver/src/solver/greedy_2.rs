@@ -42,7 +42,7 @@ impl Solver for Greedy2 {
 
         //  For each node find an existing tour that can cover it while minimizing the wasted time
         for node in nodes_sorted_by_start {
-            for dummy_id in schedule.clone().covered_by(node).iter() {
+            for dummy_id in schedule.clone().train_formations(node).iter() {
                 // Sort last_nodes by end time of nodes in decreasing order (i.e. second component in the tuple)
                 last_nodes.sort_by(|n1, n2| self.nw.node(n2.1).cmp_end_time(self.nw.node(n1.1)));
                 // Find an existing tour that can cover 'node' while minimizing the wasted time
