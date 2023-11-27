@@ -2,6 +2,7 @@ mod modifications;
 use sbb_model::base_types::Distance;
 use sbb_model::base_types::NodeId;
 use sbb_model::base_types::PassengerCount;
+use sbb_model::base_types::SeatDistance;
 use sbb_model::base_types::VehicleId;
 use sbb_model::base_types::VehicleTypeId;
 use sbb_model::config::Config;
@@ -82,6 +83,10 @@ impl Schedule {
             .ok_or_else(|| format!("{} is not an vehicle.", vehicle))
     }
 
+    pub fn number_of_vehicles(&self) -> usize {
+        self.vehicles.len()
+    }
+
     pub fn number_of_dummy_tours(&self) -> usize {
         self.dummy_tours.len()
     }
@@ -133,6 +138,40 @@ impl Schedule {
             return true;
         }
         false
+    }
+
+    // Objective indicators
+    pub fn number_of_unserved_passengers(&self) -> PassengerCount {
+        self.network
+            .service_nodes()
+            .map(|node| {
+                let demand = self.network.node(node).as_service_trip().demand();
+                let served = self.train_formation_of(node).seats();
+                if served > demand {
+                    0
+                } else {
+                    demand - served
+                }
+            })
+            .sum()
+    }
+
+    pub fn is_fully_covered(&self, service_trip: NodeId) -> bool {
+        self.train_formation_of(service_trip).seats()
+            >= self.network.node(service_trip).as_service_trip().demand()
+    }
+
+    /// sum over all vehicles: number of seats * distance
+    /// - sum over all service trips: number of passengers * distance
+    pub fn overhead_seat_distance(&self) -> SeatDistance {
+        self.tours
+            .iter()
+            .map(|(vehicle, tour)| {
+                tour.service_distance().in_meter() as SeatDistance
+                    * self.get_vehicle(*vehicle).unwrap().seats() as SeatDistance
+            })
+            .sum::<SeatDistance>()
+            - self.network.passenger_distance_demand()
     }
 
     pub fn print_tours_long(&self) {

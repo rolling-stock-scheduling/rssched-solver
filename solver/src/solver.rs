@@ -9,7 +9,7 @@ use std::sync::Arc;
 pub trait Solver {
     fn initialize(
         vehicle_types: Arc<VehicleTypes>,
-        nw: Arc<Network>,
+        network: Arc<Network>,
         config: Arc<Config>,
         objective: Arc<Objective<Schedule>>,
     ) -> Self;

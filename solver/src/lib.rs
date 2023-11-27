@@ -1,4 +1,4 @@
-mod simple_objective;
+mod first_phase_objective;
 mod solver;
 
 use sbb_solution::json_serialisation::write_schedule_to_json;
@@ -20,7 +20,7 @@ pub fn run(path: &str) {
         load_rolling_stock_problem_instance_from_json(path);
     let start_time = stdtime::Instant::now();
 
-    let objective = Arc::new(simple_objective::build_simple_objective());
+    let objective = Arc::new(first_phase_objective::build());
 
     // initialize local search
     // let mut local_search_solver =

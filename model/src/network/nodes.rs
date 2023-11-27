@@ -164,6 +164,13 @@ impl Node {
         }
     }
 
+    pub fn as_service_trip(&self) -> &ServiceTrip {
+        match self {
+            Node::Service(s) => s,
+            _ => panic!("Node is not a service trip"),
+        }
+    }
+
     pub fn as_depot(&self) -> &Depot {
         match self {
             Node::StartDepot(d) => d,

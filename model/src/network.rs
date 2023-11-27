@@ -2,7 +2,7 @@ pub mod nodes;
 use nodes::Node;
 use time::Duration;
 
-use crate::base_types::{Distance, Location, NodeId};
+use crate::base_types::{Distance, Location, NodeId, SeatDistance};
 use crate::config::Config;
 use crate::locations::Locations;
 
@@ -24,6 +24,9 @@ pub struct Network {
 
     nodes_sorted_by_start: Vec<NodeId>,
     nodes_sorted_by_end: Vec<NodeId>,
+
+    // redundant information
+    passenger_distance_demand: SeatDistance,
 
     // for convenience
     config: Arc<Config>,
@@ -60,6 +63,11 @@ impl Network {
     /// service and maintenance_nodes
     pub fn coverable_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
         self.service_nodes().chain(self.maintenance_nodes())
+    }
+
+    /// sum over all service trips: number of passenger * distance
+    pub fn passenger_distance_demand(&self) -> SeatDistance {
+        self.passenger_distance_demand
     }
 
     pub fn idle_time_between(&self, node1: NodeId, node2: NodeId) -> Duration {
@@ -209,6 +217,15 @@ impl Network {
         let mut nodes_sorted_by_end: Vec<NodeId> = nodes_sorted_by_start.clone();
         nodes_sorted_by_end.sort_by_key(|&n| nodes.get(&n).unwrap().end_time());
 
+        let passenger_distance_demand = service_nodes
+            .iter()
+            .map(|&n| {
+                let node = nodes.get(&n).unwrap();
+                node.as_service_trip().demand() as SeatDistance
+                    * node.travel_distance().in_meter() as SeatDistance
+            })
+            .sum();
+
         Network {
             nodes,
             service_nodes,
@@ -217,6 +234,7 @@ impl Network {
             end_depot_nodes,
             nodes_sorted_by_start,
             nodes_sorted_by_end,
+            passenger_distance_demand,
             config,
             loc,
         }
