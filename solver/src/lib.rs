@@ -2,7 +2,7 @@ mod simple_objective;
 mod solver;
 
 use sbb_solution::json_serialisation::write_schedule_to_json;
-use solver::greedy_1::Greedy1;
+use solver::greedy::Greedy;
 use solver::Solver;
 // use solver::greedy_2::Greedy2;
 // use solver::greedy_3::Greedy3;
@@ -10,6 +10,7 @@ use solver::Solver;
 
 use sbb_model::json_serialisation::load_rolling_stock_problem_instance_from_json;
 
+use std::sync::Arc;
 use std::time as stdtime;
 
 pub fn run(path: &str) {
@@ -19,14 +20,19 @@ pub fn run(path: &str) {
         load_rolling_stock_problem_instance_from_json(path);
     let start_time = stdtime::Instant::now();
 
-    let objective = simple_objective::build_simple_objective();
+    let objective = Arc::new(simple_objective::build_simple_objective());
 
     // initialize local search
     // let mut local_search_solver =
     // LocalSearch::initialize(config.clone(), vehicle_types.clone(), network.clone());
 
     // use greedy algorithm
-    let greedy = Greedy1::initialize(vehicle_types.clone(), network.clone(), config.clone());
+    let greedy = Greedy::initialize(
+        vehicle_types.clone(),
+        network.clone(),
+        config.clone(),
+        objective.clone(),
+    );
 
     // solve
     let final_solution = greedy.solve();

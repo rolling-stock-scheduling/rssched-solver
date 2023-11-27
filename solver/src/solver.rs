@@ -1,15 +1,18 @@
-pub(crate) mod greedy_1;
-pub(crate) mod greedy_2;
-pub(crate) mod greedy_3;
-pub(crate) mod local_search;
+pub mod greedy;
+// pub(crate) mod local_search;
 
-use objective_framework::EvaluatedSolution;
+use objective_framework::{EvaluatedSolution, Objective};
 use sbb_model::{config::Config, network::Network, vehicle_types::VehicleTypes};
 use sbb_solution::Schedule;
 use std::sync::Arc;
 
-pub(crate) trait Solver {
-    fn initialize(vehicle_types: Arc<VehicleTypes>, nw: Arc<Network>, config: Arc<Config>) -> Self;
+pub trait Solver {
+    fn initialize(
+        vehicle_types: Arc<VehicleTypes>,
+        nw: Arc<Network>,
+        config: Arc<Config>,
+        objective: Arc<Objective<Schedule>>,
+    ) -> Self;
 
     fn solve(&self) -> EvaluatedSolution<Schedule>;
 }
