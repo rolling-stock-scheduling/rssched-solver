@@ -46,8 +46,9 @@ pub struct Depot {
 }
 
 impl Depot {
-    pub fn capacities(&self) -> HashMap<VehicleTypeId, Option<PassengerCount>> {
-        self.capacities.clone()
+    /// None means no limit
+    pub fn capacitiy_for(&self, vehicle_type_id: VehicleTypeId) -> Option<PassengerCount> {
+        *self.capacities.get(&vehicle_type_id).unwrap_or(&Some(0))
     }
 }
 
@@ -160,6 +161,14 @@ impl Node {
         match self {
             Node::Service(s) => s.travel_distance,
             _ => Distance::zero(),
+        }
+    }
+
+    pub fn as_depot(&self) -> &Depot {
+        match self {
+            Node::StartDepot(d) => d,
+            Node::EndDepot(d) => d,
+            _ => panic!("Node is not a depot"),
         }
     }
 

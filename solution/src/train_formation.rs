@@ -12,10 +12,6 @@ pub struct TrainFormation {
 
 // static functions
 impl TrainFormation {
-    pub(crate) fn new(formation: Vec<Vehicle>) -> TrainFormation {
-        TrainFormation { formation }
-    }
-
     pub(crate) fn empty() -> TrainFormation {
         TrainFormation {
             formation: Vec::new(),

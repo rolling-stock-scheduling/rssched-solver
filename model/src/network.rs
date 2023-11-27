@@ -19,7 +19,8 @@ pub struct Network {
     // nodes are by default sorted by start_time
     service_nodes: Vec<NodeId>,
     maintenance_nodes: Vec<NodeId>,
-    depot_nodes: Vec<NodeId>,
+    start_depot_nodes: Vec<NodeId>,
+    end_depot_nodes: Vec<NodeId>,
 
     nodes_sorted_by_start: Vec<NodeId>,
     nodes_sorted_by_end: Vec<NodeId>,
@@ -48,8 +49,12 @@ impl Network {
         self.maintenance_nodes.iter().copied()
     }
 
-    pub fn depot_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
-        self.depot_nodes.iter().copied()
+    pub fn start_depot_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
+        self.start_depot_nodes.iter().copied()
+    }
+
+    pub fn end_depot_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
+        self.end_depot_nodes.iter().copied()
     }
 
     /// service and maintenance_nodes
@@ -168,14 +173,14 @@ impl Network {
         self.nodes_sorted_by_start.iter().copied()
     }
 
-    pub fn depots_sorted_by_distance_to(&self, location: Location) -> Vec<NodeId> {
-        let mut depots = self.depot_nodes.clone();
+    pub fn start_depots_sorted_by_distance_to(&self, location: Location) -> Vec<NodeId> {
+        let mut depots = self.start_depot_nodes.clone();
         depots.sort_by_key(|&d| self.loc.distance(self.node(d).start_location(), location));
         depots
     }
 
-    pub fn depots_sorted_by_distance_from(&self, location: Location) -> Vec<NodeId> {
-        let mut depots = self.depot_nodes.clone();
+    pub fn end_depots_sorted_by_distance_from(&self, location: Location) -> Vec<NodeId> {
+        let mut depots = self.end_depot_nodes.clone();
         depots.sort_by_key(|&d| self.loc.distance(location, self.node(d).start_location()));
         depots
     }
@@ -186,15 +191,16 @@ impl Network {
         let mut nodes = HashMap::new();
         let mut service_nodes = Vec::new();
         let mut maintenance_nodes = Vec::new();
-        let mut depot_nodes = Vec::new();
+        let mut start_depot_nodes = Vec::new();
+        let mut end_depot_nodes = Vec::new();
         for node in all_nodes {
             let id = node.id();
             nodes.insert(id, node);
             match nodes.get(&id).unwrap() {
                 Node::Service(_) => service_nodes.push(id),
                 Node::Maintenance(_) => maintenance_nodes.push(id),
-                Node::StartDepot(_) => depot_nodes.push(id),
-                Node::EndDepot(_) => depot_nodes.push(id),
+                Node::StartDepot(_) => start_depot_nodes.push(id),
+                Node::EndDepot(_) => end_depot_nodes.push(id),
             }
         }
         let mut nodes_sorted_by_start: Vec<NodeId> = nodes.keys().copied().collect();
@@ -207,7 +213,8 @@ impl Network {
             nodes,
             service_nodes,
             maintenance_nodes,
-            depot_nodes,
+            start_depot_nodes,
+            end_depot_nodes,
             nodes_sorted_by_start,
             nodes_sorted_by_end,
             config,

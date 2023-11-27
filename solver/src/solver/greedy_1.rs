@@ -38,11 +38,6 @@ impl Solver for Greedy1 {
         }
         schedule
     }
-
-    fn foo(&self) -> Schedule {
-        println!("hi");
-        self.solve()
-    }
 }
 
 fn get_fitting_node(

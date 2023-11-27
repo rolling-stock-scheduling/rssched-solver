@@ -19,22 +19,67 @@ impl Schedule {
     pub fn spawn_vehicle_for_tour(
         &self,
         vehicle_type_id: VehicleTypeId,
-        nodes: Vec<NodeId>,
+        mut nodes: Vec<NodeId>,
     ) -> Result<Schedule, String> {
+        let first_node = *nodes.first().ok_or("Node vector is empty.")?;
+
+        // check if depot is available
+        if self.network.node(first_node).is_depot()
+            && !self.can_depot_spawn_vehicle(first_node, vehicle_type_id)
+        {
+            return Err(format!(
+                "Cannot spawn vehicle of type {} for tour {:?} at start_depot {}. No capacities available.",
+                vehicle_type_id,
+                nodes,
+                nodes.first().unwrap()
+            ));
+        }
+
+        // if path does not start with a depot, insert the nearest available start_depot
+        if !self.network.node(*nodes.first().unwrap()).is_depot() {
+            let start_location = self.network.node(*nodes.first().unwrap()).start_location();
+            let start_depot = self
+                .network
+                .start_depots_sorted_by_distance_to(start_location)
+                .iter()
+                .copied()
+                .find(|depot| self.can_depot_spawn_vehicle(*depot, vehicle_type_id));
+            match start_depot {
+                Some(depot) => nodes.insert(0, depot),
+                None => {
+                    return Err(format!(
+                        "Cannot spawn vehicle of type {} for tour {:?}. No start_depot available.",
+                        vehicle_type_id, nodes
+                    ))
+                }
+            }
+        }
+
+        // if path does not end with a depot, insert the nearest available end_depot
+        if !self.network.node(*nodes.last().unwrap()).is_depot() {
+            let end_location = self.network.node(*nodes.last().unwrap()).end_location();
+            let end_depot = self
+                .network
+                .end_depots_sorted_by_distance_from(end_location)
+                .first()
+                .copied();
+            match end_depot {
+                Some(depot) => nodes.push(depot),
+                None => {
+                    return Err(format!(
+                        "Cannot de-spawn vehicle of type {} for tour {:?}. No end_depot available.",
+                        vehicle_type_id, nodes
+                    ))
+                }
+            }
+        }
+
         let mut vehicles = self.vehicles.clone();
         let mut tours = self.tours.clone();
         let mut train_formations = self.train_formations.clone();
         let mut vehicle_ids_sorted = self.vehicle_ids_sorted.clone();
 
         let vehicle_id = VehicleId::from(format!("vehicle{:05}", self.vehicle_counter).as_str());
-
-        if !self.network.node(*nodes.first().unwrap()).is_depot() {
-            // TODO spawn vehicle from nearest depot by prepending it to the path.
-        }
-
-        if !self.network.node(*nodes.last().unwrap()).is_depot() {
-            // TODO de-spawn vehicle at nearest depot by appening it to the path.
-        }
 
         let tour = Tour::new(nodes, self.network.clone())?;
 

@@ -1,7 +1,9 @@
 mod modifications;
 use sbb_model::base_types::Distance;
 use sbb_model::base_types::NodeId;
+use sbb_model::base_types::PassengerCount;
 use sbb_model::base_types::VehicleId;
+use sbb_model::base_types::VehicleTypeId;
 use sbb_model::config::Config;
 use sbb_model::network::Network;
 use sbb_model::vehicle_types::VehicleTypes;
@@ -90,6 +92,47 @@ impl Schedule {
 
     pub fn vehicles_iter(&self) -> impl Iterator<Item = VehicleId> + '_ {
         self.vehicle_ids_sorted.iter().copied()
+    }
+
+    pub fn can_depot_spawn_vehicle(
+        &self,
+        start_depot: NodeId,
+        vehicle_type_id: VehicleTypeId,
+    ) -> bool {
+        let capacity = self
+            .network
+            .node(start_depot)
+            .as_depot()
+            .capacitiy_for(vehicle_type_id);
+
+        if capacity == Some(0) {
+            return false;
+        }
+
+        if capacity == None {
+            return true;
+        }
+
+        let number_of_spawned_vehicles = self
+            .vehicles_iter()
+            .filter(|vehicle| {
+                self.tour_of(*vehicle)
+                    .unwrap()
+                    .first_node()
+                    .eq(&start_depot)
+            })
+            .filter(|vehicle| {
+                self.get_vehicle(*vehicle)
+                    .unwrap()
+                    .type_id()
+                    .eq(&vehicle_type_id)
+            })
+            .count() as PassengerCount;
+
+        if number_of_spawned_vehicles < capacity.unwrap() {
+            return true;
+        }
+        false
     }
 
     pub fn print_tours_long(&self) {
