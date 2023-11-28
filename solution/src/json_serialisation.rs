@@ -97,7 +97,6 @@ pub fn write_schedule_to_json(schedule: &Schedule, path: &str) -> Result<(), std
     }
 
     let json = serde_json::to_string(&json_output).unwrap();
-    println!("{}", json);
     std::fs::write(path, json)
 }
 

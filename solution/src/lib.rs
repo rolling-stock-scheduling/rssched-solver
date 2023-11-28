@@ -1,5 +1,5 @@
 pub mod json_serialisation;
-mod path;
+pub mod path;
 mod schedule;
 mod tour;
 mod train_formation;

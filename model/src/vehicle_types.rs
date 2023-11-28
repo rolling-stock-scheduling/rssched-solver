@@ -19,6 +19,10 @@ impl VehicleTypes {
     pub fn get(&self, id: VehicleTypeId) -> Option<Arc<VehicleType>> {
         self.vehicle_types.get(&id).cloned()
     }
+
+    pub fn ids_iter(&self) -> impl Iterator<Item = VehicleTypeId> + '_ {
+        self.vehicle_types.keys().cloned()
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]

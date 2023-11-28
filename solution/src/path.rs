@@ -37,10 +37,7 @@ impl Path {
     /// it is a path in the network,
     /// it has no intermediate depots,
     /// it has at least one non-depot nodes.
-    pub(crate) fn new(
-        node_sequence: Vec<NodeId>,
-        nw: Arc<Network>,
-    ) -> Result<Option<Path>, String> {
+    pub fn new(node_sequence: Vec<NodeId>, nw: Arc<Network>) -> Result<Option<Path>, String> {
         for (&a, &b) in node_sequence.iter().tuple_windows() {
             if !nw.can_reach(a, b) {
                 return Err(format!("Not a valid Path: {} cannot reach {}.", a, b));
@@ -59,6 +56,14 @@ impl Path {
                 node_sequence,
                 network: nw,
             })
+        }
+    }
+
+    pub fn new_from_single_node(node: NodeId, nw: Arc<Network>) -> Path {
+        assert!(!nw.node(node).is_depot());
+        Path {
+            node_sequence: vec![node],
+            network: nw,
         }
     }
 }

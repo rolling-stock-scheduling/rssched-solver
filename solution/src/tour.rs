@@ -112,6 +112,16 @@ impl Tour {
         self.nodes.get(pos).map(|n| *n)
     }
 
+    /// returns the last non-depot (service node or maintenance node) of the tour, ignoring depot.
+    /// If the tour does only contain depots None is returned.
+    pub fn last_non_depot(&self) -> Option<NodeId> {
+        self.nodes
+            .iter()
+            .rev()
+            .find(|&&n| !self.nw.node(n).is_depot())
+            .copied()
+    }
+
     pub(crate) fn start_time(&self) -> DateTime {
         if self.is_dummy {
             self.nw.node(self.first_node()).start_time()

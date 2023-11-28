@@ -19,8 +19,9 @@ impl Schedule {
     pub fn spawn_vehicle_for_tour(
         &self,
         vehicle_type_id: VehicleTypeId,
-        mut nodes: Vec<NodeId>,
+        path: Path,
     ) -> Result<Schedule, String> {
+        let mut nodes = path.consume();
         let first_node = *nodes.first().ok_or("Node vector is empty.")?;
 
         // check if depot is available
@@ -79,7 +80,7 @@ impl Schedule {
         let mut train_formations = self.train_formations.clone();
         let mut vehicle_ids_sorted = self.vehicle_ids_sorted.clone();
 
-        let vehicle_id = VehicleId::from(format!("vehicle{:05}", self.vehicle_counter).as_str());
+        let vehicle_id = VehicleId::from(format!("veh{:03}", self.vehicle_counter).as_str());
 
         let tour = Tour::new(nodes, self.network.clone())?;
 
@@ -88,7 +89,7 @@ impl Schedule {
         vehicles.insert(vehicle_id, vehicle.clone());
 
         // update train_formations
-        for node in tour.all_nodes_iter() {
+        for node in tour.non_depot_nodes() {
             let new_formation = train_formations
                 .get(&node)
                 .unwrap()
@@ -151,6 +152,52 @@ impl Schedule {
             train_formations,
             dummy_tours: self.dummy_tours.clone(),
             vehicle_ids_sorted,
+            dummy_ids_sorted: self.dummy_ids_sorted.clone(),
+            vehicle_counter: self.vehicle_counter,
+            config: self.config.clone(),
+            vehicle_types: self.vehicle_types.clone(),
+            network: self.network.clone(),
+        })
+    }
+
+    /// Add a path to the tour of a vehicle. If the path causes conflicts, the conflicting nodes of
+    /// the old tour are removed.
+    pub fn add_path_to_vehicle_tour(
+        &self,
+        vehicle: VehicleId,
+        path: Path,
+    ) -> Result<Schedule, String> {
+        let mut tours = self.tours.clone();
+        let mut train_formations = self.train_formations.clone();
+
+        // add vehicle to train_formations for nodes of new path
+        for node in path.iter() {
+            let new_formation = train_formations
+                .get(&node)
+                .unwrap()
+                .add_at_tail(self.vehicles.get(&vehicle).cloned().unwrap());
+            train_formations.insert(node, new_formation);
+        }
+
+        let (new_tour, removed_path_opt) = tours.get(&vehicle).unwrap().insert_path(path);
+
+        // remove vehicle from train formations for nodes of removed path
+        if let Some(removed_path) = removed_path_opt {
+            for node in removed_path.iter() {
+                let new_formation = train_formations.get(&node).unwrap().remove(vehicle);
+                train_formations.insert(node, new_formation);
+            }
+        }
+
+        // update tours
+        tours.insert(vehicle, new_tour);
+
+        Ok(Schedule {
+            vehicles: self.vehicles.clone(),
+            tours,
+            train_formations,
+            dummy_tours: self.dummy_tours.clone(),
+            vehicle_ids_sorted: self.vehicle_ids_sorted.clone(),
             dummy_ids_sorted: self.dummy_ids_sorted.clone(),
             vehicle_counter: self.vehicle_counter,
             config: self.config.clone(),

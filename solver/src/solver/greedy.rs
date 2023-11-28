@@ -1,8 +1,10 @@
 use crate::solver::Solver;
 use objective_framework::{EvaluatedSolution, Objective};
+use sbb_model::base_types::VehicleId;
 use sbb_model::config::Config;
 use sbb_model::network::Network;
 use sbb_model::vehicle_types::VehicleTypes;
+use sbb_solution::path::Path;
 use sbb_solution::Schedule;
 use std::sync::Arc;
 
@@ -41,7 +43,40 @@ impl Solver for Greedy {
             .filter(|s| !schedule.is_fully_covered(*s))
             .next()
         {
-            // TODO find best vehicle to cover it, or otherwise spawn new vehicle.
+            let vehicle_candidates: Vec<VehicleId> = schedule
+                .vehicles_iter()
+                .filter(|&v| {
+                    match schedule.tour_of(v).unwrap().last_non_depot() {
+                        Some(last) => self.network.can_reach(last, service_trip),
+                        None => false, // there are not vehicles that only goes from depot to depot
+                    }
+                })
+                .collect();
+
+            // pick the vehicle which tour ends the latest
+            let final_candidate = vehicle_candidates.iter().max_by_key(|&&v| {
+                let last_trip = schedule.tour_of(v).unwrap().last_non_depot().unwrap();
+                self.network.node(last_trip).end_time()
+            });
+
+            match final_candidate {
+                Some(&v) => {
+                    schedule = schedule
+                        .add_path_to_vehicle_tour(
+                            v,
+                            Path::new_from_single_node(service_trip, self.network.clone()),
+                        )
+                        .unwrap();
+                }
+                None => {
+                    schedule = schedule
+                        .spawn_vehicle_for_tour(
+                            self.vehicles.ids_iter().next().unwrap(),
+                            Path::new_from_single_node(service_trip, self.network.clone()),
+                        )
+                        .unwrap();
+                }
+            }
         }
 
         self.objective.evaluate(schedule)
