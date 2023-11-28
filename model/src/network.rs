@@ -16,7 +16,7 @@ use std::sync::Arc;
 pub struct Network {
     nodes: HashMap<NodeId, Node>,
 
-    // nodes are by default sorted by start_time
+    // nodes are by default sorted by start_time (ties are broken by end_time then id)
     service_nodes: Vec<NodeId>,
     maintenance_nodes: Vec<NodeId>,
     start_depot_nodes: Vec<NodeId>,
@@ -211,11 +211,51 @@ impl Network {
                 Node::EndDepot(_) => end_depot_nodes.push(id),
             }
         }
+
+        // sort nodes:
+        service_nodes.sort_by(|&n1, &n2| {
+            nodes
+                .get(&n1)
+                .unwrap()
+                .cmp_start_time(&nodes.get(&n2).unwrap())
+        });
+
+        maintenance_nodes.sort_by(|&n1, &n2| {
+            nodes
+                .get(&n1)
+                .unwrap()
+                .cmp_start_time(&nodes.get(&n2).unwrap())
+        });
+
+        start_depot_nodes.sort_by(|&n1, &n2| {
+            nodes
+                .get(&n1)
+                .unwrap()
+                .cmp_start_time(&nodes.get(&n2).unwrap())
+        });
+
+        end_depot_nodes.sort_by(|&n1, &n2| {
+            nodes
+                .get(&n1)
+                .unwrap()
+                .cmp_start_time(&nodes.get(&n2).unwrap())
+        });
+
         let mut nodes_sorted_by_start: Vec<NodeId> = nodes.keys().copied().collect();
-        nodes_sorted_by_start.sort_by_key(|&n| nodes.get(&n).unwrap().start_time());
+        nodes_sorted_by_start.sort_by(|&n1, &n2| {
+            nodes
+                .get(&n1)
+                .unwrap()
+                .cmp_start_time(&nodes.get(&n2).unwrap())
+        });
 
         let mut nodes_sorted_by_end: Vec<NodeId> = nodes_sorted_by_start.clone();
-        nodes_sorted_by_end.sort_by_key(|&n| nodes.get(&n).unwrap().end_time());
+        nodes_sorted_by_end.sort_by(|&n1, &n2| {
+            nodes
+                .get(&n1)
+                .unwrap()
+                .cmp_end_time(&nodes.get(&n2).unwrap())
+        });
 
         let passenger_distance_demand = service_nodes
             .iter()

@@ -4,8 +4,6 @@ mod solver;
 use sbb_solution::json_serialisation::write_schedule_to_json;
 use solver::greedy::Greedy;
 use solver::Solver;
-// use solver::greedy_2::Greedy2;
-// use solver::greedy_3::Greedy3;
 // use solver::local_search::LocalSearch;
 
 use sbb_model::json_serialisation::load_rolling_stock_problem_instance_from_json;
