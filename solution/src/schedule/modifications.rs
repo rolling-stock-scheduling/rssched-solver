@@ -3,6 +3,7 @@ use sbb_model::base_types::{NodeId, VehicleId, VehicleTypeId};
 use crate::{
     path::{Path, Segment},
     tour::Tour,
+    train_formation::TrainFormation,
     vehicle::Vehicle,
     Schedule,
 };
@@ -355,11 +356,13 @@ impl Schedule {
 
         // update train_formations:
         for node in moved_nodes.iter() {
-            let new_formation = train_formations
-                .get(node)
-                .unwrap()
-                .replace(provider, self.vehicles.get(&receiver).cloned().unwrap());
-            train_formations.insert(*node, new_formation);
+            if self.network.node(*node).is_depot() {
+                continue;
+            }
+            train_formations.insert(
+                *node,
+                self.vehicle_replacement_in_train_formation(provider, receiver, *node),
+            );
         }
 
         Ok(Schedule {
@@ -374,6 +377,32 @@ impl Schedule {
             vehicle_types: self.vehicle_types.clone(),
             network: self.network.clone(),
         })
+    }
+
+    fn vehicle_replacement_in_train_formation(
+        &self,
+        provider: VehicleId,
+        receiver: VehicleId,
+        node: NodeId,
+    ) -> TrainFormation {
+        let old_formation = self
+            .train_formations
+            .get(&node)
+            .expect(format!("Node {} has no train formations.", node).as_str());
+        let receiver_vehicle = self.vehicles.get(&receiver).cloned().unwrap();
+        if self.is_dummy(provider) {
+            if self.is_dummy(receiver) {
+                old_formation.clone()
+            } else {
+                old_formation.add_at_tail(receiver_vehicle)
+            }
+        } else {
+            if self.is_dummy(receiver) {
+                old_formation.remove(provider)
+            } else {
+                old_formation.replace(provider, receiver_vehicle)
+            }
+        }
     }
 
     /// Remove segment from provider's tour and inserts the nodes into the tour of receiver vehicle.
@@ -403,11 +432,13 @@ impl Schedule {
 
         // update train_formations:
         for node in path.iter() {
-            let new_formation = train_formations
-                .get(&node)
-                .unwrap()
-                .replace(provider, self.vehicles.get(&receiver).cloned().unwrap());
-            train_formations.insert(node, new_formation);
+            if self.network.node(node).is_depot() {
+                continue;
+            }
+            train_formations.insert(
+                node,
+                self.vehicle_replacement_in_train_formation(provider, receiver, node),
+            );
         }
 
         // insert path into tour
@@ -458,8 +489,11 @@ impl Schedule {
                 // in this case receiver needs to be removed from the train formations of the
                 // removed nodes
                 for node in new_path.iter() {
-                    let new_formation = train_formations.get(&node).unwrap().remove(receiver);
-                    train_formations.insert(node, new_formation);
+                    if self.network.node(node).is_depot() {
+                        continue;
+                    }
+                    train_formations
+                        .insert(node, train_formations.get(&node).unwrap().remove(receiver));
                 }
             }
 

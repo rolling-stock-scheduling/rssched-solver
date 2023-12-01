@@ -9,7 +9,7 @@ pub use location::LocationId;
 pub use location::StationSide;
 
 pub type VehicleTypeId = CopyStr<32>;
-pub type PassengerCount = u16;
+pub type PassengerCount = u32;
 pub type TrainLength = u16;
 pub type SeatDistance = u64;
 

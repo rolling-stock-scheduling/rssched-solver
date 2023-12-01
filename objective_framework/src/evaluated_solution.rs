@@ -1,5 +1,6 @@
 use crate::ObjectiveValue;
 
+#[derive(Clone)]
 pub struct EvaluatedSolution<S> {
     solution: S,
     objective_value: ObjectiveValue,

@@ -33,11 +33,11 @@ struct OverheadSeatDistanceIndicator;
 
 impl Indicator<Schedule> for OverheadSeatDistanceIndicator {
     fn evaluate(&self, schedule: &Schedule) -> BaseValue {
-        BaseValue::Integer(schedule.overhead_seat_distance() as i64)
+        BaseValue::Integer(schedule.seat_distance_traveled() as i64)
     }
 
     fn name(&self) -> String {
-        String::from("overheadSeatDistance")
+        String::from("seatDistanceTraveled")
     }
 }
 

@@ -158,8 +158,7 @@ impl Schedule {
     }
 
     /// sum over all vehicles: number of seats * distance
-    /// - sum over all service trips: number of passengers * distance
-    pub fn overhead_seat_distance(&self) -> SeatDistance {
+    pub fn seat_distance_traveled(&self) -> SeatDistance {
         self.tours
             .iter()
             .map(|(vehicle, tour)| {
@@ -167,7 +166,6 @@ impl Schedule {
                     * self.get_vehicle(*vehicle).unwrap().seats() as SeatDistance
             })
             .sum::<SeatDistance>()
-            - self.network.passenger_distance_demand()
     }
 
     pub fn print_tours_long(&self) {

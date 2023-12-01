@@ -1,6 +1,8 @@
+use crate::Solution;
+
 use super::swap_factory::SwapFactory;
 
-use objective_framework::EvaluatedSolution;
+use objective_framework::Objective;
 use rayon::iter::ParallelBridge;
 use rayon::prelude::*;
 use sbb_solution::Schedule;
@@ -10,10 +12,7 @@ use std::sync::{Arc, Mutex};
 /// Computes for a given schedule the best new schedule that has better objective function.
 /// Returns None if there is no better schedule in the neighborhood.
 pub(crate) trait LocalImprover {
-    fn improve(
-        &self,
-        solution: &Solution,
-    ) -> Option<Solution>;
+    fn improve(&self, solution: &Solution) -> Option<Solution>;
 }
 
 ///////////////////////////////////////////////////////////
@@ -22,34 +21,47 @@ pub(crate) trait LocalImprover {
 
 pub(crate) struct Minimizer<F: SwapFactory> {
     swap_factory: F,
+    objective: Arc<Objective<Schedule>>,
 }
 
 impl<F: SwapFactory> Minimizer<F> {
-    pub(crate) fn new(swap_factory: F) -> Minimizer<F> {
-        Minimizer { swap_factory }
-    }
-}
-
-impl<F: SwapFactory> LocalImprover for Minimizer<F> {
-    fn improve(&self, solution: &Solution) -> Option<Solution {
-        let swap_iterator = self
-            .swap_factory
-            .create_swap_iterator(solution)
-            .par_bridge();
-        let (best_objective_value, best_schedule) = swap_iterator
-            .filter_map(|swap| swap.apply(solution).ok())
-            .map(|sched| (sched.objective_value(), sched))
-            .min_by(|(o1, _), (o2, _)| o1.partial_cmp(o2).unwrap())
-            .unwrap();
-
-        if best_objective_value < solution.objective_value() {
-            Some(best_schedule)
-        } else {
-            None
+    pub(crate) fn new(swap_factory: F, objective: Arc<Objective<Schedule>>) -> Minimizer<F> {
+        Minimizer {
+            swap_factory,
+            objective,
         }
     }
 }
 
+impl<F: SwapFactory> LocalImprover for Minimizer<F> {
+    fn improve(&self, solution: &Solution) -> Option<Solution> {
+        let schedule = solution.solution();
+        let swap_iterator = self.swap_factory.create_swap_iterator(schedule);
+        // .par_bridge(); // TODO: parallelize swap creation
+        let best_solution_opt = swap_iterator
+            .filter_map(|swap| swap.apply(schedule).ok())
+            .map(|sched| self.objective.evaluate(sched))
+            .min_by(|s1, s2| {
+                s1.objective_value()
+                    .partial_cmp(s2.objective_value())
+                    .unwrap()
+            });
+        match best_solution_opt {
+            Some(best_solution) => {
+                if best_solution.objective_value() < solution.objective_value() {
+                    Some(best_solution)
+                } else {
+                    None // no improvement found
+                }
+            }
+            None => {
+                println!("\x1b[31mWARNING: NO SWAP POSSIBLE.\x1b[0m");
+                None
+            }
+        }
+    }
+}
+/*
 ///////////////////////////////////////////////////////////
 ///////////////// TakeFirstRecursion //////////////////////
 ///////////////////////////////////////////////////////////
@@ -489,4 +501,4 @@ impl<F: SwapFactory + Send + Sync> TakeAnyParallelRecursion<F> {
             result
         }
     }
-}
+}*/
