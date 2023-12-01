@@ -8,12 +8,12 @@ pub use location::Location;
 pub use location::LocationId;
 pub use location::StationSide;
 
-pub type VehicleTypeId = CopyStr<10>;
-pub type PassengerCount = u8;
-pub type TrainLength = u8;
+pub type VehicleTypeId = CopyStr<20>;
+pub type PassengerCount = u16;
+pub type TrainLength = u16;
 pub type SeatDistance = u64;
 
-pub type VehicleId = CopyStr<10>;
+pub type VehicleId = CopyStr<20>;
 
 pub type VehicleCount = u32;
 

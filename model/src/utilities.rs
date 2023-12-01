@@ -14,7 +14,7 @@ impl<const N: usize> CopyStr<N> {
         let raw = string.as_bytes();
         let len = raw.len();
         if len > N {
-            panic!("station code string is too long: {}", string);
+            panic!("Content for CopyStr is too long: {}; max: {}", string, len);
         }
 
         let mut writable: [u8; N] = [0; N];

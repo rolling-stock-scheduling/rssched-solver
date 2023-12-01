@@ -12,3 +12,4 @@ path = "src/lib.rs"
 
 [dependencies]
 time = { path = "../time" }
+serde_json = "1.0" # for reading json-files

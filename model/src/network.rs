@@ -100,10 +100,18 @@ impl Network {
         let n1 = self.nodes.get(&node1).unwrap();
         let n2 = self.nodes.get(&node2).unwrap();
 
-        n1.end_time() + self.required_duration_between_activities(n1, n2) <= n2.start_time()
+        n1.end_time() + self.minimal_duration_between_nodes_as_ref(n1, n2) <= n2.start_time()
     }
 
-    fn required_duration_between_activities(&self, n1: &Node, n2: &Node) -> Duration {
+    /// Assume that node1 can reach node2.
+    pub fn minimal_duration_between_nodes(&self, node1: NodeId, node2: NodeId) -> Duration {
+        let n1 = self.nodes.get(&node1).unwrap();
+        let n2 = self.nodes.get(&node2).unwrap();
+
+        self.minimal_duration_between_nodes_as_ref(n1, n2)
+    }
+
+    fn minimal_duration_between_nodes_as_ref(&self, n1: &Node, n2: &Node) -> Duration {
         if n1.end_location() == n2.start_location() {
             // no dead_head_trip
             self.shunting_duration_between_activities_if_no_dead_head_trip(n1, n2)

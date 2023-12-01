@@ -71,6 +71,30 @@ impl<S> Objective<S> {
             );
         }
     }
+
+    pub fn objective_value_to_json(&self, objective_value: &ObjectiveValue) -> serde_json::Value {
+        let mut json_object = serde_json::json!({});
+        for (level, base_value) in self.hierarchy_levels.iter().zip(objective_value.iter()) {
+            match base_value {
+                BaseValue::Integer(value) => {
+                    json_object[level.to_string()] = serde_json::json!(value);
+                }
+                BaseValue::Float(value) => {
+                    json_object[level.to_string()] = serde_json::json!(value);
+                }
+                BaseValue::Duration(value) => {
+                    json_object[level.to_string()] = serde_json::json!(value.to_string());
+                }
+                BaseValue::Zero => {
+                    json_object[level.to_string()] = serde_json::json!("Zero");
+                }
+                BaseValue::Maximum => {
+                    json_object[level.to_string()] = serde_json::json!("Maximum");
+                }
+            }
+        }
+        json_object
+    }
 }
 
 // static

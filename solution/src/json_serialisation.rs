@@ -1,16 +1,14 @@
 use itertools::Itertools;
-use sbb_model::network::nodes::Node;
+use objective_framework::{EvaluatedSolution, Objective};
+use sbb_model::{
+    base_types::NodeId,
+    network::{nodes::Node, Network},
+};
 //TODO create static function for writing schedule to json
 use serde::{Deserialize, Serialize};
+use time::DateTime;
 
 use crate::Schedule;
-
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-struct JsonOutput {
-    schedule: Vec<JsonTour>,
-    // vehicle_demand: Vec<JsonVehicleDemand>,
-}
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -32,21 +30,41 @@ enum JsonTourStop {
     },
     ServiceTrip {
         id: String,
+        origin: String,
+        destination: String,
+        departure_time: String,
+        arrival_time: String,
         // line_id: String,
         // route_id: String,
     },
     Maintenance {
+        id: String,
         location: String,
         start_time: String,
         end_time: String,
     },
 }
 
-pub fn write_schedule_to_json(schedule: &Schedule, path: &str) -> Result<(), std::io::Error> {
+pub fn write_solution_to_json(
+    solution: &EvaluatedSolution<Schedule>,
+    objective: &Objective<Schedule>,
+    path: &str,
+) -> Result<(), std::io::Error> {
+    let json_output = schedule_to_json(solution.solution());
+    let json_objective_value = objective.objective_value_to_json(solution.objective_value());
+    let json_output = serde_json::json!({
+        "objective_value": json_objective_value,
+        "schedule": json_output,
+    });
+    let file = std::fs::File::create(path)?;
+    serde_json::to_writer_pretty(file, &json_output)?;
+    Ok(())
+}
+
+fn schedule_to_json(schedule: &Schedule) -> serde_json::Value {
     let nw = schedule.get_network();
-    let mut json_output = JsonOutput {
-        schedule: Vec::new(),
-    };
+
+    let mut json_output = vec![];
 
     for vehicle_id in schedule.vehicles_iter() {
         let vehicle_type_id = schedule.get_vehicle(vehicle_id).unwrap().type_id();
@@ -60,11 +78,13 @@ pub fn write_schedule_to_json(schedule: &Schedule, path: &str) -> Result<(), std
             .tuple_windows()
         {
             if nw.node(node1_id).end_location() != nw.node(node2_id).start_location() {
+                let (departure_time, arrival_time) =
+                    schedule_dead_head_trip(node1_id, node2_id, &nw);
                 let dead_head_trip = JsonTourStop::DeadHeadTrip {
                     origin: nw.node(node1_id).end_location().to_string(),
                     destination: nw.node(node2_id).start_location().to_string(),
-                    departure_time: nw.node(node1_id).end_time().as_iso(),
-                    arrival_time: nw.node(node2_id).start_time().as_iso(),
+                    departure_time: departure_time.as_iso(),
+                    arrival_time: arrival_time.as_iso(),
                 };
                 tour.push(dead_head_trip);
             }
@@ -73,11 +93,16 @@ pub fn write_schedule_to_json(schedule: &Schedule, path: &str) -> Result<(), std
                 Node::Service(_) => {
                     let service_trip = JsonTourStop::ServiceTrip {
                         id: node2.id().to_string(),
+                        origin: node2.start_location().to_string(),
+                        destination: node2.end_location().to_string(),
+                        departure_time: node2.start_time().as_iso(),
+                        arrival_time: node2.end_time().as_iso(),
                     };
                     tour.push(service_trip);
                 }
                 Node::Maintenance(_) => {
                     let maintenance_trip = JsonTourStop::Maintenance {
+                        id: node2.id().to_string(),
                         location: node2.start_location().to_string(),
                         start_time: node2.start_time().as_iso(),
                         end_time: node2.end_time().as_iso(),
@@ -93,11 +118,27 @@ pub fn write_schedule_to_json(schedule: &Schedule, path: &str) -> Result<(), std
             end_depot: end_depot.to_string(),
             tour,
         };
-        json_output.schedule.push(json_tour);
+        json_output.push(json_tour);
     }
+    serde_json::to_value(json_output).unwrap()
+}
 
-    let json = serde_json::to_string(&json_output).unwrap();
-    std::fs::write(path, json)
+fn schedule_dead_head_trip(
+    node1_id: NodeId,
+    node2_id: NodeId,
+    nw: &Network,
+) -> (DateTime, DateTime) {
+    let node1 = nw.node(node1_id);
+    let node2 = nw.node(node2_id);
+    if node1.is_depot() {
+        let departure_time =
+            node2.start_time() - nw.minimal_duration_between_nodes(node1_id, node2_id);
+        let arrival_time = node2.start_time();
+        return (departure_time, arrival_time);
+    }
+    let departure_time = node1.end_time();
+    let arrival_time = node1.end_time() + nw.minimal_duration_between_nodes(node1_id, node2_id);
+    (departure_time, arrival_time)
 }
 
 // TODO only serialization needed not deserialization

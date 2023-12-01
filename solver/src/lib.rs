@@ -1,7 +1,7 @@
 mod first_phase_objective;
 mod solver;
 
-use sbb_solution::json_serialisation::write_schedule_to_json;
+use sbb_solution::json_serialisation::write_solution_to_json;
 use solver::greedy::Greedy;
 use solver::Solver;
 // use solver::local_search::LocalSearch;
@@ -52,5 +52,6 @@ pub fn run(path: &str) {
 
     println!("Running time: {:0.2}sec", runtime_duration.as_secs_f32());
 
-    write_schedule_to_json(&final_solution.solution(), "output.json").expect("Error writing json");
+    let output_name = format!("output_{}", path); // TODO: make this work with sub-directories
+    write_solution_to_json(&final_solution, &objective, &output_name).expect("Error writing json");
 }
