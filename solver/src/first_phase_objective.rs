@@ -10,7 +10,7 @@ impl Indicator<Schedule> for NumberOfUnservedPassengersIndicator {
     }
 
     fn name(&self) -> String {
-        String::from("number of unserved passengers")
+        String::from("numberOfUnservedPassengers")
     }
 }
 
@@ -23,7 +23,7 @@ impl Indicator<Schedule> for NumberOfVehiclesIndicator {
     }
 
     fn name(&self) -> String {
-        String::from("number of vehicles")
+        String::from("numberOfVehicles")
     }
 }
 
@@ -37,7 +37,7 @@ impl Indicator<Schedule> for OverheadSeatDistanceIndicator {
     }
 
     fn name(&self) -> String {
-        String::from("overhead seat distance")
+        String::from("overheadSeatDistance")
     }
 }
 

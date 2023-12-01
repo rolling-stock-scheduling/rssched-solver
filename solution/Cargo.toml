@@ -12,7 +12,6 @@ path = "src/lib.rs"
 
 [dependencies]
 time = { path = "../time" }
-objective_framework = { path = "../objective_framework" }
 sbb_model = { path = "../model" }
 im = "15.0.0" # for lazy copies of data structures
 itertools = "0.10"

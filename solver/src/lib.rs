@@ -1,7 +1,9 @@
 mod first_phase_objective;
 mod solver;
 
-use sbb_solution::json_serialisation::write_solution_to_json;
+use objective_framework::{EvaluatedSolution, Objective};
+use sbb_solution::json_serialisation::schedule_to_json;
+use sbb_solution::Schedule;
 use solver::greedy::Greedy;
 use solver::Solver;
 // use solver::local_search::LocalSearch;
@@ -54,4 +56,20 @@ pub fn run(path: &str) {
 
     let output_name = format!("output_{}", path); // TODO: make this work with sub-directories
     write_solution_to_json(&final_solution, &objective, &output_name).expect("Error writing json");
+}
+
+pub fn write_solution_to_json(
+    solution: &EvaluatedSolution<Schedule>,
+    objective: &Objective<Schedule>,
+    path: &str,
+) -> Result<(), std::io::Error> {
+    let json_output = schedule_to_json(solution.solution());
+    let json_objective_value = objective.objective_value_to_json(solution.objective_value());
+    let json_output = serde_json::json!({
+        "objectiveValue": json_objective_value,
+        "schedule": json_output,
+    });
+    let file = std::fs::File::create(path)?;
+    serde_json::to_writer_pretty(file, &json_output)?;
+    Ok(())
 }
