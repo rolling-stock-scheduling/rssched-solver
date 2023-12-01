@@ -34,7 +34,7 @@ pub struct Tour {
     service_distance: Distance, // distance covered by service trips
     dead_head_distance: Distance, // distance covered by dead head trips
 
-    nw: Arc<Network>,
+    network: Arc<Network>,
 }
 
 // basic public methods
@@ -84,7 +84,7 @@ impl Tour {
         } else {
             let pos = self.position_of(node)?;
             let predecessor = *self.nodes.get(pos - 1).ok_or("invalid position")?;
-            Ok(self.nw.node(node).start_time() - self.nw.node(predecessor).end_time())
+            Ok(self.network.node(node).start_time() - self.network.node(predecessor).end_time())
         }
     }
     /// the overhead time (dead_head + idle) between the node itself and its successor
@@ -96,7 +96,7 @@ impl Tour {
         } else {
             let pos = self.position_of(node)?;
             let successor = *self.nodes.get(pos + 1).ok_or("invalid position")?;
-            Ok(self.nw.node(successor).start_time() - self.nw.node(node).end_time())
+            Ok(self.network.node(successor).start_time() - self.network.node(node).end_time())
         }
     }
 
@@ -118,48 +118,78 @@ impl Tour {
         self.nodes
             .iter()
             .rev()
-            .find(|&&n| !self.nw.node(n).is_depot())
+            .find(|&&n| !self.network.node(n).is_depot())
             .copied()
     }
 
-    pub(crate) fn start_time(&self) -> DateTime {
+    pub fn start_time(&self) -> DateTime {
         if self.is_dummy {
-            self.nw.node(self.first_node()).start_time()
+            self.network.node(self.first_node()).start_time()
         } else {
             // take start time of first non-depot node and subtract time needed to reach it from
             // the start depot
-            self.nw.node(self.nth_node(1).unwrap()).start_time()
+            self.network.node(self.nth_node(1).unwrap()).start_time()
                 - self
-                    .nw
+                    .network
                     .dead_head_time_between(self.first_node(), self.nth_node(1).unwrap())
         }
     }
 
-    pub(crate) fn end_time(&self) -> DateTime {
+    pub fn end_time(&self) -> DateTime {
         if self.is_dummy {
-            self.nw.node(self.last_node()).end_time()
+            self.network.node(self.last_node()).end_time()
         } else {
-            self.nw
+            self.network
                 .node(self.nth_node(self.len() - 2).unwrap())
                 .end_time()
-                + self.nw.dead_head_time_between(
+                + self.network.dead_head_time_between(
                     self.nth_node(self.len() - 2).unwrap(),
                     self.last_node(),
                 )
         }
     }
 
+    pub fn removable(&self, segment: Segment) -> bool {
+        let start_pos_res = self.position_of(segment.start());
+        let end_pos_res = self.position_of(segment.end());
+        if start_pos_res.is_err() || end_pos_res.is_err() {
+            false
+        } else {
+            self.removable_by_pos(start_pos_res.unwrap(), end_pos_res.unwrap())
+                .is_ok()
+        }
+    }
+
+    /// start_position is here the position of the first node that should be removed
+    /// end_position is here the position in the tour of the last node that should be removed
+    /// in other words [start_position .. end_position+1) is about to be removed
+    fn removable_by_pos(&self, start_position: usize, end_position: usize) -> Result<(), String> {
+        if start_position > end_position {
+            return Err(String::from("segment.start() comes after segment.end()."));
+        }
+
+        if start_position > 0
+            && end_position < self.nodes.len() - 1
+            && !self
+                .network
+                .can_reach(self.nodes[start_position - 1], self.nodes[end_position + 1])
+        {
+            return Err(format!("Removing nodes ({} to {}) makes the tour invalid. Dead-head-trip is slower than service-trips.", self.nodes[start_position], self.nodes[end_position]));
+        }
+        Ok(())
+    }
+
     /// return the position of the node in the tour that is the latest one that cannot reach the
     /// provided node.
     /// If all nodes can reach the provided node, None is returned.
     pub(super) fn latest_not_reaching_node(&self, node: NodeId) -> Option<Position> {
-        if self.nw.can_reach(*self.nodes.last().unwrap(), node) {
+        if self.network.can_reach(*self.nodes.last().unwrap(), node) {
             return None; // all tour-nodes can reach node, even the last
         }
         let candidate =
-            self.earliest_arrival_after(self.nw.node(node).start_time(), 0, self.nodes.len());
+            self.earliest_arrival_after(self.network.node(node).start_time(), 0, self.nodes.len());
         let mut pos = candidate.unwrap_or(self.nodes.len() - 1);
-        while pos > 0 && !self.nw.can_reach(self.nodes[pos - 1], node) {
+        while pos > 0 && !self.network.can_reach(self.nodes[pos - 1], node) {
             pos -= 1;
         }
         Some(pos)
@@ -173,7 +203,7 @@ impl Tour {
         );
         for node in self.nodes.iter() {
             print!("\t* ");
-            self.nw.node(*node).print();
+            self.network.node(*node).print();
         }
     }
 }
@@ -187,7 +217,10 @@ impl Tour {
     /// cannot reach segment.start(), or segment.end() cannot reach end node).
     pub(super) fn conflict(&self, segment: Segment) -> Option<Path> {
         let (start_pos, end_pos) = self.get_insert_positions(segment);
-        Path::new_trusted(self.nodes[start_pos..end_pos].to_vec(), self.nw.clone())
+        Path::new_trusted(
+            self.nodes[start_pos..end_pos].to_vec(),
+            self.network.clone(),
+        )
     }
 
     /// Returns the tour where the provided path is inserted into the correct position (time-wise). The path will
@@ -205,10 +238,10 @@ impl Tour {
         // remove depots from path if self.is_dummy=true.
         let mut path = path;
         if self.is_dummy {
-            if self.nw.node(path.first()).is_depot() {
+            if self.network.node(path.first()).is_depot() {
                 path = path.drop_first().unwrap();
             }
-            if self.nw.node(path.last()).is_depot() {
+            if self.network.node(path.last()).is_depot() {
                 path = path.drop_last().unwrap();
             }
         }
@@ -219,7 +252,7 @@ impl Tour {
         if self.is_dummy {
             return Err("cannot replace start depot of dummy tour".to_string());
         }
-        if !self.nw.node(new_start_depot).is_start_depot() {
+        if !self.network.node(new_start_depot).is_start_depot() {
             return Err("node has to be start depot".to_string());
         }
         let mut nodes = self.nodes.clone();
@@ -227,10 +260,10 @@ impl Tour {
         let first_non_depot = nodes[1];
         let new_dead_head_distance = self.dead_head_distance
             - self
-                .nw
+                .network
                 .dead_head_distance_between(self.first_node(), first_non_depot)
             + self
-                .nw
+                .network
                 .dead_head_distance_between(new_start_depot, first_non_depot);
         Ok(Tour::new_precomputed(
             nodes,
@@ -238,7 +271,7 @@ impl Tour {
             self.useful_duration,
             self.service_distance,
             new_dead_head_distance,
-            self.nw.clone(),
+            self.network.clone(),
         ))
     }
 
@@ -246,7 +279,7 @@ impl Tour {
         if self.is_dummy {
             return Err("cannot replace end depot of dummy tour".to_string());
         }
-        if !self.nw.node(new_end_depot).is_end_depot() {
+        if !self.network.node(new_end_depot).is_end_depot() {
             return Err("node has to be end depot".to_string());
         }
         let mut nodes = self.nodes.clone();
@@ -255,10 +288,10 @@ impl Tour {
         let last_non_depot = nodes[end_index - 1];
         let new_dead_head_distance = self.dead_head_distance
             - self
-                .nw
+                .network
                 .dead_head_distance_between(last_non_depot, self.last_node())
             + self
-                .nw
+                .network
                 .dead_head_distance_between(last_non_depot, new_end_depot);
         Ok(Tour::new_precomputed(
             nodes,
@@ -266,7 +299,7 @@ impl Tour {
             self.useful_duration,
             self.service_distance,
             new_dead_head_distance,
-            self.nw.clone(),
+            self.network.clone(),
         ))
     }
 
@@ -289,27 +322,27 @@ impl Tour {
 
         // compute useful_duration, service_distance and dead_head_distance for the removed segment:
         let removed_useful_duration = (start_pos..end_pos + 1)
-            .map(|i| self.nw.node(self.nodes[i]).duration())
+            .map(|i| self.network.node(self.nodes[i]).duration())
             .sum();
         let removed_service_distance = (start_pos..end_pos + 1)
-            .map(|i| self.nw.node(self.nodes[i]).travel_distance())
+            .map(|i| self.network.node(self.nodes[i]).travel_distance())
             .sum();
         let removed_dead_head_distance: Distance = if start_pos == 0 {
             Distance::zero()
         } else {
-            self.nw
+            self.network
                 .dead_head_distance_between(self.nodes[start_pos - 1], self.nodes[start_pos])
         } + (start_pos..end_pos + 1)
             .tuple_windows()
             .map(|(i, j)| {
-                self.nw
+                self.network
                     .dead_head_distance_between(self.nodes[i], self.nodes[j])
             })
             .sum()
             + if end_pos == self.nodes.len() - 1 {
                 Distance::zero()
             } else {
-                self.nw
+                self.network
                     .dead_head_distance_between(self.nodes[end_pos], self.nodes[end_pos + 1])
             };
 
@@ -317,7 +350,7 @@ impl Tour {
         let added_dead_head_distance = if start_pos == 0 || end_pos == self.nodes.len() - 1 {
             Distance::zero()
         } else {
-            self.nw
+            self.network
                 .dead_head_distance_between(self.nodes[start_pos - 1], self.nodes[end_pos + 1])
         };
 
@@ -328,7 +361,7 @@ impl Tour {
         if tour_nodes.is_empty() || (!self.is_dummy() && tour_nodes.len() <= 2) {
             return Ok((
                 None,
-                Path::new_trusted(removed_nodes, self.nw.clone())
+                Path::new_trusted(removed_nodes, self.network.clone())
                     .expect("empty path should be impossible."),
             ));
         }
@@ -345,9 +378,9 @@ impl Tour {
                 useful_duration,
                 service_distance,
                 dead_head_distance,
-                self.nw.clone(),
+                self.network.clone(),
             )),
-            Path::new_trusted(removed_nodes, self.nw.clone())
+            Path::new_trusted(removed_nodes, self.network.clone())
                 .expect("empty path should be impossible."),
         ))
     }
@@ -370,10 +403,11 @@ impl Tour {
             return Err(String::from("segment.start() is after segment.end()."));
         }
 
-        Ok(
-            Path::new_trusted(self.nodes[start_pos..end_pos + 1].to_vec(), self.nw.clone())
-                .expect("segment is empty path."),
+        Ok(Path::new_trusted(
+            self.nodes[start_pos..end_pos + 1].to_vec(),
+            self.network.clone(),
         )
+        .expect("segment is empty path."))
     }
 }
 
@@ -382,7 +416,11 @@ impl Tour {
     pub(crate) fn position_of(&self, node: NodeId) -> Result<usize, String> {
         let pos = self
             .nodes
-            .binary_search_by(|other| self.nw.node(*other).cmp_start_time(self.nw.node(node)))
+            .binary_search_by(|other| {
+                self.network
+                    .node(*other)
+                    .cmp_start_time(self.network.node(node))
+            })
             .map_err(|_| "Node not part of tour.")?;
         Ok(pos)
     }
@@ -395,14 +433,14 @@ impl Tour {
         let first = segment.start();
         let last = segment.end();
 
-        let start_pos = if self.nw.node(first).is_depot() {
+        let start_pos = if self.network.node(first).is_depot() {
             0
         } else {
             self.latest_not_reaching_node(first)
                 .unwrap_or(self.nodes.len())
         };
 
-        let end_pos = if self.nw.node(last).is_depot() {
+        let end_pos = if self.network.node(last).is_depot() {
             self.nodes.len()
         } else {
             match self.latest_not_reached_by_node(last) {
@@ -420,14 +458,14 @@ impl Tour {
         right: Position,
     ) -> Option<Position> {
         if left + 1 == right {
-            if self.nw.node(self.nodes[left]).end_time() >= time {
+            if self.network.node(self.nodes[left]).end_time() >= time {
                 Some(left)
             } else {
                 None
             }
         } else {
             let mid = left + (right - left) / 2;
-            if self.nw.node(self.nodes[mid - 1]).end_time() >= time {
+            if self.network.node(self.nodes[mid - 1]).end_time() >= time {
                 self.earliest_arrival_after(time, left, mid)
             } else {
                 self.earliest_arrival_after(time, mid, right)
@@ -438,16 +476,16 @@ impl Tour {
     /// computes the position of the latest tour-node that is not reached by node.
     /// if node can reach all tour-nodes, None is returned.
     fn latest_not_reached_by_node(&self, node: NodeId) -> Option<Position> {
-        if self.nw.can_reach(node, *self.nodes.first().unwrap()) {
+        if self.network.can_reach(node, *self.nodes.first().unwrap()) {
             return None; // node can reach all nodes, even the first
         }
         // the candidate cannot be reached by node for sure.
         let candidate =
-            self.latest_departure_before(self.nw.node(node).end_time(), 0, self.nodes.len());
+            self.latest_departure_before(self.network.node(node).end_time(), 0, self.nodes.len());
         // but later nodes might also not be reached by node.
 
         let mut pos = candidate.unwrap_or(0);
-        while pos < self.nodes.len() - 1 && !self.nw.can_reach(node, self.nodes[pos + 1]) {
+        while pos < self.nodes.len() - 1 && !self.network.can_reach(node, self.nodes[pos + 1]) {
             pos += 1;
         }
         Some(pos)
@@ -460,14 +498,14 @@ impl Tour {
         right: Position,
     ) -> Option<Position> {
         if left + 1 == right {
-            if self.nw.node(self.nodes[left]).start_time() <= time {
+            if self.network.node(self.nodes[left]).start_time() <= time {
                 Some(left)
             } else {
                 None
             }
         } else {
             let mid = left + (right - left) / 2;
-            if self.nw.node(self.nodes[mid]).start_time() <= time {
+            if self.network.node(self.nodes[mid]).start_time() <= time {
                 self.latest_departure_before(time, mid, right)
             } else {
                 self.latest_departure_before(time, left, mid)
@@ -485,48 +523,48 @@ impl Tour {
         let path_useful_duration = new_nodes
             .iter()
             .copied()
-            .map(|n| self.nw.node(n).duration())
+            .map(|n| self.network.node(n).duration())
             .sum();
         let path_service_distance = new_nodes
             .iter()
-            .map(|n| self.nw.node(*n).travel_distance())
+            .map(|n| self.network.node(*n).travel_distance())
             .sum();
         let path_dead_head_distance: Distance = if start_pos == 0 {
             Distance::zero()
         } else {
-            self.nw
+            self.network
                 .dead_head_distance_between(self.nodes[start_pos - 1], segment.start())
         } + new_nodes
             .iter()
             .copied()
             .tuple_windows()
-            .map(|(a, b)| self.nw.dead_head_distance_between(a, b))
+            .map(|(a, b)| self.network.dead_head_distance_between(a, b))
             .sum()
             + if end_pos >= self.nodes.len() {
                 Distance::zero()
             } else {
-                self.nw
+                self.network
                     .dead_head_distance_between(segment.end(), self.nodes[end_pos])
             };
 
         // compute useful_duration, service_distance and dead_head_distance for the segment that is
         // removed:
         let removed_useful_duration = (start_pos..end_pos)
-            .map(|i| self.nw.node(self.nodes[i]).duration())
+            .map(|i| self.network.node(self.nodes[i]).duration())
             .sum();
         let removed_service_distance = (start_pos..end_pos)
-            .map(|i| self.nw.node(self.nodes[i]).travel_distance())
+            .map(|i| self.network.node(self.nodes[i]).travel_distance())
             .sum();
         let removed_dead_head_distance: Distance =
             if start_pos == 0 || start_pos >= self.nodes.len() {
                 Distance::zero()
             } else {
-                self.nw
+                self.network
                     .dead_head_distance_between(self.nodes[start_pos - 1], self.nodes[start_pos])
             } + (start_pos..end_pos)
                 .tuple_windows()
                 .map(|(i, j)| {
-                    self.nw
+                    self.network
                         .dead_head_distance_between(self.nodes[i], self.nodes[j])
                 })
                 .sum()
@@ -536,7 +574,7 @@ impl Tour {
                 {
                     Distance::zero()
                 } else {
-                    self.nw
+                    self.network
                         .dead_head_distance_between(self.nodes[end_pos - 1], self.nodes[end_pos])
                 };
 
@@ -561,9 +599,9 @@ impl Tour {
                 useful_duration,
                 service_distance,
                 dead_head_distance,
-                self.nw.clone(),
+                self.network.clone(),
             ),
-            Path::new_trusted(removed_nodes, self.nw.clone()),
+            Path::new_trusted(removed_nodes, self.network.clone()),
         )
     }
 
@@ -592,7 +630,7 @@ impl Tour {
         if start_position > 0
             && end_position < self.nodes.len() - 1
             && !self
-                .nw
+                .network
                 .can_reach(self.nodes[start_position - 1], self.nodes[end_position + 1])
         {
             return Err(format!("Removing nodes ({} to {}) makes the tour invalid. Dead-head-trip is slower than service-trips.", self.nodes[start_position], self.nodes[end_position]));
@@ -604,9 +642,9 @@ impl Tour {
 impl fmt::Display for Tour {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut nodes_iter = self.nodes.iter();
-        write!(f, "{}", self.nw.node(*nodes_iter.next().unwrap()))?;
+        write!(f, "{}", self.network.node(*nodes_iter.next().unwrap()))?;
         for node in nodes_iter {
-            write!(f, " - {}", self.nw.node(*node))?;
+            write!(f, " - {}", self.network.node(*node))?;
         }
         Ok(())
     }
@@ -620,8 +658,8 @@ impl Tour {
     /// * only Service or MaintenanceNodes in the middle
     /// * each node can reach its successor
     /// If one of the checks fails an error message is returned.
-    pub(super) fn new(nodes: Vec<NodeId>, nw: Arc<Network>) -> Result<Tour, String> {
-        Tour::new_allow_invalid(nodes, nw).map_err(|(_, error_msg)| error_msg)
+    pub(super) fn new(nodes: Vec<NodeId>, network: Arc<Network>) -> Result<Tour, String> {
+        Tour::new_allow_invalid(nodes, network).map_err(|(_, error_msg)| error_msg)
     }
 
     /// Creates a new tour from a vector of NodeIds. Checks that the tour is valid:
@@ -633,19 +671,19 @@ impl Tour {
     /// invalid tour.
     pub(super) fn new_allow_invalid(
         nodes: Vec<NodeId>,
-        nw: Arc<Network>,
+        network: Arc<Network>,
     ) -> Result<Tour, (Tour, String)> {
         let mut error_msg = String::new();
-        if !nw.node(nodes[0]).is_start_depot() {
+        if !network.node(nodes[0]).is_start_depot() {
             error_msg.push_str(&format!(
                 "Tour needs to start with a StartDepot, not with: {}.\n",
-                nw.node(nodes[0])
+                network.node(nodes[0])
             ));
         }
-        if !nw.node(nodes[nodes.len() - 1]).is_end_depot() {
+        if !network.node(nodes[nodes.len() - 1]).is_end_depot() {
             error_msg.push_str(&format!(
                 "Tour needs to end with a EndDepot, not with: {},\n",
-                nw.node(nodes[nodes.len() - 1])
+                network.node(nodes[nodes.len() - 1])
             ));
         }
         if nodes.len() < 3 {
@@ -653,77 +691,80 @@ impl Tour {
                 .push_str("Tour needs to have at least three nodes (at least one non-depot).\n");
         }
         for i in 1..nodes.len() - 1 {
-            if nw.node(nodes[i]).is_depot() {
+            if network.node(nodes[i]).is_depot() {
                 error_msg.push_str(&format!(
                     "Tour can only have service or maintenance nodes in the middle, not: {}.\n",
-                    nw.node(nodes[i])
+                    network.node(nodes[i])
                 ));
             }
         }
         for (&a, &b) in nodes.iter().tuple_windows() {
-            if !nw.can_reach(a, b) {
+            if !network.can_reach(a, b) {
                 error_msg.push_str(&format!(
                     "Not a valid Tour: {} cannot reach {}.\n",
-                    nw.node(a),
-                    nw.node(b)
+                    network.node(a),
+                    network.node(b)
                 ));
             }
         }
         if error_msg.len() > 0 {
-            Err((Tour::new_computing(nodes, false, nw), error_msg))
+            Err((Tour::new_computing(nodes, false, network), error_msg))
         } else {
-            Ok(Tour::new_computing(nodes, false, nw))
+            Ok(Tour::new_computing(nodes, false, network))
         }
     }
 
-    pub(super) fn new_dummy(nodes: Vec<NodeId>, nw: Arc<Network>) -> Result<Tour, String> {
-        if nw.node(nodes[0]).is_depot() {
+    pub(super) fn new_dummy(nodes: Vec<NodeId>, network: Arc<Network>) -> Result<Tour, String> {
+        if network.node(nodes[0]).is_depot() {
             return Err(format!(
                 "Dummy-tour cannot start with a depot: {}.\n",
-                nw.node(nodes[0])
+                network.node(nodes[0])
             ));
         }
-        if nw.node(nodes[nodes.len() - 1]).is_depot() {
+        if network.node(nodes[nodes.len() - 1]).is_depot() {
             return Err(format!(
                 "Dummy-tour cannot end with a depot, not with: {},\n",
-                nw.node(nodes[nodes.len() - 1])
+                network.node(nodes[nodes.len() - 1])
             ));
         }
         for (&a, &b) in nodes.iter().tuple_windows() {
-            if !nw.can_reach(a, b) {
+            if !network.can_reach(a, b) {
                 return Err(format!(
                     "Not a valid Dummy-Tour: {} cannot reach {}.\n",
-                    nw.node(a),
-                    nw.node(b)
+                    network.node(a),
+                    network.node(b)
                 ));
             }
         }
-        Ok(Tour::new_computing(nodes, true, nw))
+        Ok(Tour::new_computing(nodes, true, network))
     }
 
-    pub(super) fn new_dummy_by_path(path: Path, nw: Arc<Network>) -> Tour {
+    pub(super) fn new_dummy_by_path(path: Path, network: Arc<Network>) -> Tour {
         let mut nodes = path.consume();
         // remove start and end depot
-        if nw.node(*nodes.first().unwrap()).is_depot() {
+        if network.node(*nodes.first().unwrap()).is_depot() {
             nodes.remove(0);
         };
-        if nw.node(*nodes.last().unwrap()).is_depot() {
+        if network.node(*nodes.last().unwrap()).is_depot() {
             nodes.pop();
         };
         assert!(nodes.len() > 0);
-        Tour::new_computing(nodes, true, nw)
+        Tour::new_computing(nodes, true, network)
     }
 
-    fn new_computing(nodes: Vec<NodeId>, is_dummy: bool, nw: Arc<Network>) -> Tour {
+    fn new_computing(nodes: Vec<NodeId>, is_dummy: bool, network: Arc<Network>) -> Tour {
         let useful_duration = nodes
             .iter()
-            .map(|&n| nw.node(n).duration())
+            .map(|&n| network.node(n).duration())
             .sum::<Duration>();
-        let service_distance = nodes.iter().map(|&n| nw.node(n).travel_distance()).sum();
+        let service_distance = nodes
+            .iter()
+            .map(|&n| network.node(n).travel_distance())
+            .sum();
         let dead_head_distance = nodes
             .iter()
             .tuple_windows()
-            .map(|(&a, &b)| nw.dead_head_distance_between(a, b))
+            .map(|(&a, &b)| network.dead_head_distance_between(a, b))
             .sum();
 
         Tour::new_precomputed(
@@ -732,7 +773,7 @@ impl Tour {
             useful_duration,
             service_distance,
             dead_head_distance,
-            nw,
+            network,
         )
     }
 
@@ -743,7 +784,7 @@ impl Tour {
         useful_duration: Duration,
         service_distance: Distance,
         dead_head_distance: Distance,
-        nw: Arc<Network>,
+        network: Arc<Network>,
     ) -> Tour {
         Tour {
             nodes,
@@ -751,7 +792,7 @@ impl Tour {
             useful_duration,
             service_distance,
             dead_head_distance,
-            nw,
+            network,
         }
     }
 }

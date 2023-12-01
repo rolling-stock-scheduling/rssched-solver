@@ -59,11 +59,11 @@ impl Path {
         }
     }
 
-    pub fn new_from_single_node(node: NodeId, nw: Arc<Network>) -> Path {
-        assert!(!nw.node(node).is_depot());
+    pub fn new_from_single_node(node: NodeId, network: Arc<Network>) -> Path {
+        assert!(!network.node(node).is_depot());
         Path {
             node_sequence: vec![node],
-            network: nw,
+            network,
         }
     }
 }

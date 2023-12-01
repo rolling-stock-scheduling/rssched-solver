@@ -65,7 +65,7 @@ impl SwapFactory for LimitedExchanges {
                 .flat_map(move |seg|
                     // as receiver first take the real Vehicles then the dummies
                     self.real_and_dummy_vehicles(schedule)
-                    // skip provider as receiver 
+                    // skip provider as receiver
                     .filter(move |&u| u != provider)
                     // crate the swap
                     .map(move |receiver| -> Box<dyn Swap + Send> {
@@ -104,10 +104,7 @@ impl LimitedExchanges {
             // if provider is a real vehicle, add the last_node as segment end. (note that is not taken twice as EndNodes
             // end at time Infinity
             .chain(iter::once(schedule.tour_of(provider).unwrap().last_node())
-                   .filter(move |_n| self.segment_length_limit.is_some()
-                           // && self.nw.node(*_n).end_time() == Time::Latest
-                           )
-                   )
+                   .filter(move |_n| self.segment_length_limit.is_some()))
             // create the segment
             .map(move |seg_end| Segment::new(seg_start, seg_end))
         )
