@@ -4,50 +4,64 @@ pub mod swap_factory;
 
 pub mod local_improver;
 
-use crate::schedule::Schedule;
-use crate::solver::Solver;
-use sbb_model::base_types::Duration;
-use sbb_model::config::Config;
-use sbb_model::network::Network;
-use sbb_model::vehicles::Vehicles;
 use std::sync::Arc;
 
 use local_improver::LocalImprover;
+use objective_framework::Objective;
+use sbb_model::{config::Config, network::Network, vehicle_types::VehicleTypes};
+use sbb_solution::Schedule;
 use swap_factory::LimitedExchanges;
 // use local_improver::Minimizer;
 // use local_improver::TakeFirstRecursion;
 // use local_improver::TakeFirstParallelRecursion;
 use local_improver::TakeAnyParallelRecursion;
+use time::Duration;
+
+use crate::Solution;
+
+use super::Solver;
 
 pub struct LocalSearch {
+    vehicles: Arc<VehicleTypes>,
+    network: Arc<Network>,
     config: Arc<Config>,
-    vehicles: Arc<Vehicles>,
-    nw: Arc<Network>,
-    initial_schedule: Option<Schedule>,
+    objective: Arc<Objective<Schedule>>,
+    initial_solution: Option<Solution>,
 }
 
 impl LocalSearch {
-    pub(crate) fn set_initial_schedule(&mut self, schedule: Schedule) {
-        self.initial_schedule = Some(schedule);
+    pub fn set_initial_solution(&mut self, solution: Solution) {
+        self.initial_solution = Some(solution);
     }
 }
 
 impl Solver for LocalSearch {
-    fn initialize(config: Arc<Config>, vehicles: Arc<Vehicles>, nw: Arc<Network>) -> LocalSearch {
-        LocalSearch {
-            config,
+    fn initialize(
+        vehicles: Arc<VehicleTypes>,
+        network: Arc<Network>,
+        config: Arc<Config>,
+        objective: Arc<Objective<Schedule>>,
+    ) -> Self {
+        Self {
             vehicles,
-            nw,
-            initial_schedule: None,
+            network,
+            config,
+            objective,
+            initial_solution: None,
         }
     }
 
-    fn solve(&self) -> Schedule {
+    fn solve(&self) -> Solution {
         // if there is not start schedule, create new empty schedule:
-        let mut schedule: Schedule = match &self.initial_schedule {
-            Some(sched) => sched.clone(),
+        let mut current_solution = match self.initial_solution {
+            Some(solution) => solution,
             None => {
-                Schedule::initialize(self.config.clone(), self.vehicles.clone(), self.nw.clone())
+                let schedule = Schedule::empty(
+                    self.vehicles.clone(),
+                    self.network.clone(),
+                    self.config.clone(),
+                );
+                self.objective.evaluate(schedule)
             }
         };
 
@@ -60,7 +74,7 @@ impl Solver for LocalSearch {
             Some(segment_limit),
             Some(overhead_threshold),
             only_dummy_provider,
-            self.nw.clone(),
+            self.network.clone(),
         );
 
         let recursion_depth = 5;
@@ -77,13 +91,14 @@ impl Solver for LocalSearch {
             soft_objective_threshold,
         );
 
-        schedule = self.find_local_optimum(schedule, limited_local_improver);
+        current_solution = self.find_local_optimum(current_solution, limited_local_improver);
         // self.find_local_optimum(schedule, limited_local_improver)
 
         // Phase 2: less-limited exchanges:
         println!("\n\n*** Phase 2: less-limited exchanges without recursion ***");
         let segment_limit = Duration::new("24:00");
-        let swap_factory = LimitedExchanges::new(Some(segment_limit), None, false, self.nw.clone());
+        let swap_factory =
+            LimitedExchanges::new(Some(segment_limit), None, false, self.network.clone());
 
         // let unlimited_local_improver = Minimizer::new(swap_factory);
         // let unlimited_local_improver = TakeFirstRecursion::new(swap_factory,0,None,soft_objective_threshold);
@@ -95,30 +110,30 @@ impl Solver for LocalSearch {
             soft_objective_threshold,
         );
 
-        self.find_local_optimum(schedule, unlimited_local_improver)
+        self.find_local_optimum(current_solution, unlimited_local_improver)
     }
 }
 
 impl LocalSearch {
     fn find_local_optimum(
         &self,
-        schedule: Schedule,
+        start_solution: Solution,
         local_improver: impl LocalImprover,
-    ) -> Schedule {
-        let mut old_schedule = schedule;
-        while let Some(new_schedule) = local_improver.improve(&old_schedule) {
-            new_schedule
+    ) -> Solution {
+        let mut old_solution = start_solution;
+        while let Some(new_solution) = local_improver.improve(&old_solution) {
+            new_solution
                 .objective_value()
-                .print(Some(&old_schedule.objective_value()));
+                .print(Some(&old_solution.objective_value()));
             // schedule.print();
-            if new_schedule.number_of_dummy_vehicles() < 5 {
-                for dummy in new_schedule.dummy_iter() {
-                    println!("{}: {}", dummy, new_schedule.tour_of(dummy));
+            if new_solution.number_of_dummy_vehicles() < 5 {
+                for dummy in new_solution.dummy_iter() {
+                    println!("{}: {}", dummy, new_solution.tour_of(dummy));
                 }
             }
             println!();
-            old_schedule = new_schedule;
+            old_solution = new_solution;
         }
-        old_schedule
+        old_solution
     }
 }

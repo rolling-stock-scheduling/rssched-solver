@@ -13,11 +13,12 @@ use sbb_model::json_serialisation::load_rolling_stock_problem_instance_from_json
 use std::sync::Arc;
 use std::time as stdtime;
 
+type Solution = EvaluatedSolution<Schedule>;
+
 pub fn run(path: &str) {
     println!("\n\n********** RUN: {} **********\n", path);
 
-    let (locations, vehicle_types, network, config) =
-        load_rolling_stock_problem_instance_from_json(path);
+    let (vehicle_types, network, config) = load_rolling_stock_problem_instance_from_json(path);
     let start_time = stdtime::Instant::now();
 
     let objective = Arc::new(first_phase_objective::build());
@@ -59,7 +60,7 @@ pub fn run(path: &str) {
 }
 
 pub fn write_solution_to_json(
-    solution: &EvaluatedSolution<Schedule>,
+    solution: &Solution,
     objective: &Objective<Schedule>,
     path: &str,
 ) -> Result<(), std::io::Error> {

@@ -212,8 +212,8 @@ impl Schedule {
         &self.network
     }
 
-    /// Simulates inserting the node_sequence into the tour of vehicle. Return all nodes (as a Path) that would
-    /// have been removed from the tour (None if there are no non-depot nodes in conflict)).
+    /// Simulates inserting the node_sequence into the tour of the receiver. Returns all nodes (as a Path) that would
+    /// have been removed from the tour. (None if there are no non-depot nodes in conflict)).
     fn conflict(&self, segment: Segment, receiver: VehicleId) -> Option<Path> {
         self.tour_of(receiver).unwrap().conflict(segment)
     }

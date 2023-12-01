@@ -121,18 +121,18 @@ impl fmt::Display for Path {
 
 // static functions
 impl Segment {
-    pub(crate) fn new(start: NodeId, end: NodeId) -> Segment {
+    pub fn new(start: NodeId, end: NodeId) -> Segment {
         Segment { start, end }
     }
 }
 
 // methods
 impl Segment {
-    pub(crate) fn start(&self) -> NodeId {
+    pub fn start(&self) -> NodeId {
         self.start
     }
 
-    pub(crate) fn end(&self) -> NodeId {
+    pub fn end(&self) -> NodeId {
         self.end
     }
 }

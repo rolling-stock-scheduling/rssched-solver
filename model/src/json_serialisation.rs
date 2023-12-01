@@ -119,7 +119,7 @@ struct Defaults {
 
 pub fn load_rolling_stock_problem_instance_from_json(
     path: &str,
-) -> (Arc<Locations>, Arc<VehicleTypes>, Arc<Network>, Arc<Config>) {
+) -> (Arc<VehicleTypes>, Arc<Network>, Arc<Config>) {
     let json_input = load_json_input(path);
     let locations = Arc::new(create_locations(&json_input));
     let vehicle_types = Arc::new(create_vehicle_types(&json_input));
@@ -129,7 +129,7 @@ pub fn load_rolling_stock_problem_instance_from_json(
         locations.clone(),
         config.clone(),
     ));
-    (locations, vehicle_types, network, config)
+    (vehicle_types, network, config)
 }
 
 fn load_json_input(path: &str) -> JsonInput {

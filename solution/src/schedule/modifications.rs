@@ -89,7 +89,7 @@ impl Schedule {
         vehicles.insert(vehicle_id, vehicle.clone());
 
         // update train_formations
-        for node in tour.non_depot_nodes() {
+        for node in tour.all_non_depot_nodes_iter() {
             let new_formation = train_formations
                 .get(&node)
                 .unwrap()

@@ -28,7 +28,7 @@ struct TestData {
 
 fn init_test_data() -> TestData {
     // load file from json
-    let (_, _, network, _) =
+    let (_, network, _) =
         load_rolling_stock_problem_instance_from_json("resources/test_instance.json");
     TestData {
         network,
@@ -82,7 +82,7 @@ fn basic_methods_test() {
     // ASSERT
     assert_eq!(tour.is_dummy(), false);
     assert_eq!(tour.nodes.len(), 7);
-    assert_eq!(tour.non_depot_nodes().count(), 5);
+    assert_eq!(tour.all_non_depot_nodes_iter().count(), 5);
     assert_eq!(tour.useful_duration(), Duration::new("2:30"));
     assert_eq!(tour.service_distance(), Distance::from_meter(15000));
     assert_eq!(tour.dead_head_distance(), Distance::from_meter(12000));
@@ -146,7 +146,7 @@ fn basic_methods_test() {
 
     assert_eq!(dummy_tour.is_dummy(), true);
     assert_eq!(dummy_tour.nodes.len(), 2);
-    assert_eq!(dummy_tour.non_depot_nodes().count(), 2);
+    assert_eq!(dummy_tour.all_non_depot_nodes_iter().count(), 2);
     assert_eq!(dummy_tour.useful_duration(), Duration::new("1:00"));
     assert_eq!(dummy_tour.service_distance(), Distance::from_meter(13000));
     assert_eq!(dummy_tour.dead_head_distance(), Distance::zero());

@@ -1,18 +1,19 @@
-use crate::schedule::Schedule;
-use sbb_model::base_types::Cost;
-
 use super::swap_factory::SwapFactory;
-use crate::schedule::objective::ObjectiveValue;
 
+use objective_framework::EvaluatedSolution;
 use rayon::iter::ParallelBridge;
 use rayon::prelude::*;
+use sbb_solution::Schedule;
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 
 /// Computes for a given schedule the best new schedule that has better objective function.
 /// Returns None if there is no better schedule in the neighborhood.
 pub(crate) trait LocalImprover {
-    fn improve(&self, schedule: &Schedule) -> Option<Schedule>;
+    fn improve(
+        &self,
+        solution: &Solution,
+    ) -> Option<Solution>;
 }
 
 ///////////////////////////////////////////////////////////
@@ -30,18 +31,18 @@ impl<F: SwapFactory> Minimizer<F> {
 }
 
 impl<F: SwapFactory> LocalImprover for Minimizer<F> {
-    fn improve(&self, schedule: &Schedule) -> Option<Schedule> {
+    fn improve(&self, solution: &Solution) -> Option<Solution {
         let swap_iterator = self
             .swap_factory
-            .create_swap_iterator(schedule)
+            .create_swap_iterator(solution)
             .par_bridge();
         let (best_objective_value, best_schedule) = swap_iterator
-            .filter_map(|swap| swap.apply(schedule).ok())
+            .filter_map(|swap| swap.apply(solution).ok())
             .map(|sched| (sched.objective_value(), sched))
             .min_by(|(o1, _), (o2, _)| o1.partial_cmp(o2).unwrap())
             .unwrap();
 
-        if best_objective_value < schedule.objective_value() {
+        if best_objective_value < solution.objective_value() {
             Some(best_schedule)
         } else {
             None

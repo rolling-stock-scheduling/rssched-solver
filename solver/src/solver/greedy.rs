@@ -1,4 +1,5 @@
 use crate::solver::Solver;
+use crate::Solution;
 use objective_framework::{EvaluatedSolution, Objective};
 use sbb_model::base_types::VehicleId;
 use sbb_model::config::Config;
@@ -30,7 +31,7 @@ impl Solver for Greedy {
         }
     }
 
-    fn solve(&self) -> EvaluatedSolution<Schedule> {
+    fn solve(&self) -> Solution {
         let mut schedule = Schedule::empty(
             self.vehicles.clone(),
             self.network.clone(),

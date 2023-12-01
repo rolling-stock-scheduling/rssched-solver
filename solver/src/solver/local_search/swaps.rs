@@ -1,18 +1,16 @@
-use crate::schedule::path::Segment;
-use crate::schedule::Schedule;
 use sbb_model::base_types::VehicleId;
+use sbb_solution::{path::Segment, Schedule};
 
 use std::fmt;
 
 /// An elementary modification. Defining the "neighborhood" for the local search.
 pub(crate) trait Swap: fmt::Display {
     fn apply(&self, schedule: &Schedule) -> Result<Schedule, String>;
-    // TODO maybe add something like, get_improvement()
 }
 
-/// Removes the path from the provider's Tour and insert it into the receiver's Tour.
-/// All removed nodes that are removed from receiver's Tour (due to conflicts) are tried to insert conflict-free into
-/// the provider's Tour.
+/// Removes the path from the provider's tour and insert it into the receiver's tour.
+/// All removed nodes that are removed from receiver's tour (due to conflicts) are tried to insert conflict-free into
+/// the provider's tour.
 pub(crate) struct PathExchange {
     segment: Segment,
     provider: VehicleId,
@@ -43,7 +41,14 @@ impl Swap for PathExchange {
                     // provider was dummy but got removed -> so no need for fit_reassign
                     Ok(intermediate_schedule)
                 } else {
-                    Ok(intermediate_schedule.fit_reassign_all(new_dummy, self.provider)?)
+                    // try to fit the full tour of the new dummy into provider's tour
+                    let tour = intermediate_schedule.tour_of(new_dummy)?;
+                    let full_tour_segment = Segment::new(tour.first_node(), tour.last_node());
+                    Ok(intermediate_schedule.fit_reassign(
+                        full_tour_segment,
+                        new_dummy,
+                        self.provider,
+                    )?)
                 }
             }
         }

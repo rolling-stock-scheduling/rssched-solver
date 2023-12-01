@@ -39,20 +39,20 @@ pub struct Tour {
 
 // basic public methods
 impl Tour {
-    pub(crate) fn is_dummy(&self) -> bool {
+    pub fn is_dummy(&self) -> bool {
         self.is_dummy
     }
 
-    pub(crate) fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.nodes.len()
     }
 
-    pub(crate) fn all_nodes_iter(&self) -> impl Iterator<Item = NodeId> + '_ {
+    pub fn all_nodes_iter(&self) -> impl Iterator<Item = NodeId> + '_ {
         self.nodes.iter().copied()
     }
 
     /// return an iterator over all nodes (by start time) skipping the depot at the start and end
-    pub(crate) fn non_depot_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
+    pub fn all_non_depot_nodes_iter(&self) -> impl Iterator<Item = NodeId> + '_ {
         if self.is_dummy {
             self.nodes.iter().copied()
         } else {
@@ -61,17 +61,17 @@ impl Tour {
     }
 
     /// total dead-head distance traveled by the tour
-    pub(crate) fn dead_head_distance(&self) -> Distance {
+    pub fn dead_head_distance(&self) -> Distance {
         self.dead_head_distance
     }
 
     /// return the overhead_time (dead head travel time + idle time) of the tour.
-    pub(crate) fn useful_duration(&self) -> Duration {
+    pub fn useful_duration(&self) -> Duration {
         self.useful_duration
     }
 
     /// return the service distance (distance of service trips) of the tour
-    pub(crate) fn service_distance(&self) -> Distance {
+    pub fn service_distance(&self) -> Distance {
         self.service_distance
     }
 
@@ -100,15 +100,15 @@ impl Tour {
         }
     }
 
-    pub(crate) fn first_node(&self) -> NodeId {
+    pub fn first_node(&self) -> NodeId {
         *self.nodes.first().unwrap()
     }
 
-    pub(crate) fn last_node(&self) -> NodeId {
+    pub fn last_node(&self) -> NodeId {
         *self.nodes.last().unwrap()
     }
 
-    pub(crate) fn nth_node(&self, pos: usize) -> Option<NodeId> {
+    pub fn nth_node(&self, pos: usize) -> Option<NodeId> {
         self.nodes.get(pos).map(|n| *n)
     }
 
