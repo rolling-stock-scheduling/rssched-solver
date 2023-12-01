@@ -104,11 +104,7 @@ impl Schedule {
         start_depot: NodeId,
         vehicle_type_id: VehicleTypeId,
     ) -> bool {
-        let capacity = self
-            .network
-            .node(start_depot)
-            .as_depot()
-            .capacitiy_for(vehicle_type_id);
+        let capacity = self.network.capacity_for(start_depot, vehicle_type_id);
 
         if capacity == Some(0) {
             return false;

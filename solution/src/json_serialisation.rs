@@ -114,8 +114,8 @@ fn schedule_to_json(schedule: &Schedule) -> serde_json::Value {
         }
         let json_tour = JsonTour {
             vehicle_type: vehicle_type_id.to_string(),
-            start_depot: start_depot.to_string(),
-            end_depot: end_depot.to_string(),
+            start_depot: nw.node(start_depot).as_depot().depot_id().to_string(),
+            end_depot: nw.node(end_depot).as_depot().depot_id().to_string(),
             tour,
         };
         json_output.push(json_tour);
@@ -140,7 +140,7 @@ fn schedule_dead_head_trip(
     let arrival_time = node1.end_time() + nw.minimal_duration_between_nodes(node1_id, node2_id);
     (departure_time, arrival_time)
 }
-
+// TODO why does endDepot appeads before startDepot in json?
 // TODO only serialization needed not deserialization
 // TODO include line_id and route_id in json if needed
 // TODO add vehicle_demand to json

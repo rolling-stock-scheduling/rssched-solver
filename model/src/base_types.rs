@@ -8,16 +8,18 @@ pub use location::Location;
 pub use location::LocationId;
 pub use location::StationSide;
 
-pub type VehicleTypeId = CopyStr<20>;
+pub type VehicleTypeId = CopyStr<32>;
 pub type PassengerCount = u16;
 pub type TrainLength = u16;
 pub type SeatDistance = u64;
 
-pub type VehicleId = CopyStr<20>;
+pub type VehicleId = CopyStr<32>;
 
 pub type VehicleCount = u32;
 
-pub type NodeId = CopyStr<32>;
+pub type NodeId = CopyStr<34>; // two chars for "s_depot" and "e_depot"
+
+pub type DepotId = CopyStr<32>;
 
 pub type Meter = u64;
 

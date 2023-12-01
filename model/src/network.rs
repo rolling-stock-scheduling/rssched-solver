@@ -1,8 +1,14 @@
+pub mod depot;
 pub mod nodes;
+
+use depot::Depot;
 use nodes::Node;
+use nodes::{MaintenanceSlot, ServiceTrip};
 use time::Duration;
 
-use crate::base_types::{Distance, Location, NodeId, SeatDistance};
+use crate::base_types::{
+    DepotId, Distance, Location, NodeId, PassengerCount, SeatDistance, VehicleTypeId,
+};
 use crate::config::Config;
 use crate::locations::Locations;
 
@@ -15,6 +21,7 @@ use std::sync::Arc;
 
 pub struct Network {
     nodes: HashMap<NodeId, Node>,
+    depots: HashMap<DepotId, Depot>,
 
     // nodes are by default sorted by start_time (ties are broken by end_time then id)
     service_nodes: Vec<NodeId>,
@@ -63,6 +70,14 @@ impl Network {
     /// service and maintenance_nodes
     pub fn coverable_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
         self.service_nodes().chain(self.maintenance_nodes())
+    }
+
+    pub fn capacity_for(
+        &self,
+        node_id: NodeId,
+        vehicle_type_id: VehicleTypeId,
+    ) -> Option<PassengerCount> {
+        self.depots[&self.node(node_id).as_depot().depot_id()].capacity_for(vehicle_type_id)
     }
 
     /// sum over all service trips: number of passenger * distance
@@ -203,21 +218,55 @@ impl Network {
 }
 
 impl Network {
-    pub fn new(all_nodes: Vec<Node>, config: Arc<Config>, loc: Arc<Locations>) -> Network {
+    pub fn new(
+        depots: Vec<Depot>,
+        service_trips: Vec<ServiceTrip>,
+        maintenance_slots: Vec<MaintenanceSlot>,
+        config: Arc<Config>,
+        loc: Arc<Locations>,
+    ) -> Network {
         let mut nodes = HashMap::new();
+        let mut depots_lookup = HashMap::new();
         let mut service_nodes = Vec::new();
         let mut maintenance_nodes = Vec::new();
         let mut start_depot_nodes = Vec::new();
         let mut end_depot_nodes = Vec::new();
-        for node in all_nodes {
-            let id = node.id();
+
+        for depot in depots {
+            let depot_id = depot.depot_id();
+
+            let start_node_id = NodeId::from(&format!("s_{}", depot_id));
+            let start_node_name = format!("start_depot({},{})", depot_id, depot.location());
+            let start_node = Node::create_start_depot_node(
+                start_node_id,
+                depot_id,
+                depot.location(),
+                start_node_name,
+            );
+            nodes.insert(start_node_id, start_node);
+            start_depot_nodes.push(start_node_id);
+
+            let end_node_id = NodeId::from(&format!("e_{}", depot_id));
+            let end_node_name = format!("end_depot({},{})", depot_id, depot.location());
+            let end_node =
+                Node::create_end_depot_node(end_node_id, depot_id, depot.location(), end_node_name);
+            nodes.insert(end_node_id, end_node);
+            end_depot_nodes.push(end_node_id);
+            depots_lookup.insert(depot_id, depot);
+        }
+
+        for service_trip in service_trips.into_iter() {
+            let id = service_trip.id();
+            let node = Node::create_service_trip_node(service_trip);
             nodes.insert(id, node);
-            match nodes.get(&id).unwrap() {
-                Node::Service(_) => service_nodes.push(id),
-                Node::Maintenance(_) => maintenance_nodes.push(id),
-                Node::StartDepot(_) => start_depot_nodes.push(id),
-                Node::EndDepot(_) => end_depot_nodes.push(id),
-            }
+            service_nodes.push(id);
+        }
+
+        for maintenance_slot in maintenance_slots.into_iter() {
+            let id = maintenance_slot.id();
+            let node = Node::create_maintenance_node(maintenance_slot);
+            nodes.insert(id, node);
+            maintenance_nodes.push(id);
         }
 
         // sort nodes:
@@ -276,6 +325,7 @@ impl Network {
 
         Network {
             nodes,
+            depots: depots_lookup,
             service_nodes,
             maintenance_nodes,
             start_depot_nodes,

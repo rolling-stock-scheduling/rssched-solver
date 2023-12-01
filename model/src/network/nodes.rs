@@ -1,17 +1,17 @@
 use time::{DateTime, Duration};
 
-use crate::base_types::{Distance, Location, NodeId, PassengerCount, StationSide, VehicleTypeId};
+use crate::base_types::{DepotId, Distance, Location, NodeId, PassengerCount, StationSide};
 
 use core::cmp::Ordering;
 
-use std::{collections::HashMap, fmt};
+use std::fmt;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Node {
     Service(ServiceTrip),
     Maintenance(MaintenanceSlot),
-    StartDepot(Depot),
-    EndDepot(Depot),
+    StartDepot(DepotNode),
+    EndDepot(DepotNode),
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -28,31 +28,11 @@ pub struct ServiceTrip {
     name: String,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct MaintenanceSlot {
-    id: NodeId,
-    location: Location,
-    start: DateTime,
-    end: DateTime,
-    name: String,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct Depot {
-    id: NodeId,
-    location: Location,
-    capacities: HashMap<VehicleTypeId, Option<PassengerCount>>, // number of vehicles that can be spawned. None means no limit.
-    name: String,
-}
-
-impl Depot {
-    /// None means no limit
-    pub fn capacitiy_for(&self, vehicle_type_id: VehicleTypeId) -> Option<PassengerCount> {
-        *self.capacities.get(&vehicle_type_id).unwrap_or(&Some(0))
-    }
-}
-
 impl ServiceTrip {
+    pub fn id(&self) -> NodeId {
+        self.id
+    }
+
     pub fn departure_side(&self) -> StationSide {
         self.departure_side
     }
@@ -63,6 +43,35 @@ impl ServiceTrip {
 
     pub fn demand(&self) -> PassengerCount {
         self.demand
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct MaintenanceSlot {
+    id: NodeId,
+    location: Location,
+    start: DateTime,
+    end: DateTime,
+    name: String,
+}
+
+impl MaintenanceSlot {
+    pub fn id(&self) -> NodeId {
+        self.id
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct DepotNode {
+    id: NodeId,
+    depot_id: DepotId,
+    location: Location,
+    name: String,
+}
+
+impl DepotNode {
+    pub fn depot_id(&self) -> DepotId {
+        self.depot_id
     }
 }
 
@@ -171,7 +180,7 @@ impl Node {
         }
     }
 
-    pub fn as_depot(&self) -> &Depot {
+    pub fn as_depot(&self) -> &DepotNode {
         match self {
             Node::StartDepot(d) => d,
             Node::EndDepot(d) => d,
@@ -233,7 +242,7 @@ impl Node {
 // static functions:
 impl Node {
     // factory for creating a service trip
-    pub(crate) fn create_service_node(
+    pub(crate) fn create_service_trip(
         id: NodeId,
         origin: Location,
         destination: Location,
@@ -244,8 +253,8 @@ impl Node {
         travel_distance: Distance,
         demand: PassengerCount,
         name: String,
-    ) -> Node {
-        Node::Service(ServiceTrip {
+    ) -> ServiceTrip {
+        ServiceTrip {
             id,
             origin,
             destination,
@@ -256,50 +265,58 @@ impl Node {
             travel_distance,
             demand,
             name,
-        })
+        }
+    }
+
+    pub fn create_service_trip_node(service_trip: ServiceTrip) -> Node {
+        Node::Service(service_trip)
     }
 
     // factory for creating a node for a maintenance slot
-    pub(crate) fn create_maintenance_node(
+    pub(crate) fn create_maintenance(
         id: NodeId,
         location: Location,
         start: DateTime,
         end: DateTime,
         name: String,
-    ) -> Node {
-        Node::Maintenance(MaintenanceSlot {
+    ) -> MaintenanceSlot {
+        MaintenanceSlot {
             id,
             location,
             start,
             end,
             name,
-        })
+        }
+    }
+
+    pub fn create_maintenance_node(maintenance_slot: MaintenanceSlot) -> Node {
+        Node::Maintenance(maintenance_slot)
     }
 
     pub(crate) fn create_start_depot_node(
         id: NodeId,
+        depot_id: DepotId,
         location: Location,
-        capacities: HashMap<VehicleTypeId, Option<PassengerCount>>,
         name: String,
     ) -> Node {
-        Node::StartDepot(Depot {
+        Node::StartDepot(DepotNode {
             id,
+            depot_id,
             location,
-            capacities,
             name,
         })
     }
 
     pub(crate) fn create_end_depot_node(
         id: NodeId,
+        depot_id: DepotId,
         location: Location,
-        capacities: HashMap<VehicleTypeId, Option<PassengerCount>>,
         name: String,
     ) -> Node {
-        Node::EndDepot(Depot {
+        Node::EndDepot(DepotNode {
             id,
+            depot_id,
             location,
-            capacities,
             name,
         })
     }

@@ -10,11 +10,14 @@ use std::sync::Arc;
 use time::{DateTime, Duration};
 
 use crate::base_types::{
-    Distance, LocationId, Meter, NodeId, PassengerCount, StationSide, TrainLength, VehicleTypeId,
+    DepotId, Distance, LocationId, Meter, NodeId, PassengerCount, StationSide, TrainLength,
+    VehicleTypeId,
 };
 use crate::config::Config;
 use crate::locations::{DeadHeadTrip, Locations};
+use crate::network::depot::Depot as ModelDepot;
 use crate::network::nodes::Node;
+use crate::network::nodes::ServiceTrip as ModelServiceTrip;
 use crate::network::Network;
 use crate::vehicle_types::VehicleType as ModelVehicleType;
 use crate::vehicle_types::VehicleTypes;
@@ -198,18 +201,18 @@ fn create_network(
     locations: Arc<Locations>,
     config: Arc<Config>,
 ) -> Network {
-    let mut nodes: Vec<Node> = create_depot_nodes(json_input, &locations);
-    nodes.append(&mut create_service_trip_nodes(json_input, &locations));
-    //TODO: add maintenance nodes
-    Network::new(nodes, config, locations)
+    let depots = create_depots(json_input, &locations);
+    let service_trips = create_service_trip(json_input, &locations);
+    let maintenance_slots = vec![]; //TODO: add maintenance nodes
+    Network::new(depots, service_trips, maintenance_slots, config, locations)
 }
 
-fn create_depot_nodes(json_input: &JsonInput, loc: &Locations) -> Vec<Node> {
+fn create_depots(json_input: &JsonInput, loc: &Locations) -> Vec<ModelDepot> {
     json_input
         .depots
         .iter()
         .map(|depot| {
-            let id = NodeId::from(&depot.id);
+            let id = DepotId::from(&depot.id);
             let location = loc.get_location(LocationId::from(&depot.location));
             let mut capacities: HashMap<VehicleTypeId, Option<PassengerCount>> = HashMap::new();
             for capacity in &depot.capacities {
@@ -219,26 +222,12 @@ fn create_depot_nodes(json_input: &JsonInput, loc: &Locations) -> Vec<Node> {
                                                                   // None
                 );
             }
-            vec![
-                Node::create_start_depot_node(
-                    NodeId::from(&format!("start_{}", &depot.id)),
-                    location,
-                    capacities.clone(),
-                    format!("start_depot({},{})", id, location),
-                ),
-                Node::create_end_depot_node(
-                    NodeId::from(&format!("end_{}", &depot.id)),
-                    location,
-                    capacities,
-                    format!("end_depot({},{})", id, location),
-                ),
-            ]
+            ModelDepot::new(id, location, capacities.clone())
         })
-        .flatten()
         .collect()
 }
 
-fn create_service_trip_nodes(json_input: &JsonInput, locations: &Locations) -> Vec<Node> {
+fn create_service_trip(json_input: &JsonInput, locations: &Locations) -> Vec<ModelServiceTrip> {
     json_input
         .service_trips
         .iter()
@@ -249,7 +238,7 @@ fn create_service_trip_nodes(json_input: &JsonInput, locations: &Locations) -> V
                 .find(|route| route.id == service_trip.route)
                 .unwrap();
             let departure = DateTime::new(&service_trip.departure);
-            Node::create_service_node(
+            Node::create_service_trip(
                 NodeId::from(&service_trip.id),
                 locations.get_location(LocationId::from(&route.origin)),
                 locations.get_location(LocationId::from(&route.destination)),

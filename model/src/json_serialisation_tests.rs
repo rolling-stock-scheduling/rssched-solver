@@ -1,9 +1,7 @@
-use std::collections::HashMap;
-
 use time::{DateTime, Duration};
 
 use crate::{
-    base_types::{Distance, Location, LocationId, NodeId, StationSide, VehicleTypeId},
+    base_types::{DepotId, Distance, Location, LocationId, NodeId, StationSide, VehicleTypeId},
     json_serialisation::load_rolling_stock_problem_instance_from_json,
     locations::Locations,
     network::nodes::Node,
@@ -47,51 +45,84 @@ fn test_load_from_json() {
 
     assert_eq!(network.all_nodes().count(), 6);
     assert_eq!(
-        *network.node(NodeId::from("start_depot1")),
+        *network.node(NodeId::from("s_depot1")),
         Node::create_start_depot_node(
-            NodeId::from("start_depot1"),
+            NodeId::from("s_depot1"),
+            DepotId::from("depot1"),
             loc1,
-            HashMap::from([
-                (VehicleTypeId::from("vt1"), Some(7)),
-                (VehicleTypeId::from("vt2"), Some(5))
-            ]),
             String::from("start_depot(depot1,loc1)"),
         )
     );
     assert_eq!(
-        *network.node(NodeId::from("end_depot1")),
+        network.capacity_for(NodeId::from("s_depot1"), VehicleTypeId::from("vt1")),
+        Some(7)
+    );
+
+    assert_eq!(
+        network.capacity_for(NodeId::from("s_depot1"), VehicleTypeId::from("vt2")),
+        Some(5)
+    );
+
+    assert_eq!(
+        *network.node(NodeId::from("e_depot1")),
         Node::create_end_depot_node(
-            NodeId::from("end_depot1"),
+            NodeId::from("e_depot1"),
+            DepotId::from("depot1"),
             loc1,
-            HashMap::from([
-                (VehicleTypeId::from("vt1"), Some(7)),
-                (VehicleTypeId::from("vt2"), Some(5))
-            ]),
             String::from("end_depot(depot1,loc1)"),
         )
     );
     assert_eq!(
-        *network.node(NodeId::from("start_depot2")),
+        network.capacity_for(NodeId::from("e_depot1"), VehicleTypeId::from("vt1")),
+        Some(7)
+    );
+
+    assert_eq!(
+        network.capacity_for(NodeId::from("e_depot1"), VehicleTypeId::from("vt2")),
+        Some(5)
+    );
+
+    assert_eq!(
+        *network.node(NodeId::from("s_depot2")),
         Node::create_start_depot_node(
-            NodeId::from("start_depot2"),
+            NodeId::from("s_depot2"),
+            DepotId::from("depot2"),
             loc2,
-            HashMap::from([(VehicleTypeId::from("vt2"), Some(8))]),
             String::from("start_depot(depot2,loc2)"),
         )
     );
     assert_eq!(
-        *network.node(NodeId::from("end_depot2")),
+        network.capacity_for(NodeId::from("s_depot2"), VehicleTypeId::from("vt1")),
+        Some(0)
+    );
+
+    assert_eq!(
+        network.capacity_for(NodeId::from("s_depot2"), VehicleTypeId::from("vt2")),
+        Some(8)
+    );
+
+    assert_eq!(
+        *network.node(NodeId::from("e_depot2")),
         Node::create_end_depot_node(
-            NodeId::from("end_depot2"),
+            NodeId::from("e_depot2"),
+            DepotId::from("depot2"),
             loc2,
-            HashMap::from([(VehicleTypeId::from("vt2"), Some(8))]),
             String::from("end_depot(depot2,loc2)"),
         )
+    );
+    assert_eq!(
+        network.capacity_for(NodeId::from("e_depot2"), VehicleTypeId::from("vt1")),
+        Some(0)
+    );
+
+    assert_eq!(
+        network.capacity_for(NodeId::from("e_depot2"), VehicleTypeId::from("vt2")),
+        Some(8)
     );
 
     assert_eq!(
         *network.node(NodeId::from("trip1")),
-        Node::create_service_node(
+        Node::create_service_trip_node(Node::create_service_trip(
             NodeId::from("trip1"),
             loc1,
             loc2,
@@ -102,12 +133,12 @@ fn test_load_from_json() {
             Distance::from_meter(1000),
             50,
             String::from("Trip 1"),
-        )
+        ))
     );
 
     assert_eq!(
         *network.node(NodeId::from("trip2")),
-        Node::create_service_node(
+        Node::create_service_trip_node(Node::create_service_trip(
             NodeId::from("trip2"),
             loc2,
             loc3,
@@ -118,7 +149,7 @@ fn test_load_from_json() {
             Distance::from_meter(2000),
             80,
             String::from("Trip 2"),
-        )
+        ))
     );
 
     assert_travel_time(loc1, loc1, 0, &locations);
