@@ -454,17 +454,7 @@ impl Schedule {
             train_formations.insert(
                 node,
                 self.vehicle_replacement_in_train_formation(provider, receiver, node)
-                    .expect(
-                        format!(
-                            "Node {} has the following train formations: {}. segment: {}, provider: {}, receiver: {}",
-                            node,
-                            self.train_formation_of(node),
-                            segment,
-                            provider,
-                            receiver
-                        )
-                        .as_str(),
-                    ),
+                    .unwrap(),
             );
         }
 
