@@ -21,35 +21,45 @@ impl TrainFormation {
 
 // methods
 impl TrainFormation {
-    pub(crate) fn replace(&self, old: VehicleId, new: Vehicle) -> TrainFormation {
+    pub(crate) fn replace(&self, old: VehicleId, new: Vehicle) -> Result<TrainFormation, String> {
         let mut new_formation = self.formation.clone();
         let pos = new_formation
             .iter()
             .position(|u| u.id() == old)
-            .expect("vehicle was not part of the TrainFormation and cannot be replaced");
+            .ok_or_else(|| {
+                format!(
+                    "vehicle {} was not part of the TrainFormation and cannot be replaced",
+                    old
+                )
+            })?;
 
         // replace old by new:
         new_formation.push(new);
         new_formation.swap_remove(pos);
 
-        TrainFormation {
+        Ok(TrainFormation {
             formation: new_formation,
-        }
+        })
     }
 
-    pub(crate) fn remove(&self, vehicle: VehicleId) -> TrainFormation {
+    pub(crate) fn remove(&self, vehicle: VehicleId) -> Result<TrainFormation, String> {
         let mut new_formation = self.formation.clone();
         let pos = new_formation
             .iter()
             .position(|u| u.id() == vehicle)
-            .expect("vehicle was not part of the TrainFormation and cannot be removed");
+            .ok_or_else(|| {
+                format!(
+                    "vehicle {} was not part of the TrainFormation and cannot be removed",
+                    vehicle
+                )
+            })?;
 
         // remove vehicle:
         new_formation.remove(pos);
 
-        TrainFormation {
+        Ok(TrainFormation {
             formation: new_formation,
-        }
+        })
     }
 
     pub(crate) fn add_at_tail(&self, vehicle: Vehicle) -> TrainFormation {

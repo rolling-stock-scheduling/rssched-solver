@@ -2,7 +2,7 @@ use crate::Solution;
 
 use super::swap_factory::SwapFactory;
 
-use objective_framework::Objective;
+use objective_framework::{Objective, ObjectiveValue};
 use rayon::iter::ParallelBridge;
 use rayon::prelude::*;
 use sbb_solution::Schedule;
@@ -61,7 +61,7 @@ impl<F: SwapFactory> LocalImprover for Minimizer<F> {
         }
     }
 }
-/*
+
 ///////////////////////////////////////////////////////////
 ///////////////// TakeFirstRecursion //////////////////////
 ///////////////////////////////////////////////////////////
@@ -73,13 +73,17 @@ pub(crate) struct TakeFirstRecursion<F: SwapFactory> {
     swap_factory: F,
     recursion_depth: u8,
     recursion_width: Option<usize>, // number of schedule that are considered for recursion (the one with best value are taken)
-    soft_objective_threshold: Cost,
+    objective: Arc<Objective<Schedule>>,
 }
 
 impl<F: SwapFactory> LocalImprover for TakeFirstRecursion<F> {
-    fn improve(&self, schedule: &Schedule) -> Option<Schedule> {
-        let old_objective = schedule.objective_value();
-        self.improve_recursion(vec![schedule.clone()], old_objective, self.recursion_depth)
+    fn improve(&self, solution: &Solution) -> Option<Solution> {
+        let old_objective_value = solution.objective_value();
+        self.improve_recursion(
+            vec![solution.clone()],
+            old_objective_value,
+            self.recursion_depth,
+        )
     }
 }
 
@@ -88,51 +92,50 @@ impl<F: SwapFactory> TakeFirstRecursion<F> {
         swap_factory: F,
         recursion_depth: u8,
         recursion_width: Option<usize>,
-        soft_objective_threshold: Cost,
+        objective: Arc<Objective<Schedule>>,
     ) -> TakeFirstRecursion<F> {
         TakeFirstRecursion {
             swap_factory,
             recursion_depth,
             recursion_width,
-            soft_objective_threshold,
+            objective,
         }
     }
 
     fn improve_recursion(
         &self,
-        schedules: Vec<Schedule>,
-        objective_to_beat: ObjectiveValue,
+        solution: Vec<Solution>,
+        objective_to_beat: &ObjectiveValue,
         remaining_recursion: u8,
-    ) -> Option<Schedule> {
-        let swap_iterator = schedules.iter().flat_map(|sched| {
+    ) -> Option<Solution> {
+        let swap_iterator = solution.iter().flat_map(|sol| {
             self.swap_factory
-                .create_swap_iterator(sched)
-                .map(move |swap| (swap, sched))
+                .create_swap_iterator(sol.solution())
+                .map(move |swap| (swap, sol))
         });
 
         let mut counter = 0;
-        let mut schedules_for_recursion: Vec<Schedule> = Vec::new();
+        let mut solutions_for_recursion: Vec<Solution> = Vec::new();
 
         let result = swap_iterator
-            .filter_map(|(swap, old_sched)| {
+            .filter_map(|(swap, old_sol)| {
                 counter += 1;
-                swap.apply(old_sched).ok()
+                swap.apply(old_sol.solution())
+                    .ok()
+                    .map(|new_schedule| self.objective.evaluate(new_schedule))
             })
-            .find(|new_sched| {
+            .find(|new_sol| {
                 if remaining_recursion > 0 {
-                    schedules_for_recursion.push(new_sched.clone());
+                    solutions_for_recursion.push(new_sol.clone());
                     if let Some(width) = self.recursion_width {
-                        schedules_for_recursion.sort();
-                        schedules_for_recursion.dedup();
+                        solutions_for_recursion.sort();
+                        solutions_for_recursion.dedup();
                         // schedules_for_recursion.dedup_by(|s1,s2| s1.cmp_objective_values(s2).is_eq()); //remove dublicates
-                        let width = width.min(schedules_for_recursion.len());
-                        schedules_for_recursion.truncate(width);
+                        let width = width.min(solutions_for_recursion.len());
+                        solutions_for_recursion.truncate(width);
                     }
                 }
-                new_sched
-                    .objective_value()
-                    .cmp_with_threshold(&objective_to_beat, self.soft_objective_threshold)
-                    .is_lt()
+                new_sol.objective_value() < objective_to_beat
             });
 
         if result.is_none() {
@@ -142,11 +145,11 @@ impl<F: SwapFactory> TakeFirstRecursion<F> {
                 println!(
                     "Going into recursion. Remaining depth: {}. Schedule-count: {}",
                     remaining_recursion,
-                    schedules_for_recursion.len()
+                    solutions_for_recursion.len()
                 );
 
                 self.improve_recursion(
-                    schedules_for_recursion,
+                    solutions_for_recursion,
                     objective_to_beat,
                     remaining_recursion - 1,
                 )
@@ -160,6 +163,8 @@ impl<F: SwapFactory> TakeFirstRecursion<F> {
         }
     }
 }
+
+/*
 
 ///////////////////////////////////////////////////////////
 ///////////// TakeFirstParallelRecursion //////////////////

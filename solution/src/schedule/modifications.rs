@@ -143,7 +143,11 @@ impl Schedule {
 
         // remove vehicle from train formations
         for node in self.tours.get(&vehicle).unwrap().all_nodes_iter() {
-            let new_formation = train_formations.get(&node).unwrap().remove(vehicle);
+            let new_formation = train_formations
+                .get(&node)
+                .unwrap()
+                .remove(vehicle)
+                .unwrap();
             train_formations.insert(node, new_formation);
         }
 
@@ -185,7 +189,11 @@ impl Schedule {
         // remove vehicle from train formations for nodes of removed path
         if let Some(removed_path) = removed_path_opt {
             for node in removed_path.iter() {
-                let new_formation = train_formations.get(&node).unwrap().remove(vehicle);
+                let new_formation = train_formations
+                    .get(&node)
+                    .unwrap()
+                    .remove(vehicle)
+                    .unwrap();
                 train_formations.insert(node, new_formation);
             }
         }
@@ -361,7 +369,8 @@ impl Schedule {
             }
             train_formations.insert(
                 *node,
-                self.vehicle_replacement_in_train_formation(provider, receiver, *node),
+                self.vehicle_replacement_in_train_formation(provider, receiver, *node)
+                    .unwrap(),
             );
         }
 
@@ -384,21 +393,28 @@ impl Schedule {
         provider: VehicleId,
         receiver: VehicleId,
         node: NodeId,
-    ) -> TrainFormation {
+    ) -> Result<TrainFormation, String> {
         let old_formation = self
             .train_formations
             .get(&node)
             .expect(format!("Node {} has no train formations.", node).as_str());
-        let receiver_vehicle = self.vehicles.get(&receiver).cloned().unwrap();
-        if self.is_dummy(provider) {
-            if self.is_dummy(receiver) {
-                old_formation.clone()
+
+        if self.is_dummy(receiver) {
+            if self.is_dummy(provider) {
+                Ok(old_formation.clone())
             } else {
-                old_formation.add_at_tail(receiver_vehicle)
+                old_formation.remove(provider)
             }
         } else {
-            if self.is_dummy(receiver) {
-                old_formation.remove(provider)
+            let receiver_vehicle = self.vehicles.get(&receiver).cloned().ok_or(
+                format!(
+                    "Receiver {} is no vehicle in the current schedule.",
+                    receiver
+                )
+                .as_str(),
+            )?;
+            if self.is_dummy(provider) {
+                Ok(old_formation.add_at_tail(receiver_vehicle))
             } else {
                 old_formation.replace(provider, receiver_vehicle)
             }
@@ -437,7 +453,18 @@ impl Schedule {
             }
             train_formations.insert(
                 node,
-                self.vehicle_replacement_in_train_formation(provider, receiver, node),
+                self.vehicle_replacement_in_train_formation(provider, receiver, node)
+                    .expect(
+                        format!(
+                            "Node {} has the following train formations: {}. segment: {}, provider: {}, receiver: {}",
+                            node,
+                            self.train_formation_of(node),
+                            segment,
+                            provider,
+                            receiver
+                        )
+                        .as_str(),
+                    ),
             );
         }
 
@@ -492,8 +519,14 @@ impl Schedule {
                     if self.network.node(node).is_depot() {
                         continue;
                     }
-                    train_formations
-                        .insert(node, train_formations.get(&node).unwrap().remove(receiver));
+                    train_formations.insert(
+                        node,
+                        train_formations
+                            .get(&node)
+                            .unwrap()
+                            .remove(receiver)
+                            .unwrap(),
+                    );
                 }
             }
 
