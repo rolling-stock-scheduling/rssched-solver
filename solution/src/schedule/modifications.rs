@@ -9,72 +9,34 @@ use crate::{
 };
 
 impl Schedule {
-    /// Spawn vehicle from nearest depot.
+    pub fn spawn_vehicle_to_replace_dummy_tour(
+        &self,
+        dummy_id: VehicleId,
+        vehicle_type_id: VehicleTypeId,
+    ) -> Result<Schedule, String> {
+        let nodes: Vec<NodeId> = self
+            .dummy_tours
+            .get(&dummy_id)
+            .unwrap()
+            .all_nodes_iter()
+            .collect();
+        let intermediate_schedule = self.delete_vehicle(dummy_id)?;
+        intermediate_schedule.spawn_vehicle_for_path(vehicle_type_id, nodes)
+    }
+
+    /// Spawn new vehicle.
     /// If path does not start with a depot the vehicle is spawned from the nearest availabe depot
     /// (from the start location of the first trip).
     /// Similarly, if path does not end with a depot the vehicle is spawned to the nearest depot
     /// (from the end location of the last trip).
     /// If no depot is available, an error is returned.
     /// If the depot given in the path in not available, an error is returned.
-    ///
-    pub fn spawn_vehicle_for_tour(
+    pub fn spawn_vehicle_for_path(
         &self,
         vehicle_type_id: VehicleTypeId,
-        path: Path,
+        path_as_vec: Vec<NodeId>,
     ) -> Result<Schedule, String> {
-        let mut nodes = path.consume();
-        let first_node = *nodes.first().ok_or("Node vector is empty.")?;
-
-        // check if depot is available
-        if self.network.node(first_node).is_depot()
-            && !self.can_depot_spawn_vehicle(first_node, vehicle_type_id)
-        {
-            return Err(format!(
-                "Cannot spawn vehicle of type {} for tour {:?} at start_depot {}. No capacities available.",
-                vehicle_type_id,
-                nodes,
-                nodes.first().unwrap()
-            ));
-        }
-
-        // if path does not start with a depot, insert the nearest available start_depot
-        if !self.network.node(*nodes.first().unwrap()).is_depot() {
-            let start_location = self.network.node(*nodes.first().unwrap()).start_location();
-            let start_depot = self
-                .network
-                .start_depots_sorted_by_distance_to(start_location)
-                .iter()
-                .copied()
-                .find(|depot| self.can_depot_spawn_vehicle(*depot, vehicle_type_id));
-            match start_depot {
-                Some(depot) => nodes.insert(0, depot),
-                None => {
-                    return Err(format!(
-                        "Cannot spawn vehicle of type {} for tour {:?}. No start_depot available.",
-                        vehicle_type_id, nodes
-                    ))
-                }
-            }
-        }
-
-        // if path does not end with a depot, insert the nearest available end_depot
-        if !self.network.node(*nodes.last().unwrap()).is_depot() {
-            let end_location = self.network.node(*nodes.last().unwrap()).end_location();
-            let end_depot = self
-                .network
-                .end_depots_sorted_by_distance_from(end_location)
-                .first()
-                .copied();
-            match end_depot {
-                Some(depot) => nodes.push(depot),
-                None => {
-                    return Err(format!(
-                        "Cannot de-spawn vehicle of type {} for tour {:?}. No end_depot available.",
-                        vehicle_type_id, nodes
-                    ))
-                }
-            }
-        }
+        let nodes = self.add_suitable_start_and_end_depot_to_path(vehicle_type_id, path_as_vec)?;
 
         let mut vehicles = self.vehicles.clone();
         let mut tours = self.tours.clone();
@@ -242,6 +204,7 @@ impl Schedule {
         receiver: VehicleId,
     ) -> Result<Schedule, String> {
         // do lazy clones of schedule:
+        let mut vehicles = self.vehicles.clone();
         let mut tours = self.tours.clone();
         let mut dummy_tours = self.dummy_tours.clone();
         let mut train_formations = self.train_formations.clone();
@@ -327,13 +290,8 @@ impl Schedule {
         match new_tour_provider {
             Some(new_tour) => {
                 if self.is_dummy(provider) {
-                    // dummy_objective_info.insert(provider, new_tour_provider.overhead_time());
                     dummy_tours.insert(provider, new_tour);
                 } else {
-                    // vehicle_objective_info.insert(
-                    // provider,
-                    // ObjectiveInfo::new(self.vehicles.get_vehicle(provider), &new_tour_provider),
-                    // );
                     tours.insert(provider, new_tour);
                 }
             }
@@ -341,11 +299,10 @@ impl Schedule {
                 if self.is_dummy(provider) {
                     dummy_tours.remove(&provider); // old_dummy_tour is completely removed
                     dummy_ids_sorted.remove(dummy_ids_sorted.binary_search(&provider).unwrap());
-                // dummy_objective_info.remove(&provider);
                 } else {
+                    vehicles.remove(&provider);
                     tours.remove(&provider); // old_tour is completely removed
                     vehicle_ids_sorted.remove(vehicle_ids_sorted.binary_search(&provider).unwrap());
-                    // vehicle_objective_info.remove(&provider);
                 }
             }
         }
@@ -375,7 +332,7 @@ impl Schedule {
         }
 
         Ok(Schedule {
-            vehicles: self.vehicles.clone(),
+            vehicles,
             tours,
             train_formations,
             dummy_tours,
@@ -388,39 +345,6 @@ impl Schedule {
         })
     }
 
-    fn vehicle_replacement_in_train_formation(
-        &self,
-        provider: VehicleId,
-        receiver: VehicleId,
-        node: NodeId,
-    ) -> Result<TrainFormation, String> {
-        let old_formation = self
-            .train_formations
-            .get(&node)
-            .expect(format!("Node {} has no train formations.", node).as_str());
-
-        if self.is_dummy(receiver) {
-            if self.is_dummy(provider) {
-                Ok(old_formation.clone())
-            } else {
-                old_formation.remove(provider)
-            }
-        } else {
-            let receiver_vehicle = self.vehicles.get(&receiver).cloned().ok_or(
-                format!(
-                    "Receiver {} is no vehicle in the current schedule.",
-                    receiver
-                )
-                .as_str(),
-            )?;
-            if self.is_dummy(provider) {
-                Ok(old_formation.add_at_tail(receiver_vehicle))
-            } else {
-                old_formation.replace(provider, receiver_vehicle)
-            }
-        }
-    }
-
     /// Remove segment from provider's tour and inserts the nodes into the tour of receiver vehicle.
     /// All conflicting nodes are removed from the tour and in the case that there are conflicts
     /// a new dummy tour is created.
@@ -431,6 +355,7 @@ impl Schedule {
         receiver: VehicleId,
     ) -> Result<(Schedule, Option<VehicleId>), String> {
         // do lazy clones of schedule:
+        let mut vehicles = self.vehicles.clone();
         let mut tours = self.tours.clone();
         let mut dummy_tours = self.dummy_tours.clone();
         let mut train_formations = self.train_formations.clone();
@@ -474,11 +399,10 @@ impl Schedule {
                 if self.is_dummy(provider) {
                     dummy_tours.remove(&provider); // old_dummy_tour is completely removed
                     dummy_ids_sorted.remove(dummy_ids_sorted.binary_search(&provider).unwrap());
-                // dummy_objective_info.remove(&provider);
                 } else {
+                    vehicles.remove(&provider);
                     tours.remove(&provider); // old_tour is completely removed
                     vehicle_ids_sorted.remove(vehicle_ids_sorted.binary_search(&provider).unwrap());
-                    // vehicle_objective_info.remove(&provider);
                 }
             }
         }
@@ -535,7 +459,7 @@ impl Schedule {
 
         Ok((
             Schedule {
-                vehicles: self.vehicles.clone(),
+                vehicles,
                 tours,
                 train_formations,
                 dummy_tours,
@@ -548,5 +472,123 @@ impl Schedule {
             },
             new_dummy_opt,
         ))
+    }
+
+    /// Replace a vehicle in the train formation of a node.
+    /// Provider or receiver can be a dummy vehicle.
+    fn vehicle_replacement_in_train_formation(
+        &self,
+        provider: VehicleId,
+        receiver: VehicleId,
+        node: NodeId,
+    ) -> Result<TrainFormation, String> {
+        let old_formation = self
+            .train_formations
+            .get(&node)
+            .expect(format!("Node {} has no train formations.", node).as_str());
+
+        if self.is_dummy(receiver) {
+            if self.is_dummy(provider) {
+                Ok(old_formation.clone())
+            } else {
+                old_formation.remove(provider)
+            }
+        } else {
+            let receiver_vehicle = self.vehicles.get(&receiver).cloned().ok_or(
+                format!(
+                    "Receiver {} is no vehicle in the current schedule.",
+                    receiver
+                )
+                .as_str(),
+            )?;
+            if self.is_dummy(provider) {
+                Ok(old_formation.add_at_tail(receiver_vehicle))
+            } else {
+                old_formation.replace(provider, receiver_vehicle)
+            }
+        }
+    }
+
+    fn add_suitable_start_and_end_depot_to_path(
+        &self,
+        vehicle_type_id: VehicleTypeId,
+        mut nodes: Vec<NodeId>,
+    ) -> Result<Vec<NodeId>, String> {
+        let first_node = *nodes.first().unwrap();
+        let last_node = *nodes.last().unwrap();
+
+        // check if depot is available
+        if self.network.node(first_node).is_depot()
+            && !self.can_depot_spawn_vehicle(first_node, vehicle_type_id)
+        {
+            return Err(format!(
+                "Cannot spawn vehicle of type {} for tour {:?} at start_depot {}. No capacities available.",
+                vehicle_type_id,
+                nodes,
+                first_node,
+            ));
+        }
+
+        // TODO check if vehicle can be despawned at given end_depot
+
+        // if path does not start with a depot, insert the nearest available start_depot
+        if !self.network.node(first_node).is_depot() {
+            match self.find_best_start_depot_for_spawning(vehicle_type_id, first_node) {
+                Ok(depot) => nodes.insert(0, depot),
+                Err(e) => return Err(e),
+            };
+        }
+
+        // if path does not end with a depot, insert the nearest available end_depot
+        if !self.network.node(last_node).is_depot() {
+            match self.find_best_end_depot_for_despawning(vehicle_type_id, last_node) {
+                Ok(depot) => nodes.push(depot),
+                Err(e) => return Err(e),
+            };
+        }
+
+        Ok(nodes)
+    }
+
+    fn find_best_start_depot_for_spawning(
+        &self,
+        vehicle_type_id: VehicleTypeId,
+        first_node: NodeId,
+    ) -> Result<NodeId, String> {
+        let start_location = self.network.node(first_node).start_location();
+        let start_depot = self
+            .network
+            .start_depots_sorted_by_distance_to(start_location)
+            .iter()
+            .copied()
+            .find(|depot| self.can_depot_spawn_vehicle(*depot, vehicle_type_id));
+        match start_depot {
+            Some(depot) => Ok(depot),
+            None => Err(format!(
+                "Cannot spawn vehicle of type {} for start_node {}. No start_depot available.",
+                vehicle_type_id, first_node,
+            )),
+        }
+    }
+
+    fn find_best_end_depot_for_despawning(
+        &self,
+        vehicle_type_id: VehicleTypeId,
+        last_node: NodeId,
+    ) -> Result<NodeId, String> {
+        let end_location = self.network.node(last_node).end_location();
+        let end_depot = self
+            .network
+            .end_depots_sorted_by_distance_from(end_location)
+            .first()
+            .copied();
+        // .find(|depot| self.can_depot_despawn_vehicle(*depot, vehicle_type_id)); // TODO check if depot can de-spawn vehicle
+        match end_depot {
+            Some(depot) => Ok(depot),
+            None => Err(format!(
+                "Cannot de-spawn vehicle of type {} for end_node {}. No end_depot available.",
+                vehicle_type_id, last_node,
+            )),
+        }
     }
 }

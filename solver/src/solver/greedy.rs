@@ -71,9 +71,9 @@ impl Solver for Greedy {
                 }
                 None => {
                     schedule = schedule
-                        .spawn_vehicle_for_tour(
+                        .spawn_vehicle_for_path(
                             self.vehicles.ids_iter().next().unwrap(),
-                            Path::new_from_single_node(service_trip, self.network.clone()),
+                            vec![service_trip],
                         )
                         .unwrap();
                 }
