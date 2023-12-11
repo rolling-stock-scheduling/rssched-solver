@@ -1,5 +1,6 @@
 pub mod greedy;
 pub mod local_search;
+pub mod one_node_per_tour;
 
 use objective_framework::Objective;
 use sbb_model::{config::Config, network::Network, vehicle_types::VehicleTypes};

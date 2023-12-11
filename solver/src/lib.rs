@@ -6,6 +6,7 @@ use sbb_solution::json_serialisation::schedule_to_json;
 use sbb_solution::Schedule;
 use solver::greedy::Greedy;
 use solver::local_search::LocalSearch;
+use solver::one_node_per_tour::OneNodePerTour;
 use solver::Solver;
 
 use sbb_model::json_serialisation::load_rolling_stock_problem_instance_from_json;
@@ -40,8 +41,16 @@ pub fn run(path: &str) {
         objective.clone(),
     );
 
+    let one_node_per_tour = OneNodePerTour::initialize(
+        vehicle_types.clone(),
+        network.clone(),
+        config.clone(),
+        objective.clone(),
+    );
+
     // solve
     let start_solution = greedy.solve();
+    // let start_solution = one_node_per_tour.solve();
     local_search_solver.set_initial_solution(start_solution);
     let final_solution = local_search_solver.solve();
 
@@ -51,8 +60,8 @@ pub fn run(path: &str) {
     // println!("\n\nFinal schedule (long version):");
     // final_solution.solution().print_tours_long();
 
-    // println!("\n\nFinal schedule:");
-    // final_solution.solution().print_tours();
+    println!("\n\nFinal schedule:");
+    final_solution.solution().print_tours();
 
     // println!("\n\nFinal train formations:");
     // final_solution.solution().print_train_formations();
