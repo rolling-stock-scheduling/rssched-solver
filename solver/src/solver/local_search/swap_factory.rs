@@ -67,7 +67,7 @@ impl SwapFactory for LimitedExchanges {
                     self.real_and_dummy_vehicles(schedule)
                     // skip provider as receiver
                     .filter(move |&u| u != provider)
-                    // crate the swap
+                    // create the swap
                     .map(move |receiver| -> Box<dyn Swap + Send> {
                         Box::new(PathExchange::new(seg, provider, receiver))
                     })

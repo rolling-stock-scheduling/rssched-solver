@@ -15,7 +15,6 @@ use sbb_solution::Schedule;
 use swap_factory::LimitedExchanges;
 // use local_improver::TakeFirstParallelRecursion;
 // use local_improver::TakeAnyParallelRecursion;
-use time::Duration;
 
 use crate::Solution;
 
@@ -53,7 +52,7 @@ impl Solver for LocalSearch {
 
     fn solve(&self) -> Solution {
         // if there is not start schedule, create new empty schedule:
-        let mut current_solution = self.initial_solution.clone().unwrap_or({
+        let current_solution = self.initial_solution.clone().unwrap_or({
             let schedule = Schedule::empty(
                 self.vehicles.clone(),
                 self.network.clone(),

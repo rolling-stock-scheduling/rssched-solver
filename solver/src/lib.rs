@@ -1,5 +1,6 @@
 mod first_phase_objective;
 mod solver;
+mod test_objective;
 
 use objective_framework::{EvaluatedSolution, Objective};
 use sbb_solution::json_serialisation::schedule_to_json;
@@ -24,6 +25,7 @@ pub fn run(path: &str) {
     let start_time = stdtime::Instant::now();
 
     let objective = Arc::new(first_phase_objective::build());
+    // let objective = Arc::new(test_objective::build());
 
     // initialize local search
     let mut local_search_solver = LocalSearch::initialize(
@@ -49,19 +51,19 @@ pub fn run(path: &str) {
     );
 
     // solve
-    let start_solution = greedy.solve();
-    // let start_solution = one_node_per_tour.solve();
+    // let start_solution = greedy.solve();
+    let start_solution = one_node_per_tour.solve();
     local_search_solver.set_initial_solution(start_solution);
     let final_solution = local_search_solver.solve();
 
     let end_time = stdtime::Instant::now();
     let runtime_duration = end_time.duration_since(start_time);
 
-    // println!("\n\nFinal schedule (long version):");
-    // final_solution.solution().print_tours_long();
+    println!("\n\nFinal schedule (long version):");
+    final_solution.solution().print_tours_long();
 
-    println!("\n\nFinal schedule:");
-    final_solution.solution().print_tours();
+    // println!("\n\nFinal schedule:");
+    // final_solution.solution().print_tours();
 
     // println!("\n\nFinal train formations:");
     // final_solution.solution().print_train_formations();
