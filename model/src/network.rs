@@ -37,7 +37,7 @@ pub struct Network {
 
     // for convenience
     config: Arc<Config>,
-    loc: Arc<Locations>,
+    locations: Arc<Locations>,
 }
 
 // methods
@@ -72,6 +72,10 @@ impl Network {
         self.service_nodes().chain(self.maintenance_nodes())
     }
 
+    pub fn locations(&self) -> &Locations {
+        &self.locations
+    }
+
     pub fn capacity_for(
         &self,
         node_id: NodeId,
@@ -97,14 +101,14 @@ impl Network {
     }
 
     pub fn dead_head_time_between(&self, node1: NodeId, node2: NodeId) -> Duration {
-        self.loc.travel_time(
+        self.locations.travel_time(
             self.node(node1).end_location(),
             self.node(node2).start_location(),
         )
     }
 
     pub fn dead_head_distance_between(&self, node1: NodeId, node2: NodeId) -> Distance {
-        self.loc.distance(
+        self.locations.distance(
             self.node(node1).end_location(),
             self.node(node2).start_location(),
         )
@@ -132,7 +136,8 @@ impl Network {
             self.shunting_duration_between_activities_if_no_dead_head_trip(n1, n2)
         } else {
             // dead_head_trip
-            self.loc.travel_time(n1.end_location(), n2.start_location())
+            self.locations
+                .travel_time(n1.end_location(), n2.start_location())
                 + self.shunting_duration_between_activities_if_dead_head_trip(n1, n2)
         }
     }
@@ -206,13 +211,19 @@ impl Network {
 
     pub fn start_depots_sorted_by_distance_to(&self, location: Location) -> Vec<NodeId> {
         let mut depots = self.start_depot_nodes.clone();
-        depots.sort_by_key(|&d| self.loc.distance(self.node(d).start_location(), location));
+        depots.sort_by_key(|&d| {
+            self.locations
+                .distance(self.node(d).start_location(), location)
+        });
         depots
     }
 
     pub fn end_depots_sorted_by_distance_from(&self, location: Location) -> Vec<NodeId> {
         let mut depots = self.end_depot_nodes.clone();
-        depots.sort_by_key(|&d| self.loc.distance(location, self.node(d).start_location()));
+        depots.sort_by_key(|&d| {
+            self.locations
+                .distance(location, self.node(d).start_location())
+        });
         depots
     }
 }
@@ -334,7 +345,7 @@ impl Network {
             nodes_sorted_by_end,
             passenger_distance_demand,
             config,
-            loc,
+            locations: loc,
         }
     }
 }

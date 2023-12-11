@@ -11,9 +11,10 @@ use crate::{
 //add a test that reads a json file
 #[test]
 fn test_load_from_json() {
-    let (locations, vehicle_types, network, config) =
+    let (vehicle_types, network, config) =
         load_rolling_stock_problem_instance_from_json("resources/small_test_input.json");
 
+    let locations = network.locations();
     let loc1 = locations.get_location(LocationId::from("loc1"));
     let loc2 = locations.get_location(LocationId::from("loc2"));
     let loc3 = locations.get_location(LocationId::from("loc3"));
@@ -152,25 +153,25 @@ fn test_load_from_json() {
         ))
     );
 
-    assert_travel_time(loc1, loc1, 0, &locations);
-    assert_travel_time(loc1, loc2, 600, &locations);
-    assert_travel_time(loc1, loc3, 300, &locations);
-    assert_travel_time(loc2, loc1, 6000, &locations);
-    assert_travel_time(loc2, loc2, 0, &locations);
-    assert_travel_time(loc2, loc3, 400, &locations);
-    assert_travel_time(loc3, loc1, 3000, &locations);
-    assert_travel_time(loc3, loc2, 4000, &locations);
-    assert_travel_time(loc3, loc3, 0, &locations);
+    assert_travel_time(loc1, loc1, 0, locations);
+    assert_travel_time(loc1, loc2, 600, locations);
+    assert_travel_time(loc1, loc3, 300, locations);
+    assert_travel_time(loc2, loc1, 6000, locations);
+    assert_travel_time(loc2, loc2, 0, locations);
+    assert_travel_time(loc2, loc3, 400, locations);
+    assert_travel_time(loc3, loc1, 3000, locations);
+    assert_travel_time(loc3, loc2, 4000, locations);
+    assert_travel_time(loc3, loc3, 0, locations);
 
-    assert_travel_distance(loc1, loc1, 0, &locations);
-    assert_travel_distance(loc1, loc2, 1000, &locations);
-    assert_travel_distance(loc1, loc3, 500, &locations);
-    assert_travel_distance(loc2, loc1, 10000, &locations);
-    assert_travel_distance(loc2, loc2, 0, &locations);
-    assert_travel_distance(loc2, loc3, 700, &locations);
-    assert_travel_distance(loc3, loc1, 5000, &locations);
-    assert_travel_distance(loc3, loc2, 7000, &locations);
-    assert_travel_distance(loc3, loc3, 0, &locations);
+    assert_travel_distance(loc1, loc1, 0, locations);
+    assert_travel_distance(loc1, loc2, 1000, locations);
+    assert_travel_distance(loc1, loc3, 500, locations);
+    assert_travel_distance(loc2, loc1, 10000, locations);
+    assert_travel_distance(loc2, loc2, 0, locations);
+    assert_travel_distance(loc2, loc3, 700, locations);
+    assert_travel_distance(loc3, loc1, 5000, locations);
+    assert_travel_distance(loc3, loc2, 7000, locations);
+    assert_travel_distance(loc3, loc3, 0, locations);
 
     assert_eq!(
         config.durations_between_activities.minimal,

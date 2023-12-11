@@ -14,7 +14,7 @@ use sbb_model::json_serialisation::load_rolling_stock_problem_instance_from_json
 
 use std::path::Path;
 use std::sync::Arc;
-use std::{time as stdtime, fs};
+use std::{fs, time as stdtime};
 
 type Solution = EvaluatedSolution<Schedule>;
 
@@ -96,7 +96,12 @@ pub fn write_solution_to_json(
 }
 
 fn ensure_output_path(input_path: &str, output_dir_name: &str) -> String {
-    let output_path = format!("{}/{}", output_dir_name, input_path);
+    let file_name = Path::new(input_path)
+        .file_name()
+        .expect("Error getting file name")
+        .to_str()
+        .expect("Error converting file name to string");
+    let output_path = format!("{}/output_{}", output_dir_name, file_name);
     if let Some(parent_dir) = Path::new(&output_path).parent() {
         fs::create_dir_all(parent_dir).expect("Error creating directories");
     }
