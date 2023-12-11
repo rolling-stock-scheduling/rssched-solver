@@ -29,26 +29,40 @@ impl PathExchange {
 
 impl Swap for PathExchange {
     fn apply(&self, schedule: &Schedule) -> Result<Schedule, String> {
-        let (intermediate_schedule, new_dummy_opt) =
+        let (first_intermediate_schedule, new_dummy_opt) =
             schedule.override_reassign(self.segment, self.provider, self.receiver)?;
 
         match new_dummy_opt {
-            None => Ok(intermediate_schedule),
+            None => Ok(first_intermediate_schedule),
             Some(new_dummy) => {
                 if schedule.is_dummy(self.provider)
-                    && !intermediate_schedule.is_dummy(self.provider)
+                    && !first_intermediate_schedule.is_dummy(self.provider)
                 {
                     // provider was dummy but got removed -> so no need for fit_reassign
-                    Ok(intermediate_schedule)
+                    Ok(first_intermediate_schedule)
                 } else {
                     // try to fit the full tour of the new dummy into provider's tour
-                    let tour = intermediate_schedule.tour_of(new_dummy)?;
+                    let tour = first_intermediate_schedule.tour_of(new_dummy)?;
                     let full_tour_segment = Segment::new(tour.first_node(), tour.last_node());
-                    Ok(intermediate_schedule.fit_reassign(
+                    let second_intermediate_schedule = first_intermediate_schedule.fit_reassign(
                         full_tour_segment,
                         new_dummy,
                         self.provider,
-                    )?)
+                    )?;
+                    if second_intermediate_schedule.is_dummy(new_dummy)
+                        && !second_intermediate_schedule.is_dummy(self.provider)
+                    {
+                        // new_dummy could not be fit fully into provider's tour -> spawn a new vehicle (of provider's type) for left over nodes
+                        second_intermediate_schedule.spawn_vehicle_to_replace_dummy_tour(
+                            new_dummy,
+                            second_intermediate_schedule
+                                .get_vehicle(self.provider)
+                                .unwrap()
+                                .type_id(),
+                        )
+                    } else {
+                        Ok(second_intermediate_schedule)
+                    }
                 }
             }
         }
