@@ -16,6 +16,7 @@ use crate::train_formation::TrainFormation;
 use crate::vehicle::Vehicle;
 
 use im::HashMap;
+use std::cmp::Ordering;
 use std::sync::Arc;
 
 // TODO: try to use im::Vector instead of Vec and compare performance.
@@ -220,6 +221,68 @@ impl Schedule {
     // TODO change depot of a single tour
     // TODO check visibility of different objects and methods
 }
+
+impl Ord for Schedule {
+    // First compare the number of vehicles.
+    // Then compare the tours of the vehicles. (By the order given by the vehicle ids).
+    // If all tours are equal, compare the number of dummy tours.
+    // Finally, compare the dummy tours. (From small to long).
+    //
+    // I.e. two schedules are different if they have the same tours (real and dummy) but the
+    // vehicle_ids are ordered differentlich.
+    // However, two schedules are equal if they have the same tours (real and dummy) and only the
+    // dummy_tours differ in the order.
+
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.number_of_vehicles()
+            .cmp(&other.number_of_vehicles())
+            .then(
+                match self
+                    .vehicles_iter()
+                    .zip(other.vehicles_iter())
+                    .map(|(vehicle, other_vehicle)| {
+                        self.tour_of(vehicle)
+                            .unwrap()
+                            .cmp(other.tour_of(other_vehicle).unwrap())
+                    })
+                    .find(|ord| *ord != Ordering::Equal)
+                {
+                    Some(other) => other,
+                    None => {
+                        // finally compare dummy_tours. For this first sort the dummy tours and
+                        // then compare from small to long.
+                        let mut dummy_tours: Vec<_> = self.dummy_tours.values().collect();
+                        dummy_tours.sort_by(|tour1, tour2| tour1.cmp(&tour2));
+                        let mut other_dummy_tours: Vec<_> = other.dummy_tours.values().collect();
+                        other_dummy_tours.sort_by(|tour1, tour2| tour1.cmp(&tour2));
+                        match dummy_tours
+                            .iter()
+                            .zip(other_dummy_tours.iter())
+                            .map(|(&tour, &other_tour)| tour.cmp(&other_tour))
+                            .find(|ord| *ord != Ordering::Equal)
+                        {
+                            Some(other) => other,
+                            None => Ordering::Equal,
+                        }
+                    }
+                },
+            )
+    }
+}
+
+impl PartialOrd for Schedule {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for Schedule {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other).is_eq()
+    }
+}
+
+impl Eq for Schedule {}
 
 // static methods
 impl Schedule {

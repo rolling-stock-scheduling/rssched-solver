@@ -3,6 +3,7 @@ mod tests;
 use crate::path::{Path, Segment};
 use sbb_model::base_types::{Distance, NodeId};
 use sbb_model::network::Network;
+use std::cmp::Ordering;
 use std::fmt;
 use time::{DateTime, Duration};
 
@@ -638,6 +639,45 @@ impl Tour {
         Ok(())
     }
 }
+
+// one tour is bigger than the other if the number of nodes are bigger.
+// Ties are broken by comparing nodes from start to finish.
+// Nodes ar compared by start time (ties are by end_time then id)
+impl Ord for Tour {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.nodes.len().cmp(&other.nodes.len()).then(
+            match self
+                .nodes
+                .iter()
+                .zip(other.nodes.iter())
+                .map(|(node, other_node)| {
+                    self.network
+                        .node(*node)
+                        .cmp_start_time(self.network.node(*other_node))
+                })
+                .find(|ord| *ord != Ordering::Equal)
+            {
+                None => Ordering::Equal,
+                Some(other) => other,
+            },
+        )
+    }
+}
+
+impl PartialOrd for Tour {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+// two tours are equal if they consists of the exact same nodes
+impl PartialEq for Tour {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other).is_eq()
+    }
+}
+
+impl Eq for Tour {}
 
 impl fmt::Display for Tour {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
