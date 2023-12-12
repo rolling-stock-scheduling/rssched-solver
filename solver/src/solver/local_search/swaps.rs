@@ -61,11 +61,16 @@ impl Swap for PathExchange {
                     if second_intermediate_schedule.is_dummy(new_dummy)
                         && !second_intermediate_schedule.is_dummy(self.provider)
                     {
-                        // new_dummy could not be fit fully into provider's tour -> spawn a new vehicle (of provider's type) for left over nodes
-                        second_intermediate_schedule.spawn_vehicle_to_replace_dummy_tour(
+                        // new_dummy could not be fit fully into provider's tour -> try spawning a new vehicle (of provider's type) for left over nodes
+                        match second_intermediate_schedule.spawn_vehicle_to_replace_dummy_tour(
                             new_dummy,
                             schedule.get_vehicle(self.provider).unwrap().type_id(),
-                        )
+                        ) {
+                            Ok(final_schedule) => Ok(final_schedule),
+                            Err(_) => Ok(second_intermediate_schedule), // could not spawn new
+                                                                        // vehicle -> keep tour as
+                                                                        // dummy tour
+                        }
                     } else {
                         Ok(second_intermediate_schedule)
                     }
