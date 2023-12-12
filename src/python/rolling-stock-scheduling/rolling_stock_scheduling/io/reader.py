@@ -1,8 +1,7 @@
-from datetime import datetime
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import List
-
 
 from rolling_stock_scheduling.model.response import (
     ObjectiveValue,
@@ -31,6 +30,7 @@ def import_response(file_path: Path) -> Response:
         ),
         schedule=[
             ScheduleItem(
+                vehicle_id=item["vehicleId"],
                 vehicle_type=item["vehicleType"],
                 start_depot=item["startDepot"],
                 end_depot=item["endDepot"],

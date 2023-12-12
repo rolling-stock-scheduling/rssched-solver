@@ -1,7 +1,8 @@
-from typing import List, Optional
-from pydantic import BaseModel
-from enum import Enum
 from datetime import datetime
+from enum import Enum
+from typing import List, Optional
+
+from pydantic import BaseModel
 
 
 class TripType(Enum):
@@ -25,6 +26,7 @@ class Trip(BaseModel):
 
 
 class ScheduleItem(BaseModel):
+    vehicle_id: str
     vehicle_type: str
     start_depot: str
     end_depot: str

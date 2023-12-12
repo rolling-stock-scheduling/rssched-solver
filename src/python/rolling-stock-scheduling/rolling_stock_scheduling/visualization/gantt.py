@@ -8,7 +8,7 @@ CHART_COLORS = {"ServiceTrip": "rgb(220, 0, 0)", "DeadHeadTrip": (1, 0.9, 0.16)}
 def respone_to_gantt(response: Response, chart_title: str):
     df = [
         {
-            "Task": item.vehicle_type,
+            "Task": item.vehicle_id,
             "Start": trip.arrival_time,
             "Finish": trip.departure_time,
             "Type": trip.type.value,

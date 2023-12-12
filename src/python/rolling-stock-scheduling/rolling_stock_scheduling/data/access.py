@@ -9,5 +9,5 @@ class PkgDataAccess:
     @staticmethod
     def locate_response() -> Path:
         data_folder = resources.files("rolling_stock_scheduling.data")
-        file_path = data_folder / "small_test_output.json"
+        file_path = data_folder / "output_small_test_input.json"
         return file_path
