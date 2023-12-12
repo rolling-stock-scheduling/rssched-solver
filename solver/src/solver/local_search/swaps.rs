@@ -41,24 +41,30 @@ impl Swap for PathExchange {
                     // provider was dummy but got removed -> so no need for fit_reassign
                     Ok(first_intermediate_schedule)
                 } else {
-                    // try to fit the full tour of the new dummy into provider's tour
-                    let tour = first_intermediate_schedule.tour_of(new_dummy)?;
-                    let full_tour_segment = Segment::new(tour.first_node(), tour.last_node());
-                    let second_intermediate_schedule = first_intermediate_schedule.fit_reassign(
-                        full_tour_segment,
-                        new_dummy,
-                        self.provider,
-                    )?;
+                    // try to fit the full tour of the new dummy into provider's tour (if provider
+                    // still exists)
+                    let second_intermediate_schedule =
+                        match first_intermediate_schedule.get_vehicle(self.provider) {
+                            Ok(_) => {
+                                let tour = first_intermediate_schedule.tour_of(new_dummy).unwrap();
+                                let full_tour_segment =
+                                    Segment::new(tour.first_node(), tour.last_node());
+                                first_intermediate_schedule.fit_reassign(
+                                    full_tour_segment,
+                                    new_dummy,
+                                    self.provider,
+                                )?
+                            }
+                            Err(_) => first_intermediate_schedule, // provider was removed -> no need for fit_reassign
+                        };
+
                     if second_intermediate_schedule.is_dummy(new_dummy)
                         && !second_intermediate_schedule.is_dummy(self.provider)
                     {
                         // new_dummy could not be fit fully into provider's tour -> spawn a new vehicle (of provider's type) for left over nodes
                         second_intermediate_schedule.spawn_vehicle_to_replace_dummy_tour(
                             new_dummy,
-                            second_intermediate_schedule
-                                .get_vehicle(self.provider)
-                                .unwrap()
-                                .type_id(),
+                            schedule.get_vehicle(self.provider).unwrap().type_id(),
                         )
                     } else {
                         Ok(second_intermediate_schedule)

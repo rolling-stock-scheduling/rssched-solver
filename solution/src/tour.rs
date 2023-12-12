@@ -413,7 +413,7 @@ impl Tour {
 
 // private methods
 impl Tour {
-    pub(crate) fn position_of(&self, node: NodeId) -> Result<usize, String> {
+    pub fn position_of(&self, node: NodeId) -> Result<usize, String> {
         let pos = self
             .nodes
             .binary_search_by(|other| {

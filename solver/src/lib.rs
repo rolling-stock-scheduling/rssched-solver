@@ -51,8 +51,8 @@ pub fn run(path: &str) {
     );
 
     // solve
-    // let start_solution = greedy.solve();
-    let start_solution = one_node_per_tour.solve();
+    let start_solution = greedy.solve();
+    // let start_solution = one_node_per_tour.solve();
     local_search_solver.set_initial_solution(start_solution);
     let final_solution = local_search_solver.solve();
 

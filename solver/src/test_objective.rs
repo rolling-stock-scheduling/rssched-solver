@@ -47,10 +47,15 @@ pub fn build() -> Objective<Schedule> {
         Box::new(NumberOfUnservedPassengersIndicator),
     )]);
 
+    let second_level = Level::new(vec![(
+        Coefficient::Integer(-1),
+        Box::new(NumberOfVehiclesIndicator),
+    )]);
+
     let third_level = Level::new(vec![(
         Coefficient::Integer(-1),
         Box::new(OverheadSeatDistanceIndicator),
     )]);
 
-    Objective::new(vec![first_level, third_level])
+    Objective::new(vec![first_level, second_level, third_level])
 }

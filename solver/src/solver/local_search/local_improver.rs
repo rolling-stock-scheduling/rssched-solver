@@ -36,10 +36,17 @@ impl<F: SwapFactory> Minimizer<F> {
 impl<F: SwapFactory> LocalImprover for Minimizer<F> {
     fn improve(&self, solution: &Solution) -> Option<Solution> {
         let schedule = solution.solution();
+
         let swap_iterator = self.swap_factory.create_swap_iterator(schedule);
         // .par_bridge(); // TODO: parallelize swap creation
         let best_solution_opt = swap_iterator
-            .filter_map(|swap| swap.apply(schedule).ok())
+            .filter_map(|swap| {
+                // match swap.apply(schedule) {
+                // Ok(new_schedule) => println!("OK: {}", swap),
+                // Err(err) => println!("ERR for {}: {}", swap, err),
+                // };
+                swap.apply(schedule).ok()
+            })
             .map(|sched| self.objective.evaluate(sched))
             .min_by(|s1, s2| {
                 s1.objective_value()
@@ -119,6 +126,10 @@ impl<F: SwapFactory> TakeFirstRecursion<F> {
 
         let result = swap_iterator
             .filter_map(|(swap, old_sol)| {
+                // match swap.apply(old_sol.solution()) {
+                // Ok(_) => println!("OK: {}", swap),
+                // Err(err) => println!("ERR for {}: {}", swap, err),
+                // };
                 counter += 1;
                 swap.apply(old_sol.solution())
                     .ok()

@@ -20,7 +20,7 @@ impl Schedule {
             .unwrap()
             .all_nodes_iter()
             .collect();
-        let intermediate_schedule = self.delete_vehicle(dummy_id)?;
+        let intermediate_schedule = self.delete_dummy(dummy_id)?;
         intermediate_schedule.spawn_vehicle_for_path(vehicle_type_id, nodes)
     }
 
@@ -127,6 +127,35 @@ impl Schedule {
         })
     }
 
+    /// Delete dummy vehicle (and its tour) from schedule.
+    pub fn delete_dummy(&self, dummy: VehicleId) -> Result<Schedule, String> {
+        if !self.is_dummy(dummy) {
+            return Err(format!(
+                "Cannot delete vehicle {} from schedule. It is not a dummy vehicle.",
+                dummy
+            ));
+        }
+        let mut dummy_tours = self.dummy_tours.clone();
+        let mut dummy_ids_sorted = self.dummy_ids_sorted.clone();
+
+        // remove dummy and tour
+        dummy_tours.remove(&dummy);
+        dummy_ids_sorted.remove(dummy_ids_sorted.binary_search(&dummy).unwrap());
+
+        Ok(Schedule {
+            vehicles: self.vehicles.clone(),
+            tours: self.tours.clone(),
+            train_formations: self.train_formations.clone(),
+            dummy_tours,
+            vehicle_ids_sorted: self.vehicle_ids_sorted.clone(),
+            dummy_ids_sorted,
+            vehicle_counter: self.vehicle_counter,
+            config: self.config.clone(),
+            vehicle_types: self.vehicle_types.clone(),
+            network: self.network.clone(),
+        })
+    }
+
     /// Add a path to the tour of a vehicle. If the path causes conflicts, the conflicting nodes of
     /// the old tour are removed.
     pub fn add_path_to_vehicle_tour(
@@ -211,8 +240,12 @@ impl Schedule {
         let mut vehicle_ids_sorted = self.vehicle_ids_sorted.clone();
         let mut dummy_ids_sorted = self.dummy_ids_sorted.clone();
 
-        let tour_provider = self.tour_of(provider)?;
-        let tour_receiver = self.tour_of(receiver)?;
+        let tour_provider = self
+            .tour_of(provider)
+            .expect("Provider should be in schedule.");
+        let tour_receiver = self
+            .tour_of(receiver)
+            .expect("Receiver should be in schedule.");
         let mut new_tour_provider = Some(tour_provider.clone());
         let mut new_tour_receiver = tour_receiver.clone();
         let mut remaining_path = Some(tour_provider.sub_path(segment)?);
@@ -365,8 +398,12 @@ impl Schedule {
         // let mut vehicle_objective_info = self.vehicle_objective_info.clone();
         // let mut dummy_objective_info = self.dummy_objective_info.clone();
 
-        let tour_provider = self.tour_of(provider)?;
-        let tour_receiver = self.tour_of(receiver)?;
+        let tour_provider = self
+            .tour_of(provider)
+            .expect("Provider should be in schedule.");
+        let tour_receiver = self
+            .tour_of(receiver)
+            .expect("Receiver should be in schedule.");
 
         // remove segment for provider
         let (shrinked_tour_provider, path) = tour_provider.remove(segment)?;
