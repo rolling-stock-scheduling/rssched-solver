@@ -1,0 +1,39 @@
+[tool.poetry]
+name = "rolling-stock-scheduling"
+version = "0.1.0"
+description = "Utility package for visualizing results from the rolling stock scheduling"
+authors = ["Merlin Unterfinger <merlin.unterfinger@sbb.ch>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+numpy = "^1.26.2"
+pandas = "^2.1.4"
+plotly = "^5.18.0"
+typer = "^0.9.0"
+pydantic = "^2.5.2"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.3"
+black = "^23.11.0"
+isort = "^5.13.0"
+mypy = "^1.7.1"
+flake8 = "^6.1.0"
+
+[tool.poetry.scripts]
+rss-gantt = 'rolling_stock_scheduling.cli:app'
+
+[tool.isort]
+profile = "black"
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+
+[tool.pydocstyle]
+match-dir = "[^\\.][^test].*"
+convention = "google"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
