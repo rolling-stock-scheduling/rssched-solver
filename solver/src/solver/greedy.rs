@@ -80,6 +80,8 @@ impl Solver for Greedy {
             }
         }
 
+        schedule = schedule.reassign_end_depots_greedily().unwrap();
+
         self.objective.evaluate(schedule)
     }
 }

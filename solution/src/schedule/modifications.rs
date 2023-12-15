@@ -9,6 +9,40 @@ use crate::{
 };
 
 impl Schedule {
+    pub fn reassign_end_depots_greedily(&self) -> Result<Schedule, String> {
+        let mut tours = self.tours.clone();
+
+        for vehicle in self.vehicle_ids_sorted.iter() {
+            let tour = self.tour_of(*vehicle).unwrap();
+            let last_node_location = self
+                .network
+                .node(tour.last_non_depot().unwrap())
+                .end_location();
+            let end_depot = self
+                .network
+                .end_depots_sorted_by_distance_from(last_node_location)
+                .first()
+                .copied()
+                .ok_or(format!("Cannot find end depot for vehicle {}.", vehicle))?;
+
+            let new_tour = tour.replace_end_depot(end_depot).unwrap();
+            tours.insert(*vehicle, new_tour);
+        }
+
+        Ok(Schedule {
+            vehicles: self.vehicles.clone(),
+            tours,
+            train_formations: self.train_formations.clone(),
+            dummy_tours: self.dummy_tours.clone(),
+            vehicle_ids_sorted: self.vehicle_ids_sorted.clone(),
+            dummy_ids_sorted: self.dummy_ids_sorted.clone(),
+            vehicle_counter: self.vehicle_counter + 1,
+            config: self.config.clone(),
+            vehicle_types: self.vehicle_types.clone(),
+            network: self.network.clone(),
+        })
+    }
+
     pub fn spawn_vehicle_to_replace_dummy_tour(
         &self,
         dummy_id: VehicleId,
