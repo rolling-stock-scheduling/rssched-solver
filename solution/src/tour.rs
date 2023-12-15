@@ -233,8 +233,7 @@ impl Tour {
     /// removed at the beginning.
     /// - Non-dummy: If the provided sequence contains a start depot it will be inserted as a prefix.
     /// - Non-dummy: If the provided path contains an end depot it will be inserted as a suffix.
-    /// - Non-dummy: tours it fails if the start depot clashes and is not replaced with a new
-    /// start depot. The same holds for the end depot.
+    /// - Note that depot can never clash. So their is no failure possible.
     pub(super) fn insert_path(&self, path: Path) -> (Tour, Option<Path>) {
         // remove depots from path if self.is_dummy=true.
         let mut path = path;
@@ -311,10 +310,10 @@ impl Tour {
         self.check_if_sequence_is_removable(start_pos, end_pos)
     }
 
-    /// remove the segment of the tour. The subpath between segment.start() and segment.end() is removed and the new
+    /// Removes the segment of the tour. The subpath between segment.start() and segment.end() is removed and the new
     /// shortened Tour as well as the removed nodes (as Path) are returned.
-    /// Fails if either segment.start() or segment.end() are not part of the Tour or if the start or end node would
-    /// get removed but not both.
+    /// Fails if either segment.start() or segment.end() is not part of the Tour.
+    /// Fails if the start or end node would get removed but not both.
     /// In case that there is no non-depot left after the removel None is returned.
     pub(crate) fn remove(&self, segment: Segment) -> Result<(Option<Tour>, Path), String> {
         let start_pos = self.position_of(segment.start())?;

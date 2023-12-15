@@ -20,7 +20,9 @@ pub(crate) trait SwapFactory: Clone + Send {
 ////////////////// LimitedExchanges ///////////////////////
 ///////////////////////////////////////////////////////////
 
-/// Takes all PathExchanges where the segment time length is smaller than the threshold.
+/// Creates all PathExchanges where every vehicle is receiver and every other vehicle is provider.
+/// All segments starting and ending at a non-depot node are considered.
+/// The segment time length is smaller than the threshold. (None means unlimite.)
 /// The length of a segment is measured from the start_time of the first node to the end_time of
 /// the last node.
 #[derive(Clone)]
@@ -89,13 +91,13 @@ impl LimitedExchanges {
         let tour = schedule
             .tour_of(provider)
             .expect("provider not in schedule");
-        // all nodes of provider's tour might be the start of a segment
-        tour.all_nodes_iter().enumerate()
+        // all non-depot nodes of provider's tour might be the start of a segment
+        tour.all_non_depot_nodes_iter().enumerate()
         // only take nodes with enough preceding overhead:
         .filter(move |(_,n)| schedule.is_dummy(provider) || tour.preceding_overhead(*n).unwrap() >= threshold)
         .flat_map(move |(i,seg_start)|
-            // all nodes (after the start) could be the end of the segment
-            tour.all_nodes_iter().skip(i)
+            // all non-depot nodes (after the start) could be the end of the segment
+            tour.all_non_depot_nodes_iter().skip(i)
             // only take nodes with enough subsequent overhead:
             .filter(move |n| schedule.is_dummy(provider) || tour.subsequent_overhead(*n).unwrap() >= threshold)
             // only take the nodes such that the segment is not longer than the threshold
