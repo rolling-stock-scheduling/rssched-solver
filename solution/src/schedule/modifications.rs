@@ -260,6 +260,7 @@ impl Schedule {
     /// Tries to insert all nodes of provider's segment into receiver's tour.
     /// Nodes that causes conflcits are rejected and stay in provider's tour.
     /// Nodes that do not cause a conflict are reassigned to the receiver.
+    /// Afterwards for each of the new tours the depots are changed to the nearest ones.
     pub fn fit_reassign(
         &self,
         segment: Segment,
@@ -359,7 +360,6 @@ impl Schedule {
                 if self.is_dummy(provider) {
                     dummy_tours.insert(provider, new_tour);
                 } else {
-                    // TODO TEST update depots
                     new_tour =
                         self.improve_depots_of_tour(new_tour, self.vehicle_type_of(provider));
                     tours.insert(provider, new_tour);
@@ -381,7 +381,6 @@ impl Schedule {
         if self.is_dummy(receiver) {
             dummy_tours.insert(receiver, new_tour_receiver);
         } else {
-            // TODO TEST update depots
             new_tour_receiver =
                 self.improve_depots_of_tour(new_tour_receiver, self.vehicle_type_of(receiver));
             tours.insert(receiver, new_tour_receiver);
@@ -416,6 +415,7 @@ impl Schedule {
     /// Remove segment from provider's tour and inserts the nodes into the tour of receiver vehicle.
     /// All conflicting nodes are removed from the tour and in the case that there are conflicts
     /// a new dummy tour is created.
+    /// Afterwards for each of the new tours the depots are changed to the nearest ones.
     pub fn override_reassign(
         &self,
         segment: Segment,
@@ -462,7 +462,6 @@ impl Schedule {
                 if self.is_dummy(provider) {
                     dummy_tours.insert(provider, new_tour);
                 } else {
-                    // TODO TEST update depots
                     new_tour =
                         self.improve_depots_of_tour(new_tour, self.vehicle_type_of(provider));
                     tours.insert(provider, new_tour);
@@ -484,7 +483,6 @@ impl Schedule {
         if self.is_dummy(receiver) {
             dummy_tours.insert(receiver, new_tour_receiver);
         } else {
-            // TODO TEST update depots
             new_tour_receiver =
                 self.improve_depots_of_tour(new_tour_receiver, self.vehicle_type_of(receiver));
             tours.insert(receiver, new_tour_receiver);
