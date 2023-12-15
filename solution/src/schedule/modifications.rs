@@ -355,10 +355,13 @@ impl Schedule {
 
         // update reduced tour of the provider
         match new_tour_provider {
-            Some(new_tour) => {
+            Some(mut new_tour) => {
                 if self.is_dummy(provider) {
                     dummy_tours.insert(provider, new_tour);
                 } else {
+                    // TODO TEST update depots
+                    new_tour =
+                        self.improve_depots_of_tour(new_tour, self.vehicle_type_of(provider));
                     tours.insert(provider, new_tour);
                 }
             }
@@ -376,13 +379,11 @@ impl Schedule {
 
         // update extended tour of the receiver
         if self.is_dummy(receiver) {
-            // dummy_objective_info.insert(receiver, new_tour_receiver.overhead_time());
             dummy_tours.insert(receiver, new_tour_receiver);
         } else {
-            // vehicle_objective_info.insert(
-            // receiver,
-            // ObjectiveInfo::new(self.vehicles.get_vehicle(receiver), &new_tour_receiver),
-            // );
+            // TODO TEST update depots
+            new_tour_receiver =
+                self.improve_depots_of_tour(new_tour_receiver, self.vehicle_type_of(receiver));
             tours.insert(receiver, new_tour_receiver);
         }
 
@@ -429,8 +430,6 @@ impl Schedule {
         let mut vehicle_ids_sorted = self.vehicle_ids_sorted.clone();
         let mut dummy_ids_sorted = self.dummy_ids_sorted.clone();
         let mut dummy_counter = self.vehicle_counter;
-        // let mut vehicle_objective_info = self.vehicle_objective_info.clone();
-        // let mut dummy_objective_info = self.dummy_objective_info.clone();
 
         let tour_provider = self
             .tour_of(provider)
@@ -455,14 +454,17 @@ impl Schedule {
         }
 
         // insert path into tour
-        let (new_tour_receiver, replaced_path) = tour_receiver.insert_path(path);
+        let (mut new_tour_receiver, replaced_path) = tour_receiver.insert_path(path);
 
         // update shrinked tour of the provider
         match shrinked_tour_provider {
-            Some(new_tour) => {
+            Some(mut new_tour) => {
                 if self.is_dummy(provider) {
                     dummy_tours.insert(provider, new_tour);
                 } else {
+                    // TODO TEST update depots
+                    new_tour =
+                        self.improve_depots_of_tour(new_tour, self.vehicle_type_of(provider));
                     tours.insert(provider, new_tour);
                 }
             }
@@ -480,13 +482,11 @@ impl Schedule {
 
         // update extended tour of the receiver
         if self.is_dummy(receiver) {
-            // dummy_objective_info.insert(receiver, new_tour_receiver.overhead_time());
             dummy_tours.insert(receiver, new_tour_receiver);
         } else {
-            // vehicle_objective_info.insert(
-            // receiver,
-            // ObjectiveInfo::new(self.vehicles.get_vehicle(receiver), &new_tour_receiver),
-            // );
+            // TODO TEST update depots
+            new_tour_receiver =
+                self.improve_depots_of_tour(new_tour_receiver, self.vehicle_type_of(receiver));
             tours.insert(receiver, new_tour_receiver);
         }
 
@@ -580,6 +580,28 @@ impl Schedule {
         }
     }
 
+    fn improve_depots_of_tour(&self, tour: Tour, vehicle_type_id: VehicleTypeId) -> Tour {
+        let first_non_depot = tour.first_non_depot().unwrap();
+        let new_start_depot = self
+            .find_best_start_depot_for_spawning(vehicle_type_id, first_non_depot)
+            .unwrap();
+        let intermediate_tour = if new_start_depot != tour.start_depot().unwrap() {
+            tour.replace_start_depot(new_start_depot).unwrap()
+        } else {
+            tour
+        };
+
+        let last_non_depot = intermediate_tour.last_non_depot().unwrap();
+        let new_end_depot = self
+            .find_best_end_depot_for_despawning(vehicle_type_id, last_non_depot)
+            .unwrap();
+        if new_end_depot != intermediate_tour.end_depot().unwrap() {
+            intermediate_tour.replace_end_depot(new_end_depot).unwrap()
+        } else {
+            intermediate_tour
+        }
+    }
+
     fn add_suitable_start_and_end_depot_to_path(
         &self,
         vehicle_type_id: VehicleTypeId,
@@ -595,8 +617,7 @@ impl Schedule {
             return Err(format!(
                 "Cannot spawn vehicle of type {} for tour {:?} at start_depot {}. No capacities available.",
                 vehicle_type_id,
-                nodes,
-                first_node,
+                nodes, first_node,
             ));
         }
 

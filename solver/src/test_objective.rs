@@ -41,20 +41,32 @@ impl Indicator<Schedule> for OverheadSeatDistanceIndicator {
     }
 }
 
+struct TotalDeadHeadDistanceIndicator;
+
+impl Indicator<Schedule> for TotalDeadHeadDistanceIndicator {
+    fn evaluate(&self, schedule: &Schedule) -> BaseValue {
+        BaseValue::Integer(schedule.total_dead_head_distance().in_meter() as i64)
+    }
+
+    fn name(&self) -> String {
+        String::from("deadHeadDistanceTraveled")
+    }
+}
+
 pub fn build() -> Objective<Schedule> {
     let first_level = Level::new(vec![(
-        Coefficient::Integer(-1),
+        Coefficient::Integer(1),
         Box::new(NumberOfUnservedPassengersIndicator),
     )]);
 
     let second_level = Level::new(vec![(
-        Coefficient::Integer(-1),
+        Coefficient::Integer(1),
         Box::new(NumberOfVehiclesIndicator),
     )]);
 
     let third_level = Level::new(vec![(
-        Coefficient::Integer(-1),
-        Box::new(OverheadSeatDistanceIndicator),
+        Coefficient::Integer(1),
+        Box::new(TotalDeadHeadDistanceIndicator),
     )]);
 
     Objective::new(vec![first_level, second_level, third_level])

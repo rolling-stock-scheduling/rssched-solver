@@ -51,7 +51,7 @@ pub fn schedule_to_json(schedule: &Schedule) -> serde_json::Value {
     let mut json_output = vec![];
 
     for vehicle_id in schedule.vehicles_iter() {
-        let vehicle_type_id = schedule.get_vehicle(vehicle_id).unwrap().type_id();
+        let vehicle_type_id = schedule.vehicle_type_of(vehicle_id);
         let start_depot = schedule.tour_of(vehicle_id).unwrap().first_node();
         let end_depot = schedule.tour_of(vehicle_id).unwrap().last_node();
         let mut tour = Vec::new();

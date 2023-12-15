@@ -100,6 +100,10 @@ impl Schedule {
         self.vehicle_ids_sorted.iter().copied()
     }
 
+    pub fn vehicle_type_of(&self, vehicle: VehicleId) -> VehicleTypeId {
+        self.get_vehicle(vehicle).unwrap().type_id()
+    }
+
     pub fn can_depot_spawn_vehicle(
         &self,
         start_depot: NodeId,
@@ -123,12 +127,7 @@ impl Schedule {
                     .first_node()
                     .eq(&start_depot)
             })
-            .filter(|vehicle| {
-                self.get_vehicle(*vehicle)
-                    .unwrap()
-                    .type_id()
-                    .eq(&vehicle_type_id)
-            })
+            .filter(|vehicle| self.vehicle_type_of(*vehicle).eq(&vehicle_type_id))
             .count() as PassengerCount;
 
         if number_of_spawned_vehicles < capacity.unwrap() {
@@ -163,7 +162,7 @@ impl Schedule {
         self.tours
             .iter()
             .map(|(vehicle, tour)| {
-                tour.service_distance().in_meter() as SeatDistance
+                tour.total_distance().in_meter() as SeatDistance
                     * self.get_vehicle(*vehicle).unwrap().seats() as SeatDistance
             })
             .sum::<SeatDistance>()

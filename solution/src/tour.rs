@@ -76,6 +76,11 @@ impl Tour {
         self.service_distance
     }
 
+    /// return the total distance (service distance + dead head distance) of the tour
+    pub fn total_distance(&self) -> Distance {
+        self.service_distance + self.dead_head_distance
+    }
+
     /// the overhead time (dead_head + idle) between the predecessor and the node itself
     /// for the first non-depot node, as well as a depot, the overhead time is set to be infinity.
     /// (this is to allow for splitting before the first non-depot node in all cases)
@@ -113,6 +118,10 @@ impl Tour {
         self.nodes.get(pos).map(|n| *n)
     }
 
+    pub fn first_non_depot(&self) -> Option<NodeId> {
+        self.all_non_depot_nodes_iter().next()
+    }
+
     /// returns the last non-depot (service node or maintenance node) of the tour, ignoring depot.
     /// If the tour does only contain depots None is returned.
     pub fn last_non_depot(&self) -> Option<NodeId> {
@@ -121,6 +130,22 @@ impl Tour {
             .rev()
             .find(|&&n| !self.network.node(n).is_depot())
             .copied()
+    }
+
+    pub fn start_depot(&self) -> Result<NodeId, String> {
+        if self.network.node(self.first_node()).is_start_depot() {
+            Ok(self.first_node())
+        } else {
+            Err("tour does not have a start depot.".to_string())
+        }
+    }
+
+    pub fn end_depot(&self) -> Result<NodeId, String> {
+        if self.network.node(self.last_node()).is_end_depot() {
+            Ok(self.last_node())
+        } else {
+            Err("tour does not have an end depot.".to_string())
+        }
     }
 
     pub fn start_time(&self) -> DateTime {
