@@ -66,7 +66,7 @@ impl Tour {
         self.dead_head_distance
     }
 
-    /// return the overhead_time (dead head travel time + idle time) of the tour.
+    /// total useful duration of the tour (service time + maintenance time)
     pub fn useful_duration(&self) -> Duration {
         self.useful_duration
     }

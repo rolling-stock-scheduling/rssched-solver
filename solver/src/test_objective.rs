@@ -53,7 +53,36 @@ impl Indicator<Schedule> for TotalDeadHeadDistanceIndicator {
     }
 }
 
+struct ServiceTimeSquaredIndicator;
+
+impl Indicator<Schedule> for ServiceTimeSquaredIndicator {
+    fn evaluate(&self, schedule: &Schedule) -> BaseValue {
+        BaseValue::Integer(
+            schedule
+                .vehicles_iter()
+                .map(|v| {
+                    schedule
+                        .tour_of(v)
+                        .unwrap()
+                        .useful_duration()
+                        .in_min()
+                        .pow(2) as i64
+                })
+                .sum(),
+        )
+    }
+
+    fn name(&self) -> String {
+        String::from("serviceTimeSquared")
+    }
+}
+
 pub fn build() -> Objective<Schedule> {
+    let usefull_service_time = Level::new(vec![(
+        Coefficient::Integer(-1),
+        Box::new(ServiceTimeSquaredIndicator),
+    )]);
+
     let first_level = Level::new(vec![(
         Coefficient::Integer(1),
         Box::new(NumberOfUnservedPassengersIndicator),
@@ -69,5 +98,10 @@ pub fn build() -> Objective<Schedule> {
         Box::new(TotalDeadHeadDistanceIndicator),
     )]);
 
-    Objective::new(vec![first_level, second_level, third_level])
+    Objective::new(vec![
+        usefull_service_time,
+        first_level,
+        second_level,
+        third_level,
+    ])
 }

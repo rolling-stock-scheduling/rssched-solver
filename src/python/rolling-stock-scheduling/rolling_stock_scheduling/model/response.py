@@ -10,12 +10,6 @@ class TripType(Enum):
     DEADHEAD = "DeadHeadTrip"
 
 
-class ObjectiveValue(BaseModel):
-    number_of_unserved_passengers: int
-    number_of_vehicles: int
-    seat_distance_traveled: int
-
-
 class Trip(BaseModel):
     id: Optional[str]
     type: TripType
@@ -34,5 +28,4 @@ class ScheduleItem(BaseModel):
 
 
 class Response(BaseModel):
-    objective_value: ObjectiveValue
     schedule: List[ScheduleItem]

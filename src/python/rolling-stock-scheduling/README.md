@@ -4,6 +4,10 @@ Utility package for visualizing results from the rolling stock scheduling.
 
 ## Setup
 
+1) install poetry: https://python-poetry.org/docs/
+
+2) run:
+
 ```sh
 poetry install
 ```

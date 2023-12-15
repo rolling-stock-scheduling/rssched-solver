@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import List
 
 from rolling_stock_scheduling.model.response import (
-    ObjectiveValue,
     Response,
     ScheduleItem,
     Trip,
@@ -21,13 +20,6 @@ def import_response(file_path: Path) -> Response:
         data = json.load(file)
 
     return Response(
-        objective_value=ObjectiveValue(
-            number_of_unserved_passengers=data["objectiveValue"][
-                "numberOfUnservedPassengers"
-            ],
-            number_of_vehicles=data["objectiveValue"]["numberOfVehicles"],
-            seat_distance_traveled=data["objectiveValue"]["seatDistanceTraveled"],
-        ),
         schedule=[
             ScheduleItem(
                 vehicle_id=item["vehicleId"],
