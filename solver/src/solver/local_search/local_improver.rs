@@ -5,6 +5,7 @@ use super::swap_factory::SwapFactory;
 use objective_framework::{Objective, ObjectiveValue};
 use rayon::iter::ParallelBridge;
 use rayon::prelude::*;
+use sbb_model::base_types::VehicleId;
 use sbb_solution::Schedule;
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
@@ -12,7 +13,7 @@ use std::sync::{Arc, Mutex};
 /// Computes for a given schedule the best new schedule that has better objective function.
 /// Returns None if there is no better schedule in the neighborhood.
 pub(crate) trait LocalImprover {
-    fn improve(&self, solution: &Solution) -> Option<Solution>;
+    fn improve(&mut self, solution: &Solution) -> Option<Solution>;
 }
 
 ///////////////////////////////////////////////////////////
@@ -34,10 +35,10 @@ impl<F: SwapFactory> Minimizer<F> {
 }
 
 impl<F: SwapFactory> LocalImprover for Minimizer<F> {
-    fn improve(&self, solution: &Solution) -> Option<Solution> {
+    fn improve(&mut self, solution: &Solution) -> Option<Solution> {
         let schedule = solution.solution();
 
-        let swap_iterator = self.swap_factory.create_swap_iterator(schedule);
+        let swap_iterator = self.swap_factory.create_swap_iterator(schedule, None);
         // .par_bridge(); // TODO: parallelize swap creation
         let best_solution_opt = swap_iterator
             .filter_map(|swap| {
@@ -81,16 +82,22 @@ pub(crate) struct TakeFirstRecursion<F: SwapFactory> {
     recursion_depth: u8,
     recursion_width: Option<usize>, // number of schedule that are considered for recursion (the one with best value are taken)
     objective: Arc<Objective<Schedule>>,
+    start_provider: Option<VehicleId>, // stores as start provider the provider of the last improving swap
 }
 
 impl<F: SwapFactory> LocalImprover for TakeFirstRecursion<F> {
-    fn improve(&self, solution: &Solution) -> Option<Solution> {
+    fn improve(&mut self, solution: &Solution) -> Option<Solution> {
         let old_objective_value = solution.objective_value();
-        self.improve_recursion(
+        let result = self.improve_recursion(
             vec![solution.clone()],
             old_objective_value,
             self.recursion_depth,
-        )
+        );
+
+        result.map(|(sol, provider)| {
+            self.start_provider = Some(provider);
+            sol
+        })
     }
 }
 
@@ -106,18 +113,22 @@ impl<F: SwapFactory> TakeFirstRecursion<F> {
             recursion_depth,
             recursion_width,
             objective,
+            start_provider: None,
         }
     }
 
+    /// Returns the first improving schedule in the given sequence of schedules.
+    /// and the provider of the last swap that lead to the improvement.
+    /// If no improvement is found, None is returned.
     fn improve_recursion(
         &self,
         solution: Vec<Solution>,
         objective_to_beat: &ObjectiveValue,
         remaining_recursion: u8,
-    ) -> Option<Solution> {
+    ) -> Option<(Solution, VehicleId)> {
         let swap_iterator = solution.iter().flat_map(|sol| {
             self.swap_factory
-                .create_swap_iterator(sol.solution())
+                .create_swap_iterator(sol.solution(), self.start_provider)
                 .map(move |swap| (swap, sol))
         });
 
@@ -133,9 +144,9 @@ impl<F: SwapFactory> TakeFirstRecursion<F> {
                 counter += 1;
                 swap.apply(old_sol.solution())
                     .ok()
-                    .map(|new_schedule| self.objective.evaluate(new_schedule))
+                    .map(|new_schedule| (self.objective.evaluate(new_schedule), swap.provider()))
             })
-            .find(|new_sol| {
+            .find(|(new_sol, _)| {
                 if remaining_recursion > 0 {
                     solutions_for_recursion.push(new_sol.clone());
                     if let Some(width) = self.recursion_width {

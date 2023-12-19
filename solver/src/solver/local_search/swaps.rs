@@ -6,6 +6,8 @@ use std::fmt;
 /// An elementary modification. Defining the "neighborhood" for the local search.
 pub(crate) trait Swap: fmt::Display {
     fn apply(&self, schedule: &Schedule) -> Result<Schedule, String>;
+
+    fn provider(&self) -> VehicleId;
 }
 
 /// Removes the path from the provider's tour and insert it into the receiver's tour.
@@ -28,6 +30,10 @@ impl PathExchange {
 }
 
 impl Swap for PathExchange {
+    fn provider(&self) -> VehicleId {
+        self.provider
+    }
+
     fn apply(&self, schedule: &Schedule) -> Result<Schedule, String> {
         let (first_intermediate_schedule, new_dummy_opt) =
             schedule.override_reassign(self.segment, self.provider, self.receiver)?;

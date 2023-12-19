@@ -9,10 +9,12 @@ use time::Duration;
 use std::iter;
 
 /// Computes for a given schedule all Swaps in the neighborhood.
+/// The providers are rotated such that the start_provider is the first provider.
 pub(crate) trait SwapFactory: Clone + Send {
     fn create_swap_iterator<'a>(
         &'a self,
         schedule: &'a Schedule,
+        start_provider: Option<VehicleId>,
     ) -> Box<dyn Iterator<Item = Box<dyn Swap + Send>> + Send + 'a>;
 }
 
@@ -53,12 +55,22 @@ impl SwapFactory for LimitedExchanges {
     fn create_swap_iterator<'a>(
         &'a self,
         schedule: &'a Schedule,
+        start_provider: Option<VehicleId>,
     ) -> Box<dyn Iterator<Item = Box<dyn Swap + Send>> + Send + 'a> {
-        let providers: Vec<_> = if self.only_dummy_provider {
+        let mut providers: Vec<_> = if self.only_dummy_provider {
             schedule.dummy_iter().collect()
         } else {
             self.dummy_and_real_vehicles(schedule).collect()
         };
+
+        // rotate providers such that start_provider is the first provider
+        // e.g. start_provider = v5
+        // so v0, v1, v2, v3, v4, v5, v6, v7, v8, v9
+        // becomes v5, v6, v7, v8, v9, v0, v1, v2, v3, v4
+        if let Some(position) = providers.iter().position(|&v| Some(v) == start_provider) {
+            providers.rotate_left(position);
+        }
+
         Box::new(
             // as provider first take dummies then real Vehicles:
             providers.into_iter().flat_map(move |provider|

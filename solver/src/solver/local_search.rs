@@ -72,7 +72,7 @@ impl Solver for LocalSearch {
             self.network.clone(),
         );
 
-        let recursion_depth = 2;
+        let recursion_depth = 0;
         let recursion_width = 5;
         // let soft_objective_threshold = 10.0;
 
@@ -104,7 +104,7 @@ impl LocalSearch {
     fn find_local_optimum(
         &self,
         start_solution: Solution,
-        local_improver: impl LocalImprover,
+        mut local_improver: impl LocalImprover,
     ) -> Solution {
         let mut old_solution = start_solution;
         while let Some(new_solution) = local_improver.improve(&old_solution) {
