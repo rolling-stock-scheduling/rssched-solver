@@ -67,6 +67,10 @@ impl Network {
         self.end_depot_nodes.iter().copied()
     }
 
+    pub fn depots_iter(&self) -> impl Iterator<Item = DepotId> + '_ {
+        self.depots.keys().copied()
+    }
+
     /// service and maintenance_nodes
     pub fn coverable_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
         self.service_nodes().chain(self.maintenance_nodes())
@@ -76,12 +80,16 @@ impl Network {
         &self.locations
     }
 
-    pub fn capacity_for(
+    pub fn capacity_of(
         &self,
-        node_id: NodeId,
+        depot_id: DepotId,
         vehicle_type_id: VehicleTypeId,
     ) -> Option<PassengerCount> {
-        self.depots[&self.node(node_id).as_depot().depot_id()].capacity_for(vehicle_type_id)
+        self.depots[&depot_id].capacity_for(vehicle_type_id)
+    }
+
+    pub fn get_depot_id(&self, node_id: NodeId) -> DepotId {
+        self.node(node_id).as_depot().depot_id()
     }
 
     /// sum over all service trips: number of passenger * distance

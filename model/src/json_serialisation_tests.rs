@@ -55,12 +55,12 @@ fn test_load_from_json() {
         )
     );
     assert_eq!(
-        network.capacity_for(NodeId::from("s_depot1"), VehicleTypeId::from("vt1")),
+        network.capacity_of(DepotId::from("depot1"), VehicleTypeId::from("vt1")),
         Some(7)
     );
 
     assert_eq!(
-        network.capacity_for(NodeId::from("s_depot1"), VehicleTypeId::from("vt2")),
+        network.capacity_of(DepotId::from("depot1"), VehicleTypeId::from("vt2")),
         Some(5)
     );
 
@@ -74,12 +74,12 @@ fn test_load_from_json() {
         )
     );
     assert_eq!(
-        network.capacity_for(NodeId::from("e_depot1"), VehicleTypeId::from("vt1")),
+        network.capacity_of(DepotId::from("depot1"), VehicleTypeId::from("vt1")),
         Some(7)
     );
 
     assert_eq!(
-        network.capacity_for(NodeId::from("e_depot1"), VehicleTypeId::from("vt2")),
+        network.capacity_of(DepotId::from("depot1"), VehicleTypeId::from("vt2")),
         Some(5)
     );
 
@@ -93,12 +93,12 @@ fn test_load_from_json() {
         )
     );
     assert_eq!(
-        network.capacity_for(NodeId::from("s_depot2"), VehicleTypeId::from("vt1")),
+        network.capacity_of(DepotId::from("depot2"), VehicleTypeId::from("vt1")),
         Some(0)
     );
 
     assert_eq!(
-        network.capacity_for(NodeId::from("s_depot2"), VehicleTypeId::from("vt2")),
+        network.capacity_of(DepotId::from("depot2"), VehicleTypeId::from("vt2")),
         Some(8)
     );
 
@@ -112,12 +112,12 @@ fn test_load_from_json() {
         )
     );
     assert_eq!(
-        network.capacity_for(NodeId::from("e_depot2"), VehicleTypeId::from("vt1")),
+        network.capacity_of(DepotId::from("depot2"), VehicleTypeId::from("vt1")),
         Some(0)
     );
 
     assert_eq!(
-        network.capacity_for(NodeId::from("e_depot2"), VehicleTypeId::from("vt2")),
+        network.capacity_of(DepotId::from("depot2"), VehicleTypeId::from("vt2")),
         Some(8)
     );
 

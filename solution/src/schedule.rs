@@ -1,8 +1,10 @@
 mod modifications;
+use sbb_model::base_types::DepotId;
 use sbb_model::base_types::Distance;
 use sbb_model::base_types::NodeId;
 use sbb_model::base_types::PassengerCount;
 use sbb_model::base_types::SeatDistance;
+use sbb_model::base_types::VehicleCount;
 use sbb_model::base_types::VehicleId;
 use sbb_model::base_types::VehicleTypeId;
 use sbb_model::config::Config;
@@ -16,6 +18,7 @@ use crate::train_formation::TrainFormation;
 use crate::vehicle::Vehicle;
 
 use im::HashMap;
+use im::HashSet;
 use std::cmp::Ordering;
 use std::sync::Arc;
 
@@ -36,6 +39,11 @@ pub struct Schedule {
     // If a node is not covered yet, there is still an entry with an empty train formation.
     // So each non-depot node is covered by exactly one train formation.
     train_formations: HashMap<NodeId, TrainFormation>,
+
+    // for each depot-vehicle_type-pair we store the vehicles of that type that are spawned at this depot and the vehicles that
+    // despawn at this depot.
+    // First hashset are the spawned vehicles, second hashset are the despawned vehicles.
+    depot_usage: HashMap<(DepotId, VehicleTypeId), (HashSet<VehicleId>, HashSet<VehicleId>)>,
 
     // not fully covered nodes can be organized to tours, so they can be assigned to vehicles as
     // segments; dummies are never part of a train_formation, they don't have a type and they never
@@ -104,12 +112,32 @@ impl Schedule {
         self.get_vehicle(vehicle).unwrap().type_id()
     }
 
+    /// Returns the number of vehicles of the given type that are spawned at the given depot - the
+    /// number of vehicles of the given type that despawn at the given depot.
+    /// Hence, negative values mean that there are more vehicles despawning than spawning.
+    pub fn depot_balance(&self, depot: DepotId, vehicle_type: VehicleTypeId) -> i32 {
+        self.depot_usage
+            .get(&(depot, vehicle_type))
+            .map(|(spawned, despawned)| (spawned.len() as i32 - despawned.len() as i32))
+            .unwrap_or(0)
+    }
+
+    pub fn total_depot_balance_violation(&self) -> VehicleCount {
+        self.depot_usage
+            .keys()
+            .map(|(depot, vehicle_type)| {
+                self.depot_balance(*depot, *vehicle_type).abs() as VehicleCount
+            })
+            .sum()
+    }
+
     pub fn can_depot_spawn_vehicle(
         &self,
         start_depot: NodeId,
         vehicle_type_id: VehicleTypeId,
     ) -> bool {
-        let capacity = self.network.capacity_for(start_depot, vehicle_type_id);
+        let depot = self.network.get_depot_id(start_depot);
+        let capacity = self.network.capacity_of(depot, vehicle_type_id);
 
         if capacity == Some(0) {
             return false;
@@ -120,15 +148,10 @@ impl Schedule {
         }
 
         let number_of_spawned_vehicles = self
-            .vehicles_iter()
-            .filter(|vehicle| {
-                self.tour_of(*vehicle)
-                    .unwrap()
-                    .first_node()
-                    .eq(&start_depot)
-            })
-            .filter(|vehicle| self.vehicle_type_of(*vehicle).eq(&vehicle_type_id))
-            .count() as PassengerCount;
+            .depot_usage
+            .get(&(depot, vehicle_type_id))
+            .map(|(spawned, _)| spawned.len() as VehicleCount)
+            .unwrap_or(0);
 
         if number_of_spawned_vehicles < capacity.unwrap() {
             return true;
@@ -136,7 +159,30 @@ impl Schedule {
         false
     }
 
-    // Objective indicators
+    pub fn reduces_spawning_at_depot_violation(
+        &self,
+        vehicle_type: VehicleTypeId,
+        depot: DepotId,
+    ) -> bool {
+        if self.depot_balance(depot, vehicle_type) < 0 {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn reduces_despawning_at_depot_violation(
+        &self,
+        vehicle_type: VehicleTypeId,
+        depot: DepotId,
+    ) -> bool {
+        if self.depot_balance(depot, vehicle_type) > 0 {
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn number_of_unserved_passengers(&self) -> PassengerCount {
         self.network
             .service_nodes()
@@ -285,32 +331,26 @@ impl Eq for Schedule {}
 
 // static methods
 impl Schedule {
-    // initializing an empty schedule
+    /// initializing an empty schedule
     pub fn empty(
         vehicle_types: Arc<VehicleTypes>,
         network: Arc<Network>,
         config: Arc<Config>,
     ) -> Schedule {
-        let vehicles = HashMap::new();
-        let tours = HashMap::new();
-        let dummy_tours = HashMap::new();
         let mut train_formations = HashMap::new();
-        let vehicle_ids_sorted = Vec::new();
-        let dummy_ids_sorted = Vec::new();
-        let dummy_counter = 0;
-
         for node in network.coverable_nodes() {
             train_formations.insert(node, TrainFormation::empty());
         }
 
         Schedule {
-            vehicles,
-            tours,
+            vehicles: HashMap::new(),
+            tours: HashMap::new(),
             train_formations,
-            dummy_tours,
-            vehicle_ids_sorted,
-            dummy_ids_sorted,
-            vehicle_counter: dummy_counter,
+            depot_usage: HashMap::new(),
+            dummy_tours: HashMap::new(),
+            vehicle_ids_sorted: Vec::new(),
+            dummy_ids_sorted: Vec::new(),
+            vehicle_counter: 0,
             config,
             vehicle_types,
             network,
