@@ -10,115 +10,12 @@ use crate::{
 };
 
 impl Schedule {
-    /// Updates the provided depot_usage data structure.
-    /// The vehicle is removed from the old end_depot (if it was a real vehicle in self).
-    /// The vehicle is added to the new end_depot if new_end_depot_node is Some.
-    /// It is assumed that the vehicle is no dummy for the new schedule.
-    fn update_depot_usage_for_new_end_depot(
-        &self,
-        depot_usage: &mut HashMap<
-            (DepotId, VehicleTypeId),
-            (HashSet<VehicleId>, HashSet<VehicleId>),
-        >,
-        vehicle: VehicleId,
-        new_end_depot_node: Option<NodeId>, // if None, the vehicle is deleted
-    ) {
-        let vehicle_type = self.vehicle_type_of(vehicle);
-
-        match self.is_dummy(vehicle) {
-            false => {
-                let old_depot = self
-                    .network
-                    .get_depot_id(self.tour_of(vehicle).unwrap().end_depot().unwrap());
-                depot_usage
-                    .entry((old_depot, vehicle_type))
-                    .and_modify(|e| {
-                        e.1.remove(&vehicle).unwrap();
-                    });
-            }
-            true => {}
-        }
-
-        match new_end_depot_node {
-            Some(new_end_depot_node) => {
-                let new_depot = self.network.get_depot_id(new_end_depot_node);
-                depot_usage
-                    .entry((new_depot, vehicle_type))
-                    .and_modify(|e| {
-                        e.1.insert(vehicle);
-                    });
-            }
-            None => {}
-        }
-    }
-
-    /// Updates the provided depot_usage data structure.
-    /// The vehicle is removed from the old start_depot (if it was a real vehicle in self).
-    /// The vehicle is added to the new start_depot if new_start_depot_node is Some.
-    /// It is assumed that the vehicle is no dummy for the new schedule.
-    fn update_depot_usage_for_new_start_depot(
-        &self,
-        depot_usage: &mut HashMap<
-            (DepotId, VehicleTypeId),
-            (HashSet<VehicleId>, HashSet<VehicleId>),
-        >,
-        vehicle: VehicleId,
-        new_start_depot_node: Option<NodeId>, // if None, the vehicle is deleted
-    ) {
-        let vehicle_type = self.vehicle_type_of(vehicle);
-
-        match self.is_dummy(vehicle) {
-            false => {
-                let old_depot = self
-                    .network
-                    .get_depot_id(self.tour_of(vehicle).unwrap().start_depot().unwrap());
-                depot_usage
-                    .entry((old_depot, vehicle_type))
-                    .and_modify(|e| {
-                        e.0.remove(&vehicle).unwrap();
-                    });
-            }
-            true => {}
-        }
-
-        match new_start_depot_node {
-            Some(new_start_depot_node) => {
-                let new_depot = self.network.get_depot_id(new_start_depot_node);
-                depot_usage
-                    .entry((new_depot, vehicle_type))
-                    .and_modify(|e| {
-                        e.0.insert(vehicle);
-                    });
-            }
-            None => {}
-        }
-    }
-
-    /// Updates the provided depot_usage data structure.
-    /// The vehicle is removed from the old depots (if it was a real vehicle in self).
-    /// The vehicle is added to the new depots if new_tour is Some.
-    /// It is assumed that the vehicle is no dummy for the new schedule.
-    fn update_depot_usage(
-        &self,
-        depot_usage: &mut HashMap<
-            (DepotId, VehicleTypeId),
-            (HashSet<VehicleId>, HashSet<VehicleId>),
-        >,
-        vehicle: VehicleId,
-        new_tour: Option<&Tour>,
-    ) {
-        let new_start_depot_node = new_tour.map(|t| t.start_depot().unwrap());
-        let new_end_depot_node = new_tour.map(|t| t.end_depot().unwrap());
-        self.update_depot_usage_for_new_start_depot(depot_usage, vehicle, new_start_depot_node);
-        self.update_depot_usage_for_new_end_depot(depot_usage, vehicle, new_end_depot_node);
-    }
-
     pub fn reassign_end_depots_greedily(&self) -> Result<Schedule, String> {
         let mut tours = self.tours.clone();
         let mut depot_usage = self.depot_usage.clone();
 
-        for vehicle in self.vehicle_ids_sorted.iter() {
-            let tour = self.tour_of(*vehicle).unwrap();
+        for vehicle_id in self.vehicle_ids_sorted.iter() {
+            let tour = self.tour_of(*vehicle_id).unwrap();
             let last_node_location = self
                 .network
                 .node(tour.last_non_depot().unwrap())
@@ -128,14 +25,14 @@ impl Schedule {
                 .end_depots_sorted_by_distance_from(last_node_location)
                 .first()
                 .copied()
-                .ok_or(format!("Cannot find end depot for vehicle {}.", vehicle))?;
+                .ok_or(format!("Cannot find end depot for vehicle {}.", vehicle_id))?;
 
             let new_tour = tour.replace_end_depot(new_end_depot_node).unwrap();
-            tours.insert(*vehicle, new_tour);
+            tours.insert(*vehicle_id, new_tour);
 
             self.update_depot_usage_for_new_end_depot(
                 &mut depot_usage,
-                *vehicle,
+                self.get_vehicle(*vehicle_id).unwrap().clone(),
                 Some(new_end_depot_node),
             );
         }
@@ -199,16 +96,15 @@ impl Schedule {
         vehicles.insert(vehicle_id, vehicle.clone());
 
         // update train_formations
-        for node in tour.all_non_depot_nodes_iter() {
-            let new_formation = train_formations
-                .get(&node)
-                .unwrap()
-                .add_at_tail(vehicle.clone());
-            train_formations.insert(node, new_formation);
-        }
+        self.update_train_formation(
+            &mut train_formations,
+            None,
+            Some(vehicle.clone()),
+            tour.all_nodes_iter().collect(),
+        );
 
         // update depot_usage
-        self.update_depot_usage(&mut depot_usage, vehicle_id, Some(&tour));
+        self.update_depot_usage_assuming_no_dummies(&mut depot_usage, vehicle.clone(), Some(&tour));
 
         // update tours
         tours.insert(vehicle_id, tour);
@@ -237,11 +133,11 @@ impl Schedule {
     }
 
     /// Delete vehicle (and its tour) from schedule.
-    pub fn delete_vehicle(&self, vehicle: VehicleId) -> Result<Schedule, String> {
-        if self.is_dummy(vehicle) {
+    pub fn delete_vehicle(&self, vehicle_id: VehicleId) -> Result<Schedule, String> {
+        if self.is_dummy(vehicle_id) {
             return Err(format!(
                 "Cannot delete dummy vehicle {} from schedule.",
-                vehicle
+                vehicle_id
             ));
         }
         let mut vehicles = self.vehicles.clone();
@@ -251,22 +147,24 @@ impl Schedule {
         let mut vehicle_ids_sorted = self.vehicle_ids_sorted.clone();
 
         // remove vehicle and tour
-        vehicles.remove(&vehicle);
-        tours.remove(&vehicle);
-        vehicle_ids_sorted.remove(vehicle_ids_sorted.binary_search(&vehicle).unwrap());
+        vehicles.remove(&vehicle_id);
+        tours.remove(&vehicle_id);
+        vehicle_ids_sorted.remove(vehicle_ids_sorted.binary_search(&vehicle_id).unwrap());
 
         // remove vehicle from train formations
-        for node in self.tours.get(&vehicle).unwrap().all_nodes_iter() {
-            let new_formation = train_formations
-                .get(&node)
-                .unwrap()
-                .remove(vehicle)
-                .unwrap();
-            train_formations.insert(node, new_formation);
-        }
+        self.update_train_formation(
+            &mut train_formations,
+            Some(vehicle_id),
+            None,
+            tours.get(&vehicle_id).unwrap().all_nodes_iter().collect(),
+        );
 
         // update depot_usage
-        self.update_depot_usage(&mut depot_usage, vehicle, None);
+        self.update_depot_usage_assuming_no_dummies(
+            &mut depot_usage,
+            self.get_vehicle(vehicle_id).unwrap().clone(),
+            None,
+        );
 
         Ok(Schedule {
             vehicles,
@@ -317,7 +215,7 @@ impl Schedule {
     /// the old tour are removed.
     pub fn add_path_to_vehicle_tour(
         &self,
-        vehicle: VehicleId,
+        vehicle_id: VehicleId,
         path: Path,
     ) -> Result<Schedule, String> {
         let mut tours = self.tours.clone();
@@ -329,29 +227,28 @@ impl Schedule {
             let new_formation = train_formations
                 .get(&node)
                 .unwrap()
-                .add_at_tail(self.vehicles.get(&vehicle).cloned().unwrap());
+                .add_at_tail(self.vehicles.get(&vehicle_id).cloned().unwrap());
             train_formations.insert(node, new_formation);
         }
 
-        let (new_tour, removed_path_opt) = tours.get(&vehicle).unwrap().insert_path(path);
+        let (new_tour, removed_path_opt) = tours.get(&vehicle_id).unwrap().insert_path(path);
 
         // remove vehicle from train formations for nodes of removed path
         if let Some(removed_path) = removed_path_opt {
-            for node in removed_path.iter() {
-                let new_formation = train_formations
-                    .get(&node)
-                    .unwrap()
-                    .remove(vehicle)
-                    .unwrap();
-                train_formations.insert(node, new_formation);
-            }
+            self.update_train_formation(
+                &mut train_formations,
+                Some(vehicle_id),
+                None,
+                removed_path.iter().collect(),
+            );
         }
 
         // update depot_usage
-        self.update_depot_usage(&mut depot_usage, vehicle, Some(&new_tour));
+        let vehicle = self.vehicles.get(&vehicle_id).unwrap().clone();
+        self.update_depot_usage_assuming_no_dummies(&mut depot_usage, vehicle, Some(&new_tour));
 
         // update tours
-        tours.insert(vehicle, new_tour);
+        tours.insert(vehicle_id, new_tour);
 
         Ok(Schedule {
             vehicles: self.vehicles.clone(),
@@ -410,10 +307,6 @@ impl Schedule {
         let tour_receiver = self
             .tour_of(receiver)
             .expect("Receiver should be in schedule.");
-        let mut new_tour_provider = Some(tour_provider.clone());
-        let mut new_tour_receiver = tour_receiver.clone();
-        let mut remaining_path = Some(tour_provider.sub_path(segment)?);
-        let mut moved_nodes = Vec::new();
 
         // go through the path that should be inserted without causing conflcits.
         // As dead_head_trips might be longer than service trips we do not iterate over all nodes
@@ -422,6 +315,10 @@ impl Schedule {
         // Hence we iteratively consider the first node of the remaining_path as the start of a
         // segment and take the biggest segment that can be reassigned.
         // Afterwards this segment is removed
+        let mut new_tour_provider = Some(tour_provider.clone());
+        let mut new_tour_receiver = tour_receiver.clone();
+        let mut remaining_path = Some(tour_provider.sub_path(segment)?);
+        let mut moved_nodes = Vec::new();
 
         while let Some(path) = remaining_path {
             let sub_segment_start = path.first();
@@ -483,53 +380,20 @@ impl Schedule {
             moved_nodes.extend(node_sequence);
         }
 
-        // update depot_usage
-        self.update_depot_usage(&mut depot_usage, provider, new_tour_provider.as_ref());
-        self.update_depot_usage(&mut depot_usage, receiver, Some(&new_tour_receiver));
-
-        // update reduced tour of the provider
-        match new_tour_provider {
-            Some(mut new_tour) => {
-                if self.is_dummy(provider) {
-                    dummy_tours.insert(provider, new_tour);
-                } else {
-                    new_tour =
-                        self.improve_depots_of_tour(new_tour, self.vehicle_type_of(provider));
-                    tours.insert(provider, new_tour);
-                }
-            }
-            None => {
-                if self.is_dummy(provider) {
-                    dummy_tours.remove(&provider); // old_dummy_tour is completely removed
-                    dummy_ids_sorted.remove(dummy_ids_sorted.binary_search(&provider).unwrap());
-                } else {
-                    vehicles.remove(&provider);
-                    tours.remove(&provider); // old_tour is completely removed
-                    vehicle_ids_sorted.remove(vehicle_ids_sorted.binary_search(&provider).unwrap());
-                }
-            }
-        }
-
-        // update extended tour of the receiver
-        if self.is_dummy(receiver) {
-            dummy_tours.insert(receiver, new_tour_receiver);
-        } else {
-            new_tour_receiver =
-                self.improve_depots_of_tour(new_tour_receiver, self.vehicle_type_of(receiver));
-            tours.insert(receiver, new_tour_receiver);
-        }
-
-        // update train_formations:
-        for node in moved_nodes.iter() {
-            if self.network.node(*node).is_depot() {
-                continue;
-            }
-            train_formations.insert(
-                *node,
-                self.vehicle_replacement_in_train_formation(provider, receiver, *node)
-                    .unwrap(),
-            );
-        }
+        self.update_tours(
+            &mut vehicles,
+            &mut tours,
+            &mut train_formations,
+            &mut depot_usage,
+            &mut dummy_tours,
+            &mut vehicle_ids_sorted,
+            &mut dummy_ids_sorted,
+            provider,
+            new_tour_provider,
+            receiver,
+            new_tour_receiver,
+            moved_nodes,
+        );
 
         Ok(Schedule {
             vehicles,
@@ -544,6 +408,101 @@ impl Schedule {
             vehicle_types: self.vehicle_types.clone(),
             network: self.network.clone(),
         })
+    }
+
+    /// Reassign vehicles to the new tours.
+    /// The depots of the tours are improved.
+    /// Updates all relevant data structures.
+    fn update_tours(
+        &self,
+        vehicles: &mut HashMap<VehicleId, Vehicle>,
+        tours: &mut HashMap<VehicleId, Tour>,
+        train_formations: &mut HashMap<NodeId, TrainFormation>,
+        depot_usage: &mut HashMap<
+            (DepotId, VehicleTypeId),
+            (HashSet<VehicleId>, HashSet<VehicleId>),
+        >,
+        dummy_tours: &mut HashMap<VehicleId, Tour>,
+        vehicle_ids_sorted: &mut Vec<VehicleId>,
+        dummy_ids_sorted: &mut Vec<VehicleId>,
+        provider: VehicleId,
+        new_tour_provider: Option<Tour>, // None: provider is deleted
+        receiver: VehicleId,
+        new_tour_receiver: Tour,
+        moved_nodes: Vec<NodeId>,
+    ) {
+        // update tour of the provider
+        match new_tour_provider {
+            Some(new_tour) => {
+                self.update_tour(tours, dummy_tours, provider, new_tour);
+            }
+            None => {
+                if self.is_dummy(provider) {
+                    dummy_tours.remove(&provider); // old_dummy_tour is completely removed
+                    dummy_ids_sorted.remove(dummy_ids_sorted.binary_search(&provider).unwrap());
+                } else {
+                    vehicles.remove(&provider);
+                    tours.remove(&provider); // old_tour is completely removed
+                    vehicle_ids_sorted.remove(vehicle_ids_sorted.binary_search(&provider).unwrap());
+                }
+            }
+        }
+
+        // update extended tour of the receiver
+        self.update_tour(tours, dummy_tours, receiver, new_tour_receiver);
+
+        let receiver_vehicle = vehicles.get(&receiver).cloned();
+        // update train_formations
+        self.update_train_formation(
+            train_formations,
+            Some(provider),
+            receiver_vehicle,
+            moved_nodes,
+        );
+
+        // update depot_usage
+        self.update_depot_usage(depot_usage, vehicles, tours, provider);
+        self.update_depot_usage(depot_usage, vehicles, tours, receiver);
+    }
+
+    fn update_tour(
+        &self,
+        tours: &mut HashMap<VehicleId, Tour>,
+        dummy_tours: &mut HashMap<VehicleId, Tour>,
+        vehicle: VehicleId,
+        new_tour: Tour,
+    ) {
+        if self.is_dummy(vehicle) {
+            dummy_tours.insert(vehicle, new_tour);
+        } else {
+            tours.insert(
+                vehicle,
+                self.improve_depots_of_tour(new_tour, self.vehicle_type_of(vehicle)),
+            );
+        }
+    }
+
+    fn update_train_formation(
+        &self,
+        train_formations: &mut HashMap<NodeId, TrainFormation>,
+        provider: Option<VehicleId>,       // None: only add receiver
+        receiver_vehicle: Option<Vehicle>, // None: only delete provider
+        moved_nodes: Vec<NodeId>,
+    ) {
+        for node in moved_nodes.iter() {
+            if self.network.node(*node).is_depot() {
+                continue;
+            }
+            train_formations.insert(
+                *node,
+                self.vehicle_replacement_in_train_formation(
+                    provider,
+                    receiver_vehicle.clone(),
+                    *node,
+                )
+                .unwrap(),
+            );
+        }
     }
 
     /// Remove segment from provider's tour and inserts the nodes into the tour of receiver vehicle.
@@ -576,56 +535,25 @@ impl Schedule {
         // remove segment for provider
         let (shrinked_tour_provider, path) = tour_provider.remove(segment)?;
 
-        // update train_formations:
-        for node in path.iter() {
-            if self.network.node(node).is_depot() {
-                continue;
-            }
-            train_formations.insert(
-                node,
-                self.vehicle_replacement_in_train_formation(provider, receiver, node)
-                    .unwrap(),
-            );
-        }
+        let moved_nodes = path.iter().collect();
 
         // insert path into tour
-        let (mut new_tour_receiver, replaced_path) = tour_receiver.insert_path(path);
+        let (new_tour_receiver, replaced_path) = tour_receiver.insert_path(path);
 
-        // update depot_usage
-        self.update_depot_usage(&mut depot_usage, provider, shrinked_tour_provider.as_ref());
-        self.update_depot_usage(&mut depot_usage, receiver, Some(&new_tour_receiver));
-
-        // update shrinked tour of the provider
-        match shrinked_tour_provider {
-            Some(mut new_tour) => {
-                if self.is_dummy(provider) {
-                    dummy_tours.insert(provider, new_tour);
-                } else {
-                    new_tour =
-                        self.improve_depots_of_tour(new_tour, self.vehicle_type_of(provider));
-                    tours.insert(provider, new_tour);
-                }
-            }
-            None => {
-                if self.is_dummy(provider) {
-                    dummy_tours.remove(&provider); // old_dummy_tour is completely removed
-                    dummy_ids_sorted.remove(dummy_ids_sorted.binary_search(&provider).unwrap());
-                } else {
-                    vehicles.remove(&provider);
-                    tours.remove(&provider); // old_tour is completely removed
-                    vehicle_ids_sorted.remove(vehicle_ids_sorted.binary_search(&provider).unwrap());
-                }
-            }
-        }
-
-        // update extended tour of the receiver
-        if self.is_dummy(receiver) {
-            dummy_tours.insert(receiver, new_tour_receiver);
-        } else {
-            new_tour_receiver =
-                self.improve_depots_of_tour(new_tour_receiver, self.vehicle_type_of(receiver));
-            tours.insert(receiver, new_tour_receiver);
-        }
+        self.update_tours(
+            &mut vehicles,
+            &mut tours,
+            &mut train_formations,
+            &mut depot_usage,
+            &mut dummy_tours,
+            &mut vehicle_ids_sorted,
+            &mut dummy_ids_sorted,
+            provider,
+            shrinked_tour_provider,
+            receiver,
+            new_tour_receiver,
+            moved_nodes,
+        );
 
         let mut new_dummy_opt = None;
         // insert new dummy tour consisting of conflicting nodes removed from receiver's tour
@@ -637,24 +565,16 @@ impl Schedule {
             if self.is_vehicle(receiver) {
                 // in this case receiver needs to be removed from the train formations of the
                 // removed nodes
-                for node in new_path.iter() {
-                    if self.network.node(node).is_depot() {
-                        continue;
-                    }
-                    train_formations.insert(
-                        node,
-                        train_formations
-                            .get(&node)
-                            .unwrap()
-                            .remove(receiver)
-                            .unwrap(),
-                    );
-                }
+                self.update_train_formation(
+                    &mut train_formations,
+                    Some(receiver),
+                    None,
+                    new_path.iter().collect(),
+                );
             }
 
             let new_dummy_tour = Tour::new_dummy_by_path(new_path, self.network.clone());
 
-            // dummy_objective_info.insert(new_dummy, new_dummy_tour.overhead_time());
             dummy_tours.insert(new_dummy, new_dummy_tour);
             dummy_ids_sorted.insert(
                 dummy_ids_sorted
@@ -687,8 +607,8 @@ impl Schedule {
     /// Provider or receiver can be a dummy vehicle.
     fn vehicle_replacement_in_train_formation(
         &self,
-        provider: VehicleId,
-        receiver: VehicleId,
+        provider: Option<VehicleId>,
+        receiver_vehicle: Option<Vehicle>,
         node: NodeId,
     ) -> Result<TrainFormation, String> {
         let old_formation = self
@@ -696,24 +616,17 @@ impl Schedule {
             .get(&node)
             .expect(format!("Node {} has no train formations.", node).as_str());
 
-        if self.is_dummy(receiver) {
-            if self.is_dummy(provider) {
+        if receiver_vehicle.is_none() || self.is_dummy(receiver_vehicle.as_ref().unwrap().id()) {
+            if provider.is_none() || self.is_dummy(provider.unwrap()) {
                 Ok(old_formation.clone())
             } else {
-                old_formation.remove(provider)
+                old_formation.remove(provider.unwrap())
             }
         } else {
-            let receiver_vehicle = self.vehicles.get(&receiver).cloned().ok_or(
-                format!(
-                    "Receiver {} is no vehicle in the current schedule.",
-                    receiver
-                )
-                .as_str(),
-            )?;
-            if self.is_dummy(provider) {
-                Ok(old_formation.add_at_tail(receiver_vehicle))
+            if provider.is_none() || self.is_dummy(provider.unwrap()) {
+                Ok(old_formation.add_at_tail(receiver_vehicle.unwrap()))
             } else {
-                old_formation.replace(provider, receiver_vehicle)
+                old_formation.replace(provider.unwrap(), receiver_vehicle.unwrap())
             }
         }
     }
@@ -819,6 +732,128 @@ impl Schedule {
                 "Cannot de-spawn vehicle of type {} for end_node {}. No end_depot available.",
                 vehicle_type_id, last_node,
             )),
+        }
+    }
+
+    /// Updates the provided depot_usage data structure.
+    /// The vehicle is removed from the old depots (if it was a real vehicle in self).
+    /// The vehicle is added to the new depots if vehicle is real new schedule (given by vehicles) and new_tour is Some.
+    fn update_depot_usage(
+        &self,
+        depot_usage: &mut HashMap<
+            (DepotId, VehicleTypeId),
+            (HashSet<VehicleId>, HashSet<VehicleId>),
+        >,
+        vehicles: &HashMap<VehicleId, Vehicle>,
+        tours: &HashMap<VehicleId, Tour>,
+        vehicle_id: VehicleId,
+    ) {
+        match vehicles.get(&vehicle_id) {
+            Some(vehicle) => self.update_depot_usage_assuming_no_dummies(
+                depot_usage,
+                vehicle.clone(),
+                tours.get(&vehicle_id),
+            ),
+            None => {
+                // vehicle is dummy in new schedule
+                match self.vehicles.get(&vehicle_id) {
+                    Some(vehicle) => self.update_depot_usage_assuming_no_dummies(
+                        depot_usage,
+                        vehicle.clone(),
+                        None,
+                    ),
+                    None => {} // vehicle is dummy in old and new schedule
+                }
+            }
+        }
+    }
+
+    /// Updates the provided depot_usage data structure.
+    /// The vehicle is removed from the old depots (if it was a real vehicle in self).
+    /// The vehicle is added to the new depots if new_tour is Some.
+    /// It is assumed that the vehicle is no dummy for the new schedule.
+    fn update_depot_usage_assuming_no_dummies(
+        &self,
+        depot_usage: &mut HashMap<
+            (DepotId, VehicleTypeId),
+            (HashSet<VehicleId>, HashSet<VehicleId>),
+        >,
+        vehicle: Vehicle,
+        new_tour: Option<&Tour>,
+    ) {
+        let new_start_depot_node = new_tour.map(|t| t.start_depot().unwrap());
+        let new_end_depot_node = new_tour.map(|t| t.end_depot().unwrap());
+        self.update_depot_usage_for_new_start_depot(
+            depot_usage,
+            vehicle.clone(),
+            new_start_depot_node,
+        );
+        self.update_depot_usage_for_new_end_depot(depot_usage, vehicle, new_end_depot_node);
+    }
+
+    fn update_depot_usage_for_new_end_depot(
+        &self,
+        depot_usage: &mut HashMap<
+            (DepotId, VehicleTypeId),
+            (HashSet<VehicleId>, HashSet<VehicleId>),
+        >,
+        vehicle: Vehicle,
+        new_end_depot_node: Option<NodeId>, // if None, the vehicle is deleted
+    ) {
+        let vehicle_type = vehicle.type_id();
+        let vehicle_id = vehicle.id();
+
+        if self.is_vehicle(vehicle_id) {
+            let old_depot = self
+                .network
+                .get_depot_id(self.tour_of(vehicle_id).unwrap().end_depot().unwrap());
+            depot_usage
+                .entry((old_depot, vehicle_type))
+                .and_modify(|e| {
+                    e.1.remove(&vehicle_id).unwrap();
+                });
+        }
+
+        if let Some(end_depot_node) = new_end_depot_node {
+            let new_depot = self.network.get_depot_id(end_depot_node);
+            depot_usage
+                .entry((new_depot, vehicle_type))
+                .and_modify(|e| {
+                    e.1.insert(vehicle_id);
+                });
+        }
+    }
+
+    fn update_depot_usage_for_new_start_depot(
+        &self,
+        depot_usage: &mut HashMap<
+            (DepotId, VehicleTypeId),
+            (HashSet<VehicleId>, HashSet<VehicleId>),
+        >,
+        vehicle: Vehicle,
+        new_start_depot_node: Option<NodeId>, // if None, the vehicle is deleted
+    ) {
+        let vehicle_type = vehicle.type_id();
+        let vehicle_id = vehicle.id();
+
+        if self.is_vehicle(vehicle_id) {
+            let old_depot = self
+                .network
+                .get_depot_id(self.tour_of(vehicle_id).unwrap().start_depot().unwrap());
+            depot_usage
+                .entry((old_depot, vehicle_type))
+                .and_modify(|e| {
+                    e.0.remove(&vehicle_id).unwrap();
+                });
+        }
+
+        if let Some(start_depot_node) = new_start_depot_node {
+            let new_depot = self.network.get_depot_id(start_depot_node);
+            depot_usage
+                .entry((new_depot, vehicle_type))
+                .and_modify(|e| {
+                    e.0.insert(vehicle_id);
+                });
         }
     }
 }
