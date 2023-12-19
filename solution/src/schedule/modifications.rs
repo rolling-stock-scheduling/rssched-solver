@@ -2,10 +2,7 @@ use im::{HashMap, HashSet};
 use sbb_model::base_types::{DepotId, NodeId, VehicleId, VehicleTypeId};
 
 use crate::{
-    path::{Path, Segment},
-    tour::Tour,
-    train_formation::TrainFormation,
-    vehicle::Vehicle,
+    path::Path, segment::Segment, tour::Tour, train_formation::TrainFormation, vehicle::Vehicle,
     Schedule,
 };
 

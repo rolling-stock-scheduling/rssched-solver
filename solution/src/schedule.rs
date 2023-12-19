@@ -12,7 +12,7 @@ use sbb_model::network::Network;
 use sbb_model::vehicle_types::VehicleTypes;
 
 use crate::path::Path;
-use crate::path::Segment;
+use crate::segment::Segment;
 use crate::tour::Tour;
 use crate::train_formation::TrainFormation;
 use crate::vehicle::Vehicle;

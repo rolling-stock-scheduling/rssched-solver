@@ -21,16 +21,6 @@ pub struct Path {
     network: Arc<Network>,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct Segment {
-    start: NodeId,
-    end: NodeId,
-}
-
-////////////////////////////////////////////
-///////////////// Path /////////////////////
-////////////////////////////////////////////
-
 // static functions
 impl Path {
     /// crates a new Path and asserts that:
@@ -112,33 +102,5 @@ impl fmt::Display for Path {
             write!(f, " - {}", self.network.node(*node))?;
         }
         Ok(())
-    }
-}
-
-////////////////////////////////////////////
-////////////// Segment /////////////////////
-////////////////////////////////////////////
-
-// static functions
-impl Segment {
-    pub fn new(start: NodeId, end: NodeId) -> Segment {
-        Segment { start, end }
-    }
-}
-
-// methods
-impl Segment {
-    pub fn start(&self) -> NodeId {
-        self.start
-    }
-
-    pub fn end(&self) -> NodeId {
-        self.end
-    }
-}
-
-impl fmt::Display for Segment {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "[{}..{}]", self.start, self.end)
     }
 }

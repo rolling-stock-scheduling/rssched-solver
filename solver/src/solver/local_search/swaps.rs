@@ -1,5 +1,5 @@
 use sbb_model::base_types::VehicleId;
-use sbb_solution::{path::Segment, Schedule};
+use sbb_solution::{segment::Segment, Schedule};
 
 use std::fmt;
 

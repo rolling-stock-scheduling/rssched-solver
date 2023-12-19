@@ -1,7 +1,7 @@
 use super::swaps::{PathExchange, Swap};
 use sbb_model::base_types::VehicleId;
 use sbb_model::network::Network;
-use sbb_solution::path::Segment;
+use sbb_solution::segment::Segment;
 use sbb_solution::Schedule;
 use std::sync::Arc;
 use time::Duration;
