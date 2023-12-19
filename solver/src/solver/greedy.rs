@@ -72,7 +72,7 @@ impl Solver for Greedy {
                 None => {
                     schedule = schedule
                         .spawn_vehicle_for_path(
-                            self.vehicles.ids_iter().next().unwrap(),
+                            self.vehicles.iter().next().unwrap(),
                             vec![service_trip],
                         )
                         .unwrap();

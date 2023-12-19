@@ -20,7 +20,7 @@ impl VehicleTypes {
         self.vehicle_types.get(&id).cloned()
     }
 
-    pub fn ids_iter(&self) -> impl Iterator<Item = VehicleTypeId> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = VehicleTypeId> + '_ {
         self.vehicle_types.keys().cloned()
     }
 }

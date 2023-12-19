@@ -36,7 +36,7 @@ impl Solver for OneNodePerTour {
             self.config.clone(),
         );
 
-        let vehicle_type = self.vehicles.ids_iter().next().unwrap();
+        let vehicle_type = self.vehicles.iter().next().unwrap();
 
         while let Some(service_trip) = self
             .network

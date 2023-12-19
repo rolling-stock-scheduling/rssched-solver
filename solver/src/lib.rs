@@ -71,6 +71,23 @@ pub fn run(path: &str) {
     println!("\nFinal objective value:");
     objective.print_objective_value(final_solution.objective_value());
 
+    // print the depot balance of all depots
+    println!("\nDepot balances:");
+    for depot in network.depots_iter() {
+        for vehicle_type in vehicle_types.iter() {
+            println!(
+                "  depot {}, vehicle type {}: {}",
+                depot,
+                vehicle_type,
+                final_solution.solution().depot_balance(depot, vehicle_type)
+            );
+        }
+    }
+    println!(
+        "  total depot balance violation: {}",
+        final_solution.solution().total_depot_balance_violation()
+    );
+
     println!("Running time: {:0.2}sec", runtime_duration.as_secs_f32());
 
     // output path with sub-directory creation
