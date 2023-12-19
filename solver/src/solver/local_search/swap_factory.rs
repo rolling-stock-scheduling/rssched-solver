@@ -10,7 +10,7 @@ use std::iter;
 
 /// Computes for a given schedule all Swaps in the neighborhood.
 /// The providers are rotated such that the start_provider is the first provider.
-pub(crate) trait SwapFactory: Clone + Send {
+pub(crate) trait SwapFactory: Send {
     fn create_swap_iterator<'a>(
         &'a self,
         schedule: &'a Schedule,

@@ -20,21 +20,24 @@ pub(crate) trait LocalImprover {
 ////////////////////// Minimizer //////////////////////////
 ///////////////////////////////////////////////////////////
 
-pub(crate) struct Minimizer<F: SwapFactory> {
-    swap_factory: F,
+pub(crate) struct Minimizer {
+    swap_factory: Box<dyn SwapFactory>,
     objective: Arc<Objective<Schedule>>,
 }
 
-impl<F: SwapFactory> Minimizer<F> {
-    pub(crate) fn new(swap_factory: F, objective: Arc<Objective<Schedule>>) -> Minimizer<F> {
+impl Minimizer {
+    pub(crate) fn new(
+        swap_factory: impl SwapFactory + 'static,
+        objective: Arc<Objective<Schedule>>,
+    ) -> Minimizer {
         Minimizer {
-            swap_factory,
+            swap_factory: Box::new(swap_factory),
             objective,
         }
     }
 }
 
-impl<F: SwapFactory> LocalImprover for Minimizer<F> {
+impl LocalImprover for Minimizer {
     fn improve(&mut self, solution: &Solution) -> Option<Solution> {
         let schedule = solution.solution();
 
@@ -77,15 +80,15 @@ impl<F: SwapFactory> LocalImprover for Minimizer<F> {
 /// Create the swaps for each given schedule and took them into a long sequence. Find the first
 /// improving schedule in this sequence.
 /// As there is no parallelization this improver is fully deterministic.
-pub(crate) struct TakeFirstRecursion<F: SwapFactory> {
-    swap_factory: F,
+pub(crate) struct TakeFirstRecursion {
+    swap_factory: Box<dyn SwapFactory>,
     recursion_depth: u8,
     recursion_width: Option<usize>, // number of schedule that are considered for recursion (the one with best value are taken)
     objective: Arc<Objective<Schedule>>,
     start_provider: Option<VehicleId>, // stores as start provider the provider of the last improving swap
 }
 
-impl<F: SwapFactory> LocalImprover for TakeFirstRecursion<F> {
+impl LocalImprover for TakeFirstRecursion {
     fn improve(&mut self, solution: &Solution) -> Option<Solution> {
         let old_objective_value = solution.objective_value();
         let result = self.improve_recursion(
@@ -101,15 +104,15 @@ impl<F: SwapFactory> LocalImprover for TakeFirstRecursion<F> {
     }
 }
 
-impl<F: SwapFactory> TakeFirstRecursion<F> {
+impl TakeFirstRecursion {
     pub(crate) fn new(
-        swap_factory: F,
+        swap_factory: impl SwapFactory + 'static,
         recursion_depth: u8,
         recursion_width: Option<usize>,
         objective: Arc<Objective<Schedule>>,
-    ) -> TakeFirstRecursion<F> {
+    ) -> TakeFirstRecursion {
         TakeFirstRecursion {
-            swap_factory,
+            swap_factory: Box::new(swap_factory),
             recursion_depth,
             recursion_width,
             objective,
