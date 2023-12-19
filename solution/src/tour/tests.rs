@@ -7,7 +7,7 @@ use sbb_model::{
 };
 use time::{DateTime, Duration};
 
-use crate::path::{Path, Segment};
+use crate::{path::Path, segment::Segment};
 
 use super::Tour;
 
