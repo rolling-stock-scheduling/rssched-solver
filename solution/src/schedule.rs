@@ -262,8 +262,6 @@ impl Schedule {
         self.tour_of(receiver).unwrap().conflict(segment)
     }
 
-    // TODO depots of different vehicle types as one depot
-    // TODO change depot of a single tour
     // TODO check visibility of different objects and methods
 }
 
