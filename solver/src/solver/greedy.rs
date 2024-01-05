@@ -41,8 +41,7 @@ impl Solver for Greedy {
         while let Some(service_trip) = self
             .network
             .service_nodes()
-            .filter(|s| !schedule.is_fully_covered(*s))
-            .next()
+            .find(|s| !schedule.is_fully_covered(*s))
         {
             let vehicle_candidates: Vec<VehicleId> = schedule
                 .vehicles_iter()

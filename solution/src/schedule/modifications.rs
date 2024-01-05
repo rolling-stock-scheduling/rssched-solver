@@ -1,6 +1,8 @@
 use im::{HashMap, HashSet};
 use sbb_model::base_types::{DepotId, NodeId, VehicleId, VehicleTypeId};
 
+type DepotUsage = HashMap<(DepotId, VehicleTypeId), (HashSet<VehicleId>, HashSet<VehicleId>)>;
+
 use crate::{
     path::Path, segment::Segment, tour::Tour, train_formation::TrainFormation, vehicle::Vehicle,
     Schedule,
@@ -403,15 +405,13 @@ impl Schedule {
     /// The depots of the tours are improved.
     /// Updates all relevant data structures.
     /// It assumed that provider (if some) and receiver are part of self.vehicles.
+    #[allow(clippy::too_many_arguments)]
     fn update_tours(
         &self,
         vehicles: &mut HashMap<VehicleId, Vehicle>,
         tours: &mut HashMap<VehicleId, Tour>,
         train_formations: &mut HashMap<NodeId, TrainFormation>,
-        depot_usage: &mut HashMap<
-            (DepotId, VehicleTypeId),
-            (HashSet<VehicleId>, HashSet<VehicleId>),
-        >,
+        depot_usage: &mut DepotUsage,
         dummy_tours: &mut HashMap<VehicleId, Tour>,
         vehicle_ids_sorted: &mut Vec<VehicleId>,
         dummy_ids_sorted: &mut Vec<VehicleId>,
@@ -504,7 +504,7 @@ impl Schedule {
         let old_formation = self
             .train_formations
             .get(&node)
-            .expect(format!("Node {} has no train formations.", node).as_str());
+            .unwrap_or_else(|| panic!("Node {} has no train formations.", node));
 
         if receiver_vehicle.is_none() || self.is_dummy(receiver_vehicle.as_ref().unwrap().id()) {
             if provider.is_none() || self.is_dummy(provider.unwrap()) {
@@ -512,12 +512,10 @@ impl Schedule {
             } else {
                 old_formation.remove(provider.unwrap())
             }
+        } else if provider.is_none() || self.is_dummy(provider.unwrap()) {
+            Ok(old_formation.add_at_tail(receiver_vehicle.unwrap()))
         } else {
-            if provider.is_none() || self.is_dummy(provider.unwrap()) {
-                Ok(old_formation.add_at_tail(receiver_vehicle.unwrap()))
-            } else {
-                old_formation.replace(provider.unwrap(), receiver_vehicle.unwrap())
-            }
+            old_formation.replace(provider.unwrap(), receiver_vehicle.unwrap())
         }
     }
 
@@ -526,10 +524,7 @@ impl Schedule {
     /// The vehicle is added to the new depots if vehicle is real new schedule (given by vehicles) and new_tour is Some.
     fn update_depot_usage(
         &self,
-        depot_usage: &mut HashMap<
-            (DepotId, VehicleTypeId),
-            (HashSet<VehicleId>, HashSet<VehicleId>),
-        >,
+        depot_usage: &mut DepotUsage,
         vehicles: &HashMap<VehicleId, Vehicle>,
         tours: &HashMap<VehicleId, Tour>,
         vehicle_id: VehicleId,
@@ -542,13 +537,8 @@ impl Schedule {
             ),
             None => {
                 // vehicle is dummy in new schedule
-                match self.vehicles.get(&vehicle_id) {
-                    Some(vehicle) => self.update_depot_usage_assuming_no_dummies(
-                        depot_usage,
-                        vehicle.clone(),
-                        None,
-                    ),
-                    None => {} // vehicle is dummy in old and new schedule
+                if let Some(vehicle) = self.vehicles.get(&vehicle_id) {
+                    self.update_depot_usage_assuming_no_dummies(depot_usage, vehicle.clone(), None)
                 }
             }
         }
@@ -560,10 +550,7 @@ impl Schedule {
     /// It is assumed that the vehicle is no dummy for the new schedule.
     fn update_depot_usage_assuming_no_dummies(
         &self,
-        depot_usage: &mut HashMap<
-            (DepotId, VehicleTypeId),
-            (HashSet<VehicleId>, HashSet<VehicleId>),
-        >,
+        depot_usage: &mut DepotUsage,
         vehicle: Vehicle,
         new_tour: Option<&Tour>,
     ) {
@@ -579,10 +566,7 @@ impl Schedule {
 
     fn update_depot_usage_for_new_end_depot(
         &self,
-        depot_usage: &mut HashMap<
-            (DepotId, VehicleTypeId),
-            (HashSet<VehicleId>, HashSet<VehicleId>),
-        >,
+        depot_usage: &mut DepotUsage,
         vehicle: Vehicle,
         new_end_depot_node: Option<NodeId>, // if None, the vehicle is deleted
     ) {
@@ -612,10 +596,7 @@ impl Schedule {
 
     fn update_depot_usage_for_new_start_depot(
         &self,
-        depot_usage: &mut HashMap<
-            (DepotId, VehicleTypeId),
-            (HashSet<VehicleId>, HashSet<VehicleId>),
-        >,
+        depot_usage: &mut DepotUsage,
         vehicle: Vehicle,
         new_start_depot_node: Option<NodeId>, // if None, the vehicle is deleted
     ) {

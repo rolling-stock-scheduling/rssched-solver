@@ -1,5 +1,7 @@
 /////////////////////// LEVEL ///////////////////////
 
+use std::fmt;
+
 use crate::{base_value::BaseValue, coefficient::Coefficient, indicator::Indicator};
 
 /// A level of the objective hierarchy.
@@ -19,18 +21,24 @@ impl<S> Level<S> {
     pub fn new(summands: Vec<(Coefficient, Box<dyn Indicator<S>>)>) -> Level<S> {
         Level { summands }
     }
+}
 
-    pub fn to_string(&self) -> String {
-        self.summands
-            .iter()
-            .map(|(coefficient, indicator)| {
-                if coefficient.is_one() {
-                    format!("{}", indicator.name())
-                } else {
-                    format!("{}*{}", coefficient, indicator.name())
-                }
-            })
-            .collect::<Vec<String>>()
-            .join(" + ")
+impl<S> fmt::Display for Level<S> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.summands
+                .iter()
+                .map(|(coefficient, indicator)| {
+                    if coefficient.is_one() {
+                        indicator.name().to_string()
+                    } else {
+                        format!("{}*{}", coefficient, indicator.name())
+                    }
+                })
+                .collect::<Vec<String>>()
+                .join(" + ")
+        )
     }
 }

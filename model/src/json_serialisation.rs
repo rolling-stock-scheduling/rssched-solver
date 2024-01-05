@@ -151,11 +151,11 @@ fn create_locations(json_input: &JsonInput) -> Locations {
 
     // add dead head trips
     for (i, origin) in json_input.dead_head_trips.indices.iter().enumerate() {
-        let origin_station = LocationId::from(&origin);
+        let origin_station = LocationId::from(origin);
         let mut destination_map: HashMap<LocationId, DeadHeadTrip> = HashMap::new();
         for (j, destination) in json_input.dead_head_trips.indices.iter().enumerate() {
             destination_map.insert(
-                LocationId::from(&destination),
+                LocationId::from(destination),
                 DeadHeadTrip::new(
                     Distance::from_meter(json_input.dead_head_trips.distances[i][j] as u64),
                     Duration::from_seconds(json_input.dead_head_trips.durations[i][j]),

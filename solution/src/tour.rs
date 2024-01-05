@@ -116,7 +116,7 @@ impl Tour {
     }
 
     pub fn nth_node(&self, pos: usize) -> Option<NodeId> {
-        self.nodes.get(pos).map(|n| *n)
+        self.nodes.get(pos).copied()
     }
 
     pub fn first_non_depot(&self) -> Option<NodeId> {
@@ -755,11 +755,11 @@ impl Tour {
             error_msg
                 .push_str("Tour needs to have at least three nodes (at least one non-depot).\n");
         }
-        for i in 1..nodes.len() - 1 {
-            if network.node(nodes[i]).is_depot() {
+        for node in nodes.iter().take(nodes.len() - 1).skip(1) {
+            if network.node(*node).is_depot() {
                 error_msg.push_str(&format!(
                     "Tour can only have service or maintenance nodes in the middle, not: {}.\n",
-                    network.node(nodes[i])
+                    network.node(*node)
                 ));
             }
         }
@@ -772,7 +772,7 @@ impl Tour {
                 ));
             }
         }
-        if error_msg.len() > 0 {
+        if !error_msg.is_empty() {
             Err((Tour::new_computing(nodes, false, network), error_msg))
         } else {
             Ok(Tour::new_computing(nodes, false, network))
@@ -813,7 +813,7 @@ impl Tour {
         if network.node(*nodes.last().unwrap()).is_depot() {
             nodes.pop();
         };
-        assert!(nodes.len() > 0);
+        assert!(!nodes.is_empty());
         Tour::new_computing(nodes, true, network)
     }
 

@@ -48,7 +48,7 @@ impl<S> Objective<S> {
 
     pub fn print_objective_value(&self, objective_value: &ObjectiveValue) {
         for (level, value) in self.hierarchy_levels.iter().zip(objective_value.iter()) {
-            println!(" * {}: {}", level.to_string(), value);
+            println!(" * {}: {}", level, value);
         }
     }
 
@@ -65,7 +65,7 @@ impl<S> Objective<S> {
         {
             println!(
                 "{}: {} {}",
-                level.to_string(),
+                level,
                 value,
                 value.print_difference(*comparison_value)
             );

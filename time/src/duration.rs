@@ -183,7 +183,7 @@ impl Add for DurationLength {
     fn add(self, other: Self) -> Self {
         let sum_of_seconds = self.seconds + other.seconds;
         let seconds = sum_of_seconds % 60;
-        let sum_of_minutes = self.minutes + other.minutes + (sum_of_seconds / 60) as u8;
+        let sum_of_minutes = self.minutes + other.minutes + (sum_of_seconds / 60);
         let minutes = sum_of_minutes % 60;
         let hours = self.hours + other.hours + (sum_of_minutes / 60) as u32;
         DurationLength {

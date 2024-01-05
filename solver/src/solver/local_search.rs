@@ -109,7 +109,7 @@ impl LocalSearch {
         let mut old_solution = start_solution;
         while let Some(new_solution) = local_improver.improve(&old_solution) {
             self.objective
-                .print_objective_value(&new_solution.objective_value());
+                .print_objective_value(new_solution.objective_value());
             println!();
             old_solution = new_solution;
         }

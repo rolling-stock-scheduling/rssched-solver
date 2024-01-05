@@ -78,39 +78,23 @@ impl DepotNode {
 // methods
 impl Node {
     pub fn is_service(&self) -> bool {
-        match self {
-            Node::Service(_) => true,
-            _ => false,
-        }
+        matches!(self, Node::Service(_))
     }
 
     pub fn is_maintenance(&self) -> bool {
-        match self {
-            Node::Maintenance(_) => true,
-            _ => false,
-        }
+        matches!(self, Node::Maintenance(_))
     }
 
     pub fn is_depot(&self) -> bool {
-        match self {
-            Node::StartDepot(_) => true,
-            Node::EndDepot(_) => true,
-            _ => false,
-        }
+        matches!(self, Node::StartDepot(_) | Node::EndDepot(_))
     }
 
     pub fn is_start_depot(&self) -> bool {
-        match self {
-            Node::StartDepot(_) => true,
-            _ => false,
-        }
+        matches!(self, Node::StartDepot(_))
     }
 
     pub fn is_end_depot(&self) -> bool {
-        match self {
-            Node::EndDepot(_) => true,
-            _ => false,
-        }
+        matches!(self, Node::EndDepot(_))
     }
 
     pub fn id(&self) -> NodeId {
@@ -242,6 +226,7 @@ impl Node {
 // static functions:
 impl Node {
     // factory for creating a service trip
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn create_service_trip(
         id: NodeId,
         origin: Location,

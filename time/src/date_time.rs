@@ -29,11 +29,11 @@ impl DateTime {
         let shortened = string.replace('Z', "");
         let splitted: Vec<&str> = shortened.split(&['T', '-', ' ', ':'][..]).collect();
         let len = splitted.len();
-        assert!(len <= 6 && len >= 5, "Wrong time format.");
+        assert!((5..=6).contains(&len), "Wrong time format.");
 
         let year: u32 = splitted[0].parse().expect("Error at year.");
         let month: u8 = splitted[1].parse().expect("Error at month.");
-        assert!(month <= 12 && month >= 1, "Wrong month format.");
+        assert!((1..=12).contains(&month), "Wrong month format.");
         let day: u8 = splitted[2].parse().expect("Error at day.");
         assert!(
             day <= TimePoint::get_days_of_month(year, month) && day >= 1,
@@ -262,7 +262,7 @@ impl Add<DurationLength> for TimePoint {
     fn add(self, other: DurationLength) -> Self {
         let sum_of_seconds = self.second + other.seconds;
         let second = sum_of_seconds % 60;
-        let sum_of_minutes = self.minute + other.minutes + (sum_of_seconds / 60) as u8;
+        let sum_of_minutes = self.minute + other.minutes + (sum_of_seconds / 60);
         let minute = sum_of_minutes % 60;
         let sum_of_hours: u32 = self.hour as u32 + other.hours + (sum_of_minutes / 60) as u32;
         let hour = (sum_of_hours % 24) as u8;

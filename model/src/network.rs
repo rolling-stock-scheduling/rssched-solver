@@ -293,28 +293,28 @@ impl Network {
             nodes
                 .get(&n1)
                 .unwrap()
-                .cmp_start_time(&nodes.get(&n2).unwrap())
+                .cmp_start_time(nodes.get(&n2).unwrap())
         });
 
         maintenance_nodes.sort_by(|&n1, &n2| {
             nodes
                 .get(&n1)
                 .unwrap()
-                .cmp_start_time(&nodes.get(&n2).unwrap())
+                .cmp_start_time(nodes.get(&n2).unwrap())
         });
 
         start_depot_nodes.sort_by(|&n1, &n2| {
             nodes
                 .get(&n1)
                 .unwrap()
-                .cmp_start_time(&nodes.get(&n2).unwrap())
+                .cmp_start_time(nodes.get(&n2).unwrap())
         });
 
         end_depot_nodes.sort_by(|&n1, &n2| {
             nodes
                 .get(&n1)
                 .unwrap()
-                .cmp_start_time(&nodes.get(&n2).unwrap())
+                .cmp_start_time(nodes.get(&n2).unwrap())
         });
 
         let mut nodes_sorted_by_start: Vec<NodeId> = nodes.keys().copied().collect();
@@ -322,7 +322,7 @@ impl Network {
             nodes
                 .get(&n1)
                 .unwrap()
-                .cmp_start_time(&nodes.get(&n2).unwrap())
+                .cmp_start_time(nodes.get(&n2).unwrap())
         });
 
         let mut nodes_sorted_by_end: Vec<NodeId> = nodes_sorted_by_start.clone();
@@ -330,7 +330,7 @@ impl Network {
             nodes
                 .get(&n1)
                 .unwrap()
-                .cmp_end_time(&nodes.get(&n2).unwrap())
+                .cmp_end_time(nodes.get(&n2).unwrap())
         });
 
         let passenger_distance_demand = service_nodes

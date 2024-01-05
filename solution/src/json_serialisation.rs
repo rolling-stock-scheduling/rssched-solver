@@ -63,7 +63,7 @@ pub fn schedule_to_json(schedule: &Schedule) -> serde_json::Value {
         {
             if nw.node(node1_id).end_location() != nw.node(node2_id).start_location() {
                 let (departure_time, arrival_time) =
-                    schedule_dead_head_trip(node1_id, node2_id, &nw);
+                    schedule_dead_head_trip(node1_id, node2_id, nw);
                 let dead_head_trip = JsonTourStop::DeadHeadTrip {
                     origin: nw.node(node1_id).end_location().to_string(),
                     destination: nw.node(node2_id).start_location().to_string(),

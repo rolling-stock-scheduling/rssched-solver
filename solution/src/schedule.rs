@@ -126,7 +126,7 @@ impl Schedule {
         self.depot_usage
             .keys()
             .map(|(depot, vehicle_type)| {
-                self.depot_balance(*depot, *vehicle_type).abs() as VehicleCount
+                self.depot_balance(*depot, *vehicle_type).unsigned_abs() as VehicleCount
             })
             .sum()
     }
@@ -143,7 +143,7 @@ impl Schedule {
             return false;
         }
 
-        if capacity == None {
+        if capacity.is_none() {
             return true;
         }
 
@@ -164,11 +164,7 @@ impl Schedule {
         vehicle_type: VehicleTypeId,
         depot: DepotId,
     ) -> bool {
-        if self.depot_balance(depot, vehicle_type) < 0 {
-            true
-        } else {
-            false
-        }
+        self.depot_balance(depot, vehicle_type) < 0
     }
 
     pub fn reduces_despawning_at_depot_violation(
@@ -176,11 +172,7 @@ impl Schedule {
         vehicle_type: VehicleTypeId,
         depot: DepotId,
     ) -> bool {
-        if self.depot_balance(depot, vehicle_type) > 0 {
-            true
-        } else {
-            false
-        }
+        self.depot_balance(depot, vehicle_type) > 0
     }
 
     pub fn number_of_unserved_passengers(&self) -> PassengerCount {
@@ -295,13 +287,13 @@ impl Ord for Schedule {
                         // finally compare dummy_tours. For this first sort the dummy tours and
                         // then compare from small to long.
                         let mut dummy_tours: Vec<_> = self.dummy_tours.values().collect();
-                        dummy_tours.sort_by(|tour1, tour2| tour1.cmp(&tour2));
+                        dummy_tours.sort();
                         let mut other_dummy_tours: Vec<_> = other.dummy_tours.values().collect();
-                        other_dummy_tours.sort_by(|tour1, tour2| tour1.cmp(&tour2));
+                        other_dummy_tours.sort();
                         match dummy_tours
                             .iter()
                             .zip(other_dummy_tours.iter())
-                            .map(|(&tour, &other_tour)| tour.cmp(&other_tour))
+                            .map(|(&tour, &other_tour)| tour.cmp(other_tour))
                             .find(|ord| *ord != Ordering::Equal)
                         {
                             Some(other) => other,

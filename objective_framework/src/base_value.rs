@@ -19,7 +19,7 @@ pub enum BaseValue {
 impl BaseValue {
     pub fn print_difference(self, other: BaseValue) -> String {
         if self == other {
-            return format!("");
+            return String::new();
         }
         match (self, other) {
             (BaseValue::Integer(a), BaseValue::Integer(b)) => {
@@ -31,8 +31,8 @@ impl BaseValue {
             (BaseValue::Duration(a), BaseValue::Duration(b)) => {
                 BaseValue::print_difference_in_value(a, b)
             }
-            (BaseValue::Maximum, _) => format!(""),
-            (_, BaseValue::Maximum) => format!(""),
+            (BaseValue::Maximum, _) => String::new(),
+            (_, BaseValue::Maximum) => String::new(),
             (new_value, BaseValue::Zero) => format!("(\x1b[0;31m+{:2.1}\x1b[0m)", new_value),
             (BaseValue::Zero, old_value) => format!("(\x1b[0;32m-{:2.1}\x1b[0m)", old_value),
             _ => panic!("Cannot subtract {:?} and {:?}", self, other),
@@ -50,7 +50,7 @@ impl BaseValue {
         } else if value < value_for_comparison {
             format!("(\x1b[0;32m-{:2.1}\x1b[0m)", value_for_comparison - value)
         } else {
-            format!("")
+            String::new()
         }
     }
 }

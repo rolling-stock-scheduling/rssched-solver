@@ -80,7 +80,7 @@ fn basic_methods_test() {
     let dummy_tour = Tour::new_dummy_by_path(path, d.network.clone());
 
     // ASSERT
-    assert_eq!(tour.is_dummy(), false);
+    assert!(!tour.is_dummy());
     assert_eq!(tour.nodes.len(), 7);
     assert_eq!(tour.all_non_depot_nodes_iter().count(), 5);
     assert_eq!(tour.useful_duration(), Duration::new("2:30"));
@@ -144,7 +144,7 @@ fn basic_methods_test() {
     assert_eq!(tour.latest_not_reaching_node(d.start_depot1), Some(0)); // start_depot1 cannot
                                                                         // reach start_depot1
 
-    assert_eq!(dummy_tour.is_dummy(), true);
+    assert!(dummy_tour.is_dummy());
     assert_eq!(dummy_tour.nodes.len(), 2);
     assert_eq!(dummy_tour.all_non_depot_nodes_iter().count(), 2);
     assert_eq!(dummy_tour.useful_duration(), Duration::new("1:00"));

@@ -41,8 +41,7 @@ impl Solver for OneNodePerTour {
         while let Some(service_trip) = self
             .network
             .service_nodes()
-            .filter(|s| !schedule.is_fully_covered(*s))
-            .next()
+            .find(|s| !schedule.is_fully_covered(*s))
         {
             schedule = schedule
                 .spawn_vehicle_for_path(vehicle_type, vec![service_trip])
