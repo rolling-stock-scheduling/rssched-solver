@@ -4,7 +4,7 @@ use sbb_solution::{segment::Segment, Schedule};
 use std::fmt;
 
 /// An elementary modification. Defining the "neighborhood" for the local search.
-pub(crate) trait Swap: fmt::Display {
+pub(crate) trait Swap: fmt::Display + Send + Sync {
     fn apply(&self, schedule: &Schedule) -> Result<Schedule, String>;
 
     fn provider(&self) -> VehicleId;

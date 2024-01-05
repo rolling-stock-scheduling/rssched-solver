@@ -10,12 +10,12 @@ use std::iter;
 
 /// Computes for a given schedule all Swaps in the neighborhood.
 /// The providers are rotated such that the start_provider is the first provider.
-pub(crate) trait SwapFactory: Send {
+pub(crate) trait SwapFactory: Send + Sync {
     fn create_swap_iterator<'a>(
         &'a self,
         schedule: &'a Schedule,
         start_provider: Option<VehicleId>,
-    ) -> Box<dyn Iterator<Item = Box<dyn Swap + Send>> + Send + 'a>;
+    ) -> Box<dyn Iterator<Item = Box<dyn Swap>> + Send + 'a>;
 }
 
 ///////////////////////////////////////////////////////////
@@ -56,7 +56,7 @@ impl SwapFactory for LimitedExchanges {
         &'a self,
         schedule: &'a Schedule,
         start_provider: Option<VehicleId>,
-    ) -> Box<dyn Iterator<Item = Box<dyn Swap + Send>> + Send + 'a> {
+    ) -> Box<dyn Iterator<Item = Box<dyn Swap>> + Send + 'a> {
         let mut providers: Vec<_> = if self.only_dummy_provider {
             schedule.dummy_iter().collect()
         } else {
@@ -82,7 +82,7 @@ impl SwapFactory for LimitedExchanges {
                     // skip provider as receiver
                     .filter(move |&u| u != provider)
                     // create the swap
-                    .map(move |receiver| -> Box<dyn Swap + Send> {
+                    .map(move |receiver| -> Box<dyn Swap> {
                         Box::new(PathExchange::new(seg, provider, receiver))
                     })
                 )),

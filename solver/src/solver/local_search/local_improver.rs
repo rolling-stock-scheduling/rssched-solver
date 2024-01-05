@@ -202,7 +202,7 @@ impl TakeFirstRecursion {
 /// Im no improving schedule is found the depth-many schedules of each thread are take to recursion
 /// (dublicates are removed)
 /// This improver is deterministic.
-pub(crate) struct TakeFirstParallelRecursion<F: SwapFactory + Send + Sync> {
+pub(crate) struct TakeFirstParallelRecursion<F: SwapFactory> {
     swap_factory: F,
     recursion_depth: u8,
     recursion_width: Option<usize>, // number of schedule that are considered per schedule for the next recursion (the one with best objectivevalue are taken for each schedule, dublicates are removed)

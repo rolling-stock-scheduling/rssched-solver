@@ -21,7 +21,7 @@ pub use objective_value::ObjectiveValue;
 /// vector.
 ///
 /// S: the solution type for which the objective is defined.
-pub struct Objective<S: Send + Sync> {
+pub struct Objective<S> {
     hierarchy_levels: Vec<Level<S>>,
 }
 
@@ -98,7 +98,7 @@ impl<S: Send + Sync> Objective<S> {
 }
 
 // static
-impl<S: Send + Sync> Objective<S> {
+impl<S> Objective<S> {
     pub fn new(hierarchy_levels: Vec<Level<S>>) -> Objective<S> {
         Objective { hierarchy_levels }
     }

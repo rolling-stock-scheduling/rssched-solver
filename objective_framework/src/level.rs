@@ -5,9 +5,9 @@ use std::fmt;
 use crate::{base_value::BaseValue, coefficient::Coefficient, indicator::Indicator};
 
 /// A level of the objective hierarchy.
-pub struct Level<S: Send + Sync> {
+pub struct Level<S> {
     // valueType must be multiplyable with Coefficient
-    summands: Vec<(Coefficient, Box<dyn Indicator<S> + Send + Sync>)>,
+    summands: Vec<(Coefficient, Box<dyn Indicator<S>>)>,
 }
 
 impl<S: Send + Sync> Level<S> {
@@ -18,7 +18,7 @@ impl<S: Send + Sync> Level<S> {
             .sum()
     }
 
-    pub fn new(summands: Vec<(Coefficient, Box<dyn Indicator<S> + Send + Sync>)>) -> Level<S> {
+    pub fn new(summands: Vec<(Coefficient, Box<dyn Indicator<S>>)>) -> Level<S> {
         Level { summands }
     }
 }
