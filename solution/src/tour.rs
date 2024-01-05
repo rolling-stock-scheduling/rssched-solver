@@ -179,11 +179,10 @@ impl Tour {
     pub fn removable(&self, segment: Segment) -> bool {
         let start_pos_res = self.position_of(segment.start());
         let end_pos_res = self.position_of(segment.end());
-        if start_pos_res.is_err() || end_pos_res.is_err() {
-            false
-        } else {
-            self.removable_by_pos(start_pos_res.unwrap(), end_pos_res.unwrap())
-                .is_ok()
+
+        match (start_pos_res, end_pos_res) {
+            (Ok(start_pos), Ok(end_pos)) => self.removable_by_pos(start_pos, end_pos).is_ok(),
+            _ => false,
         }
     }
 

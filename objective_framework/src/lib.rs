@@ -21,12 +21,12 @@ pub use objective_value::ObjectiveValue;
 /// vector.
 ///
 /// S: the solution type for which the objective is defined.
-pub struct Objective<S> {
+pub struct Objective<S: Send + Sync> {
     hierarchy_levels: Vec<Level<S>>,
 }
 
 // methods
-impl<S> Objective<S> {
+impl<S: Send + Sync> Objective<S> {
     /// Consumes solution, computes objective value, and returns both, as EvaluatedSolution.
     pub fn evaluate(&self, solution: S) -> EvaluatedSolution<S> {
         let objective_value_hierarchy: Vec<BaseValue> = self
@@ -98,7 +98,7 @@ impl<S> Objective<S> {
 }
 
 // static
-impl<S> Objective<S> {
+impl<S: Send + Sync> Objective<S> {
     pub fn new(hierarchy_levels: Vec<Level<S>>) -> Objective<S> {
         Objective { hierarchy_levels }
     }

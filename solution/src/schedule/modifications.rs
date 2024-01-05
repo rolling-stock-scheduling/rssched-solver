@@ -506,17 +506,47 @@ impl Schedule {
             .get(&node)
             .unwrap_or_else(|| panic!("Node {} has no train formations.", node));
 
-        if receiver_vehicle.is_none() || self.is_dummy(receiver_vehicle.as_ref().unwrap().id()) {
-            if provider.is_none() || self.is_dummy(provider.unwrap()) {
-                Ok(old_formation.clone())
-            } else {
-                old_formation.remove(provider.unwrap())
+        match receiver_vehicle {
+            Some(receiver_vh) if !self.is_dummy(receiver_vh.id()) => {
+                match provider {
+                    Some(prov) if !self.is_dummy(prov) => {
+                        // both are real vehicles
+                        old_formation.replace(prov, receiver_vh)
+                    }
+                    _ => {
+                        // provider is None or dummy
+                        Ok(old_formation.add_at_tail(receiver_vh))
+                    }
+                }
             }
-        } else if provider.is_none() || self.is_dummy(provider.unwrap()) {
-            Ok(old_formation.add_at_tail(receiver_vehicle.unwrap()))
-        } else {
-            old_formation.replace(provider.unwrap(), receiver_vehicle.unwrap())
+            _ => {
+                // receiver_vehicle is None or dummy
+                match provider {
+                    Some(prov) if !self.is_dummy(prov) => {
+                        // provider is real vehicle
+                        old_formation.remove(prov)
+                    }
+                    _ => {
+                        // provider is None or dummy
+                        Ok(old_formation.clone())
+                    }
+                }
+            }
         }
+
+        // if receiver_vehicle.is_none() || self.is_dummy(receiver_vehicle.as_ref().unwrap().id()) {
+        // if provider.is_none() || self.is_dummy(provider.unwrap()) {
+        // Ok(old_formation.clone())
+        // } else {
+        // old_formation.remove(provider.unwrap())
+        // }
+        // } else
+
+        // if provider.is_none() || self.is_dummy(provider.unwrap()) {
+        // Ok(old_formation.add_at_tail(receiver_vehicle.unwrap()))
+        // } else {
+        // old_formation.replace(provider.unwrap(), receiver_vehicle.unwrap())
+        // }
     }
 
     /// Updates the provided depot_usage data structure.
