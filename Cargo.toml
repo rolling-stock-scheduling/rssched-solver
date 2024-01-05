@@ -7,10 +7,10 @@ members = [
     "solution",
     "solver",
 ]
+resolver = "2"
 
 [workspace.package]
-name = "sbb"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["Leon Sering <sering@math.ethz.ch"]
 description = "Solving the rolling-stock scheduling with a local search approach."
