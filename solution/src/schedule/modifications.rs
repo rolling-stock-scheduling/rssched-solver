@@ -1,12 +1,12 @@
 use im::{HashMap, HashSet};
 use sbb_model::base_types::{DepotId, NodeId, VehicleId, VehicleTypeId};
 
-type DepotUsage = HashMap<(DepotId, VehicleTypeId), (HashSet<VehicleId>, HashSet<VehicleId>)>;
-
 use crate::{
     path::Path, segment::Segment, tour::Tour, train_formation::TrainFormation, vehicle::Vehicle,
     Schedule,
 };
+
+use super::DepotUsage;
 
 impl Schedule {
     pub fn spawn_vehicle_to_replace_dummy_tour(
@@ -63,9 +63,9 @@ impl Schedule {
             tour.all_nodes_iter(),
         );
 
-        self.update_depot_usage(&mut depot_usage, &vehicles, &tours, vehicle_id);
-
         tours.insert(vehicle_id, tour);
+
+        self.update_depot_usage(&mut depot_usage, &vehicles, &tours, vehicle_id);
 
         Ok(Schedule {
             vehicles,
@@ -185,9 +185,9 @@ impl Schedule {
             );
         }
 
-        self.update_depot_usage(&mut depot_usage, &self.vehicles, &tours, vehicle_id);
-
         tours.insert(vehicle_id, new_tour);
+
+        self.update_depot_usage(&mut depot_usage, &self.vehicles, &tours, vehicle_id);
 
         Ok(Schedule {
             vehicles: self.vehicles.clone(),
@@ -594,36 +594,6 @@ impl Schedule {
         self.update_depot_usage_for_new_end_depot(depot_usage, vehicle, new_end_depot_node);
     }
 
-    fn update_depot_usage_for_new_end_depot(
-        &self,
-        depot_usage: &mut DepotUsage,
-        vehicle: Vehicle,
-        new_end_depot_node: Option<NodeId>, // if None, the vehicle is deleted
-    ) {
-        let vehicle_type = vehicle.type_id();
-        let vehicle_id = vehicle.id();
-
-        if self.is_vehicle(vehicle_id) {
-            let old_depot = self
-                .network
-                .get_depot_id(self.tour_of(vehicle_id).unwrap().end_depot().unwrap());
-            depot_usage
-                .entry((old_depot, vehicle_type))
-                .and_modify(|e| {
-                    e.1.remove(&vehicle_id).unwrap();
-                });
-        }
-
-        if let Some(end_depot_node) = new_end_depot_node {
-            let new_depot = self.network.get_depot_id(end_depot_node);
-            depot_usage
-                .entry((new_depot, vehicle_type))
-                .and_modify(|e| {
-                    e.1.insert(vehicle_id);
-                });
-        }
-    }
-
     fn update_depot_usage_for_new_start_depot(
         &self,
         depot_usage: &mut DepotUsage,
@@ -639,18 +609,50 @@ impl Schedule {
                 .get_depot_id(self.tour_of(vehicle_id).unwrap().start_depot().unwrap());
             depot_usage
                 .entry((old_depot, vehicle_type))
-                .and_modify(|e| {
-                    e.0.remove(&vehicle_id).unwrap();
-                });
+                .or_insert((HashSet::new(), HashSet::new()))
+                .0
+                .remove(&vehicle_id)
+                .unwrap();
         }
 
         if let Some(start_depot_node) = new_start_depot_node {
             let new_depot = self.network.get_depot_id(start_depot_node);
             depot_usage
                 .entry((new_depot, vehicle_type))
-                .and_modify(|e| {
-                    e.0.insert(vehicle_id);
-                });
+                .or_insert((HashSet::new(), HashSet::new()))
+                .0
+                .insert(vehicle_id);
+        }
+    }
+
+    fn update_depot_usage_for_new_end_depot(
+        &self,
+        depot_usage: &mut DepotUsage,
+        vehicle: Vehicle,
+        new_end_depot_node: Option<NodeId>, // if None, the vehicle is deleted
+    ) {
+        let vehicle_type = vehicle.type_id();
+        let vehicle_id = vehicle.id();
+
+        if self.is_vehicle(vehicle_id) {
+            let old_depot = self
+                .network
+                .get_depot_id(self.tour_of(vehicle_id).unwrap().end_depot().unwrap());
+            depot_usage
+                .entry((old_depot, vehicle_type))
+                .or_insert((HashSet::new(), HashSet::new()))
+                .1
+                .remove(&vehicle_id)
+                .unwrap();
+        }
+
+        if let Some(end_depot_node) = new_end_depot_node {
+            let new_depot = self.network.get_depot_id(end_depot_node);
+            depot_usage
+                .entry((new_depot, vehicle_type))
+                .or_insert((HashSet::new(), HashSet::new()))
+                .1
+                .insert(vehicle_id);
         }
     }
 

@@ -22,6 +22,8 @@ use im::HashSet;
 use std::cmp::Ordering;
 use std::sync::Arc;
 
+type DepotUsage = HashMap<(DepotId, VehicleTypeId), (HashSet<VehicleId>, HashSet<VehicleId>)>;
+
 // TODO: try to use im::Vector instead of Vec and compare performance.
 
 // this represents a solution to the rolling stock problem.
@@ -43,7 +45,7 @@ pub struct Schedule {
     // for each depot-vehicle_type-pair we store the vehicles of that type that are spawned at this depot and the vehicles that
     // despawn at this depot.
     // First hashset are the spawned vehicles, second hashset are the despawned vehicles.
-    depot_usage: HashMap<(DepotId, VehicleTypeId), (HashSet<VehicleId>, HashSet<VehicleId>)>,
+    depot_usage: DepotUsage,
 
     // not fully covered nodes can be organized to tours, so they can be assigned to vehicles as
     // segments; dummies are never part of a train_formation, they don't have a type and they never
@@ -110,6 +112,23 @@ impl Schedule {
 
     pub fn vehicle_type_of(&self, vehicle: VehicleId) -> VehicleTypeId {
         self.get_vehicle(vehicle).unwrap().type_id()
+    }
+
+    /// Returns the number of vehicles of the given type that are spawned at the given depot
+    pub fn number_of_vehicles_of_same_type_spawned_at(
+        &self,
+        depot: DepotId,
+        vehicle_type: VehicleTypeId,
+    ) -> VehicleCount {
+        self.depot_usage
+            .get(&(depot, vehicle_type))
+            .map(|(spawned, _)| spawned.len())
+            .unwrap_or(0) as VehicleCount
+    }
+
+    /// TODO: remove later
+    pub fn print_depot_usage(&self) {
+        println!("depot_usage: {:?}", self.depot_usage);
     }
 
     /// Returns the number of vehicles of the given type that are spawned at the given depot - the
@@ -246,6 +265,10 @@ impl Schedule {
 
     pub fn get_network(&self) -> &Network {
         &self.network
+    }
+
+    pub fn get_vehicle_types(&self) -> &VehicleTypes {
+        &self.vehicle_types
     }
 
     /// Simulates inserting the node_sequence into the tour of the receiver. Returns all nodes (as a Path) that would
