@@ -8,10 +8,6 @@ edition.workspace = true
 name = "sbb_solver"
 path = "src/lib.rs"
 
-[[bin]]
-name = "sbb_run"
-path = "src/main.rs"
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]

@@ -1,7 +1,5 @@
 #[tokio::main]
 pub async fn main() {
-    sbb_server::start();
-
     let app = axum::Router::new()
         .fallback(axum::routing::get(|| async {
             "No Route! Use /health or /solve"
@@ -16,6 +14,6 @@ pub async fn main() {
 pub async fn solve(
     axum::extract::Json(input_data): axum::extract::Json<serde_json::Value>,
 ) -> axum::response::Json<serde_json::Value> {
-    let output = sbb_solver::run(input_data);
+    let output = sbb_server::solve_instance(input_data);
     axum::response::Json(output)
 }

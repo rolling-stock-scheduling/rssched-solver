@@ -1,5 +1,5 @@
-use crate::solver::Solver;
 use crate::Solution;
+use crate::Solver;
 use objective_framework::Objective;
 use sbb_model::base_types::VehicleId;
 use sbb_model::config::Config;

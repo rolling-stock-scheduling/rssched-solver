@@ -12,7 +12,7 @@ fn main() {
     let input_data: serde_json::Value = serde_json::from_str(&input_data).unwrap();
     println!("\n\n********** RUN: {} **********\n", path);
 
-    let output = sbb_solver::run(input_data);
+    let output = sbb_internal::run(input_data);
 
     // output path with sub-directory creation
     let output_dir_name = "output";

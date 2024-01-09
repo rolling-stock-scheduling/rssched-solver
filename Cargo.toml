@@ -5,7 +5,8 @@ members = [
     "model",
     "solution",
     "solver",
-    "server"
+    "server",
+    "internal"
 ]
 resolver = "2"
 

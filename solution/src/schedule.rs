@@ -126,11 +126,6 @@ impl Schedule {
             .unwrap_or(0) as VehicleCount
     }
 
-    /// TODO: remove later
-    pub fn print_depot_usage(&self) {
-        println!("depot_usage: {:?}", self.depot_usage);
-    }
-
     /// Returns the number of vehicles of the given type that are spawned at the given depot - the
     /// number of vehicles of the given type that despawn at the given depot.
     /// Hence, negative values mean that there are more vehicles despawning than spawning.
@@ -248,6 +243,23 @@ impl Schedule {
         for dummy in self.dummy_iter() {
             println!("{}: {}", dummy, self.dummy_tours.get(&dummy).unwrap());
         }
+    }
+
+    pub fn print_depot_balances(&self) {
+        for depot in self.network.depots_iter() {
+            for vehicle_type in self.vehicle_types.iter() {
+                println!(
+                    "  depot {}, vehicle type {}: {}",
+                    depot,
+                    vehicle_type,
+                    self.depot_balance(depot, vehicle_type)
+                );
+            }
+        }
+        println!(
+            "  total depot balance violation: {}",
+            self.total_depot_balance_violation()
+        );
     }
 
     pub fn total_dead_head_distance(&self) -> Distance {
