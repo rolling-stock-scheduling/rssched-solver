@@ -1,14 +1,25 @@
+use std::env;
+
 #[tokio::main]
 pub async fn main() {
+    // Parse command line arguments to get the port number
+    let args: Vec<String> = env::args().collect();
+    let port: u16 = args.get(1).and_then(|s| s.parse().ok()).unwrap_or(3000);
+
     let app = axum::Router::new()
         .fallback(axum::routing::get(|| async {
-            "No Route! Use /health or /solve"
+            "No route! Use /health or /solve."
         }))
         .route("/health", axum::routing::get(healthy))
         .route("/solve", axum::routing::post(solve));
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    println!("Server running on port 3000 (http://localhost:3000/health)");
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port))
+        .await
+        .unwrap();
+    println!(
+        "Server running on port {} (http://localhost:{}/health)",
+        port, port
+    );
     axum::serve(listener, app).await.unwrap();
 }
 
