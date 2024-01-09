@@ -1,14 +1,27 @@
 # Deployment via Docker 
+- install the docker engine: https://docs.docker.com/engine/install/
 - builing the docker image (from the main directory):
 
 ```bash
-docker build --tag eth_rolling_stock_scheduling .
+docker build --tag eth_scheduling_image .
 ```
 
-- running the server:
+- loading the image and running the server for the first time:
 
 ```bash
-docker run --publish 3000:3000 eth_rolling_stock_scheduling
+docker run --publish 3000:3000 --name eth_scheduling_server eth_scheduling_image
+```
+
+- stopping the docker container:
+
+```bash
+docker stop eth_scheduling_server
+```
+
+- starting it again with
+
+```bash
+docker start --attach eth_scheduling_server
 ```
 
 # Server Usage
