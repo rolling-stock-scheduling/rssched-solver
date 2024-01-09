@@ -4,7 +4,7 @@ use sbb_solution::{segment::Segment, Schedule};
 use std::fmt;
 
 /// An elementary modification. Defining the "neighborhood" for the local search.
-pub(crate) trait Swap: fmt::Display + Send + Sync {
+pub trait Swap: fmt::Display + Send + Sync {
     fn apply(&self, schedule: &Schedule) -> Result<Schedule, String>;
 
     fn provider(&self) -> VehicleId;
@@ -13,7 +13,7 @@ pub(crate) trait Swap: fmt::Display + Send + Sync {
 /// Removes the path from the provider's tour and insert it into the receiver's tour.
 /// All removed nodes that are removed from receiver's tour (due to conflicts) are tried to insert conflict-free into
 /// the provider's tour.
-pub(crate) struct PathExchange {
+pub struct PathExchange {
     segment: Segment,
     provider: VehicleId,
     receiver: VehicleId,

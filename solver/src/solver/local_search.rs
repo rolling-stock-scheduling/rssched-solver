@@ -1,13 +1,10 @@
-pub mod swaps;
-
-pub mod swap_factory;
-
 pub mod local_improver;
+pub mod swap_factory;
+pub mod swaps;
 
 use std::sync::Arc;
 
 use local_improver::LocalImprover;
-use local_improver::Minimizer;
 use local_improver::TakeFirstRecursion;
 use objective_framework::Objective;
 use sbb_model::{config::Config, network::Network, vehicle_types::VehicleTypes};

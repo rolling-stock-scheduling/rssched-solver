@@ -3,16 +3,17 @@ use crate::Solution;
 use super::swap_factory::SwapFactory;
 
 use objective_framework::{Objective, ObjectiveValue};
-use rayon::iter::ParallelBridge;
-use rayon::prelude::*;
+// use rayon::iter::ParallelBridge;
+// use rayon::prelude::*;
 use sbb_model::base_types::VehicleId;
 use sbb_solution::Schedule;
-use std::sync::mpsc::channel;
-use std::sync::{Arc, Mutex};
+// use std::sync::mpsc::channel;
+use std::sync::Arc;
+// use std::sync::Mutex;
 
 /// Computes for a given schedule the best new schedule that has better objective function.
 /// Returns None if there is no better schedule in the neighborhood.
-pub(crate) trait LocalImprover {
+pub trait LocalImprover {
     fn improve(&mut self, solution: &Solution) -> Option<Solution>;
 }
 
@@ -20,13 +21,13 @@ pub(crate) trait LocalImprover {
 ////////////////////// Minimizer //////////////////////////
 ///////////////////////////////////////////////////////////
 
-pub(crate) struct Minimizer {
+pub struct Minimizer {
     swap_factory: Box<dyn SwapFactory>,
     objective: Arc<Objective<Schedule>>,
 }
 
 impl Minimizer {
-    pub(crate) fn new(
+    pub fn new(
         swap_factory: impl SwapFactory + 'static,
         objective: Arc<Objective<Schedule>>,
     ) -> Minimizer {
@@ -80,7 +81,7 @@ impl LocalImprover for Minimizer {
 /// Create the swaps for each given schedule and took them into a long sequence. Find the first
 /// improving schedule in this sequence.
 /// As there is no parallelization this improver is fully deterministic.
-pub(crate) struct TakeFirstRecursion {
+pub struct TakeFirstRecursion {
     swap_factory: Box<dyn SwapFactory>,
     recursion_depth: u8,
     recursion_width: Option<usize>, // number of schedule that are considered for recursion (the one with best value are taken)
@@ -105,7 +106,7 @@ impl LocalImprover for TakeFirstRecursion {
 }
 
 impl TakeFirstRecursion {
-    pub(crate) fn new(
+    pub fn new(
         swap_factory: impl SwapFactory + 'static,
         recursion_depth: u8,
         recursion_width: Option<usize>,

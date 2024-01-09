@@ -1,5 +1,5 @@
 use im::{HashMap, HashSet};
-use sbb_model::base_types::{DepotId, NodeId, VehicleId, VehicleTypeId};
+use sbb_model::base_types::{NodeId, VehicleId, VehicleTypeId};
 
 use crate::{
     path::Path, segment::Segment, tour::Tour, train_formation::TrainFormation, vehicle::Vehicle,
@@ -663,7 +663,7 @@ impl Schedule {
         dummy_id: VehicleId,
         path: Path,
     ) {
-        let dummy_tour = Tour::new_dummy_by_path(path, self.network.clone());
+        let dummy_tour = Tour::new_dummy(path, self.network.clone());
         dummy_tours.insert(dummy_id, dummy_tour);
         dummy_ids_sorted.insert(
             dummy_ids_sorted

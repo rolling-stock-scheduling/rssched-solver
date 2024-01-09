@@ -1,6 +1,6 @@
 use std::fmt;
 
-use sbb_model::base_types::{PassengerCount, TrainLength, VehicleId};
+use sbb_model::base_types::{PassengerCount, VehicleId};
 
 use crate::vehicle::Vehicle;
 use std::iter::Iterator;
@@ -71,21 +71,17 @@ impl TrainFormation {
         }
     }
 
-    pub(crate) fn iter(&self) -> impl Iterator<Item = &Vehicle> + '_ {
-        self.formation.iter()
-    }
-
     pub(crate) fn seats(&self) -> PassengerCount {
         self.formation.iter().map(|v| v.seats()).sum()
     }
 
-    pub(crate) fn capacity(&self) -> PassengerCount {
-        self.formation.iter().map(|v| v.capacity()).sum()
-    }
+    // pub(crate) fn capacity(&self) -> PassengerCount {
+    // self.formation.iter().map(|v| v.capacity()).sum()
+    // }
 
-    pub(crate) fn length(&self) -> TrainLength {
-        self.formation.iter().map(|v| v.length()).sum()
-    }
+    // pub(crate) fn length(&self) -> TrainLength {
+    // self.formation.iter().map(|v| v.length()).sum()
+    // }
 }
 
 impl fmt::Display for TrainFormation {

@@ -778,32 +778,7 @@ impl Tour {
         }
     }
 
-    pub(super) fn new_dummy(nodes: Vec<NodeId>, network: Arc<Network>) -> Result<Tour, String> {
-        if network.node(nodes[0]).is_depot() {
-            return Err(format!(
-                "Dummy-tour cannot start with a depot: {}.\n",
-                network.node(nodes[0])
-            ));
-        }
-        if network.node(nodes[nodes.len() - 1]).is_depot() {
-            return Err(format!(
-                "Dummy-tour cannot end with a depot, not with: {},\n",
-                network.node(nodes[nodes.len() - 1])
-            ));
-        }
-        for (&a, &b) in nodes.iter().tuple_windows() {
-            if !network.can_reach(a, b) {
-                return Err(format!(
-                    "Not a valid Dummy-Tour: {} cannot reach {}.\n",
-                    network.node(a),
-                    network.node(b)
-                ));
-            }
-        }
-        Ok(Tour::new_computing(nodes, true, network))
-    }
-
-    pub(super) fn new_dummy_by_path(path: Path, network: Arc<Network>) -> Tour {
+    pub(super) fn new_dummy(path: Path, network: Arc<Network>) -> Tour {
         let mut nodes = path.consume();
         // remove start and end depot
         if network.node(*nodes.first().unwrap()).is_depot() {

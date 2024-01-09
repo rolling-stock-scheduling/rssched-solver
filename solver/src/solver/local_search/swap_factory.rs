@@ -10,7 +10,7 @@ use std::iter;
 
 /// Computes for a given schedule all Swaps in the neighborhood.
 /// The providers are rotated such that the start_provider is the first provider.
-pub(crate) trait SwapFactory: Send + Sync {
+pub trait SwapFactory: Send + Sync {
     fn create_swap_iterator<'a>(
         &'a self,
         schedule: &'a Schedule,
@@ -28,7 +28,7 @@ pub(crate) trait SwapFactory: Send + Sync {
 /// The length of a segment is measured from the start_time of the first node to the end_time of
 /// the last node.
 #[derive(Clone)]
-pub(crate) struct LimitedExchanges {
+pub struct LimitedExchanges {
     segment_length_limit: Option<Duration>,
     overhead_threshold: Option<Duration>,
     only_dummy_provider: bool,

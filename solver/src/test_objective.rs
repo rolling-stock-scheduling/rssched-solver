@@ -77,7 +77,7 @@ impl Indicator<Schedule> for ServiceTimeSquaredIndicator {
     }
 }
 
-pub fn build() -> Objective<Schedule> {
+pub fn _build() -> Objective<Schedule> {
     let usefull_service_time = Level::new(vec![(
         Coefficient::Integer(-1),
         Box::new(ServiceTimeSquaredIndicator),

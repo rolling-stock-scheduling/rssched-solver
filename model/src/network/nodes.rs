@@ -225,7 +225,6 @@ impl Node {
 
 // static functions:
 impl Node {
-    // factory for creating a service trip
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn create_service_trip(
         id: NodeId,
@@ -257,7 +256,7 @@ impl Node {
         Node::Service(service_trip)
     }
 
-    // factory for creating a node for a maintenance slot
+    /*
     pub(crate) fn create_maintenance(
         id: NodeId,
         location: Location,
@@ -272,7 +271,7 @@ impl Node {
             end,
             name,
         }
-    }
+    } */
 
     pub fn create_maintenance_node(maintenance_slot: MaintenanceSlot) -> Node {
         Node::Maintenance(maintenance_slot)

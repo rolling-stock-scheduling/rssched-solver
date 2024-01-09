@@ -1,5 +1,5 @@
 mod first_phase_objective;
-mod solver;
+pub mod solver;
 mod test_objective;
 
 use objective_framework::EvaluatedSolution;
@@ -7,7 +7,6 @@ use sbb_solution::json_serialisation::schedule_to_json;
 use sbb_solution::Schedule;
 use solver::greedy::Greedy;
 use solver::local_search::LocalSearch;
-use solver::one_node_per_tour::OneNodePerTour;
 use solver::Solver;
 
 use sbb_model::json_serialisation::load_rolling_stock_problem_instance_from_json;
@@ -41,12 +40,12 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
         objective.clone(),
     );
 
-    let one_node_per_tour = OneNodePerTour::initialize(
-        vehicle_types.clone(),
-        network.clone(),
-        config.clone(),
-        objective.clone(),
-    );
+    // let one_node_per_tour = OneNodePerTour::initialize(
+    //     vehicle_types.clone(),
+    //     network.clone(),
+    //     config.clone(),
+    //     objective.clone(),
+    // );
 
     // solve
     let start_solution = greedy.solve();
