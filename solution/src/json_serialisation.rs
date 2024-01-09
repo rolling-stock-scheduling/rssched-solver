@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use sbb_model::{
+use model::{
     base_types::{DepotId, NodeId, VehicleId},
     network::{nodes::Node, Network},
 };

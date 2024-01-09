@@ -1,8 +1,8 @@
 use super::swaps::{PathExchange, Swap};
-use sbb_model::base_types::VehicleId;
-use sbb_model::network::Network;
-use sbb_solution::segment::Segment;
-use sbb_solution::Schedule;
+use model::base_types::VehicleId;
+use model::network::Network;
+use solution::segment::Segment;
+use solution::Schedule;
 use std::sync::Arc;
 use time::Duration;
 

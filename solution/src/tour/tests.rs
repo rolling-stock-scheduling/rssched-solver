@@ -1,6 +1,6 @@
 use std::{fs::File, io::Read, sync::Arc};
 
-use sbb_model::{
+use model::{
     base_types::{Distance, NodeId},
     json_serialisation::load_rolling_stock_problem_instance_from_json,
     network::Network,

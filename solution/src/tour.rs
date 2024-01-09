@@ -2,8 +2,8 @@
 mod tests;
 use crate::path::Path;
 use crate::segment::Segment;
-use sbb_model::base_types::{Distance, NodeId};
-use sbb_model::network::Network;
+use model::base_types::{Distance, NodeId};
+use model::network::Network;
 use std::cmp::Ordering;
 use std::fmt;
 use time::{DateTime, Duration};

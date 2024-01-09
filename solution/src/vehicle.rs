@@ -1,6 +1,6 @@
 use std::{fmt, sync::Arc};
 
-use sbb_model::{
+use model::{
     base_types::{PassengerCount, TrainLength, VehicleId, VehicleTypeId},
     vehicle_types::{VehicleType, VehicleTypes},
 };

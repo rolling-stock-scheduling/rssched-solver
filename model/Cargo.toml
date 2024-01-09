@@ -1,5 +1,5 @@
 [package]
-name = "sbb_model"
+name = "model"
 authors.workspace = true
 version.workspace = true
 edition.workspace = true

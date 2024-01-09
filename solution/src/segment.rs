@@ -1,6 +1,6 @@
 use std::fmt;
 
-use sbb_model::base_types::NodeId;
+use model::base_types::NodeId;
 
 #[derive(Debug, Clone, Copy)]
 

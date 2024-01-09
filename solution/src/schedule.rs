@@ -1,15 +1,15 @@
 mod modifications;
-use sbb_model::base_types::DepotId;
-use sbb_model::base_types::Distance;
-use sbb_model::base_types::NodeId;
-use sbb_model::base_types::PassengerCount;
-use sbb_model::base_types::SeatDistance;
-use sbb_model::base_types::VehicleCount;
-use sbb_model::base_types::VehicleId;
-use sbb_model::base_types::VehicleTypeId;
-use sbb_model::config::Config;
-use sbb_model::network::Network;
-use sbb_model::vehicle_types::VehicleTypes;
+use model::base_types::DepotId;
+use model::base_types::Distance;
+use model::base_types::NodeId;
+use model::base_types::PassengerCount;
+use model::base_types::SeatDistance;
+use model::base_types::VehicleCount;
+use model::base_types::VehicleId;
+use model::base_types::VehicleTypeId;
+use model::config::Config;
+use model::network::Network;
+use model::vehicle_types::VehicleTypes;
 
 use crate::path::Path;
 use crate::segment::Segment;

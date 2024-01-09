@@ -1,5 +1,5 @@
 use im::{HashMap, HashSet};
-use sbb_model::base_types::{NodeId, VehicleId, VehicleTypeId};
+use model::base_types::{NodeId, VehicleId, VehicleTypeId};
 
 use crate::{
     path::Path, segment::Segment, tour::Tour, train_formation::TrainFormation, vehicle::Vehicle,

@@ -1,12 +1,12 @@
 use crate::Solution;
 use crate::Solver;
 use objective_framework::Objective;
-use sbb_model::base_types::VehicleId;
-use sbb_model::config::Config;
-use sbb_model::network::Network;
-use sbb_model::vehicle_types::VehicleTypes;
-use sbb_solution::path::Path;
-use sbb_solution::Schedule;
+use model::base_types::VehicleId;
+use model::config::Config;
+use model::network::Network;
+use model::vehicle_types::VehicleTypes;
+use solution::path::Path;
+use solution::Schedule;
 use std::sync::Arc;
 
 pub struct Greedy {

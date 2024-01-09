@@ -1,6 +1,6 @@
 use std::fmt;
 
-use sbb_model::base_types::{PassengerCount, VehicleId};
+use model::base_types::{PassengerCount, VehicleId};
 
 use crate::vehicle::Vehicle;
 use std::iter::Iterator;

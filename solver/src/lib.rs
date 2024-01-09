@@ -3,8 +3,8 @@ pub mod local_search;
 pub mod one_node_per_tour;
 
 use objective_framework::{EvaluatedSolution, Objective};
-use sbb_model::{config::Config, network::Network, vehicle_types::VehicleTypes};
-use sbb_solution::Schedule;
+use model::{config::Config, network::Network, vehicle_types::VehicleTypes};
+use solution::Schedule;
 use std::sync::Arc;
 
 type Solution = EvaluatedSolution<Schedule>;

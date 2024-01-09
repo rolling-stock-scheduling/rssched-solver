@@ -1,11 +1,11 @@
 mod test_objective;
 
-use sbb_solution::json_serialisation::schedule_to_json;
-use sbb_solver::greedy::Greedy;
-use sbb_solver::local_search::LocalSearch;
-use sbb_solver::Solver;
+use solution::json_serialisation::schedule_to_json;
+use solver::greedy::Greedy;
+use solver::local_search::LocalSearch;
+use solver::Solver;
 
-use sbb_model::json_serialisation::load_rolling_stock_problem_instance_from_json;
+use model::json_serialisation::load_rolling_stock_problem_instance_from_json;
 
 use std::sync::Arc;
 use std::time as stdtime;
@@ -15,7 +15,7 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
         load_rolling_stock_problem_instance_from_json(input_data);
     let start_time = stdtime::Instant::now();
 
-    let objective = Arc::new(sbb_server::first_phase_objective::build());
+    let objective = Arc::new(server::first_phase_objective::build());
     // let objective = Arc::new(test_objective::build());
 
     // initialize local search

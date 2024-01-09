@@ -1,5 +1,5 @@
 use objective_framework::{BaseValue, Coefficient, Indicator, Level, Objective};
-use sbb_solution::Schedule;
+use solution::Schedule;
 
 struct NumberOfUnservedPassengersIndicator;
 

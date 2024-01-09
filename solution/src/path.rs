@@ -1,6 +1,6 @@
 use itertools::Itertools;
-use sbb_model::base_types::NodeId;
-use sbb_model::network::Network;
+use model::base_types::NodeId;
+use model::network::Network;
 use std::fmt;
 
 use std::sync::Arc;
