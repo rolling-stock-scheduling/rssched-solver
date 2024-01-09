@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{fs::File, io::Read, sync::Arc};
 
 use sbb_model::{
     base_types::{Distance, NodeId},
@@ -28,8 +28,13 @@ struct TestData {
 
 fn init_test_data() -> TestData {
     // load file from json
-    let (_, network, _) =
-        load_rolling_stock_problem_instance_from_json("resources/test_instance.json");
+    let path = "resources/test_instance.json";
+
+    let mut file = File::open(path).unwrap();
+    let mut input_data = String::new();
+    file.read_to_string(&mut input_data).unwrap();
+    let input_data: serde_json::Value = serde_json::from_str(&input_data).unwrap();
+    let (_, network, _) = load_rolling_stock_problem_instance_from_json(input_data);
     TestData {
         network,
         trip12: NodeId::from("trip1-2"),

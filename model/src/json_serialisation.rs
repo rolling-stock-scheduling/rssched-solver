@@ -4,8 +4,6 @@ mod json_serialisation_tests;
 
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use std::fs::File;
-use std::io::prelude::*;
 use std::sync::Arc;
 use time::{DateTime, Duration};
 
@@ -118,9 +116,9 @@ struct Defaults {
 }
 
 pub fn load_rolling_stock_problem_instance_from_json(
-    path: &str,
+    input_data: serde_json::Value,
 ) -> (Arc<VehicleTypes>, Arc<Network>, Arc<Config>) {
-    let json_input = load_json_input(path);
+    let json_input = serde_json::from_value(input_data).unwrap();
     let locations = Arc::new(create_locations(&json_input));
     let vehicle_types = Arc::new(create_vehicle_types(&json_input));
     let config = Arc::new(create_config(&json_input));
@@ -130,13 +128,6 @@ pub fn load_rolling_stock_problem_instance_from_json(
         config.clone(),
     ));
     (vehicle_types, network, config)
-}
-
-fn load_json_input(path: &str) -> JsonInput {
-    let mut file = File::open(path).unwrap();
-    let mut data = String::new();
-    file.read_to_string(&mut data).unwrap();
-    serde_json::from_str(&data).unwrap()
 }
 
 fn create_locations(json_input: &JsonInput) -> Locations {

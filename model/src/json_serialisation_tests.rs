@@ -1,3 +1,5 @@
+use std::{fs::File, io::Read};
+
 use time::{DateTime, Duration};
 
 use crate::{
@@ -11,8 +13,15 @@ use crate::{
 //add a test that reads a json file
 #[test]
 fn test_load_from_json() {
+    let path = "resources/small_test_input.json";
+
+    let mut file = File::open(path).unwrap();
+    let mut input_data = String::new();
+    file.read_to_string(&mut input_data).unwrap();
+    let input_data: serde_json::Value = serde_json::from_str(&input_data).unwrap();
+
     let (vehicle_types, network, config) =
-        load_rolling_stock_problem_instance_from_json("resources/small_test_input.json");
+        load_rolling_stock_problem_instance_from_json(input_data);
 
     let locations = network.locations();
     let loc1 = locations.get_location(LocationId::from("loc1"));
