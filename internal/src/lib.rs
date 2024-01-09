@@ -26,7 +26,7 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
         objective.clone(),
     );
 
-    // use greedy algorithm
+    // use greedy algorithm as start solution
     let greedy = Greedy::initialize(
         vehicle_types.clone(),
         network.clone(),
@@ -43,7 +43,8 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
     let end_time = stdtime::Instant::now();
     let runtime_duration = end_time.duration_since(start_time);
 
-    println!("\n\nFinal schedule (long version):");
+    println!("\n*** Solved ***");
+    println!("\nfinal schedule (long version):");
     final_solution.solution().print_tours_long();
 
     // println!("\n\nFinal schedule:");
@@ -51,13 +52,12 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
 
     // println!("\n\nFinal train formations:");
     // final_solution.solution().print_train_formations();
-    println!();
-    println!("\nFinal objective value:");
+    println!("\nfinal objective value:");
     objective.print_objective_value(final_solution.objective_value());
 
     final_solution.solution().print_depot_balances();
 
-    println!("Running time: {:0.2}sec", runtime_duration.as_secs_f32());
+    println!("running time: {:0.2}sec", runtime_duration.as_secs_f32());
 
     let json_output = schedule_to_json(final_solution.solution());
     let json_objective_value = objective.objective_value_to_json(final_solution.objective_value());

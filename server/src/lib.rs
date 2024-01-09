@@ -16,7 +16,6 @@ pub fn solve_instance(input_data: serde_json::Value) -> serde_json::Value {
     let start_time = stdtime::Instant::now();
 
     let objective = Arc::new(first_phase_objective::build());
-    // let objective = Arc::new(test_objective::build());
 
     // initialize local search
     let mut local_search_solver = LocalSearch::initialize(
@@ -26,7 +25,7 @@ pub fn solve_instance(input_data: serde_json::Value) -> serde_json::Value {
         objective.clone(),
     );
 
-    // use greedy algorithm
+    // use greedy algorithm as start solution
     let greedy = Greedy::initialize(
         vehicle_types.clone(),
         network.clone(),
@@ -36,28 +35,20 @@ pub fn solve_instance(input_data: serde_json::Value) -> serde_json::Value {
 
     // solve
     let start_solution = greedy.solve();
-    // let start_solution = one_node_per_tour.solve();
     local_search_solver.set_initial_solution(start_solution);
     let final_solution = local_search_solver.solve();
 
     let end_time = stdtime::Instant::now();
     let runtime_duration = end_time.duration_since(start_time);
 
-    println!("\n\nFinal schedule (long version):");
-    final_solution.solution().print_tours_long();
+    println!("\n*** Solved ***");
+    println!("\nfinal schedule:");
+    final_solution.solution().print_tours();
 
-    // println!("\n\nFinal schedule:");
-    // final_solution.solution().print_tours();
-
-    // println!("\n\nFinal train formations:");
-    // final_solution.solution().print_train_formations();
-    println!();
-    println!("\nFinal objective value:");
+    println!("\nfinal objective value:");
     objective.print_objective_value(final_solution.objective_value());
 
-    final_solution.solution().print_depot_balances();
-
-    println!("Running time: {:0.2}sec", runtime_duration.as_secs_f32());
+    println!("\nrunning time: {:0.2}sec", runtime_duration.as_secs_f32());
 
     let json_output = schedule_to_json(final_solution.solution());
     let json_objective_value = objective.objective_value_to_json(final_solution.objective_value());

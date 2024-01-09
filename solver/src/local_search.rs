@@ -6,8 +6,8 @@ use std::sync::Arc;
 
 use local_improver::LocalImprover;
 use local_improver::TakeFirstRecursion;
-use objective_framework::Objective;
 use model::{config::Config, network::Network, vehicle_types::VehicleTypes};
+use objective_framework::Objective;
 use solution::Schedule;
 use swap_factory::LimitedExchanges;
 // use local_improver::TakeFirstParallelRecursion;
@@ -58,7 +58,7 @@ impl Solver for LocalSearch {
             self.objective.evaluate(schedule)
         });
 
-        println!("\n\n\n*** Phase 1: exchanges with recursion ***");
+        println!("\n*** Phase 1: exchanges with recursion ***");
         // let segment_limit = Duration::new("3:00:00");
         // let overhead_threshold = Duration::new("0:05:00"); // tours of real-vehicle-providers are not splitted at nodes under these duration
         let only_dummy_provider = false;
