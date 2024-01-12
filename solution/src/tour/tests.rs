@@ -1,55 +1,14 @@
-use std::{fs::File, io::Read, sync::Arc};
-
-use model::{
-    base_types::{Distance, NodeId},
-    json_serialisation::load_rolling_stock_problem_instance_from_json,
-    network::Network,
-};
+use itertools::assert_equal;
+use model::base_types::Distance;
 use time::{DateTime, Duration};
 
-use crate::{path::Path, segment::Segment};
+use crate::{
+    path::Path,
+    segment::Segment,
+    test_utilities::{init_test_data, TestData},
+};
 
 use super::Tour;
-
-struct TestData {
-    network: Arc<Network>,
-    trip12: NodeId,
-    trip23: NodeId,
-    trip34: NodeId,
-    trip45: NodeId,
-    trip51: NodeId,
-    trip31: NodeId,
-    trip14: NodeId,
-    start_depot1: NodeId,
-    end_depot1: NodeId,
-    start_depot2: NodeId,
-    end_depot2: NodeId,
-}
-
-fn init_test_data() -> TestData {
-    // load file from json
-    let path = "resources/test_instance.json";
-
-    let mut file = File::open(path).unwrap();
-    let mut input_data = String::new();
-    file.read_to_string(&mut input_data).unwrap();
-    let input_data: serde_json::Value = serde_json::from_str(&input_data).unwrap();
-    let (_, network, _) = load_rolling_stock_problem_instance_from_json(input_data);
-    TestData {
-        network,
-        trip12: NodeId::from("trip1-2"),
-        trip23: NodeId::from("trip2-3"),
-        trip34: NodeId::from("trip3-4"),
-        trip45: NodeId::from("trip4-5"),
-        trip51: NodeId::from("trip5-1"),
-        trip31: NodeId::from("trip3-1"),
-        trip14: NodeId::from("trip1-4"),
-        start_depot1: NodeId::from("s_depot1"),
-        end_depot1: NodeId::from("e_depot1"),
-        start_depot2: NodeId::from("s_depot2"),
-        end_depot2: NodeId::from("e_depot2"),
-    }
-}
 
 fn default_tour(d: &TestData) -> Tour {
     Tour::new(
@@ -229,9 +188,9 @@ fn conflict_test() {
     let conflicted_path = tour.conflict(segment);
 
     // ASSERT
-    assert_iter(
+    assert_equal(
         conflicted_path.unwrap().iter(),
-        vec![d.trip34, d.trip45, d.trip51],
+        [d.trip34, d.trip45, d.trip51].iter().cloned(),
     );
 }
 #[test]
@@ -245,20 +204,25 @@ fn insert_path_test() {
     let (new_tour, removed_path_option) = tour.insert_path(path);
 
     // ASSERT
-    assert_iter(
+    assert_equal(
         new_tour.all_nodes_iter(),
-        vec![
+        [
             d.start_depot1,
             d.trip12,
             d.trip23,
             d.trip31,
             d.trip14,
             d.end_depot2,
-        ],
+        ]
+        .iter()
+        .cloned(),
     );
 
     let removed_path = removed_path_option.unwrap();
-    assert_iter(removed_path.iter(), vec![d.trip34, d.trip45, d.trip51]);
+    assert_equal(
+        removed_path.iter(),
+        [d.trip34, d.trip45, d.trip51].iter().cloned(),
+    );
     assert_eq!(new_tour.dead_head_distance(), Distance::from_meter(42000));
     assert_eq!(new_tour.useful_duration(), Duration::new("2:00"));
     assert_eq!(new_tour.service_distance(), Distance::from_meter(16000));
@@ -279,9 +243,9 @@ fn replace_start_depot_test() {
     // ASSERT
     assert!(replace_result.is_ok());
     let new_tour = replace_result.unwrap();
-    assert_iter(
+    assert_equal(
         new_tour.all_nodes_iter(),
-        vec![
+        [
             d.start_depot2,
             d.trip12,
             d.trip23,
@@ -289,7 +253,9 @@ fn replace_start_depot_test() {
             d.trip45,
             d.trip51,
             d.end_depot2,
-        ],
+        ]
+        .iter()
+        .cloned(),
     );
     assert_eq!(new_tour.start_time(), DateTime::new("2020-01-01T05:15"));
     assert_eq!(new_tour.dead_head_distance(), Distance::from_meter(33000));
@@ -308,9 +274,9 @@ fn replace_end_depot_test() {
     // ASSERT
     assert!(replace_result.is_ok());
     let new_tour = replace_result.unwrap();
-    assert_iter(
+    assert_equal(
         new_tour.all_nodes_iter(),
-        vec![
+        [
             d.start_depot1,
             d.trip12,
             d.trip23,
@@ -318,7 +284,9 @@ fn replace_end_depot_test() {
             d.trip45,
             d.trip51,
             d.end_depot1,
-        ],
+        ]
+        .iter()
+        .cloned(),
     );
     assert_eq!(new_tour.end_time(), DateTime::new("2020-01-01T10:30"));
     assert_eq!(new_tour.dead_head_distance(), Distance::from_meter(0));
@@ -352,14 +320,14 @@ fn remove_test() {
     assert!(remove_result.is_ok());
     let (new_tour_option, removed_path) = remove_result.unwrap();
     let new_tour = new_tour_option.unwrap();
-    assert_iter(
+    assert_equal(
         new_tour.all_nodes_iter(),
-        vec![d.start_depot1, d.trip51, d.end_depot2],
+        [d.start_depot1, d.trip51, d.end_depot2].iter().cloned(),
     );
 
-    assert_iter(
+    assert_equal(
         removed_path.iter(),
-        vec![d.trip12, d.trip23, d.trip34, d.trip45],
+        [d.trip12, d.trip23, d.trip34, d.trip45].iter().cloned(),
     );
     assert_eq!(new_tour.dead_head_distance(), Distance::from_meter(27000));
     assert_eq!(new_tour.useful_duration(), Duration::new("0:30"));
@@ -382,9 +350,9 @@ fn sub_path_test() {
     // ASSERT
     assert!(sub_path_result.is_ok());
     let sub_path = sub_path_result.unwrap();
-    assert_iter(
+    assert_equal(
         sub_path.iter(),
-        vec![d.trip12, d.trip23, d.trip34, d.trip45],
+        [d.trip12, d.trip23, d.trip34, d.trip45].iter().cloned(),
     );
 }
 
@@ -402,13 +370,17 @@ fn insert_path_with_start_depot_test() {
     let (new_tour, removed_path_option) = tour.insert_path(path);
 
     // ASSERT
-    assert_iter(
+    assert_equal(
         new_tour.all_nodes_iter(),
-        vec![d.start_depot2, d.trip31, d.trip51, d.end_depot2],
+        [d.start_depot2, d.trip31, d.trip51, d.end_depot2]
+            .iter()
+            .cloned(),
     );
-    assert_iter(
+    assert_equal(
         removed_path_option.unwrap().iter(),
-        vec![d.start_depot1, d.trip12, d.trip23, d.trip34, d.trip45],
+        [d.start_depot1, d.trip12, d.trip23, d.trip34, d.trip45]
+            .iter()
+            .cloned(),
     );
     assert_eq!(
         new_tour.dead_head_distance(),
@@ -433,13 +405,15 @@ fn insert_path_with_end_depot_test() {
     let (new_tour, removed_path_option) = tour.insert_path(path);
 
     // ASSERT
-    assert_iter(
+    assert_equal(
         new_tour.all_nodes_iter(),
-        vec![d.start_depot1, d.trip12, d.trip23, d.trip14, d.end_depot1],
+        [d.start_depot1, d.trip12, d.trip23, d.trip14, d.end_depot1]
+            .iter()
+            .cloned(),
     );
-    assert_iter(
+    assert_equal(
         removed_path_option.unwrap().iter(),
-        vec![d.trip34, d.trip45, d.trip51, d.end_depot2],
+        [d.trip34, d.trip45, d.trip51, d.end_depot2].iter().cloned(),
     );
     assert_eq!(
         new_tour.dead_head_distance(),
@@ -467,13 +441,15 @@ fn insert_path_with_start_and_end_depot_test() {
     let (new_tour, removed_path_option) = tour.insert_path(path);
 
     // ASSERT
-    assert_iter(
+    assert_equal(
         new_tour.all_nodes_iter(),
-        vec![d.start_depot2, d.trip31, d.trip14, d.end_depot1],
+        [d.start_depot2, d.trip31, d.trip14, d.end_depot1]
+            .iter()
+            .cloned(),
     );
-    assert_iter(
+    assert_equal(
         removed_path_option.unwrap().iter(),
-        vec![
+        [
             d.start_depot1,
             d.trip12,
             d.trip23,
@@ -481,7 +457,9 @@ fn insert_path_with_start_and_end_depot_test() {
             d.trip45,
             d.trip51,
             d.end_depot2,
-        ],
+        ]
+        .iter()
+        .cloned(),
     );
     assert_eq!(
         new_tour.dead_head_distance(),
@@ -520,28 +498,34 @@ fn insert_path_such_that_only_depot_is_removed_test() {
     let (new_tour3, removed_path_option3) = tour.insert_path(path3);
 
     // ASSERT
-    assert_iter(
+    assert_equal(
         new_tour1.all_nodes_iter(),
-        vec![d.start_depot2, d.trip12, d.trip34, d.trip45, d.end_depot2],
+        [d.start_depot2, d.trip12, d.trip34, d.trip45, d.end_depot2]
+            .iter()
+            .cloned(),
     );
     assert!(removed_path_option1.is_none());
 
-    assert_iter(
+    assert_equal(
         new_tour2.all_nodes_iter(),
-        vec![d.start_depot1, d.trip34, d.trip45, d.trip51, d.end_depot1],
+        [d.start_depot1, d.trip34, d.trip45, d.trip51, d.end_depot1]
+            .iter()
+            .cloned(),
     );
     assert!(removed_path_option2.is_none());
 
-    assert_iter(
+    assert_equal(
         new_tour3.all_nodes_iter(),
-        vec![
+        [
             d.start_depot1,
             d.trip12,
             d.trip23,
             d.trip34,
             d.trip45,
             d.end_depot2,
-        ],
+        ]
+        .iter()
+        .cloned(),
     );
     assert!(removed_path_option3.is_none());
 }
@@ -569,13 +553,13 @@ fn insert_path_with_depot_to_dummy_tour() {
     let (new_dummy_tour, removed_path_option) = dummy_tour.insert_path(path);
 
     // ASSERT
-    assert_iter(
+    assert_equal(
         new_dummy_tour.all_nodes_iter(),
-        vec![d.trip12, d.trip23, d.trip31, d.trip14],
+        [d.trip12, d.trip23, d.trip31, d.trip14].iter().cloned(),
     );
-    assert_iter(
+    assert_equal(
         removed_path_option.unwrap().iter(),
-        vec![d.trip34, d.trip45, d.trip51],
+        [d.trip34, d.trip45, d.trip51].iter().cloned(),
     );
     assert_eq!(new_dummy_tour.dead_head_distance(), Distance::from_meter(0));
     assert_eq!(new_dummy_tour.useful_duration(), Duration::new("2:00"));
@@ -610,47 +594,53 @@ fn remove_all_nodes_test() {
     assert!(all_inner_nodes_result.is_ok());
     let (new_tour_option, removed_path) = all_inner_nodes_result.unwrap();
     assert!(new_tour_option.is_none());
-    assert_iter(
+    assert_equal(
         removed_path.iter(),
-        vec![d.trip12, d.trip23, d.trip34, d.trip45, d.trip51],
+        [d.trip12, d.trip23, d.trip34, d.trip45, d.trip51]
+            .iter()
+            .cloned(),
     );
 
     assert!(start_depot_result.is_ok());
     let (new_tour_option, removed_path) = start_depot_result.unwrap();
     assert!(new_tour_option.is_none());
-    assert_iter(
+    assert_equal(
         removed_path.iter(),
-        vec![
+        [
             d.start_depot1,
             d.trip12,
             d.trip23,
             d.trip34,
             d.trip45,
             d.trip51,
-        ],
+        ]
+        .iter()
+        .cloned(),
     );
 
     assert!(end_depot_result.is_ok());
     let (new_tour_option, removed_path) = end_depot_result.unwrap();
     assert!(new_tour_option.is_none());
-    assert_iter(
+    assert_equal(
         removed_path.iter(),
-        vec![
+        [
             d.trip12,
             d.trip23,
             d.trip34,
             d.trip45,
             d.trip51,
             d.end_depot2,
-        ],
+        ]
+        .iter()
+        .cloned(),
     );
 
     assert!(all_nodes_result.is_ok());
     let (new_tour_option, removed_path) = all_nodes_result.unwrap();
     assert!(new_tour_option.is_none());
-    assert_iter(
+    assert_equal(
         removed_path.iter(),
-        vec![
+        [
             d.start_depot1,
             d.trip12,
             d.trip23,
@@ -658,7 +648,9 @@ fn remove_all_nodes_test() {
             d.trip45,
             d.trip51,
             d.end_depot2,
-        ],
+        ]
+        .iter()
+        .cloned(),
     );
 }
 
@@ -675,18 +667,20 @@ fn remove_single_node_test() {
     // ASSERT
     assert!(remove_result.is_ok());
     let (new_tour_option, removed_path) = remove_result.unwrap();
-    assert_iter(
+    assert_equal(
         new_tour_option.unwrap().all_nodes_iter(),
-        vec![
+        [
             d.start_depot1,
             d.trip23,
             d.trip34,
             d.trip45,
             d.trip51,
             d.end_depot2,
-        ],
+        ]
+        .iter()
+        .cloned(),
     );
-    assert_iter(removed_path.iter(), vec![d.trip12]);
+    assert_equal(removed_path.iter(), [d.trip12].iter().cloned());
 }
 
 #[test]
@@ -713,11 +707,4 @@ fn remove_invalid_segment() {
     assert!(end_invalid_result.is_err());
     assert!(start_depot_result.is_err());
     assert!(end_depot_result.is_err());
-}
-
-fn assert_iter(mut iter: impl Iterator<Item = NodeId>, expected: Vec<NodeId>) {
-    for expected_node in expected {
-        assert_eq!(iter.next(), Some(expected_node));
-    }
-    assert_eq!(iter.next(), None);
 }

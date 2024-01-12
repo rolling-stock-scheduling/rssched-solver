@@ -1,4 +1,8 @@
 mod modifications;
+#[cfg(test)]
+mod tests;
+
+use itertools::Itertools;
 use model::base_types::DepotId;
 use model::base_types::Distance;
 use model::base_types::NodeId;
@@ -66,26 +70,16 @@ pub struct Schedule {
 
 // basic methods
 impl Schedule {
-    pub fn tour_of(&self, vehicle: VehicleId) -> Result<&Tour, String> {
-        match self.tours.get(&vehicle) {
-            Some(tour) => Ok(tour),
-            None => self.dummy_tours.get(&vehicle).ok_or(format!(
-                "{} is neither vehicle nor a dummy. So there is no tour.",
-                vehicle
-            )),
-        }
+    pub fn number_of_vehicles(&self) -> usize {
+        self.vehicles.len()
     }
 
-    pub fn is_dummy(&self, vehicle: VehicleId) -> bool {
-        self.dummy_tours.contains_key(&vehicle)
+    pub fn vehicles_iter(&self) -> impl Iterator<Item = VehicleId> + '_ {
+        self.vehicle_ids_sorted.iter().copied()
     }
 
     pub fn is_vehicle(&self, vehicle: VehicleId) -> bool {
         self.vehicles.contains_key(&vehicle)
-    }
-
-    pub fn train_formation_of(&self, node: NodeId) -> &TrainFormation {
-        self.train_formations.get(&node).unwrap()
     }
 
     pub fn get_vehicle(&self, vehicle: VehicleId) -> Result<&Vehicle, String> {
@@ -94,8 +88,12 @@ impl Schedule {
             .ok_or_else(|| format!("{} is not an vehicle.", vehicle))
     }
 
-    pub fn number_of_vehicles(&self) -> usize {
-        self.vehicles.len()
+    pub fn vehicle_type_of(&self, vehicle: VehicleId) -> VehicleTypeId {
+        self.get_vehicle(vehicle).unwrap().type_id()
+    }
+
+    pub fn is_dummy(&self, vehicle: VehicleId) -> bool {
+        self.dummy_tours.contains_key(&vehicle)
     }
 
     pub fn number_of_dummy_tours(&self) -> usize {
@@ -106,12 +104,18 @@ impl Schedule {
         self.dummy_ids_sorted.iter().copied()
     }
 
-    pub fn vehicles_iter(&self) -> impl Iterator<Item = VehicleId> + '_ {
-        self.vehicle_ids_sorted.iter().copied()
+    pub fn tour_of(&self, vehicle: VehicleId) -> Result<&Tour, String> {
+        match self.tours.get(&vehicle) {
+            Some(tour) => Ok(tour),
+            None => self.dummy_tours.get(&vehicle).ok_or(format!(
+                "{} is neither vehicle nor a dummy. So there is no tour.",
+                vehicle
+            )),
+        }
     }
 
-    pub fn vehicle_type_of(&self, vehicle: VehicleId) -> VehicleTypeId {
-        self.get_vehicle(vehicle).unwrap().type_id()
+    pub fn train_formation_of(&self, node: NodeId) -> &TrainFormation {
+        self.train_formations.get(&node).unwrap()
     }
 
     /// Returns the number of vehicles of the given type that are spawned at the given depot
@@ -236,6 +240,13 @@ impl Schedule {
         }
     }
 
+    pub fn total_dead_head_distance(&self) -> Distance {
+        self.tours
+            .values()
+            .map(|tour| tour.dead_head_distance())
+            .sum()
+    }
+
     pub fn print_tours(&self) {
         for vehicle in self.vehicles_iter() {
             println!("{}: {}", vehicle, self.tours.get(&vehicle).unwrap());
@@ -262,13 +273,6 @@ impl Schedule {
         );
     }
 
-    pub fn total_dead_head_distance(&self) -> Distance {
-        self.tours
-            .values()
-            .map(|tour| tour.dead_head_distance())
-            .sum()
-    }
-
     pub fn print_train_formations(&self) {
         for node in self.network.coverable_nodes() {
             println!("{}: {}", node, self.train_formations.get(&node).unwrap());
@@ -290,6 +294,126 @@ impl Schedule {
     }
 
     // TODO check visibility of different objects and methods
+
+    pub fn verify_consistency(&self) {
+        // check vehicles
+        for (id, vehicle) in self.vehicles.iter() {
+            assert_eq!(*id, vehicle.id());
+            assert_eq!(self.vehicle_type_of(*id), vehicle.type_id());
+        }
+
+        // check vehicles id sets are equal
+        let vehicles: HashSet<VehicleId> = self.vehicles.keys().cloned().collect();
+        let vehicles_from_tours: HashSet<VehicleId> = self.tours.keys().cloned().collect();
+        let vehicles_from_train_formations: HashSet<VehicleId> = self
+            .train_formations
+            .values()
+            .flat_map(|train_formation| train_formation.ids())
+            .collect();
+        let vehicles_from_depot_usage: HashSet<VehicleId> = self
+            .depot_usage
+            .values()
+            .flat_map(|(spawned, despawned)| spawned.iter().chain(despawned.iter()))
+            .cloned()
+            .collect();
+        let vehicles_from_sorted: HashSet<VehicleId> =
+            self.vehicle_ids_sorted.iter().cloned().collect();
+
+        assert_eq!(vehicles, vehicles_from_tours);
+        assert_eq!(vehicles, vehicles_from_sorted);
+        assert_eq!(vehicles, vehicles_from_train_formations); // we do not allow tours to not cover
+                                                              // anything, so each vehicle must be
+                                                              // in at least one formation
+        assert_eq!(vehicles, vehicles_from_depot_usage);
+
+        // check if vehicles are sorted
+        for (vehicle1, vehicle2) in self.vehicle_ids_sorted.iter().tuple_windows() {
+            assert!(vehicle1 < vehicle2);
+        }
+
+        // check dummy tours
+        let dummy_vehicles: HashSet<VehicleId> = self.dummy_tours.keys().cloned().collect();
+        let dummy_vehicles_from_sorted: HashSet<VehicleId> =
+            self.dummy_ids_sorted.iter().cloned().collect();
+
+        assert_eq!(dummy_vehicles, dummy_vehicles_from_sorted);
+        // check if dummy tours are sorted
+        for (dummy1, dummy2) in self.dummy_ids_sorted.iter().tuple_windows() {
+            assert!(dummy1 < dummy2);
+        }
+
+        // check tours
+        for vehicle in self.vehicles.keys() {
+            let tour = self.tours.get(vehicle).unwrap();
+            for (node1, node2) in tour.all_nodes_iter().tuple_windows() {
+                assert!(self.network.can_reach(node1, node2));
+            }
+
+            assert!(!tour.is_dummy());
+
+            // check that all nodes are covered by a train_formation
+            for node in tour.all_non_depot_nodes_iter() {
+                assert!(self.train_formations.contains_key(&node));
+                assert!(self
+                    .train_formations
+                    .get(&node)
+                    .unwrap()
+                    .ids()
+                    .contains(vehicle));
+            }
+
+            // check depots usage
+            let vehicle_type = self.vehicle_type_of(*vehicle);
+
+            let start_depot = self.network.get_depot_id(tour.start_depot().unwrap());
+            let (spawned, _) = self.depot_usage.get(&(start_depot, vehicle_type)).unwrap();
+            assert!(spawned.contains(vehicle));
+
+            let end_depot = self.network.get_depot_id(tour.end_depot().unwrap());
+            let (_, despawned) = self.depot_usage.get(&(end_depot, vehicle_type)).unwrap();
+            assert!(despawned.contains(vehicle));
+        }
+
+        // check that all tours are in the depot_usage
+        for (depot, vehicle_type) in self.depot_usage.keys() {
+            let (spawned, despawned) = self.depot_usage.get(&(*depot, *vehicle_type)).unwrap();
+            for vehicle in spawned.iter() {
+                assert!(self.vehicles.contains_key(vehicle));
+                assert_eq!(self.vehicle_type_of(*vehicle), *vehicle_type);
+                assert_eq!(
+                    self.network
+                        .get_depot_id(self.tour_of(*vehicle).unwrap().start_depot().unwrap()),
+                    *depot
+                );
+            }
+            for vehicle in despawned.iter() {
+                assert!(self.vehicles.contains_key(vehicle));
+                assert_eq!(self.vehicle_type_of(*vehicle), *vehicle_type);
+                assert_eq!(
+                    self.network
+                        .get_depot_id(self.tour_of(*vehicle).unwrap().end_depot().unwrap()),
+                    *depot
+                );
+            }
+        }
+
+        // check train_formations
+        for node in self.network.coverable_nodes() {
+            let train_formation = self.train_formations.get(&node).unwrap();
+            for vehicle in train_formation.iter() {
+                let vehicle_id = vehicle.id();
+                assert_eq!(
+                    self.vehicles.get(&vehicle_id).unwrap().type_id(),
+                    vehicle.type_id()
+                );
+                assert!(self
+                    .tour_of(vehicle_id)
+                    .unwrap()
+                    .all_nodes_iter()
+                    .contains(&node));
+            }
+        }
+    }
 }
 
 impl Ord for Schedule {

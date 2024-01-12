@@ -75,6 +75,14 @@ impl TrainFormation {
         self.formation.iter().map(|v| v.seats()).sum()
     }
 
+    pub(crate) fn ids(&self) -> Vec<VehicleId> {
+        self.formation.iter().map(|v| v.id()).collect()
+    }
+
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &Vehicle> {
+        self.formation.iter()
+    }
+
     // pub(crate) fn capacity(&self) -> PassengerCount {
     // self.formation.iter().map(|v| v.capacity()).sum()
     // }

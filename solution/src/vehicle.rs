@@ -5,7 +5,7 @@ use model::{
     vehicle_types::{VehicleType, VehicleTypes},
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Vehicle {
     id: VehicleId,
     vehicle_type: Arc<VehicleType>,
