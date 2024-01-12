@@ -108,6 +108,14 @@
     "duration" : 1800,
     "maximalFormationLength" : 80
   }, {
+    "id" : "route4-5_fast",
+    "line" : "Line 4-5",
+    "origin" : "loc4",
+    "destination" : "loc5",
+    "distance" : 4000,
+    "duration" : 600,
+    "maximalFormationLength" : 80
+  }, {
     "id" : "route5-1",
     "line" : "Line 5",
     "origin" : "loc5",
@@ -156,7 +164,14 @@
   "name" : "Trip 4-5",
   "departure" : "2020-01-01T09:00:00",
   "passengers" : 80
-  }, {
+  },
+  {
+  "id" : "trip4-5_fast",
+  "route" : "route4-5_fast",
+  "name" : "Trip 4-5",
+  "departure" : "2020-01-01T09:40:00",
+  "passengers" : 0
+  },{
   "id" : "trip5-1",
   "route" : "route5-1",
   "name" : "Trip 5-1",

@@ -84,7 +84,7 @@ impl Schedule {
 
     /// Delete vehicle (and its tour) from schedule.
     pub fn delete_vehicle(&self, vehicle_id: VehicleId) -> Result<Schedule, String> {
-        if self.is_dummy(vehicle_id) {
+        if !self.is_vehicle(vehicle_id) {
             return Err(format!(
                 "Cannot delete dummy vehicle {} from schedule.",
                 vehicle_id
@@ -99,14 +99,14 @@ impl Schedule {
         vehicles.remove(&vehicle_id);
         vehicle_ids_sorted.remove(vehicle_ids_sorted.binary_search(&vehicle_id).unwrap());
 
-        tours.remove(&vehicle_id);
-
         self.update_train_formation(
             &mut train_formations,
             Some(vehicle_id),
             None,
             tours.get(&vehicle_id).unwrap().all_nodes_iter(),
         );
+
+        tours.remove(&vehicle_id);
 
         self.update_depot_usage(&mut depot_usage, &vehicles, &tours, vehicle_id);
 
@@ -125,35 +125,6 @@ impl Schedule {
         })
     }
 
-    /// Delete dummy vehicle (and its tour) from schedule.
-    pub fn delete_dummy(&self, dummy: VehicleId) -> Result<Schedule, String> {
-        if !self.is_dummy(dummy) {
-            return Err(format!(
-                "Cannot delete vehicle {} from schedule. It is not a dummy vehicle.",
-                dummy
-            ));
-        }
-        let mut dummy_tours = self.dummy_tours.clone();
-        let mut dummy_ids_sorted = self.dummy_ids_sorted.clone();
-
-        dummy_tours.remove(&dummy);
-        dummy_ids_sorted.remove(dummy_ids_sorted.binary_search(&dummy).unwrap());
-
-        Ok(Schedule {
-            vehicles: self.vehicles.clone(),
-            tours: self.tours.clone(),
-            train_formations: self.train_formations.clone(),
-            depot_usage: self.depot_usage.clone(),
-            dummy_tours,
-            vehicle_ids_sorted: self.vehicle_ids_sorted.clone(),
-            dummy_ids_sorted,
-            vehicle_counter: self.vehicle_counter,
-            config: self.config.clone(),
-            vehicle_types: self.vehicle_types.clone(),
-            network: self.network.clone(),
-        })
-    }
-
     /// Add a path to the tour of a vehicle. If the path causes conflicts, the conflicting nodes of
     /// the old tour are removed.
     pub fn add_path_to_vehicle_tour(
@@ -161,6 +132,21 @@ impl Schedule {
         vehicle_id: VehicleId,
         path: Path,
     ) -> Result<Schedule, String> {
+        if self.network.node(path.first()).is_depot() {
+            // path starts with a depot, so we need to ensure that the new depot has capacities
+            // available
+            let new_start_depot = path.first();
+            let old_start_depot = self.tour_of(vehicle_id).unwrap().start_depot().unwrap();
+
+            if new_start_depot != old_start_depot
+                && !self.can_depot_spawn_vehicle(new_start_depot, self.vehicle_type_of(vehicle_id))
+            {
+                return Err(format!(
+                    "Cannot add path {} to vehicle tour {}. New start depot has no capacity available.",
+                    path, vehicle_id
+                ));
+            }
+        }
         let mut tours = self.tours.clone();
         let mut train_formations = self.train_formations.clone();
         let mut depot_usage = self.depot_usage.clone();
@@ -204,27 +190,9 @@ impl Schedule {
         })
     }
 
-    /// Reassigns a path (given by a segment and a provider) to the tour of receiver.
-    /// Aborts if there are any conflicts.
-    pub fn cautious_reassign(
-        &self,
-        segment: Segment,
-        provider: VehicleId,
-        receiver: VehicleId,
-    ) -> Result<Schedule, String> {
-        if self.conflict(segment, receiver).is_some() {
-            return Err(format!(
-                "There are conflcits. Abort cautious_reassign()! Segment: {} Provider: {} Receiver: {}", segment, provider, receiver
-            ));
-        }
-        self.override_reassign(segment, provider, receiver)
-            .map(|tuple| tuple.0)
-    }
-
     /// Tries to insert all nodes of provider's segment into receiver's tour.
     /// Nodes that causes conflcits are rejected and stay in provider's tour.
     /// Nodes that do not cause a conflict are reassigned to the receiver.
-    /// Afterwards for each of the new tours the depots are changed to the nearest ones.
     pub fn fit_reassign(
         &self,
         segment: Segment,
@@ -278,7 +246,6 @@ impl Schedule {
     /// Remove segment from provider's tour and inserts the nodes into the tour of receiver vehicle.
     /// All conflicting nodes are removed from the tour and in the case that there are conflicts
     /// a new dummy tour is created.
-    /// Afterwards for each of the new tours the depots are changed to the nearest ones.
     pub fn override_reassign(
         &self,
         segment: Segment,
@@ -360,6 +327,36 @@ impl Schedule {
         ))
     }
 
+    /// Improves the depots of all vehicles given in vehicles.
+    /// If None the depots of all vehicles are improved.
+    pub fn improve_depots(&self, vehicles: Option<Vec<VehicleId>>) -> Schedule {
+        let mut tours = self.tours.clone();
+        let mut depot_usage = self.depot_usage.clone();
+
+        for vehicle_id in vehicles.unwrap_or(self.vehicle_ids_sorted.clone()).iter() {
+            let tour = self.tour_of(*vehicle_id).unwrap();
+            let vehicle_type_id = self.vehicle_type_of(*vehicle_id);
+            let new_tour = self.improve_depots_of_tour(tour, vehicle_type_id);
+            tours.insert(*vehicle_id, new_tour);
+
+            self.update_depot_usage(&mut depot_usage, &self.vehicles, &tours, *vehicle_id);
+        }
+
+        Schedule {
+            vehicles: self.vehicles.clone(),
+            tours,
+            train_formations: self.train_formations.clone(),
+            depot_usage,
+            dummy_tours: self.dummy_tours.clone(),
+            vehicle_ids_sorted: self.vehicle_ids_sorted.clone(),
+            dummy_ids_sorted: self.dummy_ids_sorted.clone(),
+            vehicle_counter: self.vehicle_counter,
+            config: self.config.clone(),
+            vehicle_types: self.vehicle_types.clone(),
+            network: self.network.clone(),
+        }
+    }
+
     pub fn reassign_end_depots_greedily(&self) -> Result<Schedule, String> {
         let mut tours = self.tours.clone();
         let mut depot_usage = self.depot_usage.clone();
@@ -401,6 +398,35 @@ impl Schedule {
 
 // private methods
 impl Schedule {
+    /// Delete dummy vehicle (and its tour) from schedule.
+    fn delete_dummy(&self, dummy: VehicleId) -> Result<Schedule, String> {
+        if !self.is_dummy(dummy) {
+            return Err(format!(
+                "Cannot delete vehicle {} from schedule. It is not a dummy vehicle.",
+                dummy
+            ));
+        }
+        let mut dummy_tours = self.dummy_tours.clone();
+        let mut dummy_ids_sorted = self.dummy_ids_sorted.clone();
+
+        dummy_tours.remove(&dummy);
+        dummy_ids_sorted.remove(dummy_ids_sorted.binary_search(&dummy).unwrap());
+
+        Ok(Schedule {
+            vehicles: self.vehicles.clone(),
+            tours: self.tours.clone(),
+            train_formations: self.train_formations.clone(),
+            depot_usage: self.depot_usage.clone(),
+            dummy_tours,
+            vehicle_ids_sorted: self.vehicle_ids_sorted.clone(),
+            dummy_ids_sorted,
+            vehicle_counter: self.vehicle_counter,
+            config: self.config.clone(),
+            vehicle_types: self.vehicle_types.clone(),
+            network: self.network.clone(),
+        })
+    }
+
     /// Reassign vehicles to the new tours.
     /// The depots of the tours are improved.
     /// Updates all relevant data structures.
@@ -463,10 +489,7 @@ impl Schedule {
         if self.is_dummy(vehicle) {
             dummy_tours.insert(vehicle, new_tour);
         } else {
-            tours.insert(
-                vehicle,
-                self.improve_depots_of_tour(new_tour, self.vehicle_type_of(vehicle)),
-            );
+            tours.insert(vehicle, new_tour);
         }
     }
 
@@ -757,15 +780,20 @@ impl Schedule {
         }
         (new_tour_provider, new_tour_receiver, moved_nodes)
     }
-    fn improve_depots_of_tour(&self, tour: Tour, vehicle_type_id: VehicleTypeId) -> Tour {
+
+    fn improve_depots_of_tour(&self, tour: &Tour, vehicle_type_id: VehicleTypeId) -> Tour {
         let first_non_depot = tour.first_non_depot().unwrap();
         let new_start_depot = self
-            .find_best_start_depot_for_spawning(vehicle_type_id, first_non_depot)
+            .find_best_start_depot_for_spawning(
+                vehicle_type_id,
+                first_non_depot,
+                Some(tour.start_depot().unwrap()),
+            )
             .unwrap();
         let intermediate_tour = if new_start_depot != tour.start_depot().unwrap() {
             tour.replace_start_depot(new_start_depot).unwrap()
         } else {
-            tour
+            tour.clone()
         };
 
         let last_non_depot = intermediate_tour.last_non_depot().unwrap();
@@ -802,7 +830,7 @@ impl Schedule {
 
         // if path does not start with a depot, insert the nearest available start_depot
         if !self.network.node(first_node).is_depot() {
-            match self.find_best_start_depot_for_spawning(vehicle_type_id, first_node) {
+            match self.find_best_start_depot_for_spawning(vehicle_type_id, first_node, None) {
                 Ok(depot) => nodes.insert(0, depot),
                 Err(e) => return Err(e),
             };
@@ -823,6 +851,7 @@ impl Schedule {
         &self,
         vehicle_type_id: VehicleTypeId,
         first_node: NodeId,
+        old_start_depot: Option<NodeId>, // depot can be used even if full
     ) -> Result<NodeId, String> {
         let start_location = self.network.node(first_node).start_location();
         let start_depot = self
@@ -830,7 +859,10 @@ impl Schedule {
             .start_depots_sorted_by_distance_to(start_location)
             .iter()
             .copied()
-            .find(|depot| self.can_depot_spawn_vehicle(*depot, vehicle_type_id));
+            .find(|depot| {
+                self.can_depot_spawn_vehicle(*depot, vehicle_type_id)
+                    || Some(*depot) == old_start_depot // old depot can be used even if full
+            });
         match start_depot {
             Some(depot) => Ok(depot),
             None => Err(format!(
@@ -851,7 +883,6 @@ impl Schedule {
             .end_depots_sorted_by_distance_from(end_location)
             .first()
             .copied();
-        // .find(|depot| self.can_depot_despawn_vehicle(*depot, vehicle_type_id)); // TODO check if depot can de-spawn vehicle
         match end_depot {
             Some(depot) => Ok(depot),
             None => Err(format!(

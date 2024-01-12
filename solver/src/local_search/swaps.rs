@@ -38,14 +38,16 @@ impl Swap for PathExchange {
         let (first_intermediate_schedule, new_dummy_opt) =
             schedule.override_reassign(self.segment, self.provider, self.receiver)?;
 
-        match new_dummy_opt {
-            None => Ok(first_intermediate_schedule),
+        let mut changed_tours = vec![self.receiver];
+
+        let last_intermediate_schedule: Schedule = match new_dummy_opt {
+            None => first_intermediate_schedule,
             Some(new_dummy) => {
                 if schedule.is_dummy(self.provider)
                     && !first_intermediate_schedule.is_dummy(self.provider)
                 {
                     // provider was dummy but got removed -> so no need for fit_reassign
-                    Ok(first_intermediate_schedule)
+                    first_intermediate_schedule
                 } else {
                     // try to fit the full tour of the new dummy into provider's tour (if provider
                     // still exists)
@@ -53,6 +55,7 @@ impl Swap for PathExchange {
                         match first_intermediate_schedule.get_vehicle(self.provider) {
                             Ok(_) => {
                                 let tour = first_intermediate_schedule.tour_of(new_dummy).unwrap();
+                                changed_tours.push(self.provider);
                                 let full_tour_segment =
                                     Segment::new(tour.first_node(), tour.last_node());
                                 first_intermediate_schedule.fit_reassign(
@@ -72,17 +75,20 @@ impl Swap for PathExchange {
                             new_dummy,
                             schedule.vehicle_type_of(self.provider),
                         ) {
-                            Ok(final_schedule) => Ok(final_schedule),
-                            Err(_) => Ok(second_intermediate_schedule), // could not spawn new
-                                                                        // vehicle -> keep tour as
-                                                                        // dummy tour
+                            Ok(final_schedule) => final_schedule,
+                            Err(_) => second_intermediate_schedule, // could not spawn new
+                                                                    // vehicle -> keep tour as
+                                                                    // dummy tour
                         }
                     } else {
-                        Ok(second_intermediate_schedule)
+                        second_intermediate_schedule
                     }
                 }
             }
-        }
+        };
+
+        // finally improve the depots of receiver (and provider if still present).
+        Ok(last_intermediate_schedule.improve_depots(Some(changed_tours)))
     }
 }
 

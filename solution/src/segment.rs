@@ -4,7 +4,8 @@ use model::base_types::NodeId;
 
 #[derive(Debug, Clone, Copy)]
 
-/// A segment is a pair of node ids that represent a slice of a tour or path.
+/// A segment is a pair of non-depot node ids that represent a slice of a tour or path.
+/// Depot nodes can cause unexpected behavior.
 pub struct Segment {
     start: NodeId,
     end: NodeId,

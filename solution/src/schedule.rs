@@ -15,8 +15,6 @@ use model::config::Config;
 use model::network::Network;
 use model::vehicle_types::VehicleTypes;
 
-use crate::path::Path;
-use crate::segment::Segment;
 use crate::tour::Tour;
 use crate::train_formation::TrainFormation;
 use crate::vehicle::Vehicle;
@@ -287,12 +285,6 @@ impl Schedule {
         &self.vehicle_types
     }
 
-    /// Simulates inserting the node_sequence into the tour of the receiver. Returns all nodes (as a Path) that would
-    /// have been removed from the tour. (None if there are no non-depot nodes in conflict)).
-    fn conflict(&self, segment: Segment, receiver: VehicleId) -> Option<Path> {
-        self.tour_of(receiver).unwrap().conflict(segment)
-    }
-
     // TODO check visibility of different objects and methods
 
     pub fn verify_consistency(&self) {
@@ -413,6 +405,17 @@ impl Schedule {
                     .contains(&node));
             }
         }
+
+        // check if depot spawning limits are respected
+        for (depot, vehicle_type) in self.depot_usage.keys().cloned() {
+            let (spawned, _) = self.depot_usage.get(&(depot, vehicle_type)).unwrap();
+            let capacity = self.network.capacity_of(depot, vehicle_type);
+            if let Some(capacity) = capacity {
+                assert!(spawned.len() as u32 <= capacity);
+            }
+        }
+
+        println!("Debug only: Schedule is consistent");
     }
 }
 
