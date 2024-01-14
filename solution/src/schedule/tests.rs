@@ -176,6 +176,38 @@ fn basic_methods_test() {
 }
 
 #[test]
+fn scheduling_ordering_test() {
+    // ARRANGE
+    let d = init_test_data();
+    let veh001 = VehicleId::from("veh001");
+    let veh002 = VehicleId::from("veh002");
+    let schedule_default = default_schedule(&d);
+    let schedule_four_vehicles = schedule_default
+        .spawn_vehicle_for_path(d.vt2, vec![d.trip12, d.trip23, d.trip31])
+        .unwrap();
+    let schedule_two_vehicles = schedule_default.delete_vehicle(veh002).unwrap();
+    let schedule_long_tour = schedule_default
+        .add_path_to_vehicle_tour(
+            veh001,
+            Path::new(vec![d.trip51], d.network.clone())
+                .unwrap()
+                .unwrap(),
+        )
+        .unwrap();
+    let schedule_short_tour = schedule_two_vehicles
+        .spawn_vehicle_for_path(d.vt2, vec![d.trip31])
+        .unwrap();
+    let schedule_copy = schedule_default.clone();
+
+    // ASSERT
+    assert!(schedule_two_vehicles < schedule_short_tour);
+    assert!(schedule_short_tour < schedule_default);
+    assert!(schedule_default == schedule_copy);
+    assert!(schedule_copy < schedule_long_tour);
+    assert!(schedule_long_tour < schedule_four_vehicles);
+}
+
+#[test]
 fn spawn_vehicle_for_path_without_depots_test() {
     // ARRANGE
     let d = init_test_data();
