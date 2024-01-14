@@ -28,7 +28,7 @@ def import_response(file_path: Path) -> Response:
                 end_depot=item["endDepot"],
                 trips=create_tour(item["tour"]),
             )
-            for item in data["schedule"]
+            for item in data["schedule"]["tours"]
         ],
     )
 
