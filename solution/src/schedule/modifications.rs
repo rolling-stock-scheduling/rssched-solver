@@ -47,7 +47,7 @@ impl Schedule {
         let mut depot_usage = self.depot_usage.clone();
         let mut vehicle_ids_sorted = self.vehicle_ids_sorted.clone();
 
-        let vehicle_id = VehicleId::from(format!("veh{:03}", self.vehicle_counter).as_str());
+        let vehicle_id = VehicleId::from(format!("veh{:05}", self.vehicle_counter).as_str());
         let tour = Tour::new(nodes, self.network.clone())?;
         let vehicle = Vehicle::new(vehicle_id, vehicle_type_id, self.vehicle_types.clone());
 
@@ -265,7 +265,7 @@ impl Schedule {
         let mut depot_usage = self.depot_usage.clone();
         let mut vehicle_ids_sorted = self.vehicle_ids_sorted.clone();
         let mut dummy_ids_sorted = self.dummy_ids_sorted.clone();
-        let mut dummy_counter = self.vehicle_counter;
+        let mut vehicle_counter = self.vehicle_counter;
 
         let tour_provider = self.tour_of(provider).unwrap();
         let tour_receiver = self.tour_of(receiver).unwrap();
@@ -297,7 +297,7 @@ impl Schedule {
 
         // insert new dummy tour consisting of conflicting nodes removed from receiver's tour
         if let Some(new_path) = replaced_path {
-            let new_dummy = VehicleId::from(format!("dummy{:05}", dummy_counter).as_str());
+            let new_dummy = VehicleId::from(format!("dummy{:05}", vehicle_counter).as_str());
             new_dummy_opt = Some(new_dummy);
 
             if self.is_vehicle(receiver) {
@@ -312,7 +312,7 @@ impl Schedule {
             }
 
             self.add_dummy_tour(&mut dummy_tours, &mut dummy_ids_sorted, new_dummy, new_path);
-            dummy_counter += 1;
+            vehicle_counter += 1;
         }
 
         Ok((
@@ -324,7 +324,7 @@ impl Schedule {
                 dummy_tours,
                 vehicle_ids_sorted,
                 dummy_ids_sorted,
-                vehicle_counter: dummy_counter,
+                vehicle_counter,
                 config: self.config.clone(),
                 vehicle_types: self.vehicle_types.clone(),
                 network: self.network.clone(),
