@@ -4,18 +4,25 @@ pub mod swaps;
 
 use std::sync::Arc;
 
+use super::Solver;
+use crate::Solution;
 use local_improver::LocalImprover;
-use local_improver::TakeFirstRecursion;
 use model::{config::Config, network::Network, vehicle_types::VehicleTypes};
 use objective_framework::Objective;
 use solution::Schedule;
 use swap_factory::LimitedExchanges;
+
+#[allow(unused_imports)]
+use local_improver::Minimizer;
+
+#[allow(unused_imports)]
+use local_improver::TakeFirstRecursion;
+
+// #[allow(unused_imports)]
 // use local_improver::TakeFirstParallelRecursion;
-// use local_improver::TakeAnyParallelRecursion;
 
-use crate::Solution;
-
-use super::Solver;
+#[allow(unused_imports)]
+use local_improver::TakeAnyParallelRecursion;
 
 pub struct LocalSearch {
     vehicles: Arc<VehicleTypes>,
@@ -62,6 +69,7 @@ impl Solver for LocalSearch {
         // let segment_limit = Duration::new("3:00:00");
         // let overhead_threshold = Duration::new("0:05:00"); // tours of real-vehicle-providers are not splitted at nodes under these duration
         let only_dummy_provider = false;
+
         let swap_factory = LimitedExchanges::new(
             None, //Some(segment_limit),
             None, //Some(overhead_threshold),
@@ -69,31 +77,37 @@ impl Solver for LocalSearch {
             self.network.clone(),
         );
 
+        let _minimizer = Minimizer::new(swap_factory.clone(), self.objective.clone());
+
         let recursion_depth = 0;
         let recursion_width = 5;
-        // let soft_objective_threshold = 10.0;
 
-        // let local_improver = Minimizer::new(swap_factory, self.objective.clone());
-        let local_improver = TakeFirstRecursion::new(
+        let _take_first = TakeFirstRecursion::new(
+            swap_factory.clone(),
+            recursion_depth,
+            Some(recursion_width),
+            self.objective.clone(),
+        );
+
+        /*
+        let local_improver = TakeFirstParallelRecursion::new(
+            swap_factory,
+            recursion_depth,
+            Some(recursion_width),
+            soft_objective_threshold,
+        );
+        */
+
+        let _take_any = TakeAnyParallelRecursion::new(
             swap_factory,
             recursion_depth,
             Some(recursion_width),
             self.objective.clone(),
         );
-        // let local_improver = TakeFirstParallelRecursion::new(
-        // swap_factory,
-        // recursion_depth,
-        // Some(recursion_width),
-        // soft_objective_threshold,
-        // );
-        // let local_improver = TakeAnyParallelRecursion::new(
-        // swap_factory,
-        // recursion_depth,
-        // Some(recursion_width),
-        // soft_objective_threshold,
-        // );
 
-        self.find_local_optimum(current_solution, local_improver)
+        // self.find_local_optimum(current_solution, _minimizer)
+        self.find_local_optimum(current_solution, _take_first)
+        // self.find_local_optimum(current_solution, _take_any)
     }
 }
 

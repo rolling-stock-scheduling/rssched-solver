@@ -2,14 +2,14 @@ use crate::Solution;
 
 use super::swap_factory::SwapFactory;
 
-use objective_framework::{Objective, ObjectiveValue};
-// use rayon::iter::ParallelBridge;
-// use rayon::prelude::*;
 use model::base_types::VehicleId;
+use objective_framework::{Objective, ObjectiveValue};
+use rayon::iter::ParallelBridge;
+use rayon::prelude::*;
 use solution::Schedule;
-// use std::sync::mpsc::channel;
+use std::sync::mpsc::channel;
 use std::sync::Arc;
-// use std::sync::Mutex;
+use std::sync::Mutex;
 
 /// Computes for a given schedule the best new schedule that has better objective function.
 /// Returns None if there is no better schedule in the neighborhood.
@@ -42,16 +42,12 @@ impl LocalImprover for Minimizer {
     fn improve(&mut self, solution: &Solution) -> Option<Solution> {
         let schedule = solution.solution();
 
-        let swap_iterator = self.swap_factory.create_swap_iterator(schedule, None);
-        // .par_bridge(); // TODO: parallelize swap creation
+        let swap_iterator = self
+            .swap_factory
+            .create_swap_iterator(schedule, None)
+            .par_bridge();
         let best_solution_opt = swap_iterator
-            .filter_map(|swap| {
-                // match swap.apply(schedule) {
-                // Ok(new_schedule) => println!("OK: {}", swap),
-                // Err(err) => println!("ERR for {}: {}", swap, err),
-                // };
-                swap.apply(schedule).ok()
-            })
+            .filter_map(|swap| swap.apply(schedule).ok())
             .map(|sched| self.objective.evaluate(sched))
             .min_by(|s1, s2| {
                 s1.objective_value()
@@ -362,7 +358,7 @@ impl<F: SwapFactory + Send + Sync> TakeFirstParallelRecursion<F> {
             result
         }
     }
-}
+}*/
 
 ///////////////////////////////////////////////////////////
 /////////////// TakeAnyParallelRecursion //////////////////
@@ -373,58 +369,59 @@ impl<F: SwapFactory + Send + Sync> TakeFirstParallelRecursion<F> {
 /// to a ParallelIterator (messes up the ordering) and search for ANY improving schedule in
 /// parallel.
 /// As soon as an improving schedule is found a terminus-signal is broadcast to all other schedules.
-/// Im no improving schedule is found the depth-many schedules of each thread are take to recursion
+/// If no improving schedule is found the width-many schedules of each thread are take to recursion
 /// (dublicates are removed)
 /// Due to the parallel computation and find_any() this improver is the fastest but not
 /// deterministic.
-pub(crate) struct TakeAnyParallelRecursion<F: SwapFactory + Send + Sync> {
+pub struct TakeAnyParallelRecursion<F: SwapFactory + Send + Sync> {
     swap_factory: F,
     recursion_depth: u8,
     recursion_width: Option<usize>, // number of schedule that are considered per schedule for the next recursion (the one with best objectivevalue are taken for each schedule, dublicates are removed)
-    soft_objective_threshold: Cost, // improvement must be better than this threshold
+    objective: Arc<Objective<Schedule>>,
 }
 
 impl<F: SwapFactory + Send + Sync> LocalImprover for TakeAnyParallelRecursion<F> {
-    fn improve(&self, schedule: &Schedule) -> Option<Schedule> {
-        let old_objective = schedule.objective_value();
-        self.improve_recursion(vec![schedule.clone()], old_objective, self.recursion_depth)
+    fn improve(&mut self, solution: &Solution) -> Option<Solution> {
+        let old_objective = solution.objective_value();
+        self.improve_recursion(vec![solution.clone()], old_objective, self.recursion_depth)
     }
 }
 
 impl<F: SwapFactory + Send + Sync> TakeAnyParallelRecursion<F> {
-    pub(crate) fn new(
+    pub fn new(
         swap_factory: F,
         recursion_depth: u8,
         recursion_width: Option<usize>,
-        soft_objective_threshold: Cost,
+        objective: Arc<Objective<Schedule>>,
     ) -> TakeAnyParallelRecursion<F> {
         TakeAnyParallelRecursion {
             swap_factory,
             recursion_depth,
             recursion_width,
-            soft_objective_threshold,
+            objective,
         }
     }
 
     fn improve_recursion(
         &self,
-        schedules: Vec<Schedule>,
-        objective_to_beat: ObjectiveValue,
+        solutions: Vec<Solution>,
+        objective_to_beat: &ObjectiveValue,
         remaining_recursion: u8,
-    ) -> Option<Schedule> {
+    ) -> Option<Solution> {
         println!(
             "Recursion: remaining depth: {}. schedule-count: {}",
             remaining_recursion,
-            schedules.len()
+            solutions.len()
         );
-        let mut schedule_collection: Vec<Vec<Schedule>> = Vec::new();
-        let mut result: Option<Schedule> = None;
+        let mut solution_collection: Vec<Vec<Solution>> = Vec::new();
+        let mut result: Option<Solution> = None;
         rayon::scope(|s| {
             let mut found_senders = Vec::new();
             let (success_sender, success_receiver) = channel();
             let (failure_sender, failure_receiver) = channel();
 
-            for sched in schedules.iter() {
+            for sol in solutions.iter() {
+                let sched = sol.solution();
                 let (found_sender, found_receiver) = channel();
                 found_senders.push(found_sender);
 
@@ -433,27 +430,29 @@ impl<F: SwapFactory + Send + Sync> TakeAnyParallelRecursion<F> {
                 s.spawn(move |_| {
                     let found_receiver_mutex = Arc::new(Mutex::new(found_receiver));
 
-                    let mut schedules: Vec<Schedule> = Vec::new();
-                    let schedules_mutex: Arc<Mutex<&mut Vec<Schedule>>> =
-                        Arc::new(Mutex::new(&mut schedules));
+                    let mut new_solutions: Vec<Solution> = Vec::new();
+                    let new_solutions_mutex: Arc<Mutex<&mut Vec<Solution>>> =
+                        Arc::new(Mutex::new(&mut new_solutions));
 
                     let result = self
                         .swap_factory
-                        .create_swap_iterator(sched)
+                        .create_swap_iterator(sol.solution(), None) // add start_provider here
                         .par_bridge()
                         .filter_map(|swap| swap.apply(sched).ok())
-                        .find_any(|new_sched| {
+                        .map(|new_sched| self.objective.evaluate(new_sched))
+                        .find_any(|new_sol| {
                             if remaining_recursion > 0 {
-                                let mut schedules_mutex = schedules_mutex.lock().unwrap();
+                                let mut schedules_mutex = new_solutions_mutex.lock().unwrap();
 
-                                schedules_mutex.push(new_sched.clone());
+                                schedules_mutex.push(new_sol.clone());
 
                                 // if there is a recursion_width truncate schedules to the best width many
                                 if let Some(width) = self.recursion_width {
                                     schedules_mutex.sort();
                                     // schedules_mutex.dedup(); //remove dublicates
-                                    schedules_mutex
-                                        .dedup_by(|s1, s2| s1.cmp_objective_values(s2).is_eq()); //remove dublicates according to objective_value
+                                    schedules_mutex.dedup_by(|s1, s2| {
+                                        s1.objective_value().cmp(s2.objective_value()).is_eq()
+                                    }); //remove dublicates according to objective_value
                                     let width = width.min(schedules_mutex.len());
                                     schedules_mutex.truncate(width);
                                 }
@@ -461,27 +460,21 @@ impl<F: SwapFactory + Send + Sync> TakeAnyParallelRecursion<F> {
 
                             let found_receiver_mutex = found_receiver_mutex.lock().unwrap();
                             let found = found_receiver_mutex.try_recv();
-                            new_sched
-                                .objective_value()
-                                .cmp_with_threshold(
-                                    &objective_to_beat,
-                                    self.soft_objective_threshold,
-                                )
-                                .is_lt()
+                            new_sol.objective_value().cmp(objective_to_beat).is_lt()
                                 || found.is_ok()
                         });
 
                     match result {
-                        Some(sched) => {
-                            if sched.objective_value() < objective_to_beat {
-                                succ_sender.send(sched).unwrap();
+                        Some(sol) => {
+                            if sol.objective_value() < objective_to_beat {
+                                succ_sender.send(sol).unwrap();
                             }
                             // if there is a Some result but the objective is not better, that means
                             // another thread was successful first. So there is nothing
                             // left to do for this thread.
                         }
                         None => {
-                            fail_sender.send(schedules).unwrap();
+                            fail_sender.send(new_solutions).unwrap();
                         }
                     }
                 });
@@ -490,19 +483,19 @@ impl<F: SwapFactory + Send + Sync> TakeAnyParallelRecursion<F> {
             drop(success_sender);
             drop(failure_sender);
 
-            while let Ok(new_sched) = success_receiver.recv() {
+            while let Ok(new_sol) = success_receiver.recv() {
                 for s in found_senders.iter() {
                     s.send(true).ok();
                 }
                 if result.is_none()
-                    || new_sched.objective_value() < result.as_ref().unwrap().objective_value()
+                    || new_sol.objective_value() < result.as_ref().unwrap().objective_value()
                 {
-                    result = Some(new_sched);
+                    result = Some(new_sol);
                 }
             }
             if result.is_none() {
                 for v in failure_receiver.into_iter() {
-                    schedule_collection.push(v);
+                    solution_collection.push(v);
                 }
             }
         });
@@ -511,12 +504,12 @@ impl<F: SwapFactory + Send + Sync> TakeAnyParallelRecursion<F> {
             println!("No improvement found.");
 
             if remaining_recursion > 0 {
-                let mut schedules_for_recursion: Vec<Schedule> =
-                    schedule_collection.into_iter().flatten().collect();
+                let mut schedules_for_recursion: Vec<Solution> =
+                    solution_collection.into_iter().flatten().collect();
 
                 schedules_for_recursion.sort();
                 // schedules_for_recursion.dedup(); //remove dublicates
-                schedules_for_recursion.dedup_by(|s1, s2| s1.cmp_objective_values(s2).is_eq()); //remove dublicates according to objective_value
+                schedules_for_recursion.dedup_by(|s1, s2| s1.cmp(&s2).is_eq()); //remove dublicates according to objective_value
 
                 self.improve_recursion(
                     schedules_for_recursion,
@@ -532,4 +525,4 @@ impl<F: SwapFactory + Send + Sync> TakeAnyParallelRecursion<F> {
             result
         }
     }
-}*/
+}
