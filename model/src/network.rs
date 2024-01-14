@@ -30,7 +30,6 @@ pub struct Network {
     end_depot_nodes: Vec<NodeId>,
 
     nodes_sorted_by_start: Vec<NodeId>,
-    nodes_sorted_by_end: Vec<NodeId>,
 
     // redundant information
     passenger_distance_demand: SeatDistance,
@@ -203,26 +202,6 @@ impl Network {
         previous + next
     }
 
-    /// provides all nodes that are reachable from node (in increasing order according to the
-    /// starting time)
-    pub fn all_successors(&self, node: NodeId) -> impl Iterator<Item = NodeId> + '_ {
-        // TODO: Could use binary_search for speed up
-        self.nodes_sorted_by_start
-            .iter()
-            .copied()
-            .filter(move |&n| self.can_reach(node, n))
-    }
-
-    /// provides all nodes that are can reach node (in decreasing order according to the
-    /// end time)
-    pub fn all_predecessors(&self, node: NodeId) -> impl Iterator<Item = NodeId> + '_ {
-        self.nodes_sorted_by_end
-            .iter()
-            .rev()
-            .copied()
-            .filter(move |&n| self.can_reach(n, node))
-    }
-
     pub fn all_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
         self.nodes_sorted_by_start.iter().copied()
     }
@@ -335,14 +314,6 @@ impl Network {
                 .cmp_start_time(nodes.get(&n2).unwrap())
         });
 
-        let mut nodes_sorted_by_end: Vec<NodeId> = nodes_sorted_by_start.clone();
-        nodes_sorted_by_end.sort_by(|&n1, &n2| {
-            nodes
-                .get(&n1)
-                .unwrap()
-                .cmp_end_time(nodes.get(&n2).unwrap())
-        });
-
         let passenger_distance_demand = service_nodes
             .iter()
             .map(|&n| {
@@ -360,7 +331,6 @@ impl Network {
             start_depot_nodes,
             end_depot_nodes,
             nodes_sorted_by_start,
-            nodes_sorted_by_end,
             passenger_distance_demand,
             config,
             locations: loc,

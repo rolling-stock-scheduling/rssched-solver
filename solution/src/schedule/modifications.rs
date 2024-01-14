@@ -819,8 +819,6 @@ impl Schedule {
             ));
         }
 
-        // TODO check if vehicle can be despawned at given end_depot
-
         // if path does not start with a depot, insert the nearest available start_depot
         if !self.network.node(first_node).is_depot() {
             match self.find_best_start_depot_for_spawning(vehicle_type_id, first_node, None) {

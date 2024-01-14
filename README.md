@@ -7,6 +7,12 @@
 docker build --tag eth_scheduling_image .
 ```
 
+- remove old version of the container if needed:
+
+```bash
+docker container rm eth_scheduling_server
+```
+
 - loading the image and running the server for the first time:
 
 ```bash

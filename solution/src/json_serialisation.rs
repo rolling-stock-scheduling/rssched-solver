@@ -3,7 +3,6 @@ use model::{
     base_types::{DepotId, NodeId, VehicleId},
     network::{nodes::Node, Network},
 };
-//TODO create static function for writing schedule to json
 use serde::{Deserialize, Serialize};
 use time::DateTime;
 
@@ -182,6 +181,3 @@ fn schedule_dead_head_trip(
     let arrival_time = node1.end_time() + nw.minimal_duration_between_nodes(node1_id, node2_id);
     (departure_time, arrival_time)
 }
-// TODO only serialization needed not deserialization
-// TODO include line_id and route_id in json if needed
-// TODO add tests

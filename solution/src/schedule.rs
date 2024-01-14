@@ -285,8 +285,6 @@ impl Schedule {
         &self.vehicle_types
     }
 
-    // TODO check visibility of different objects and methods
-
     pub fn verify_consistency(&self) {
         // check vehicles
         for (id, vehicle) in self.vehicles.iter() {
