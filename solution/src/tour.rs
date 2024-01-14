@@ -411,7 +411,6 @@ impl Tour {
     }
 
     pub(crate) fn sub_path(&self, segment: Segment) -> Result<Path, String> {
-        // TODO: probably problem if segment starts or ends at depot
         let start_pos = self
             .latest_not_reaching_node(segment.start())
             .ok_or_else(|| String::from("segment.start() not part of Tour."))?;

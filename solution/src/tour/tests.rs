@@ -103,8 +103,9 @@ fn basic_methods_test() {
     assert_eq!(tour.start_time(), DateTime::new("2020-01-01T06:00"));
     assert_eq!(tour.end_time(), DateTime::new("2020-01-01T11:15"));
     assert_eq!(tour.latest_not_reaching_node(d.trip31), Some(3)); // trip34 on pos 3
-    assert_eq!(tour.latest_not_reaching_node(d.end_depot1), None); // every node can reach
-                                                                   // end_depot
+    assert_eq!(tour.latest_not_reaching_node(d.end_depot1), Some(6)); // every node can reach
+                                                                      // end_depot, except for the
+                                                                      // end_depot2
     assert_eq!(tour.latest_not_reaching_node(d.start_depot1), Some(0)); // start_depot1 cannot
                                                                         // reach start_depot1
 
@@ -131,6 +132,59 @@ fn basic_methods_test() {
     assert_eq!(dummy_tour.nth_node(2), None);
     assert_eq!(dummy_tour.start_time(), DateTime::new("2020-01-01T08:00"));
     assert_eq!(dummy_tour.end_time(), DateTime::new("2020-01-01T09:30"));
+}
+
+#[test]
+fn sub_path_tests() {
+    // ARRANGE
+    let d = init_test_data();
+    let tour = default_tour(&d);
+
+    // ACT
+    let sub_path1 = tour.sub_path(Segment::new(d.trip12, d.trip45)).unwrap();
+    let sub_path2 = tour
+        .sub_path(Segment::new(d.start_depot1, d.trip23))
+        .unwrap();
+    let sub_path3 = tour.sub_path(Segment::new(d.trip23, d.end_depot2)).unwrap();
+    let sub_path4 = tour
+        .sub_path(Segment::new(d.start_depot1, d.end_depot2))
+        .unwrap();
+    let result5 = tour.sub_path(Segment::new(d.trip31, d.trip51));
+
+    // ASSERT
+    assert_equal(
+        sub_path1.iter(),
+        [d.trip12, d.trip23, d.trip34, d.trip45].iter().cloned(),
+    );
+
+    assert_equal(
+        sub_path2.iter(),
+        [d.start_depot1, d.trip12, d.trip23].iter().cloned(),
+    );
+
+    assert_equal(
+        sub_path3.iter(),
+        [d.trip23, d.trip34, d.trip45, d.trip51, d.end_depot2]
+            .iter()
+            .cloned(),
+    );
+
+    assert_equal(
+        sub_path4.iter(),
+        [
+            d.start_depot1,
+            d.trip12,
+            d.trip23,
+            d.trip34,
+            d.trip45,
+            d.trip51,
+            d.end_depot2,
+        ]
+        .iter()
+        .cloned(),
+    );
+
+    assert!(result5.is_err());
 }
 
 #[test]

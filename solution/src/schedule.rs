@@ -404,6 +404,10 @@ impl Schedule {
                     .all_nodes_iter()
                     .contains(&node));
             }
+
+            // check that no vehicle appears twice in a train_formation
+            let vehicle_ids_as_set: HashSet<VehicleId> = HashSet::from(train_formation.ids());
+            assert_eq!(vehicle_ids_as_set.len(), train_formation.ids().len());
         }
 
         // check if depot spawning limits are respected

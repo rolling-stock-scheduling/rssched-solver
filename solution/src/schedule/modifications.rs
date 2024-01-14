@@ -246,6 +246,9 @@ impl Schedule {
     /// Remove segment from provider's tour and inserts the nodes into the tour of receiver vehicle.
     /// All conflicting nodes are removed from the tour and in the case that there are conflicts
     /// a new dummy tour is created.
+    /// Provider tour must be valid after removing the segment. In particular a segment including a
+    /// depot can only be moved if all non-depot nodes are moved.
+    /// If all non-depot of the provider are moved, the provider is deleted.
     pub fn override_reassign(
         &self,
         segment: Segment,
@@ -507,6 +510,7 @@ impl Schedule {
             train_formations.insert(
                 node,
                 self.vehicle_replacement_in_train_formation(
+                    train_formations,
                     provider,
                     receiver_vehicle.clone(),
                     node,
@@ -520,12 +524,12 @@ impl Schedule {
     /// Provider or receiver can be a dummy vehicle.
     fn vehicle_replacement_in_train_formation(
         &self,
+        train_formations: &HashMap<NodeId, TrainFormation>,
         provider: Option<VehicleId>,
         receiver_vehicle: Option<Vehicle>,
         node: NodeId,
     ) -> Result<TrainFormation, String> {
-        let old_formation = self
-            .train_formations
+        let old_formation = train_formations
             .get(&node)
             .unwrap_or_else(|| panic!("Node {} has no train formations.", node));
 
@@ -589,7 +593,7 @@ impl Schedule {
                 tours.get(&vehicle_id),
             ),
             None => {
-                // vehicle is dummy in new schedule
+                // vehicle is dummy in new schedule or is deleted
                 if let Some(vehicle) = self.vehicles.get(&vehicle_id) {
                     self.update_depot_usage_assuming_no_dummies(depot_usage, vehicle.clone(), None)
                 }

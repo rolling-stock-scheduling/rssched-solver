@@ -123,9 +123,19 @@ impl Network {
     }
 
     /// returns True iff node1 can reach node2
+    /// but alswats False from start depot to start depot and end depot to end depot
     pub fn can_reach(&self, node1: NodeId, node2: NodeId) -> bool {
         let n1 = self.nodes.get(&node1).unwrap();
         let n2 = self.nodes.get(&node2).unwrap();
+
+        if n1.is_start_depot() && n2.is_start_depot() {
+            // start depots cannot reach each other
+            return false;
+        }
+        if n1.is_end_depot() && n2.is_end_depot() {
+            // end depots cannot reach each other
+            return false;
+        }
 
         n1.end_time() + self.minimal_duration_between_nodes_as_ref(n1, n2) <= n2.start_time()
     }
