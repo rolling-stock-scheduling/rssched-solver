@@ -1,9 +1,13 @@
-use std::{cmp::Ordering, slice::Iter};
+use std::{
+    cmp::Ordering,
+    ops::{Add, Sub},
+    slice::Iter,
+};
 
 use crate::base_value::BaseValue;
 
 /// the hierarchical objective value of a schedule
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ObjectiveValue {
     objective_vector: Vec<BaseValue>,
 }
@@ -42,3 +46,31 @@ impl PartialEq for ObjectiveValue {
 }
 
 impl Eq for ObjectiveValue {}
+
+impl Add for ObjectiveValue {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        ObjectiveValue::new(
+            self.objective_vector
+                .into_iter()
+                .zip(rhs.objective_vector)
+                .map(|(value, other_value)| value + other_value)
+                .collect(),
+        )
+    }
+}
+
+impl Sub for ObjectiveValue {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        ObjectiveValue::new(
+            self.objective_vector
+                .into_iter()
+                .zip(rhs.objective_vector)
+                .map(|(value, other_value)| value - other_value)
+                .collect(),
+        )
+    }
+}

@@ -5,6 +5,8 @@ pub mod indicator;
 pub mod level;
 pub mod objective;
 pub mod objective_value;
+#[cfg(test)]
+mod tests;
 
 pub use base_value::BaseValue;
 pub use coefficient::Coefficient;

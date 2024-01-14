@@ -1,4 +1,5 @@
 use std::{
+    cmp::Ordering,
     fmt,
     iter::Sum,
     ops::{Add, Sub},
@@ -6,8 +7,10 @@ use std::{
 
 use time::Duration;
 
+const TOLERANCE: f64 = 0.0001;
+
 /// A single value of an indicator. E.g., count of things, durations, costs
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy)]
 pub enum BaseValue {
     Integer(i64), // cannot handle negative values
     Float(f64),
@@ -88,6 +91,53 @@ impl Sub for BaseValue {
         }
     }
 }
+
+impl Ord for BaseValue {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self, other) {
+            (BaseValue::Integer(a), BaseValue::Integer(b)) => a.cmp(b),
+            (BaseValue::Float(a), BaseValue::Float(b)) => {
+                if a - b > TOLERANCE {
+                    Ordering::Greater
+                } else if b - a > TOLERANCE {
+                    Ordering::Less
+                } else {
+                    Ordering::Equal
+                }
+            }
+            (BaseValue::Duration(a), BaseValue::Duration(b)) => a.cmp(b),
+            (BaseValue::Maximum, BaseValue::Maximum) => Ordering::Equal,
+            (BaseValue::Zero, BaseValue::Zero) => Ordering::Equal,
+            (BaseValue::Maximum, _) => Ordering::Greater,
+            (_, BaseValue::Maximum) => Ordering::Less,
+            (BaseValue::Zero, BaseValue::Integer(_)) => BaseValue::Integer(0).cmp(other),
+            (BaseValue::Zero, BaseValue::Float(_)) => BaseValue::Float(0.0).cmp(other),
+            (BaseValue::Zero, BaseValue::Duration(_)) => {
+                BaseValue::Duration(Duration::zero()).cmp(other)
+            }
+            (BaseValue::Integer(_), BaseValue::Zero) => self.cmp(&BaseValue::Integer(0)),
+            (BaseValue::Float(_), BaseValue::Zero) => self.cmp(&BaseValue::Float(0.0)),
+            (BaseValue::Duration(_), BaseValue::Zero) => {
+                self.cmp(&BaseValue::Duration(Duration::zero()))
+            }
+            _ => panic!("Cannot compare {:?} and {:?}", self, other),
+        }
+    }
+}
+
+impl PartialOrd for BaseValue {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for BaseValue {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other).is_eq()
+    }
+}
+
+impl Eq for BaseValue {}
 
 impl Sum<Self> for BaseValue {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
