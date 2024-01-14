@@ -106,8 +106,8 @@ impl Solver for LocalSearch {
         );
 
         // self.find_local_optimum(current_solution, _minimizer)
-        self.find_local_optimum(current_solution, _take_first)
-        // self.find_local_optimum(current_solution, _take_any)
+        // self.find_local_optimum(current_solution, _take_first)
+        self.find_local_optimum(current_solution, _take_any)
     }
 }
 
