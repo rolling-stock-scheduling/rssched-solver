@@ -430,7 +430,7 @@ impl Ord for Schedule {
     // Finally, compare the dummy tours. (From small to long).
     //
     // I.e. two schedules are different if they have the same tours (real and dummy) but the
-    // vehicle_ids are ordered differentlich.
+    // vehicle_ids are ordered differently.
     // However, two schedules are equal if they have the same tours (real and dummy) and only the
     // dummy_tours differ in the order.
 

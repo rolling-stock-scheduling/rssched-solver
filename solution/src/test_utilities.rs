@@ -16,7 +16,9 @@ pub(crate) struct TestData {
     pub(crate) vt2: VehicleTypeId,
     pub(crate) depot1: DepotId,
     pub(crate) depot2: DepotId,
-    pub(crate) depot3: DepotId,
+    // pub(crate) depot3: DepotId,
+    // pub(crate) depot4: DepotId,
+    // pub(crate) depot5: DepotId,
     pub(crate) trip12: NodeId,
     pub(crate) trip23: NodeId,
     pub(crate) trip34: NodeId,
@@ -33,6 +35,8 @@ pub(crate) struct TestData {
     pub(crate) end_depot3: NodeId,
     pub(crate) start_depot4: NodeId,
     pub(crate) end_depot4: NodeId,
+    pub(crate) start_depot5: NodeId,
+    // pub(crate) end_depot5: NodeId,
 }
 
 pub(crate) fn init_test_data() -> TestData {
@@ -53,7 +57,9 @@ pub(crate) fn init_test_data() -> TestData {
         vt2: VehicleTypeId::from("vt2"),
         depot1: DepotId::from("depot1"),
         depot2: DepotId::from("depot2"),
-        depot3: DepotId::from("depot3"),
+        // depot3: DepotId::from("depot3"),
+        // depot4: DepotId::from("depot4"),
+        // depot5: DepotId::from("depot5"),
         trip12: NodeId::from("trip1-2"),
         trip23: NodeId::from("trip2-3"),
         trip34: NodeId::from("trip3-4"),
@@ -70,5 +76,7 @@ pub(crate) fn init_test_data() -> TestData {
         end_depot3: NodeId::from("e_depot3"),
         start_depot4: NodeId::from("s_depot4"),
         end_depot4: NodeId::from("e_depot4"),
+        start_depot5: NodeId::from("s_depot5"),
+        // end_depot5: NodeId::from("e_depot5"),
     }
 }

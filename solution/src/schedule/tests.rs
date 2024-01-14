@@ -208,10 +208,57 @@ fn scheduling_ordering_test() {
 }
 
 #[test]
+fn spawn_vehicle_to_repalce_dummy_tour_test() {
+    // ARRANGE
+    let d = init_test_data();
+    let veh000 = VehicleId::from("veh000");
+    let veh001 = VehicleId::from("veh001");
+    let veh004 = VehicleId::from("veh004");
+    // create dummy by using override_reassign:
+    let (schedule, dummy_opt) = default_schedule(&d)
+        .override_reassign(Segment::new(d.trip12, d.trip45), veh000, veh001)
+        .unwrap();
+    let dummy = dummy_opt.unwrap();
+
+    // ACT
+    let new_schedule = schedule
+        .spawn_vehicle_to_replace_dummy_tour(dummy, d.vt1)
+        .unwrap();
+
+    // ASSERT
+    assert_eq!(new_schedule.number_of_vehicles(), 4);
+    assert_eq!(new_schedule.dummy_iter().next(), None);
+
+    assert_equal(
+        new_schedule.tour_of(veh004).unwrap().all_nodes_iter(),
+        [d.start_depot3, d.trip31, d.trip14, d.end_depot4]
+            .iter()
+            .cloned(),
+    );
+    new_schedule.verify_consistency();
+}
+
+#[test]
+fn spawn_vehicle_to_repalce_dummy_tour_failure_test() {
+    // ARRANGE
+    let d = init_test_data();
+    let veh000 = VehicleId::from("veh000");
+    // create dummy by using override_reassign:
+    let schedule = default_schedule(&d);
+
+    // ACT
+    let result = schedule.spawn_vehicle_to_replace_dummy_tour(veh000, d.vt1);
+
+    // ASSERT
+    assert!(result.is_err());
+}
+
+#[test]
 fn spawn_vehicle_for_path_without_depots_test() {
     // ARRANGE
     let d = init_test_data();
     let schedule = default_schedule(&d);
+    let veh003 = VehicleId::from("veh003");
 
     // ACT
     let new_schedule = schedule
@@ -227,10 +274,7 @@ fn spawn_vehicle_for_path_without_depots_test() {
     // ASSERT
     assert_eq!(new_schedule.number_of_vehicles(), 4);
     assert_equal(
-        new_schedule
-            .tour_of(VehicleId::from("veh003"))
-            .unwrap()
-            .all_nodes_iter(),
+        new_schedule.tour_of(veh003).unwrap().all_nodes_iter(),
         [
             d.start_depot3,
             d.trip12,
@@ -963,5 +1007,97 @@ fn override_reassign_move_end_depot_no_remaining_trip_test() {
         [d.trip31].iter().cloned(),
     );
 
+    new_schedule.verify_consistency();
+}
+
+#[test]
+fn improve_depots_test() {
+    // ARRANGE
+    let d = init_test_data();
+    let schedule = Schedule::empty(d.vehicle_types.clone(), d.network.clone(), d.config.clone())
+        .spawn_vehicle_for_path(
+            d.vt1,
+            vec![d.start_depot3, d.trip23, d.trip34, d.end_depot2],
+        )
+        .unwrap()
+        .spawn_vehicle_for_path(
+            d.vt1,
+            vec![d.start_depot5, d.trip12, d.trip23, d.end_depot1],
+        )
+        .unwrap();
+    let veh000 = VehicleId::from("veh000");
+    let veh001 = VehicleId::from("veh001");
+
+    // ACT
+    let new_schedule = schedule.improve_depots(Some(vec![veh000]));
+    // veh000 is moved from depot3 to depot1
+    let new_schedule2 = new_schedule.improve_depots(None);
+    // veh000 is moved from depot3 to depot1
+    // veh001 is moved from depot5 to depot3 (as depot1 is full)
+
+    // ASSERT
+    assert_equal(
+        new_schedule.tour_of(veh000).unwrap().all_nodes_iter(),
+        [d.start_depot1, d.trip23, d.trip34, d.end_depot4]
+            .iter()
+            .cloned(),
+    );
+    assert_equal(
+        new_schedule.tour_of(veh001).unwrap().all_nodes_iter(),
+        [d.start_depot5, d.trip12, d.trip23, d.end_depot1]
+            .iter()
+            .cloned(),
+    );
+    new_schedule.verify_consistency();
+
+    assert_equal(
+        new_schedule2.tour_of(veh000).unwrap().all_nodes_iter(),
+        [d.start_depot1, d.trip23, d.trip34, d.end_depot4]
+            .iter()
+            .cloned(),
+    );
+    assert_equal(
+        new_schedule2.tour_of(veh001).unwrap().all_nodes_iter(),
+        [d.start_depot3, d.trip12, d.trip23, d.end_depot3]
+            .iter()
+            .cloned(),
+    );
+    new_schedule2.verify_consistency();
+}
+
+#[test]
+fn reassign_end_depots_greedily_test() {
+    // ARRANGE
+    let d = init_test_data();
+    let schedule = Schedule::empty(d.vehicle_types.clone(), d.network.clone(), d.config.clone())
+        .spawn_vehicle_for_path(
+            d.vt1,
+            vec![d.start_depot3, d.trip23, d.trip34, d.end_depot2],
+        )
+        .unwrap()
+        .spawn_vehicle_for_path(
+            d.vt2,
+            vec![d.start_depot3, d.trip12, d.trip23, d.end_depot1],
+        )
+        .unwrap();
+    let veh000 = VehicleId::from("veh000");
+    let veh001 = VehicleId::from("veh001");
+
+    // ACT
+    let new_schedule = schedule.reassign_end_depots_greedily().unwrap();
+
+    // ASSERT
+    assert_equal(
+        new_schedule.tour_of(veh000).unwrap().all_nodes_iter(),
+        [d.start_depot3, d.trip23, d.trip34, d.end_depot4]
+            .iter()
+            .cloned(),
+    );
+    assert_equal(
+        new_schedule.tour_of(veh001).unwrap().all_nodes_iter(),
+        [d.start_depot3, d.trip12, d.trip23, d.end_depot3]
+            .iter()
+            .cloned(),
+    );
     new_schedule.verify_consistency();
 }

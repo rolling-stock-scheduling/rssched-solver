@@ -17,7 +17,10 @@ impl Schedule {
         let nodes: Vec<NodeId> = self
             .dummy_tours
             .get(&dummy_id)
-            .unwrap()
+            .ok_or(format!(
+                "Cannot spawn vehicle to replace dummy tour {}. Dummy tour does not exist.",
+                dummy_id
+            ))?
             .all_nodes_iter()
             .collect();
         let intermediate_schedule = self.delete_dummy(dummy_id)?;
@@ -560,20 +563,6 @@ impl Schedule {
                 }
             }
         }
-
-        // if receiver_vehicle.is_none() || self.is_dummy(receiver_vehicle.as_ref().unwrap().id()) {
-        // if provider.is_none() || self.is_dummy(provider.unwrap()) {
-        // Ok(old_formation.clone())
-        // } else {
-        // old_formation.remove(provider.unwrap())
-        // }
-        // } else
-
-        // if provider.is_none() || self.is_dummy(provider.unwrap()) {
-        // Ok(old_formation.add_at_tail(receiver_vehicle.unwrap()))
-        // } else {
-        // old_formation.replace(provider.unwrap(), receiver_vehicle.unwrap())
-        // }
     }
 
     /// Updates the provided depot_usage data structure.
