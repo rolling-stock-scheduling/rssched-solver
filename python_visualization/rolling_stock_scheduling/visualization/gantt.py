@@ -24,5 +24,6 @@ def respone_to_gantt(response: Response, chart_title: str):
         show_colorbar=True,
         group_tasks=True,
         showgrid_x=True,
+        height=1200
     )
     return fig
