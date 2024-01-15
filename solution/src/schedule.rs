@@ -26,8 +26,6 @@ use std::sync::Arc;
 
 type DepotUsage = HashMap<(DepotId, VehicleTypeId), (HashSet<VehicleId>, HashSet<VehicleId>)>;
 
-// TODO: try to use im::Vector instead of Vec and compare performance.
-
 // this represents a solution to the rolling stock problem.
 // It should be an immutable object. So whenever a modification is applied a copy of the
 // schedule is create.
