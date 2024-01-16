@@ -1,6 +1,5 @@
 mod test_objective;
 
-use solution::json_serialisation::schedule_to_json;
 use solver::greedy::Greedy;
 use solver::local_search::LocalSearch;
 use solver::Solver;
@@ -59,10 +58,5 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
 
     println!("running time: {:0.2}sec", runtime_duration.as_secs_f32());
 
-    let json_output = schedule_to_json(final_solution.solution());
-    let json_objective_value = objective.objective_value_to_json(final_solution.objective_value());
-    serde_json::json!({
-        "objectiveValue": json_objective_value,
-        "schedule": json_output,
-    })
+    server::create_output_json(&final_solution, &objective, runtime_duration)
 }
