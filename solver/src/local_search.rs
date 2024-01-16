@@ -24,6 +24,29 @@ use local_improver::TakeFirstRecursion;
 #[allow(unused_imports)]
 use local_improver::TakeAnyParallelRecursion;
 
+enum SearchResult {
+    Improvement(Solution),
+    NoImprovement(Solution),
+}
+
+use SearchResult::*;
+
+impl SearchResult {
+    fn unwrap(self) -> Solution {
+        match self {
+            SearchResult::Improvement(solution) => solution,
+            SearchResult::NoImprovement(solution) => solution,
+        }
+    }
+
+    fn as_ref(&self) -> &Solution {
+        match self {
+            SearchResult::Improvement(solution) => solution,
+            SearchResult::NoImprovement(solution) => solution,
+        }
+    }
+}
+
 pub struct LocalSearch {
     vehicles: Arc<VehicleTypes>,
     network: Arc<Network>,
@@ -55,8 +78,8 @@ impl Solver for LocalSearch {
     }
 
     fn solve(&self) -> Solution {
-        // if there is not start schedule, create new empty schedule:
-        let current_solution = self.initial_solution.clone().unwrap_or({
+        // if there is no start schedule, create new empty schedule:
+        let init_solution = self.initial_solution.clone().unwrap_or({
             let schedule = Schedule::empty(
                 self.vehicles.clone(),
                 self.network.clone(),
@@ -65,7 +88,6 @@ impl Solver for LocalSearch {
             self.objective.evaluate(schedule)
         });
 
-        println!("\n*** Phase 1: exchanges with recursion ***");
         // let segment_limit = Duration::new("3:00:00");
         // let overhead_threshold = Duration::new("0:05:00"); // tours of real-vehicle-providers are not splitted at nodes under these duration
         let only_dummy_provider = false;
@@ -105,9 +127,21 @@ impl Solver for LocalSearch {
             self.objective.clone(),
         );
 
-        // self.find_local_optimum(current_solution, _minimizer)
-        // self.find_local_optimum(current_solution, _take_first)
-        self.find_local_optimum(current_solution, _take_any)
+        let mut result = Improvement(init_solution);
+
+        while let Improvement(current_solution) = result {
+            println!("\n*** LOCAL SEARCH ***");
+
+            // self.find_local_optimum(current_solution, _minimizer)
+            // self.find_local_optimum(current_solution, _take_first)
+            let next_solution = self.find_local_optimum(current_solution, _take_any.clone(), true);
+
+            println!("\n*** DIVERSIFICATION ***");
+
+            result = self.diversify(next_solution.unwrap());
+        }
+
+        result.unwrap()
     }
 }
 
@@ -116,17 +150,54 @@ impl LocalSearch {
         &self,
         start_solution: Solution,
         mut local_improver: impl LocalImprover,
-    ) -> Solution {
-        let mut old_solution = start_solution;
-        while let Some(new_solution) = local_improver.improve(&old_solution) {
+        verbose: bool,
+    ) -> SearchResult {
+        let mut result = NoImprovement(start_solution);
+        while let Some(new_solution) = local_improver.improve(result.as_ref()) {
             #[cfg(debug_assertions)]
             new_solution.solution().verify_consistency();
-
-            self.objective
-                .print_objective_value(new_solution.objective_value());
-            println!();
-            old_solution = new_solution;
+            if verbose {
+                self.objective
+                    .print_objective_value(new_solution.objective_value());
+                println!();
+            }
+            result = Improvement(new_solution);
         }
-        old_solution
+        result
+    }
+
+    /// Diversification: Remove each vehicle and try to find a better solution by local search with
+    /// only dummy providers.
+    fn diversify(&self, initial_solution: Solution) -> SearchResult {
+        let initial_schedule = initial_solution.solution();
+        let take_any_dummy_provier_only = TakeAnyParallelRecursion::new(
+            LimitedExchanges::new(None, None, true, self.network.clone()),
+            0,
+            Some(5),
+            self.objective.clone(),
+        );
+
+        // TODO : parallelize
+        for vehicle in initial_schedule.vehicles_iter() {
+            println!("\n* Remove Vehicle {}", vehicle);
+            let reduced_schedule = initial_schedule.replace_vehicle_by_dummy(vehicle).unwrap();
+            let reduced_solution = self.objective.evaluate(reduced_schedule);
+            println!("start:");
+            self.objective
+                .print_objective_value(reduced_solution.objective_value());
+            let improved_reduced_solution = self
+                .find_local_optimum(reduced_solution, take_any_dummy_provier_only.clone(), false)
+                .unwrap();
+
+            println!("end:");
+            self.objective
+                .print_objective_value(improved_reduced_solution.objective_value());
+
+            if improved_reduced_solution < initial_solution {
+                println!("Diversification: found better solution");
+                return Improvement(improved_reduced_solution);
+            }
+        }
+        NoImprovement(initial_solution)
     }
 }

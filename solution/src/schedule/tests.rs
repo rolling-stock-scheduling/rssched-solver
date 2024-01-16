@@ -184,7 +184,7 @@ fn scheduling_ordering_test() {
     let schedule_four_vehicles = schedule_default
         .spawn_vehicle_for_path(d.vt2, vec![d.trip12, d.trip23, d.trip31])
         .unwrap();
-    let schedule_two_vehicles = schedule_default.delete_vehicle(veh2).unwrap();
+    let schedule_two_vehicles = schedule_default.replace_vehicle_by_dummy(veh2).unwrap();
     let schedule_long_tour = schedule_default
         .add_path_to_vehicle_tour(
             veh1,
@@ -211,28 +211,32 @@ fn spawn_vehicle_to_repalce_dummy_tour_test() {
     // ARRANGE
     let d = init_test_data();
     let veh0 = VehicleId::from("veh00000");
-    let veh1 = VehicleId::from("veh00001");
     let veh4 = VehicleId::from("veh00004");
-    // create dummy by using override_reassign:
-    let (schedule, dummy_opt) = default_schedule(&d)
-        .override_reassign(Segment::new(d.trip12, d.trip45), veh0, veh1)
-        .unwrap();
-    let dummy = dummy_opt.unwrap();
+    let schedule = default_schedule(&d).replace_vehicle_by_dummy(veh0).unwrap();
+    let dummy3 = VehicleId::from("dummy00003");
 
     // ACT
     let new_schedule = schedule
-        .spawn_vehicle_to_replace_dummy_tour(dummy, d.vt1)
+        .spawn_vehicle_to_replace_dummy_tour(dummy3, d.vt1)
         .unwrap();
 
     // ASSERT
-    assert_eq!(new_schedule.number_of_vehicles(), 4);
-    assert_eq!(new_schedule.dummy_iter().next(), None);
+    assert_eq!(new_schedule.number_of_vehicles(), 3);
+    assert_eq!(new_schedule.number_of_dummy_tours(), 0);
 
     assert_equal(
         new_schedule.tour_of(veh4).unwrap().all_nodes_iter(),
-        [d.start_depot3, d.trip31, d.trip14, d.end_depot4]
-            .iter()
-            .cloned(),
+        [
+            d.start_depot1,
+            d.trip12,
+            d.trip23,
+            d.trip34,
+            d.trip45,
+            d.trip51,
+            d.end_depot1,
+        ]
+        .iter()
+        .cloned(),
     );
     new_schedule.verify_consistency();
 }
@@ -314,18 +318,20 @@ fn spawning_too_many_vehicles_gives_err_test() {
 }
 
 #[test]
-fn delete_vehicle_success_test() {
+fn replace_vehicle_by_dummy_success_test() {
     // ARRANGE
     let d = init_test_data();
     let schedule = default_schedule(&d);
     let veh0 = VehicleId::from("veh00000");
     let veh2 = VehicleId::from("veh00002");
+    let dummy3 = VehicleId::from("dummy00003");
 
     // ACT
-    let new_schedule = schedule.delete_vehicle(veh0).unwrap();
+    let new_schedule = schedule.replace_vehicle_by_dummy(veh0).unwrap();
 
     // ASSERT
     assert_eq!(new_schedule.number_of_vehicles(), 2);
+
     assert!(new_schedule.get_vehicle(veh0).is_err());
     assert!(new_schedule.tour_of(veh0).is_err());
     assert_equal(
@@ -350,18 +356,27 @@ fn delete_vehicle_success_test() {
 
     assert!(new_schedule.can_depot_spawn_vehicle(d.start_depot1, d.vt1));
 
+    assert_eq!(new_schedule.number_of_dummy_tours(), 1);
+
+    assert_equal(
+        new_schedule.tour_of(dummy3).unwrap().all_nodes_iter(),
+        [d.trip12, d.trip23, d.trip34, d.trip45, d.trip51]
+            .iter()
+            .cloned(),
+    );
+
     new_schedule.verify_consistency();
 }
 
 #[test]
-fn delete_vehicle_failure_test() {
+fn replace_vehicle_by_dummy_failure_test() {
     // ARRANGE
     let d = init_test_data();
     let schedule = default_schedule(&d);
     let veh3 = VehicleId::from("veh00003");
 
     // ACT
-    let new_schedule = schedule.delete_vehicle(veh3);
+    let new_schedule = schedule.replace_vehicle_by_dummy(veh3);
 
     // ASSERT
     assert!(new_schedule.is_err());
@@ -698,6 +713,110 @@ fn fit_reassign_move_end_depot_test() {
 }
 
 #[test]
+fn fit_reassign_dummy_provider_test() {
+    // ARRANGE
+    let d = init_test_data();
+    let veh0 = VehicleId::from("veh00000");
+    let veh2 = VehicleId::from("veh00002");
+    let dummy3 = VehicleId::from("dummy00003");
+    let schedule = default_schedule(&d).replace_vehicle_by_dummy(veh0).unwrap();
+    let segment = Segment::new(d.trip45, d.trip51);
+
+    // ACT
+    let new_schedule = schedule.fit_reassign(segment, dummy3, veh2).unwrap();
+
+    // ASSERT
+    assert_eq!(new_schedule.number_of_vehicles(), 2);
+    assert_eq!(new_schedule.number_of_dummy_tours(), 1);
+    assert_equal(
+        new_schedule.tour_of(dummy3).unwrap().all_nodes_iter(),
+        [d.trip12, d.trip23, d.trip34, d.trip45].iter().cloned(),
+    );
+    assert_equal(
+        new_schedule.tour_of(veh2).unwrap().all_nodes_iter(),
+        [
+            d.start_depot1,
+            d.trip12,
+            d.trip23,
+            d.trip31,
+            d.trip51,
+            d.end_depot2,
+        ]
+        .iter()
+        .cloned(),
+    );
+    new_schedule.verify_consistency();
+}
+
+#[test]
+fn fit_reassign_dummy_receiver_test() {
+    // ARRANGE
+    let d = init_test_data();
+    let veh0 = VehicleId::from("veh00000");
+    let veh2 = VehicleId::from("veh00002");
+    let dummy3 = VehicleId::from("dummy00003");
+    let schedule = default_schedule(&d).replace_vehicle_by_dummy(veh2).unwrap();
+    let segment = Segment::new(d.trip45, d.trip51);
+
+    // ACT
+    let new_schedule = schedule.fit_reassign(segment, veh0, dummy3).unwrap();
+
+    // ASSERT
+    assert_eq!(new_schedule.number_of_vehicles(), 2);
+    assert_eq!(new_schedule.number_of_dummy_tours(), 1);
+    assert_equal(
+        new_schedule.tour_of(veh0).unwrap().all_nodes_iter(),
+        [
+            d.start_depot1,
+            d.trip12,
+            d.trip23,
+            d.trip34,
+            d.trip45,
+            d.end_depot2,
+        ]
+        .iter()
+        .cloned(),
+    );
+    assert_equal(
+        new_schedule.tour_of(dummy3).unwrap().all_nodes_iter(),
+        [d.trip12, d.trip23, d.trip31, d.trip51].iter().cloned(),
+    );
+    new_schedule.verify_consistency();
+}
+
+#[test]
+fn fit_reassign_dummy_provider_and_receiver_test() {
+    // ARRANGE
+    let d = init_test_data();
+    let veh0 = VehicleId::from("veh00000");
+    let veh2 = VehicleId::from("veh00002");
+    let dummy3 = VehicleId::from("dummy00003");
+    let dummy4 = VehicleId::from("dummy00004");
+    let schedule = default_schedule(&d)
+        .replace_vehicle_by_dummy(veh0)
+        .unwrap()
+        .replace_vehicle_by_dummy(veh2)
+        .unwrap();
+    let segment = Segment::new(d.trip45, d.trip51);
+
+    // ACT
+    let new_schedule = schedule.fit_reassign(segment, dummy3, dummy4).unwrap();
+
+    // ASSERT
+    assert_eq!(new_schedule.number_of_vehicles(), 1);
+    assert_eq!(new_schedule.number_of_dummy_tours(), 2);
+    assert_equal(
+        new_schedule.tour_of(dummy3).unwrap().all_nodes_iter(),
+        [d.trip12, d.trip23, d.trip34, d.trip45].iter().cloned(),
+    );
+    assert_equal(
+        new_schedule.tour_of(dummy4).unwrap().all_nodes_iter(),
+        [d.trip12, d.trip23, d.trip31, d.trip51].iter().cloned(),
+    );
+    new_schedule.verify_consistency();
+}
+
+#[test]
 fn override_reassign_test() {
     // ARRANGE
     let d = init_test_data();
@@ -732,11 +851,11 @@ fn override_reassign_test() {
     );
 
     assert!(dummy_opt.is_some());
-    let dummy = dummy_opt.unwrap();
-    assert_eq!(dummy, VehicleId::from("dummy00003"));
+    let dummy3 = dummy_opt.unwrap();
+    assert_eq!(dummy3, VehicleId::from("dummy00003"));
 
     assert_equal(
-        new_schedule.tour_of(dummy).unwrap().all_nodes_iter(),
+        new_schedule.tour_of(dummy3).unwrap().all_nodes_iter(),
         [d.trip31].iter().cloned(),
     );
     new_schedule.verify_consistency();
@@ -777,11 +896,11 @@ fn override_reassign_move_full_tour_test() {
     );
 
     assert!(dummy_opt.is_some());
-    let dummy = dummy_opt.unwrap();
-    assert_eq!(dummy, VehicleId::from("dummy00004"));
+    let dummy4 = dummy_opt.unwrap();
+    assert_eq!(dummy4, VehicleId::from("dummy00004"));
 
     assert_equal(
-        new_schedule.tour_of(dummy).unwrap().all_nodes_iter(),
+        new_schedule.tour_of(dummy4).unwrap().all_nodes_iter(),
         [d.trip31].iter().cloned(),
     );
     new_schedule.verify_consistency();
@@ -1006,6 +1125,130 @@ fn override_reassign_move_end_depot_no_remaining_trip_test() {
         [d.trip31].iter().cloned(),
     );
 
+    new_schedule.verify_consistency();
+}
+
+#[test]
+fn override_reassign_dummy_provider_test() {
+    // ARRANGE
+    let d = init_test_data();
+    let veh0 = VehicleId::from("veh00000");
+    let veh2 = VehicleId::from("veh00002");
+    let dummy3 = VehicleId::from("dummy00003");
+    let schedule = default_schedule(&d).replace_vehicle_by_dummy(veh0).unwrap();
+    let segment = Segment::new(d.trip45, d.trip51);
+
+    // ACT
+    let (new_schedule, dummy_opt) = schedule.override_reassign(segment, dummy3, veh2).unwrap();
+
+    // ASSERT
+    assert_eq!(new_schedule.number_of_vehicles(), 2);
+    assert_eq!(new_schedule.number_of_dummy_tours(), 2);
+    assert_equal(
+        new_schedule.tour_of(dummy3).unwrap().all_nodes_iter(),
+        [d.trip12, d.trip23, d.trip34].iter().cloned(),
+    );
+    assert_equal(
+        new_schedule.tour_of(veh2).unwrap().all_nodes_iter(),
+        [
+            d.start_depot1,
+            d.trip12,
+            d.trip23,
+            d.trip45,
+            d.trip51,
+            d.end_depot2,
+        ]
+        .iter()
+        .cloned(),
+    );
+
+    assert!(dummy_opt.is_some());
+    let dummy4 = dummy_opt.unwrap();
+    assert_eq!(dummy4, VehicleId::from("dummy00004"));
+
+    assert_equal(
+        new_schedule.tour_of(dummy4).unwrap().all_nodes_iter(),
+        [d.trip31].iter().cloned(),
+    );
+    new_schedule.verify_consistency();
+}
+
+#[test]
+fn override_reassign_dummy_receiver_test() {
+    // ARRANGE
+    let d = init_test_data();
+    let veh0 = VehicleId::from("veh00000");
+    let veh2 = VehicleId::from("veh00002");
+    let dummy3 = VehicleId::from("dummy00003");
+    let schedule = default_schedule(&d).replace_vehicle_by_dummy(veh2).unwrap();
+    let segment = Segment::new(d.trip45, d.trip51);
+
+    // ACT
+    let (new_schedule, dummy_opt) = schedule.override_reassign(segment, veh0, dummy3).unwrap();
+
+    // ASSERT
+    assert_eq!(new_schedule.number_of_vehicles(), 2);
+    assert_eq!(new_schedule.number_of_dummy_tours(), 2);
+    assert_equal(
+        new_schedule.tour_of(veh0).unwrap().all_nodes_iter(),
+        [d.start_depot1, d.trip12, d.trip23, d.trip34, d.end_depot2]
+            .iter()
+            .cloned(),
+    );
+    assert_equal(
+        new_schedule.tour_of(dummy3).unwrap().all_nodes_iter(),
+        [d.trip12, d.trip23, d.trip45, d.trip51].iter().cloned(),
+    );
+
+    assert!(dummy_opt.is_some());
+    let dummy4 = dummy_opt.unwrap();
+    assert_eq!(dummy4, VehicleId::from("dummy00004"));
+
+    assert_equal(
+        new_schedule.tour_of(dummy4).unwrap().all_nodes_iter(),
+        [d.trip31].iter().cloned(),
+    );
+    new_schedule.verify_consistency();
+}
+
+#[test]
+fn override_reassign_dummy_provider_and_receiver_test() {
+    // ARRANGE
+    let d = init_test_data();
+    let veh0 = VehicleId::from("veh00000");
+    let veh2 = VehicleId::from("veh00002");
+    let dummy3 = VehicleId::from("dummy00003");
+    let dummy4 = VehicleId::from("dummy00004");
+    let schedule = default_schedule(&d)
+        .replace_vehicle_by_dummy(veh0)
+        .unwrap()
+        .replace_vehicle_by_dummy(veh2)
+        .unwrap();
+    let segment = Segment::new(d.trip45, d.trip51);
+
+    // ACT
+    let (new_schedule, dummy_opt) = schedule.override_reassign(segment, dummy3, dummy4).unwrap();
+
+    // ASSERT
+    assert_eq!(new_schedule.number_of_vehicles(), 1);
+    assert_eq!(new_schedule.number_of_dummy_tours(), 3);
+    assert_equal(
+        new_schedule.tour_of(dummy3).unwrap().all_nodes_iter(),
+        [d.trip12, d.trip23, d.trip34].iter().cloned(),
+    );
+    assert_equal(
+        new_schedule.tour_of(dummy4).unwrap().all_nodes_iter(),
+        [d.trip12, d.trip23, d.trip45, d.trip51].iter().cloned(),
+    );
+
+    assert!(dummy_opt.is_some());
+    let dummy5 = dummy_opt.unwrap();
+    assert_eq!(dummy5, VehicleId::from("dummy00005"));
+
+    assert_equal(
+        new_schedule.tour_of(dummy5).unwrap().all_nodes_iter(),
+        [d.trip31].iter().cloned(),
+    );
     new_schedule.verify_consistency();
 }
 

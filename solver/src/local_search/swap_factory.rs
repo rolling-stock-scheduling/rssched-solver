@@ -57,7 +57,7 @@ impl SwapFactory for LimitedExchanges {
         schedule: &'a Schedule,
         start_provider: Option<VehicleId>,
     ) -> Box<dyn Iterator<Item = Box<dyn Swap>> + Send + 'a> {
-        let mut providers: Vec<_> = if self.only_dummy_provider {
+        let mut providers: Vec<VehicleId> = if self.only_dummy_provider {
             schedule.dummy_iter().collect()
         } else {
             self.dummy_and_real_vehicles(schedule).collect()

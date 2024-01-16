@@ -86,7 +86,7 @@ impl Schedule {
     }
 
     /// Delete vehicle (and its tour) from schedule.
-    pub fn delete_vehicle(&self, vehicle_id: VehicleId) -> Result<Schedule, String> {
+    pub fn replace_vehicle_by_dummy(&self, vehicle_id: VehicleId) -> Result<Schedule, String> {
         if !self.is_vehicle(vehicle_id) {
             return Err(format!(
                 "Cannot delete dummy vehicle {} from schedule.",
@@ -98,6 +98,8 @@ impl Schedule {
         let mut train_formations = self.train_formations.clone();
         let mut depot_usage = self.depot_usage.clone();
         let mut vehicle_ids_sorted = self.vehicle_ids_sorted.clone();
+        let mut dummy_tours = self.dummy_tours.clone();
+        let mut dummy_ids_sorted = self.dummy_ids_sorted.clone();
 
         vehicles.remove(&vehicle_id);
         vehicle_ids_sorted.remove(vehicle_ids_sorted.binary_search(&vehicle_id).unwrap());
@@ -113,15 +115,24 @@ impl Schedule {
 
         self.update_depot_usage(&mut depot_usage, &vehicles, &tours, vehicle_id);
 
+        let tour = self.tour_of(vehicle_id).unwrap();
+
+        self.add_dummy_tour(
+            &mut dummy_tours,
+            &mut dummy_ids_sorted,
+            VehicleId::from(format!("dummy{:05}", self.vehicle_counter).as_str()),
+            tour.sub_path(Segment::new(tour.first_node(), tour.last_node()))?,
+        );
+
         Ok(Schedule {
             vehicles,
             tours,
             train_formations,
             depot_usage,
-            dummy_tours: self.dummy_tours.clone(),
+            dummy_tours,
             vehicle_ids_sorted,
-            dummy_ids_sorted: self.dummy_ids_sorted.clone(),
-            vehicle_counter: self.vehicle_counter,
+            dummy_ids_sorted,
+            vehicle_counter: self.vehicle_counter + 1,
             config: self.config.clone(),
             vehicle_types: self.vehicle_types.clone(),
             network: self.network.clone(),
@@ -335,6 +346,8 @@ impl Schedule {
 
     /// Improves the depots of all vehicles given in vehicles.
     /// If None the depots of all vehicles are improved.
+    /// Assumes that vehicle are real vehicle in schedule.
+    /// Panics if a vehicle is not a real vehicle.
     pub fn improve_depots(&self, vehicles: Option<Vec<VehicleId>>) -> Schedule {
         let mut tours = self.tours.clone();
         let mut depot_usage = self.depot_usage.clone();

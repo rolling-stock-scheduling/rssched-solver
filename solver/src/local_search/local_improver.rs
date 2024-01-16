@@ -373,6 +373,7 @@ impl<F: SwapFactory + Send + Sync> TakeFirstParallelRecursion<F> {
 /// (dublicates are removed)
 /// Due to the parallel computation and find_any() this improver is the fastest but not
 /// deterministic.
+#[derive(Clone)]
 pub struct TakeAnyParallelRecursion<F: SwapFactory + Send + Sync> {
     swap_factory: F,
     recursion_depth: u8,
@@ -422,11 +423,11 @@ impl<F: SwapFactory + Send + Sync> TakeAnyParallelRecursion<F> {
         objective_to_beat: &ObjectiveValue,
         remaining_recursion: u8,
     ) -> Option<(Solution, VehicleId)> {
-        println!(
-            "Recursion: remaining depth: {}. schedule-count: {}",
-            remaining_recursion,
-            solutions.len()
-        );
+        // println!(
+        // "Recursion: remaining depth: {}. schedule-count: {}",
+        // remaining_recursion,
+        // solutions.len()
+        // );
         let mut solution_collection: Vec<Vec<(Solution, VehicleId)>> = Vec::new();
         let mut result: Option<(Solution, VehicleId)> = None;
         rayon::scope(|s| {
@@ -520,7 +521,7 @@ impl<F: SwapFactory + Send + Sync> TakeAnyParallelRecursion<F> {
         });
 
         if result.is_none() {
-            println!("No improvement found.");
+            // println!("No improvement found.");
 
             if remaining_recursion > 0 {
                 let mut schedules_for_recursion: Vec<(Solution, VehicleId)> =
@@ -536,11 +537,11 @@ impl<F: SwapFactory + Send + Sync> TakeAnyParallelRecursion<F> {
                     remaining_recursion - 1,
                 )
             } else {
-                println!("No recursion-depth left.");
+                // println!("No recursion-depth left.");
                 None
             }
         } else {
-            println!("Improvement found.");
+            // println!("Improvement found.");
             result
         }
     }

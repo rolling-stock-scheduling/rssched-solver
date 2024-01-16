@@ -44,8 +44,8 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
     let runtime_duration = end_time.duration_since(start_time);
 
     println!("\n*** Solved ***");
-    println!("\nfinal schedule (long version):");
-    final_solution.solution().print_tours_long();
+    // println!("\nfinal schedule (long version):");
+    // final_solution.solution().print_tours_long();
 
     // println!("\n\nFinal schedule:");
     // final_solution.solution().print_tours();

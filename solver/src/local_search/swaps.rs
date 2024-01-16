@@ -69,6 +69,8 @@ impl Swap for PathExchange {
             }
         };
 
+        changed_tours.retain(|&v| schedule.is_vehicle(v));
+
         // finally improve the depots of receiver (and provider if still present).
         Ok(second_schedule.improve_depots(Some(changed_tours)))
     }
