@@ -92,6 +92,10 @@ impl Schedule {
         self.dummy_tours.contains_key(&vehicle)
     }
 
+    pub fn is_vehicle_or_dummy(&self, vehicle: VehicleId) -> bool {
+        self.is_vehicle(vehicle) || self.is_dummy(vehicle)
+    }
+
     pub fn number_of_dummy_tours(&self) -> usize {
         self.dummy_tours.len()
     }
