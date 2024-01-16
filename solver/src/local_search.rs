@@ -3,6 +3,7 @@ pub mod swap_factory;
 pub mod swaps;
 
 use std::sync::Arc;
+use std::time as stdtime;
 
 use super::Solver;
 use crate::Solution;
@@ -78,6 +79,7 @@ impl Solver for LocalSearch {
     }
 
     fn solve(&self) -> Solution {
+        let start_time = stdtime::Instant::now();
         // if there is no start schedule, create new empty schedule:
         let init_solution = self.initial_solution.clone().unwrap_or({
             let schedule = Schedule::empty(
@@ -127,21 +129,24 @@ impl Solver for LocalSearch {
             self.objective.clone(),
         );
 
-        let mut result = Improvement(init_solution);
+        let mut current_result = Improvement(init_solution);
 
-        while let Improvement(current_solution) = result {
+        while let Improvement(current_solution) = current_result {
             println!("\n*** LOCAL SEARCH ***");
-
             // self.find_local_optimum(current_solution, _minimizer)
             // self.find_local_optimum(current_solution, _take_first)
-            let next_solution = self.find_local_optimum(current_solution, _take_any.clone(), true);
+            current_result = self.find_local_optimum(
+                current_solution,
+                _take_any.clone(),
+                true,
+                Some(start_time),
+            );
 
             println!("\n*** DIVERSIFICATION ***");
-
-            result = self.diversify(next_solution.unwrap());
+            current_result = self.diversify(current_result.unwrap(), true, Some(start_time));
         }
 
-        result.unwrap()
+        current_result.unwrap()
     }
 }
 
@@ -151,6 +156,7 @@ impl LocalSearch {
         start_solution: Solution,
         mut local_improver: impl LocalImprover,
         verbose: bool,
+        start_time: Option<stdtime::Instant>,
     ) -> SearchResult {
         let mut result = NoImprovement(start_solution);
         while let Some(new_solution) = local_improver.improve(result.as_ref()) {
@@ -159,6 +165,14 @@ impl LocalSearch {
             if verbose {
                 self.objective
                     .print_objective_value(new_solution.objective_value());
+                if let Some(start_time) = start_time {
+                    println!(
+                        "elapsed time: {:0.2}",
+                        stdtime::Instant::now()
+                            .duration_since(start_time)
+                            .as_secs_f32()
+                    );
+                }
                 println!();
             }
             result = Improvement(new_solution);
@@ -168,7 +182,12 @@ impl LocalSearch {
 
     /// Diversification: Remove each vehicle and try to find a better solution by local search with
     /// only dummy providers.
-    fn diversify(&self, initial_solution: Solution) -> SearchResult {
+    fn diversify(
+        &self,
+        initial_solution: Solution,
+        verbose: bool,
+        start_time: Option<stdtime::Instant>,
+    ) -> SearchResult {
         let initial_schedule = initial_solution.solution();
         let take_any_dummy_provier_only = TakeAnyParallelRecursion::new(
             LimitedExchanges::new(None, None, true, self.network.clone()),
@@ -182,16 +201,31 @@ impl LocalSearch {
             println!("\n* Remove Vehicle {}", vehicle);
             let reduced_schedule = initial_schedule.replace_vehicle_by_dummy(vehicle).unwrap();
             let reduced_solution = self.objective.evaluate(reduced_schedule);
-            println!("start:");
-            self.objective
-                .print_objective_value(reduced_solution.objective_value());
+            if verbose {
+                println!("start:");
+                self.objective
+                    .print_objective_value(reduced_solution.objective_value());
+            }
             let improved_reduced_solution = self
-                .find_local_optimum(reduced_solution, take_any_dummy_provier_only.clone(), false)
+                .find_local_optimum(
+                    reduced_solution,
+                    take_any_dummy_provier_only.clone(),
+                    false,
+                    None,
+                )
                 .unwrap();
 
-            println!("end:");
-            self.objective
-                .print_objective_value(improved_reduced_solution.objective_value());
+            if verbose {
+                println!("end:");
+                self.objective
+                    .print_objective_value(improved_reduced_solution.objective_value());
+                println!(
+                    "elapsed time: {:0.2}",
+                    stdtime::Instant::now()
+                        .duration_since(start_time.unwrap())
+                        .as_secs_f32()
+                );
+            }
 
             if improved_reduced_solution < initial_solution {
                 println!("Diversification: found better solution");
