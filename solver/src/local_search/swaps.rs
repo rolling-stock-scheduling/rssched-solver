@@ -55,10 +55,13 @@ impl Swap for PathExchange {
             }
             (Some(new_dummy), true, false) => {
                 // provider (real) got removed -> no need for fit_reassign, but spawn new vehicle
-                first_schedule.spawn_vehicle_to_replace_dummy_tour(
-                    new_dummy,
-                    schedule.vehicle_type_of(self.provider),
-                )?
+                let (new_schedule, new_vehicle) = first_schedule
+                    .spawn_vehicle_to_replace_dummy_tour(
+                        new_dummy,
+                        schedule.vehicle_type_of(self.provider),
+                    )?;
+                changed_tours.push(new_vehicle);
+                new_schedule
             }
             (Some(new_dummy), _, true) => {
                 // provider still present -> try to fit the full tour of the new dummy into receiver's tour

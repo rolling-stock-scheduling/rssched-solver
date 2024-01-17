@@ -1,9 +1,9 @@
 use crate::Solution;
 use crate::Solver;
-use objective_framework::Objective;
 use model::config::Config;
 use model::network::Network;
 use model::vehicle_types::VehicleTypes;
+use objective_framework::Objective;
 use solution::Schedule;
 use std::sync::Arc;
 
@@ -45,7 +45,8 @@ impl Solver for OneNodePerTour {
         {
             schedule = schedule
                 .spawn_vehicle_for_path(vehicle_type, vec![service_trip])
-                .unwrap();
+                .unwrap()
+                .0;
         }
 
         self.objective.evaluate(schedule)

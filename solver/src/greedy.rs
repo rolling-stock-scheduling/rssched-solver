@@ -1,10 +1,10 @@
 use crate::Solution;
 use crate::Solver;
-use objective_framework::Objective;
 use model::base_types::VehicleId;
 use model::config::Config;
 use model::network::Network;
 use model::vehicle_types::VehicleTypes;
+use objective_framework::Objective;
 use solution::path::Path;
 use solution::Schedule;
 use std::sync::Arc;
@@ -74,7 +74,8 @@ impl Solver for Greedy {
                             self.vehicles.iter().next().unwrap(),
                             vec![service_trip],
                         )
-                        .unwrap();
+                        .unwrap()
+                        .0;
                 }
             }
         }

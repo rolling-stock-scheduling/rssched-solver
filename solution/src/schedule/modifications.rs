@@ -13,7 +13,7 @@ impl Schedule {
         &self,
         dummy_id: VehicleId,
         vehicle_type_id: VehicleTypeId,
-    ) -> Result<Schedule, String> {
+    ) -> Result<(Schedule, VehicleId), String> {
         let nodes: Vec<NodeId> = self
             .dummy_tours
             .get(&dummy_id)
@@ -38,7 +38,7 @@ impl Schedule {
         &self,
         vehicle_type_id: VehicleTypeId,
         path_as_vec: Vec<NodeId>,
-    ) -> Result<Schedule, String> {
+    ) -> Result<(Schedule, VehicleId), String> {
         let nodes = self.add_suitable_start_and_end_depot_to_path(vehicle_type_id, path_as_vec)?;
 
         let mut vehicles = self.vehicles.clone();
@@ -70,19 +70,22 @@ impl Schedule {
 
         self.update_depot_usage(&mut depot_usage, &vehicles, &tours, vehicle_id);
 
-        Ok(Schedule {
-            vehicles,
-            tours,
-            train_formations,
-            depot_usage,
-            dummy_tours: self.dummy_tours.clone(),
-            vehicle_ids_sorted,
-            dummy_ids_sorted: self.dummy_ids_sorted.clone(),
-            vehicle_counter: self.vehicle_counter + 1,
-            config: self.config.clone(),
-            vehicle_types: self.vehicle_types.clone(),
-            network: self.network.clone(),
-        })
+        Ok((
+            Schedule {
+                vehicles,
+                tours,
+                train_formations,
+                depot_usage,
+                dummy_tours: self.dummy_tours.clone(),
+                vehicle_ids_sorted,
+                dummy_ids_sorted: self.dummy_ids_sorted.clone(),
+                vehicle_counter: self.vehicle_counter + 1,
+                config: self.config.clone(),
+                vehicle_types: self.vehicle_types.clone(),
+                network: self.network.clone(),
+            },
+            vehicle_id,
+        ))
     }
 
     /// Delete vehicle (and its tour) from schedule.
