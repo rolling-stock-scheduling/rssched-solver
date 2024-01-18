@@ -13,7 +13,7 @@ pub type PassengerCount = u32;
 pub type TrainLength = u16;
 pub type SeatDistance = u64;
 
-pub type VehicleId = CopyStr<32>;
+pub type VehicleId = CopyStr<6>;
 
 pub type VehicleCount = u32;
 

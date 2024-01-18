@@ -133,10 +133,10 @@ impl Solver for LocalSearch {
 
         while let Improvement(current_solution) = current_result {
             println!("\n*** LOCAL SEARCH ***");
-            // self.find_local_optimum(current_solution, _minimizer)
-            // self.find_local_optimum(current_solution, _take_first)
             current_result = self.find_local_optimum(
                 current_solution,
+                // _minimizer.clone(),
+                // _take_first.clone(),
                 _take_any.clone(),
                 true,
                 Some(start_time),

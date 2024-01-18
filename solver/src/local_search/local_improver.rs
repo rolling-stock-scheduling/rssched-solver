@@ -21,24 +21,22 @@ pub trait LocalImprover {
 ////////////////////// Minimizer //////////////////////////
 ///////////////////////////////////////////////////////////
 
-pub struct Minimizer {
-    swap_factory: Box<dyn SwapFactory>,
+#[derive(Clone)]
+pub struct Minimizer<T: SwapFactory> {
+    swap_factory: T,
     objective: Arc<Objective<Schedule>>,
 }
 
-impl Minimizer {
-    pub fn new(
-        swap_factory: impl SwapFactory + 'static,
-        objective: Arc<Objective<Schedule>>,
-    ) -> Minimizer {
+impl<T: SwapFactory> Minimizer<T> {
+    pub fn new(swap_factory: T, objective: Arc<Objective<Schedule>>) -> Minimizer<T> {
         Minimizer {
-            swap_factory: Box::new(swap_factory),
+            swap_factory,
             objective,
         }
     }
 }
 
-impl LocalImprover for Minimizer {
+impl<T: SwapFactory> LocalImprover for Minimizer<T> {
     fn improve(&mut self, solution: &Solution) -> Option<Solution> {
         let schedule = solution.solution();
 
@@ -77,15 +75,16 @@ impl LocalImprover for Minimizer {
 /// Create the swaps for each given schedule and took them into a long sequence. Find the first
 /// improving schedule in this sequence.
 /// As there is no parallelization this improver is fully deterministic.
-pub struct TakeFirstRecursion {
-    swap_factory: Box<dyn SwapFactory>,
+#[derive(Clone)]
+pub struct TakeFirstRecursion<T: SwapFactory> {
+    swap_factory: T,
     recursion_depth: u8,
     recursion_width: Option<usize>, // number of schedule that are considered for recursion (the one with best value are taken)
     objective: Arc<Objective<Schedule>>,
     start_provider: Option<VehicleId>, // stores as start provider the provider of the last improving swap
 }
 
-impl LocalImprover for TakeFirstRecursion {
+impl<T: SwapFactory> LocalImprover for TakeFirstRecursion<T> {
     fn improve(&mut self, solution: &Solution) -> Option<Solution> {
         let old_objective_value = solution.objective_value();
         let result = self.improve_recursion(
@@ -101,15 +100,15 @@ impl LocalImprover for TakeFirstRecursion {
     }
 }
 
-impl TakeFirstRecursion {
+impl<T: SwapFactory> TakeFirstRecursion<T> {
     pub fn new(
-        swap_factory: impl SwapFactory + 'static,
+        swap_factory: T,
         recursion_depth: u8,
         recursion_width: Option<usize>,
         objective: Arc<Objective<Schedule>>,
-    ) -> TakeFirstRecursion {
+    ) -> TakeFirstRecursion<T> {
         TakeFirstRecursion {
-            swap_factory: Box::new(swap_factory),
+            swap_factory,
             recursion_depth,
             recursion_width,
             objective,
@@ -374,15 +373,15 @@ impl<F: SwapFactory + Send + Sync> TakeFirstParallelRecursion<F> {
 /// Due to the parallel computation and find_any() this improver is the fastest but not
 /// deterministic.
 #[derive(Clone)]
-pub struct TakeAnyParallelRecursion<F: SwapFactory + Send + Sync> {
-    swap_factory: F,
+pub struct TakeAnyParallelRecursion<T: SwapFactory> {
+    swap_factory: T,
     recursion_depth: u8,
     recursion_width: Option<usize>, // number of schedule that are considered per schedule for the next recursion (the one with best objectivevalue are taken for each schedule, dublicates are removed)
     objective: Arc<Objective<Schedule>>,
     start_provider: Option<VehicleId>, // stores as start provider the provider of the last improving swap
 }
 
-impl<F: SwapFactory + Send + Sync> LocalImprover for TakeAnyParallelRecursion<F> {
+impl<T: SwapFactory> LocalImprover for TakeAnyParallelRecursion<T> {
     fn improve(&mut self, solution: &Solution) -> Option<Solution> {
         let old_objective = solution.objective_value();
         let start_provider = self
@@ -401,13 +400,13 @@ impl<F: SwapFactory + Send + Sync> LocalImprover for TakeAnyParallelRecursion<F>
     }
 }
 
-impl<F: SwapFactory + Send + Sync> TakeAnyParallelRecursion<F> {
+impl<T: SwapFactory> TakeAnyParallelRecursion<T> {
     pub fn new(
-        swap_factory: F,
+        swap_factory: T,
         recursion_depth: u8,
         recursion_width: Option<usize>,
         objective: Arc<Objective<Schedule>>,
-    ) -> TakeAnyParallelRecursion<F> {
+    ) -> TakeAnyParallelRecursion<T> {
         TakeAnyParallelRecursion {
             swap_factory,
             recursion_depth,

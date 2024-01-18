@@ -47,7 +47,7 @@ impl Schedule {
         let mut depot_usage = self.depot_usage.clone();
         let mut vehicle_ids_sorted = self.vehicle_ids_sorted.clone();
 
-        let vehicle_id = VehicleId::from(format!("veh{:05}", self.vehicle_counter).as_str());
+        let vehicle_id = VehicleId::from(format!("v{:05}", self.vehicle_counter).as_str());
         let tour = Tour::new(nodes, self.network.clone())?;
         let vehicle = Vehicle::new(vehicle_id, vehicle_type_id, self.vehicle_types.clone());
 
@@ -123,7 +123,7 @@ impl Schedule {
         self.add_dummy_tour(
             &mut dummy_tours,
             &mut dummy_ids_sorted,
-            VehicleId::from(format!("dummy{:05}", self.vehicle_counter).as_str()),
+            VehicleId::from(format!("d{:05}", self.vehicle_counter).as_str()),
             tour.sub_path(Segment::new(tour.first_node(), tour.last_node()))?,
         );
 
@@ -311,7 +311,7 @@ impl Schedule {
 
         // insert new dummy tour consisting of conflicting nodes removed from receiver's tour
         if let Some(new_path) = replaced_path {
-            let new_dummy = VehicleId::from(format!("dummy{:05}", vehicle_counter).as_str());
+            let new_dummy = VehicleId::from(format!("d{:05}", vehicle_counter).as_str());
             new_dummy_opt = Some(new_dummy);
 
             if self.is_vehicle(receiver) {
