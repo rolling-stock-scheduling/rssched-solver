@@ -1,5 +1,7 @@
 use std::env;
 
+use axum::extract::DefaultBodyLimit;
+
 #[tokio::main]
 pub async fn main() {
     // Parse command line arguments to get the port number
@@ -11,7 +13,8 @@ pub async fn main() {
             "No route! Use /health or /solve."
         }))
         .route("/health", axum::routing::get(healthy))
-        .route("/solve", axum::routing::post(solve));
+        .route("/solve", axum::routing::post(solve))
+        .layer(DefaultBodyLimit::disable());
 
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port))
         .await

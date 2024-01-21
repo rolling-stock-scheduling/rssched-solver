@@ -167,7 +167,7 @@ impl LocalSearch {
                     .print_objective_value(new_solution.objective_value());
                 if let Some(start_time) = start_time {
                     println!(
-                        "elapsed time: {:0.2}",
+                        "elapsed time: {:0.2}sec",
                         stdtime::Instant::now()
                             .duration_since(start_time)
                             .as_secs_f32()
