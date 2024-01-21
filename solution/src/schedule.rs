@@ -193,18 +193,20 @@ impl Schedule {
         self.depot_balance(depot, vehicle_type) > 0
     }
 
-    pub fn number_of_unserved_passengers(&self) -> PassengerCount {
+    pub fn unserved_passengers_at(&self, node: NodeId) -> PassengerCount {
+        let demand = self.network.node(node).as_service_trip().demand();
+        let served = self.train_formation_of(node).seats();
+        if served > demand {
+            0
+        } else {
+            demand - served
+        }
+    }
+
+    pub fn unserved_passengers(&self) -> PassengerCount {
         self.network
             .service_nodes()
-            .map(|node| {
-                let demand = self.network.node(node).as_service_trip().demand();
-                let served = self.train_formation_of(node).seats();
-                if served > demand {
-                    0
-                } else {
-                    demand - served
-                }
-            })
+            .map(|node| self.unserved_passengers_at(node))
             .sum()
     }
 

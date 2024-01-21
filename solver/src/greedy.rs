@@ -38,44 +38,45 @@ impl Solver for Greedy {
             self.config.clone(),
         );
 
-        while let Some(service_trip) = self
-            .network
-            .service_nodes()
-            .find(|s| !schedule.is_fully_covered(*s))
-        {
-            let vehicle_candidates: Vec<VehicleId> = schedule
-                .vehicles_iter()
-                .filter(|&v| {
-                    match schedule.tour_of(v).unwrap().last_non_depot() {
+        for service_trip in self.network.service_nodes() {
+            while !schedule.is_fully_covered(service_trip) {
+                let vehicle_candidates: Vec<VehicleId> = schedule
+                    .vehicles_iter()
+                    .filter(|&v| match schedule.tour_of(v).unwrap().last_non_depot() {
                         Some(last) => self.network.can_reach(last, service_trip),
-                        None => false, // there are not vehicles that only goes from depot to depot
+                        None => false, // vehicle goes from depot to depot (does not happen here)
+                    })
+                    .collect();
+
+                // pick the vehicle which tour ends the latest
+                let final_candidate = vehicle_candidates.iter().max_by_key(|&&v| {
+                    let last_trip = schedule.tour_of(v).unwrap().last_non_depot().unwrap();
+                    self.network.node(last_trip).end_time()
+                });
+
+                match final_candidate {
+                    Some(&v) => {
+                        schedule = schedule
+                            .add_path_to_vehicle_tour(
+                                v,
+                                Path::new_from_single_node(service_trip, self.network.clone()),
+                            )
+                            .unwrap();
                     }
-                })
-                .collect();
+                    None => {
+                        // no vehicle can reach the service trip, spawn a new one
 
-            // pick the vehicle which tour ends the latest
-            let final_candidate = vehicle_candidates.iter().max_by_key(|&&v| {
-                let last_trip = schedule.tour_of(v).unwrap().last_non_depot().unwrap();
-                self.network.node(last_trip).end_time()
-            });
+                        // take vehicle with least seats such that all passengers are covered
+                        // if None take biggest vehicle
+                        let vehicle_type = self
+                            .vehicles
+                            .best_for(schedule.unserved_passengers_at(service_trip));
 
-            match final_candidate {
-                Some(&v) => {
-                    schedule = schedule
-                        .add_path_to_vehicle_tour(
-                            v,
-                            Path::new_from_single_node(service_trip, self.network.clone()),
-                        )
-                        .unwrap();
-                }
-                None => {
-                    schedule = schedule
-                        .spawn_vehicle_for_path(
-                            self.vehicles.iter().next().unwrap(),
-                            vec![service_trip],
-                        )
-                        .unwrap()
-                        .0;
+                        schedule = schedule
+                            .spawn_vehicle_for_path(vehicle_type, vec![service_trip])
+                            .unwrap()
+                            .0;
+                    }
                 }
             }
         }

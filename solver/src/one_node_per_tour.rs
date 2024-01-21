@@ -36,10 +36,12 @@ impl Solver for OneNodePerTour {
             self.config.clone(),
         );
 
-        let vehicle_type = self.vehicles.iter().next().unwrap();
-
         for service_trip in self.network.service_nodes() {
             while !schedule.is_fully_covered(service_trip) {
+                let vehicle_type = self
+                    .vehicles
+                    .best_for(schedule.unserved_passengers_at(service_trip));
+
                 schedule = schedule
                     .spawn_vehicle_for_path(vehicle_type, vec![service_trip])
                     .unwrap()

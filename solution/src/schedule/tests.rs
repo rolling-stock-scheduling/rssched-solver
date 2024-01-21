@@ -158,7 +158,7 @@ fn basic_methods_test() {
     assert!(!schedule.reduces_despawning_at_depot_violation(d.vt1, d.depot2));
     assert!(!schedule.reduces_despawning_at_depot_violation(d.vt2, d.depot2));
 
-    assert_eq!(schedule.number_of_unserved_passengers(), 130);
+    assert_eq!(schedule.unserved_passengers(), 130);
 
     assert!(schedule.is_fully_covered(d.trip12));
     assert!(schedule.is_fully_covered(d.trip23));
