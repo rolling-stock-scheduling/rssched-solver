@@ -52,7 +52,7 @@ impl<S: Send + Sync> Objective<S> {
             .zip(comparison.iter())
         {
             println!(
-                "{}: {} {}",
+                " * {}: {} {}",
                 level,
                 value,
                 value.print_difference(*comparison_value)

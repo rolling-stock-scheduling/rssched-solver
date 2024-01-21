@@ -166,8 +166,10 @@ impl LocalSearch {
             #[cfg(debug_assertions)]
             new_solution.solution().verify_consistency();
             if verbose {
-                self.objective
-                    .print_objective_value(new_solution.objective_value());
+                self.objective.print_objective_value_with_comparison(
+                    new_solution.objective_value(),
+                    result.as_ref().objective_value(),
+                );
                 if let Some(start_time) = start_time {
                     println!(
                         "elapsed time for local search: {:0.2}sec",
@@ -209,6 +211,7 @@ impl LocalSearch {
                 self.objective
                     .print_objective_value(reduced_solution.objective_value());
             }
+            let old_objective_value = reduced_solution.objective_value().clone();
             let improved_reduced_solution = self
                 .find_local_optimum(
                     reduced_solution,
@@ -220,8 +223,10 @@ impl LocalSearch {
 
             if verbose {
                 println!("end:");
-                self.objective
-                    .print_objective_value(improved_reduced_solution.objective_value());
+                self.objective.print_objective_value_with_comparison(
+                    improved_reduced_solution.objective_value(),
+                    &old_objective_value,
+                );
                 println!(
                     "elapsed time: {:0.2}",
                     stdtime::Instant::now()
