@@ -10,9 +10,15 @@ use std::sync::Arc;
 use std::time as stdtime;
 
 pub fn run(input_data: serde_json::Value) -> serde_json::Value {
+    let start_time = stdtime::Instant::now();
     let (vehicle_types, network, config) =
         load_rolling_stock_problem_instance_from_json(input_data);
-    let start_time = stdtime::Instant::now();
+    println!(
+        "*** Instance with {} vehicle types and {} trips loaded (elapsed time: {:0.2}sec) ***",
+        vehicle_types.iter().count(),
+        network.size(),
+        start_time.elapsed().as_secs_f32()
+    );
 
     let objective = Arc::new(server::first_phase_objective::build());
     // let objective = Arc::new(test_objective::build());
@@ -33,10 +39,22 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
         objective.clone(),
     );
 
+    println!(
+        "\n*** Run Greedy (elapsed time: {:0.2}sec) ***",
+        start_time.elapsed().as_secs_f32()
+    );
+
     // solve
     let start_solution = greedy.solve();
     // let start_solution = one_node_per_tour.solve();
+
+    objective.print_objective_value(start_solution.objective_value());
     local_search_solver.set_initial_solution(start_solution);
+
+    println!(
+        "\n*** Run Local Search (elapsed time: {:0.2}sec) ***",
+        start_time.elapsed().as_secs_f32()
+    );
     let final_solution = local_search_solver.solve();
 
     let end_time = stdtime::Instant::now();

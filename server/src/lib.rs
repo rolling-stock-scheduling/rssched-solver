@@ -15,9 +15,15 @@ use std::sync::Arc;
 use std::time as stdtime;
 
 pub fn solve_instance(input_data: serde_json::Value) -> serde_json::Value {
+    let start_time = stdtime::Instant::now();
     let (vehicle_types, network, config) =
         load_rolling_stock_problem_instance_from_json(input_data);
-    let start_time = stdtime::Instant::now();
+    println!(
+        "*** Instance with {} vehicle types and {} trips loaded (elapsed time: {:0.2}sec) ***",
+        vehicle_types.iter().count(),
+        network.size(),
+        start_time.elapsed().as_secs_f32()
+    );
 
     let objective = Arc::new(first_phase_objective::build());
 
@@ -30,15 +36,24 @@ pub fn solve_instance(input_data: serde_json::Value) -> serde_json::Value {
     );
 
     // use greedy algorithm as start solution
+    println!(
+        "\n*** Run Greedy (elapsed time: {:0.2}sec) ***",
+        start_time.elapsed().as_secs_f32()
+    );
     let greedy = Greedy::initialize(
         vehicle_types.clone(),
         network.clone(),
         config.clone(),
         objective.clone(),
     );
-
-    // solve
     let start_solution = greedy.solve();
+    objective.print_objective_value(start_solution.objective_value());
+
+    // run local search
+    println!(
+        "\n*** Run Local Search (elapsed time: {:0.2}sec) ***",
+        start_time.elapsed().as_secs_f32()
+    );
     local_search_solver.set_initial_solution(start_solution);
     let final_solution = local_search_solver.solve();
 
@@ -46,8 +61,6 @@ pub fn solve_instance(input_data: serde_json::Value) -> serde_json::Value {
     let runtime_duration = end_time.duration_since(start_time);
 
     println!("\n*** Solved ***");
-    println!("\nfinal schedule:");
-    final_solution.solution().print_tours();
 
     println!("\nfinal objective value:");
     objective.print_objective_value(final_solution.objective_value());

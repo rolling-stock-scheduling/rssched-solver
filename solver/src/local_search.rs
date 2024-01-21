@@ -132,7 +132,7 @@ impl Solver for LocalSearch {
         let mut current_result = Improvement(init_solution);
 
         while let Improvement(current_solution) = current_result {
-            println!("\n*** LOCAL SEARCH ***");
+            println!("\n* LOCAL SEARCH *");
             current_result = self.find_local_optimum(
                 current_solution,
                 // _minimizer.clone(),
@@ -142,7 +142,7 @@ impl Solver for LocalSearch {
                 Some(start_time),
             );
 
-            println!("\n*** DIVERSIFICATION ***");
+            println!("\n* DIVERSIFICATION *");
             current_result = self.diversify(current_result.unwrap(), true, Some(start_time));
         }
 
@@ -167,7 +167,7 @@ impl LocalSearch {
                     .print_objective_value(new_solution.objective_value());
                 if let Some(start_time) = start_time {
                     println!(
-                        "elapsed time: {:0.2}sec",
+                        "elapsed time for local search: {:0.2}sec",
                         stdtime::Instant::now()
                             .duration_since(start_time)
                             .as_secs_f32()

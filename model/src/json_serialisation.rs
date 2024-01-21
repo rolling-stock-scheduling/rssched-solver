@@ -38,7 +38,7 @@ struct JsonInput {
 #[serde(rename_all = "camelCase")]
 struct VehicleType {
     id: String,
-    name: String,
+    name: Option<String>,
     seats: Integer,
     capacity: Integer,
     length: Integer,
@@ -48,7 +48,7 @@ struct VehicleType {
 #[serde(rename_all = "camelCase")]
 struct Location {
     id: String,
-    name: String,
+    name: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -69,7 +69,7 @@ struct Capacities {
 #[serde(rename_all = "camelCase")]
 struct Route {
     id: String,
-    line: String,
+    line: Option<String>,
     origin: String,
     destination: String,
     distance: Integer,
@@ -82,7 +82,7 @@ struct Route {
 struct ServiceTrip {
     id: String,
     route: String,
-    name: String,
+    name: Option<String>,
     departure: String,
     passengers: Integer,
 }
@@ -168,7 +168,10 @@ fn create_vehicle_types(json_input: &JsonInput) -> VehicleTypes {
         .map(|unit_type| {
             ModelVehicleType::new(
                 VehicleTypeId::from(&unit_type.id),
-                unit_type.name.clone(),
+                unit_type
+                    .name
+                    .clone()
+                    .unwrap_or_else(|| unit_type.id.clone()),
                 unit_type.seats as PassengerCount,
                 unit_type.capacity as PassengerCount,
                 unit_type.length as TrainLength,
@@ -239,7 +242,10 @@ fn create_service_trip(json_input: &JsonInput, locations: &Locations) -> Vec<Mod
                 StationSide::Front, // TODO: Read this from json
                 Distance::from_meter(route.distance as Meter),
                 service_trip.passengers as PassengerCount,
-                service_trip.name.clone(),
+                service_trip
+                    .name
+                    .clone()
+                    .unwrap_or_else(|| service_trip.id.clone()),
             )
         })
         .collect()

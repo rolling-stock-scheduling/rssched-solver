@@ -13,8 +13,10 @@ use crate::{
 //add a test that reads a json file
 #[test]
 fn test_load_from_json() {
+    // ARRANGE
     let path = "resources/small_test_input.json";
 
+    // ACT
     let mut file = File::open(path).unwrap();
     let mut input_data = String::new();
     file.read_to_string(&mut input_data).unwrap();
@@ -23,6 +25,7 @@ fn test_load_from_json() {
     let (vehicle_types, network, config) =
         load_rolling_stock_problem_instance_from_json(input_data);
 
+    // ASSERT
     let locations = network.locations();
     let loc1 = locations.get_location(LocationId::from("loc1"));
     let loc2 = locations.get_location(LocationId::from("loc2"));
@@ -193,6 +196,67 @@ fn test_load_from_json() {
     assert_eq!(
         config.default_maximal_formation_length,
         Distance::from_meter(20)
+    );
+}
+
+#[test]
+fn test_load_from_json_with_null_values() {
+    // ARRANGE
+    let path = "resources/small_test_input_with_null_values.json";
+
+    // ACT
+    let mut file = File::open(path).unwrap();
+    let mut input_data = String::new();
+    file.read_to_string(&mut input_data).unwrap();
+    let input_data: serde_json::Value = serde_json::from_str(&input_data).unwrap();
+
+    let (vehicle_types, network, _) = load_rolling_stock_problem_instance_from_json(input_data);
+
+    // ASSERT
+    let locations = network.locations();
+    let loc1 = locations.get_location(LocationId::from("loc1"));
+    let loc2 = locations.get_location(LocationId::from("loc2"));
+    let loc3 = locations.get_location(LocationId::from("loc3"));
+
+    assert_eq!(
+        *vehicle_types.get(VehicleTypeId::from("vt1")).unwrap(),
+        VehicleType::new(VehicleTypeId::from("vt1"), String::from("vt1"), 50, 100, 10,)
+    );
+    assert_eq!(
+        *vehicle_types.get(VehicleTypeId::from("vt2")).unwrap(),
+        VehicleType::new(VehicleTypeId::from("vt2"), String::from("vt2"), 40, 80, 8,)
+    );
+
+    assert_eq!(
+        *network.node(NodeId::from("trip1")),
+        Node::create_service_trip_node(Node::create_service_trip(
+            NodeId::from("trip1"),
+            loc1,
+            loc2,
+            DateTime::new("2023-07-24T11:59:41"),
+            DateTime::new("2023-07-24T12:59:41"),
+            StationSide::Front,
+            StationSide::Front,
+            Distance::from_meter(1000),
+            50,
+            String::from("trip1"),
+        ))
+    );
+
+    assert_eq!(
+        *network.node(NodeId::from("trip2")),
+        Node::create_service_trip_node(Node::create_service_trip(
+            NodeId::from("trip2"),
+            loc2,
+            loc3,
+            DateTime::new("2023-07-24T11:59:41"),
+            DateTime::new("2023-07-24T13:59:41"),
+            StationSide::Front,
+            StationSide::Front,
+            Distance::from_meter(2000),
+            80,
+            String::from("trip2"),
+        ))
     );
 }
 

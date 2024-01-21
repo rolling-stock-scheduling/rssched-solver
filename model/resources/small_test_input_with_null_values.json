@@ -1,0 +1,83 @@
+{
+  "vehicleTypes" : [ {
+    "id" : "vt1",
+    "name" : null,
+    "seats" : 50,
+    "capacity" : 100,
+    "length" : 10
+  }, {
+    "id" : "vt2",
+    "seats" : 40,
+    "capacity" : 80,
+    "length" : 8
+  } ],
+  "locations" : [ {
+    "id" : "loc1",
+    "name" : null
+  }, {
+    "id" : "loc2"
+  }, {
+    "id" : "loc3",
+    "name" : "Location 3"
+  } ],
+  "depots" : [ {
+    "id" : "depot1",
+    "location" : "loc1",
+    "capacities" : [ {
+      "vehicleType" : "vt1",
+      "upperBound" : 7
+    }, {
+      "vehicleType" : "vt2",
+      "upperBound" : 5
+    } ]
+  }, {
+    "id" : "depot2",
+    "location" : "loc2",
+    "capacities" : [ {
+      "vehicleType" : "vt2",
+      "upperBound" : 8
+    } ]
+  } ],
+  "routes" : [ {
+    "id" : "route1",
+    "line" : null,
+    "origin" : "loc1",
+    "destination" : "loc2",
+    "distance" : 1000,
+    "duration" : 3600,
+    "maximalFormationLength" : 50
+  }, {
+    "id" : "route2",
+    "origin" : "loc2",
+    "destination" : "loc3",
+    "distance" : 2000,
+    "duration" : 7200,
+    "maximalFormationLength" : 80
+  } ],
+  "serviceTrips" : [ {
+    "id" : "trip1",
+    "route" : "route1",
+    "name" : null,
+    "departure" : "2023-07-24T11:59:41",
+    "passengers" : 50
+  }, {
+    "id" : "trip2",
+    "route" : "route2",
+    "departure" : "2023-07-24T11:59:41",
+    "passengers" : 80
+  } ],
+  "deadHeadTrips" : {
+    "indices" : [ "loc1", "loc2", "loc3" ],
+    "durations" : [ [ 0, 600, 300 ], [ 6000, 0, 400 ], [ 3000, 4000, 0 ] ],
+    "distances" : [ [ 0, 1000, 500 ], [ 10000, 0, 700 ], [ 5000, 7000, 0 ] ]
+  },
+  "parameters" : {
+    "shunting" : {
+      "minimalDuration" : 600,
+      "deadHeadTripDuration" : 300
+    },
+    "defaults" : {
+      "maximalFormationLength" : 20
+    }
+  }
+}

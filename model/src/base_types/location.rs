@@ -1,8 +1,5 @@
-use crate::utilities::CopyStr;
+use super::LocationId;
 use std::fmt;
-
-pub type LocationId = CopyStr<10>; // Stations are represented by String codes of length up to
-                                   // 10.
 
 #[derive(Hash, Eq, PartialEq, Copy, Clone, Debug)]
 pub enum Location {
