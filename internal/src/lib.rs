@@ -2,7 +2,7 @@ mod test_objective;
 
 use solver::greedy::Greedy;
 use solver::local_search::LocalSearch;
-use solver::Solver;
+use solver::{first_phase_objective, Solver};
 
 use model::json_serialisation::load_rolling_stock_problem_instance_from_json;
 
@@ -20,7 +20,7 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
         start_time.elapsed().as_secs_f32()
     );
 
-    let objective = Arc::new(server::first_phase_objective::build());
+    let objective = Arc::new(first_phase_objective::build());
     // let objective = Arc::new(test_objective::build());
 
     // initialize local search

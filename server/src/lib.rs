@@ -1,9 +1,8 @@
-pub mod first_phase_objective;
-
 use model::json_serialisation::load_rolling_stock_problem_instance_from_json;
 use objective_framework::Objective;
 use solution::json_serialisation::schedule_to_json;
 use solution::Schedule;
+use solver::first_phase_objective;
 use solver::greedy::Greedy;
 use solver::local_search::LocalSearch;
 use solver::Solution;
