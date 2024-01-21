@@ -107,6 +107,11 @@ impl Tour {
         }
     }
 
+    /// total overhead duration (dead_head + idle) of the tour
+    pub fn total_overhead_duration(&self) -> Duration {
+        self.end_time() - self.start_time() - self.useful_duration()
+    }
+
     pub fn first_node(&self) -> NodeId {
         *self.nodes.first().unwrap()
     }

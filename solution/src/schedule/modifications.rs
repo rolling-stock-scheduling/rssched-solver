@@ -92,7 +92,7 @@ impl Schedule {
     pub fn replace_vehicle_by_dummy(&self, vehicle_id: VehicleId) -> Result<Schedule, String> {
         if !self.is_vehicle(vehicle_id) {
             return Err(format!(
-                "Cannot delete dummy vehicle {} from schedule.",
+                "Cannot delete vehicle {} from schedule.",
                 vehicle_id
             ));
         }

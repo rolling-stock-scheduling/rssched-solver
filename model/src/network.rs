@@ -4,7 +4,7 @@ pub mod nodes;
 use depot::Depot;
 use nodes::Node;
 use nodes::{MaintenanceSlot, ServiceTrip};
-use time::Duration;
+use time::{DateTime, Duration};
 
 use crate::base_types::{
     DepotId, Distance, Location, NodeId, PassengerCount, SeatDistance, VehicleTypeId,
@@ -33,6 +33,7 @@ pub struct Network {
 
     // redundant information
     passenger_distance_demand: SeatDistance,
+    latest_end_time: DateTime,
 
     // for convenience
     config: Arc<Config>,
@@ -94,6 +95,10 @@ impl Network {
     /// sum over all service trips: number of passenger * distance
     pub fn passenger_distance_demand(&self) -> SeatDistance {
         self.passenger_distance_demand
+    }
+
+    pub fn latest_end_time(&self) -> DateTime {
+        self.latest_end_time
     }
 
     pub fn idle_time_between(&self, node1: NodeId, node2: NodeId) -> Duration {
@@ -323,6 +328,12 @@ impl Network {
             })
             .sum();
 
+        let latest_end_time = service_nodes
+            .iter()
+            .map(|&n| nodes.get(&n).unwrap().end_time())
+            .max()
+            .unwrap();
+
         Network {
             nodes,
             depots: depots_lookup,
@@ -332,6 +343,7 @@ impl Network {
             end_depot_nodes,
             nodes_sorted_by_start,
             passenger_distance_demand,
+            latest_end_time,
             config,
             locations: loc,
         }
