@@ -1,9 +1,10 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::BTreeMap, sync::Arc};
 
 use crate::base_types::{PassengerCount, TrainLength, VehicleTypeId};
 
 pub struct VehicleTypes {
-    vehicle_types: HashMap<VehicleTypeId, Arc<VehicleType>>,
+    vehicle_types: BTreeMap<VehicleTypeId, Arc<VehicleType>>, // BTreeMap are deterministically
+                                                              // ordered
 }
 
 impl VehicleTypes {

@@ -31,6 +31,7 @@ enum SearchResult {
     NoImprovement(Solution),
 }
 
+use time::Duration;
 use SearchResult::*;
 
 impl SearchResult {
@@ -81,8 +82,8 @@ impl Solver for LocalSearch {
 
     fn solve(&self) -> Solution {
         let start_time = stdtime::Instant::now();
-        // if there is no start schedule, create new empty schedule:
-        let init_solution = self.initial_solution.clone().unwrap_or({
+        // if there is no start schedule, create new schedule, where each vehicle has exactly one tour and the demand is covered.
+        let init_solution = self.initial_solution.clone().unwrap_or_else(|| {
             let one_node_per_tour = OneNodePerTour::initialize(
                 self.vehicles.clone(),
                 self.network.clone(),
@@ -92,14 +93,15 @@ impl Solver for LocalSearch {
             one_node_per_tour.solve()
         });
 
-        // let segment_limit = Duration::new("3:00:00");
-        // let overhead_threshold = Duration::new("0:05:00"); // tours of real-vehicle-providers are not splitted at nodes under these duration
-        let only_dummy_provider = false;
+        let segment_limit = Duration::new("3:00:00");
+        let overhead_threshold = Duration::new("0:05:00"); // tours of real-vehicle-providers are not splitted at nodes under these duration
 
         let swap_factory = LimitedExchanges::new(
-            None, //Some(segment_limit),
-            None, //Some(overhead_threshold),
-            only_dummy_provider,
+            Some(segment_limit),
+            // None,
+            Some(overhead_threshold),
+            // None,
+            false,
             self.network.clone(),
         );
 
@@ -134,7 +136,7 @@ impl Solver for LocalSearch {
         let mut current_result = Improvement(init_solution);
 
         while let Improvement(current_solution) = current_result {
-            println!("\n* LOCAL SEARCH *");
+            println!("\n* Local Search *");
             current_result = self.find_local_optimum(
                 current_solution,
                 // _minimizer.clone(),
@@ -143,7 +145,7 @@ impl Solver for LocalSearch {
                 true,
                 Some(start_time),
             );
-            println!("\n* DIVERSIFICATION *");
+            println!("\n* Diversification *");
             current_result = self.diversify(current_result.unwrap(), true, Some(start_time));
         }
 

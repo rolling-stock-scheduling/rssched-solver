@@ -386,7 +386,7 @@ impl<T: SwapFactory> LocalImprover for TakeAnyParallelRecursion<T> {
         let old_objective = solution.objective_value();
         let start_provider = self
             .start_provider
-            .unwrap_or(solution.solution().vehicles_iter().next().unwrap());
+            .unwrap_or_else(|| solution.solution().vehicles_iter().next().unwrap());
         let result = self.improve_recursion(
             vec![(solution.clone(), start_provider)],
             old_objective,

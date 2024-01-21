@@ -355,7 +355,10 @@ impl Schedule {
         let mut tours = self.tours.clone();
         let mut depot_usage = self.depot_usage.clone();
 
-        for vehicle_id in vehicles.unwrap_or(self.vehicle_ids_sorted.clone()).iter() {
+        for vehicle_id in vehicles
+            .unwrap_or_else(|| self.vehicle_ids_sorted.clone())
+            .iter()
+        {
             let tour = self.tour_of(*vehicle_id).unwrap();
             let vehicle_type_id = self.vehicle_type_of(*vehicle_id);
             let new_tour = self.improve_depots_of_tour(tour, vehicle_type_id);

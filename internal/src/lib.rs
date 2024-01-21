@@ -5,6 +5,7 @@ use solver::local_search::LocalSearch;
 use solver::Solver;
 
 use model::json_serialisation::load_rolling_stock_problem_instance_from_json;
+use solver::one_node_per_tour::OneNodePerTour;
 
 use std::sync::Arc;
 use std::time as stdtime;
