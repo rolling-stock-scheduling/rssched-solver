@@ -6,6 +6,7 @@ use std::sync::Arc;
 use std::time as stdtime;
 
 use super::Solver;
+use crate::one_node_per_tour::OneNodePerTour;
 use crate::Solution;
 use local_improver::LocalImprover;
 use model::{config::Config, network::Network, vehicle_types::VehicleTypes};
@@ -82,12 +83,13 @@ impl Solver for LocalSearch {
         let start_time = stdtime::Instant::now();
         // if there is no start schedule, create new empty schedule:
         let init_solution = self.initial_solution.clone().unwrap_or({
-            let schedule = Schedule::empty(
+            let one_node_per_tour = OneNodePerTour::initialize(
                 self.vehicles.clone(),
                 self.network.clone(),
                 self.config.clone(),
+                self.objective.clone(),
             );
-            self.objective.evaluate(schedule)
+            one_node_per_tour.solve()
         });
 
         // let segment_limit = Duration::new("3:00:00");
@@ -141,7 +143,6 @@ impl Solver for LocalSearch {
                 true,
                 Some(start_time),
             );
-
             println!("\n* DIVERSIFICATION *");
             current_result = self.diversify(current_result.unwrap(), true, Some(start_time));
         }

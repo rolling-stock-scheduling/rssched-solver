@@ -46,7 +46,6 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
 
     // solve
     let start_solution = greedy.solve();
-    // let start_solution = one_node_per_tour.solve();
 
     objective.print_objective_value(start_solution.objective_value());
     local_search_solver.set_initial_solution(start_solution);
