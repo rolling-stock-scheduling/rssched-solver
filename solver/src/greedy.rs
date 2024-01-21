@@ -66,11 +66,15 @@ impl Solver for Greedy {
                     None => {
                         // no vehicle can reach the service trip, spawn a new one
 
-                        // take vehicle with least seats such that all passengers are covered
-                        // if None take biggest vehicle
-                        let vehicle_type = self
-                            .vehicles
-                            .best_for(schedule.unserved_passengers_at(service_trip));
+                        // TODO decide on which vehicle type (biggest or best fitting)
+
+                        // let vehicle_type = self
+                        // .vehicles
+                        // .best_for(schedule.unserved_passengers_at(service_trip));
+
+                        // take biggest vehicles (good for a small count, as it might be reused for
+                        // later trips)
+                        let vehicle_type = self.vehicles.iter().last().unwrap();
 
                         schedule = schedule
                             .spawn_vehicle_for_path(vehicle_type, vec![service_trip])
