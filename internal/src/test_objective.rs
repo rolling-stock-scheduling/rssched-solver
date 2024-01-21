@@ -134,18 +134,6 @@ impl Indicator<Schedule> for OverheadSeatDistanceIndicator {
     }
 }
 
-struct TotalDeadHeadDistanceIndicator;
-
-impl Indicator<Schedule> for TotalDeadHeadDistanceIndicator {
-    fn evaluate(&self, schedule: &Schedule) -> BaseValue {
-        BaseValue::Integer(schedule.total_dead_head_distance().in_meter() as i64)
-    }
-
-    fn name(&self) -> String {
-        String::from("deadHeadDistanceTraveled")
-    }
-}
-
 struct ServiceTimeSquaredIndicator;
 
 impl Indicator<Schedule> for ServiceTimeSquaredIndicator {
@@ -171,51 +159,56 @@ impl Indicator<Schedule> for ServiceTimeSquaredIndicator {
 }
 
 pub fn _build() -> Objective<Schedule> {
-    let usefull_service_time = Level::new(vec![(
+    let _usefull_service_time = Level::new(vec![(
         Coefficient::Integer(-1),
         Box::new(ServiceTimeSquaredIndicator),
     )]);
 
-    let dummy_distance_level = Level::new(vec![(
+    let _dummy_level = Level::new(vec![(
+        Coefficient::Integer(1),
+        Box::new(NumberOfDummiesIndicator),
+    )]);
+
+    let _dummy_distance_level = Level::new(vec![(
         Coefficient::Integer(1),
         Box::new(DummyDistanceIndicator),
     )]);
 
-    let dummy_duration_level = Level::new(vec![(
+    let _dummy_duration_level = Level::new(vec![(
         Coefficient::Integer(1),
         Box::new(DummyDurationIndicator),
     )]);
 
-    let earliest_dummy_start_level = Level::new(vec![(
+    let _earliest_dummy_start_level = Level::new(vec![(
         Coefficient::Integer(1),
         Box::new(EarliestDummyStartIndicator),
     )]);
 
-    let overhead_duration_level = Level::new(vec![(
+    let _overhead_duration_level = Level::new(vec![(
         Coefficient::Integer(1),
         Box::new(OverheadDurationIndicator),
     )]);
 
-    let unserved_passengers_level = Level::new(vec![(
+    let _unserved_passengers_level = Level::new(vec![(
         Coefficient::Integer(1),
         Box::new(NumberOfUnservedPassengersIndicator),
     )]);
 
-    let vehicle_count_level = Level::new(vec![(
+    let _vehicle_count_level = Level::new(vec![(
         Coefficient::Integer(1),
         Box::new(NumberOfVehiclesIndicator),
     )]);
 
-    let overhead_seat_distance_level = Level::new(vec![(
+    let _overhead_seat_distance_level = Level::new(vec![(
         Coefficient::Integer(1),
-        Box::new(TotalDeadHeadDistanceIndicator),
+        Box::new(OverheadSeatDistanceIndicator),
     )]);
 
     Objective::new(vec![
-        earliest_dummy_start_level,
-        // dummy_level,
-        vehicle_count_level,
-        // overhead_duration_level,
-        // overhead_seat_distance_level,
+        _earliest_dummy_start_level,
+        // _dummy_level,
+        _vehicle_count_level,
+        // _overhead_duration_level,
+        // _overhead_seat_distance_level,
     ])
 }
