@@ -133,6 +133,17 @@ impl Solver for LocalSearch {
             self.objective.clone(),
         );
 
+        self.find_local_optimum(
+            init_solution,
+            // _minimizer.clone(),
+            // _take_first.clone(),
+            _take_any.clone(),
+            true,
+            Some(start_time),
+        )
+        .unwrap()
+
+        /*
         let mut current_result = Improvement(init_solution);
 
         while let Improvement(current_solution) = current_result {
@@ -150,6 +161,7 @@ impl Solver for LocalSearch {
         }
 
         current_result.unwrap()
+        */
     }
 }
 
@@ -185,6 +197,7 @@ impl LocalSearch {
         result
     }
 
+    /*
     /// Diversification: Remove each vehicle and try to find a better solution by local search with
     /// only dummy providers.
     fn diversify(
@@ -242,4 +255,5 @@ impl LocalSearch {
         }
         NoImprovement(initial_solution)
     }
+    */
 }

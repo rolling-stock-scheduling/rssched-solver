@@ -1,10 +1,10 @@
 use objective_framework::{BaseValue, Coefficient, Indicator, Level, Objective};
 use solution::Schedule;
 
-struct NumberOfUnservedPassengersIndicator;
-
 /// Sum over all service trips max{0, passengers - seats}
-impl Indicator<Schedule> for NumberOfUnservedPassengersIndicator {
+struct UnservedPassengersIndicator;
+
+impl Indicator<Schedule> for UnservedPassengersIndicator {
     fn evaluate(&self, schedule: &Schedule) -> BaseValue {
         BaseValue::Integer(schedule.unserved_passengers() as i64)
     }
@@ -15,15 +15,15 @@ impl Indicator<Schedule> for NumberOfUnservedPassengersIndicator {
 }
 
 /// Number of vehicles (each type count as 1)
-struct NumberOfVehiclesIndicator;
+struct VehicleCountIndicator;
 
-impl Indicator<Schedule> for NumberOfVehiclesIndicator {
+impl Indicator<Schedule> for VehicleCountIndicator {
     fn evaluate(&self, schedule: &Schedule) -> BaseValue {
         BaseValue::Integer(schedule.number_of_vehicles() as i64)
     }
 
     fn name(&self) -> String {
-        String::from("numberOfVehicles")
+        String::from("vehicleCount")
     }
 }
 
@@ -42,20 +42,24 @@ impl Indicator<Schedule> for OverheadSeatDistanceIndicator {
 }
 
 pub fn build() -> Objective<Schedule> {
-    let first_level = Level::new(vec![(
+    let unserved_passengers = Level::new(vec![(
         Coefficient::Integer(1),
-        Box::new(NumberOfUnservedPassengersIndicator),
+        Box::new(UnservedPassengersIndicator),
     )]);
 
-    let second_level = Level::new(vec![(
+    let vehicle_count = Level::new(vec![(
         Coefficient::Integer(1),
-        Box::new(NumberOfVehiclesIndicator),
+        Box::new(VehicleCountIndicator),
     )]);
 
-    let third_level = Level::new(vec![(
+    let overhead_seat_distance = Level::new(vec![(
         Coefficient::Integer(1),
         Box::new(OverheadSeatDistanceIndicator),
     )]);
 
-    Objective::new(vec![first_level, second_level, third_level])
+    Objective::new(vec![
+        unserved_passengers,
+        vehicle_count,
+        overhead_seat_distance,
+    ])
 }
