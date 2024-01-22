@@ -1,6 +1,7 @@
 pub mod first_phase_objective;
 pub mod greedy;
 pub mod local_search;
+pub mod max_matching_solver;
 pub mod one_node_per_tour;
 
 use model::{config::Config, network::Network, vehicle_types::VehicleTypes};

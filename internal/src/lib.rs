@@ -2,6 +2,7 @@ mod test_objective;
 
 use solver::greedy::Greedy;
 use solver::local_search::LocalSearch;
+use solver::max_matching_solver::MaxMatchingSolver;
 use solver::{first_phase_objective, Solver};
 
 use model::json_serialisation::load_rolling_stock_problem_instance_from_json;
@@ -39,22 +40,30 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
         objective.clone(),
     );
 
+    let matching_solver = MaxMatchingSolver::initialize(
+        vehicle_types.clone(),
+        network.clone(),
+        config.clone(),
+        objective.clone(),
+    );
+
+    let final_solution = matching_solver.solve();
     println!(
         "\n*** Run Greedy (elapsed time: {:0.2}sec) ***",
         start_time.elapsed().as_secs_f32()
     );
 
     // solve
-    let start_solution = greedy.solve();
+    // let start_solution = greedy.solve();
 
-    objective.print_objective_value(start_solution.objective_value());
-    local_search_solver.set_initial_solution(start_solution);
+    // objective.print_objective_value(start_solution.objective_value());
+    // local_search_solver.set_initial_solution(start_solution);
 
     println!(
         "\n*** Run Local Search (elapsed time: {:0.2}sec) ***",
         start_time.elapsed().as_secs_f32()
     );
-    let final_solution = local_search_solver.solve();
+    // let final_solution = local_search_solver.solve();
 
     let end_time = stdtime::Instant::now();
     let runtime_duration = end_time.duration_since(start_time);
@@ -71,7 +80,7 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
     println!("\nfinal objective value:");
     objective.print_objective_value(final_solution.objective_value());
 
-    final_solution.solution().print_depot_balances();
+    // final_solution.solution().print_depot_balances();
 
     println!("running time: {:0.2}sec", runtime_duration.as_secs_f32());
 

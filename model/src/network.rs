@@ -12,7 +12,7 @@ use crate::base_types::{
 use crate::config::Config;
 use crate::locations::Locations;
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 
 use std::iter::Iterator;
@@ -29,7 +29,8 @@ pub struct Network {
     start_depot_nodes: Vec<NodeId>,
     end_depot_nodes: Vec<NodeId>,
 
-    nodes_sorted_by_start: Vec<NodeId>,
+    nodes_sorted_by_start: BTreeMap<(DateTime, NodeId), NodeId>,
+    nodes_sorted_by_end: BTreeMap<(DateTime, NodeId), NodeId>,
 
     // redundant information
     passenger_distance_demand: SeatDistance,
@@ -144,6 +145,25 @@ impl Network {
         n1.end_time() + self.minimal_duration_between_nodes_as_ref(n1, n2) <= n2.start_time()
     }
 
+    /// provides all nodes that are reachable from node (in increasing order according to the
+    /// starting time)
+    pub fn all_successors(&self, node: NodeId) -> impl Iterator<Item = NodeId> + '_ {
+        self.nodes_sorted_by_start
+            .range((self.node(node).end_time(), NodeId::from(""))..)
+            .map(|(_, n)| n)
+            .copied()
+            .filter(move |&n| self.can_reach(node, n))
+    }
+
+    /// provides all nodes that are can reach node
+    pub fn all_predecessors(&self, node: NodeId) -> impl Iterator<Item = NodeId> + '_ {
+        self.nodes_sorted_by_end
+            .range(..(self.node(node).start_time(), NodeId::from("")))
+            .map(|(_, n)| n)
+            .copied()
+            .filter(move |&n| self.can_reach(n, node))
+    }
+
     /// Assume that node1 can reach node2.
     pub fn minimal_duration_between_nodes(&self, node1: NodeId, node2: NodeId) -> Duration {
         let n1 = self.nodes.get(&node1).unwrap();
@@ -208,7 +228,7 @@ impl Network {
     }
 
     pub fn all_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
-        self.nodes_sorted_by_start.iter().copied()
+        self.nodes_sorted_by_start.values().copied()
     }
 
     pub fn start_depots_sorted_by_distance_to(&self, location: Location) -> Vec<NodeId> {
@@ -311,13 +331,21 @@ impl Network {
                 .cmp_start_time(nodes.get(&n2).unwrap())
         });
 
-        let mut nodes_sorted_by_start: Vec<NodeId> = nodes.keys().copied().collect();
-        nodes_sorted_by_start.sort_by(|&n1, &n2| {
-            nodes
-                .get(&n1)
-                .unwrap()
-                .cmp_start_time(nodes.get(&n2).unwrap())
-        });
+        let nodes_sorted_by_start: BTreeMap<(DateTime, NodeId), NodeId> = nodes
+            .keys()
+            .map(|&n| {
+                let node = nodes.get(&n).unwrap();
+                ((node.start_time(), n), n)
+            })
+            .collect();
+
+        let nodes_sorted_by_end: BTreeMap<(DateTime, NodeId), NodeId> = nodes
+            .keys()
+            .map(|&n| {
+                let node = nodes.get(&n).unwrap();
+                ((node.end_time(), n), n)
+            })
+            .collect();
 
         let passenger_distance_demand = service_nodes
             .iter()
@@ -342,6 +370,7 @@ impl Network {
             start_depot_nodes,
             end_depot_nodes,
             nodes_sorted_by_start,
+            nodes_sorted_by_end,
             passenger_distance_demand,
             latest_end_time,
             config,
@@ -353,7 +382,7 @@ impl Network {
 impl fmt::Display for Network {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "** network with {} nodes:", self.size())?;
-        for (i, n) in self.nodes_sorted_by_start.iter().enumerate() {
+        for (i, n) in self.nodes_sorted_by_start.values().enumerate() {
             writeln!(f, "\t{}: {}", i, self.nodes.get(n).unwrap())?;
         }
         Ok(())
