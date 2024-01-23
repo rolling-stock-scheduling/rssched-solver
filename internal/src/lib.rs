@@ -1,5 +1,6 @@
 mod test_objective;
 
+#[allow(unused_imports)]
 use solver::greedy::Greedy;
 use solver::local_search::LocalSearch;
 use solver::max_matching_solver::MaxMatchingSolver;
@@ -24,14 +25,7 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
     let objective = Arc::new(first_phase_objective::build());
     // let objective = Arc::new(test_objective::build());
 
-    // initialize local search
-    let mut local_search_solver = LocalSearch::initialize(
-        vehicle_types.clone(),
-        network.clone(),
-        config.clone(),
-        objective.clone(),
-    );
-
+    /*
     // use greedy algorithm as start solution
     let greedy = Greedy::initialize(
         vehicle_types.clone(),
@@ -39,32 +33,36 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
         config.clone(),
         objective.clone(),
     );
-
+    let start_solution = greedy.solve();
+    // */
+    // /*
+    // use matching_solver as start solution
     let matching_solver = MaxMatchingSolver::initialize(
         vehicle_types.clone(),
         network.clone(),
         config.clone(),
         objective.clone(),
     );
-
-    let final_solution = matching_solver.solve();
+    let start_solution = matching_solver.solve();
     println!(
-        "\n*** Run Greedy (elapsed time: {:0.2}sec) ***",
+        "\n*** Matching-Solver computed initial schedule (elapsed time: {:0.2}sec) ***",
         start_time.elapsed().as_secs_f32()
     );
+    // */
+    objective.print_objective_value(start_solution.objective_value());
 
-    // solve
-    // let start_solution = greedy.solve();
-
-    // objective.print_objective_value(start_solution.objective_value());
-    // local_search_solver.set_initial_solution(start_solution);
-
-    println!(
-        "\n*** Run Local Search (elapsed time: {:0.2}sec) ***",
-        start_time.elapsed().as_secs_f32()
+    // let final_solution = start_solution;
+    // /*
+    // initialize local search
+    let mut local_search_solver = LocalSearch::initialize(
+        vehicle_types.clone(),
+        network.clone(),
+        config.clone(),
+        objective.clone(),
     );
-    // let final_solution = local_search_solver.solve();
-
+    local_search_solver.set_initial_solution(start_solution);
+    let final_solution = local_search_solver.solve();
+    // */
     let end_time = stdtime::Instant::now();
     let runtime_duration = end_time.duration_since(start_time);
 
