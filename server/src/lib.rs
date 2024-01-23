@@ -81,7 +81,7 @@ pub fn create_output_json(
             stdtime::SystemTime::now()
                 .duration_since(stdtime::UNIX_EPOCH)
                 .unwrap()
-                .as_secs() as u32,
+                .as_secs(),
         );
     serde_json::json!({
         "info:": {

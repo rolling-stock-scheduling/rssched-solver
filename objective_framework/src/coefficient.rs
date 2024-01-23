@@ -28,7 +28,7 @@ impl Mul<BaseValue> for Coefficient {
                 BaseValue::Integer(b) => BaseValue::Integer(c as i64 * b),
                 BaseValue::Float(b) => BaseValue::Float(c as f64 * b),
                 BaseValue::Duration(b) => {
-                    BaseValue::Duration(Duration::from_seconds(c as u32 * b.in_sec()))
+                    BaseValue::Duration(Duration::from_seconds(c as u64 * b.in_sec()))
                 }
                 BaseValue::Maximum => BaseValue::Maximum,
                 BaseValue::Zero => BaseValue::Zero,
@@ -37,7 +37,7 @@ impl Mul<BaseValue> for Coefficient {
                 BaseValue::Integer(b) => BaseValue::Integer((c * b as f32) as i64),
                 BaseValue::Float(b) => BaseValue::Float(c as f64 * b),
                 BaseValue::Duration(b) => {
-                    BaseValue::Duration(Duration::from_seconds((c * b.in_sec() as f32) as u32))
+                    BaseValue::Duration(Duration::from_seconds((c * b.in_sec() as f32) as u64))
                 }
                 BaseValue::Maximum => BaseValue::Maximum,
                 BaseValue::Zero => BaseValue::Zero,

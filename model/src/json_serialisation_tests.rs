@@ -260,7 +260,7 @@ fn test_load_from_json_with_null_values() {
     );
 }
 
-fn assert_travel_time(from: Location, to: Location, expected: u32, locations: &Locations) {
+fn assert_travel_time(from: Location, to: Location, expected: u64, locations: &Locations) {
     assert_eq!(
         locations.travel_time(from, to),
         Duration::from_seconds(expected),

@@ -20,7 +20,7 @@ use crate::network::Network;
 use crate::vehicle_types::VehicleType as ModelVehicleType;
 use crate::vehicle_types::VehicleTypes;
 
-type Integer = u32;
+type Integer = u64;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -148,7 +148,7 @@ fn create_locations(json_input: &JsonInput) -> Locations {
             destination_map.insert(
                 LocationId::from(destination),
                 DeadHeadTrip::new(
-                    Distance::from_meter(json_input.dead_head_trips.distances[i][j] as u64),
+                    Distance::from_meter(json_input.dead_head_trips.distances[i][j]),
                     Duration::from_seconds(json_input.dead_head_trips.durations[i][j]),
                     StationSide::Back,  // TODO: Read this from json
                     StationSide::Front, // TODO: Read this from json
@@ -186,7 +186,7 @@ fn create_config(json_input: &JsonInput) -> Config {
     Config::new(
         Duration::from_seconds(json_input.parameters.shunting.minimal_duration),
         Duration::from_seconds(json_input.parameters.shunting.dead_head_trip_duration),
-        Distance::from_meter(json_input.parameters.defaults.maximal_formation_length as u64),
+        Distance::from_meter(json_input.parameters.defaults.maximal_formation_length),
     )
 }
 

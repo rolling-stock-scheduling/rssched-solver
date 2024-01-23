@@ -3,6 +3,10 @@ use std::iter::Sum;
 use std::ops::Add;
 use std::ops::Sub;
 
+use crate::converters::from_d_hh_mm_ss_to_seconds;
+use crate::converters::from_h_mm_ss_to_seconds;
+use crate::converters::from_seconds_to_h_mm_ss;
+
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)] // care the ordering of the variants is important
 pub enum Duration {
     Length(DurationLength),
@@ -11,9 +15,7 @@ pub enum Duration {
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct DurationLength {
-    pub(super) hours: u32,
-    pub(super) minutes: u8,
-    pub(super) seconds: u8,
+    pub(super) seconds: u64,
 }
 
 ////////////////////////////////////////////////////////////////////
@@ -21,16 +23,17 @@ pub struct DurationLength {
 ////////////////////////////////////////////////////////////////////
 
 impl Duration {
-    pub fn in_min(&self) -> u32 {
+    /// Returns the duration in minutes (rounded down).
+    pub fn in_min(&self) -> u64 {
         match self {
             Duration::Infinity => panic!("Cannot get minutes of Duration::Infinity."),
-            Duration::Length(l) => l.hours * 60 + (l.minutes as u32),
+            Duration::Length(l) => l.seconds / 60,
         }
     }
-    pub fn in_sec(&self) -> u32 {
+    pub fn in_sec(&self) -> u64 {
         match self {
             Duration::Infinity => panic!("Cannot get minutes of Duration::Infinity."),
-            Duration::Length(l) => l.hours * 3600 + 60 * (l.minutes as u32) + l.seconds as u32,
+            Duration::Length(l) => l.seconds,
         }
     }
 }
@@ -45,7 +48,7 @@ impl Duration {
             string
         );
 
-        let hours: u32 = splitted[0].parse().expect("Error at hour.");
+        let hours: u64 = splitted[0].parse().expect("Error at hour.");
         let minutes: u8 = splitted[1].parse().expect("Error at minute.");
         let seconds: u8 = if splitted.len() == 2 {
             0
@@ -56,18 +59,12 @@ impl Duration {
         assert!(seconds < 60, "Wrong seconds format.");
 
         Duration::Length(DurationLength {
-            hours,
-            minutes,
-            seconds,
+            seconds: from_h_mm_ss_to_seconds(hours, minutes, seconds),
         })
     }
 
-    pub fn from_seconds(seconds: u32) -> Duration {
-        Duration::Length(DurationLength {
-            hours: seconds / 3600,
-            minutes: (seconds % 3600 / 60) as u8,
-            seconds: (seconds % 60) as u8,
-        })
+    pub fn from_seconds(seconds: u64) -> Duration {
+        Duration::Length(DurationLength { seconds })
     }
 
     pub fn from_iso(string: &str) -> Duration {
@@ -81,8 +78,8 @@ impl Duration {
             string
         );
 
-        let mut days: u32 = 0;
-        let mut hours: u32 = 0;
+        let mut days: u64 = 0;
+        let mut hours: u8 = 0;
         let mut minutes: u8 = 0;
         let mut seconds: u8 = 0;
 
@@ -96,22 +93,17 @@ impl Duration {
             }
         }
 
-        assert!(minutes < 60, "Wrong minute format.");
         assert!(seconds < 60, "Wrong seconds format.");
+        assert!(minutes < 60, "Wrong minute format.");
+        assert!(hours < 24, "Wrong hours format.");
 
         Duration::Length(DurationLength {
-            hours: hours + 24 * days,
-            minutes,
-            seconds,
+            seconds: from_d_hh_mm_ss_to_seconds(days, hours, minutes, seconds),
         })
     }
 
     pub fn zero() -> Duration {
-        Duration::Length(DurationLength {
-            hours: 0,
-            minutes: 0,
-            seconds: 0,
-        })
+        Duration::Length(DurationLength { seconds: 0 })
     }
 }
 
@@ -162,10 +154,11 @@ impl fmt::Display for Duration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Duration::Length(l) => {
-                if l.seconds > 0 {
-                    write!(f, "{:02}:{:02}:{:02}h", l.hours, l.minutes, l.seconds)
+                let (hours, minutes, seconds) = from_seconds_to_h_mm_ss(l.seconds);
+                if seconds > 0 {
+                    write!(f, "{:02}:{:02}:{:02}h", hours, minutes, seconds)
                 } else {
-                    write!(f, "{:02}:{:02}h", l.hours, l.minutes)
+                    write!(f, "{:02}:{:02}h", hours, minutes)
                 }
             }
             Duration::Infinity => write!(f, "Inf"),
@@ -181,15 +174,8 @@ impl Add for DurationLength {
     type Output = Self;
 
     fn add(self, other: Self) -> Self {
-        let sum_of_seconds = self.seconds + other.seconds;
-        let seconds = sum_of_seconds % 60;
-        let sum_of_minutes = self.minutes + other.minutes + (sum_of_seconds / 60);
-        let minutes = sum_of_minutes % 60;
-        let hours = self.hours + other.hours + (sum_of_minutes / 60) as u32;
         DurationLength {
-            hours,
-            minutes,
-            seconds,
+            seconds: self.seconds + other.seconds,
         }
     }
 }
@@ -202,28 +188,8 @@ impl Sub for DurationLength {
             self >= other,
             "Cannot subtract a longer duration from a shorter duration."
         );
-        let mut self_seconds = self.seconds;
-        let mut self_minutes = self.minutes;
-        let mut self_hours = self.hours;
-        if self.seconds < other.seconds {
-            if self_minutes == 0 {
-                self_hours -= 1;
-                self_minutes += 60;
-            }
-            self_minutes -= 1;
-            self_seconds += 60;
-        }
-        if self.minutes < other.minutes {
-            self_minutes += 60;
-            self_hours -= 1;
-        }
-        let seconds = self_seconds - other.seconds;
-        let minutes = self_minutes - other.minutes;
-        let hours = self_hours - other.hours;
         DurationLength {
-            hours,
-            minutes,
-            seconds,
+            seconds: self.seconds - other.seconds,
         }
     }
 }

@@ -1,4 +1,158 @@
+use crate::converters::{from_days_to_yyyy_mm_dd, from_yyyy_mm_dd_to_days, is_leap_year};
+
+use self::converters::{days_of_month, get_days_in_year};
+
 use super::*;
+
+#[test]
+fn test_from_yyyy_mm_dd_to_days_for_1990() {
+    let year = 1999;
+    let month = 12;
+    let day = 31;
+    let mut days = 0;
+    for y in 0..year {
+        days += get_days_in_year(y) as u64;
+    }
+    for m in 1..month {
+        days += days_of_month(year, m) as u64;
+    }
+    days += day as u64 - 1;
+    assert_eq!(
+        from_yyyy_mm_dd_to_days(year, month, day),
+        days,
+        "from_yyyy_mm_dd_to_days() does not return the correct number of days"
+    );
+}
+
+#[test]
+fn test_from_yyyy_mm_dd_to_days_for_2990() {
+    let year = 2999;
+    let month = 12;
+    let day = 31;
+    let mut days = 0;
+    for y in 0..year {
+        days += get_days_in_year(y) as u64;
+    }
+    for m in 1..month {
+        days += days_of_month(year, m) as u64;
+    }
+    days += day as u64 - 1;
+    assert_eq!(
+        from_yyyy_mm_dd_to_days(year, month, day),
+        days,
+        "from_yyyy_mm_dd_to_days() does not return the correct number of days"
+    );
+}
+
+#[test]
+fn test_from_days_to_yyyy_mm_dd() {
+    let days = 4234221321;
+    let mut year = 0;
+    let mut month = 1;
+    let mut days_remaining = days;
+    while days_remaining >= get_days_in_year(year) as u64 {
+        days_remaining -= get_days_in_year(year) as u64;
+        year += 1;
+    }
+    while days_remaining >= days_of_month(year, month) as u64 {
+        days_remaining -= days_of_month(year, month) as u64;
+        month += 1;
+    }
+    let day = days_remaining as u8 + 1;
+    assert_eq!(
+        from_days_to_yyyy_mm_dd(days),
+        (year, month, day),
+        "from_days_to_yyyy_mm_dd() does not return the correct date"
+    );
+}
+
+#[test]
+fn test_days_of_month() {
+    assert_eq!(days_of_month(2000, 1), 31);
+    assert_eq!(days_of_month(2000, 2), 29);
+    assert_eq!(days_of_month(2000, 3), 31);
+    assert_eq!(days_of_month(2000, 4), 30);
+    assert_eq!(days_of_month(2000, 5), 31);
+    assert_eq!(days_of_month(2000, 6), 30);
+    assert_eq!(days_of_month(2000, 7), 31);
+    assert_eq!(days_of_month(2000, 8), 31);
+    assert_eq!(days_of_month(2000, 9), 30);
+    assert_eq!(days_of_month(2000, 10), 31);
+    assert_eq!(days_of_month(2000, 11), 30);
+    assert_eq!(days_of_month(2000, 12), 31);
+
+    assert_eq!(days_of_month(2001, 2), 28);
+    assert_eq!(days_of_month(2024, 2), 29);
+    assert_eq!(days_of_month(2100, 2), 28);
+}
+
+#[test]
+fn test_is_leap_year() {
+    assert!(is_leap_year(2000), "2000 is a leap year");
+    assert!(!is_leap_year(2001), "2001 is not a leap year");
+    assert!(is_leap_year(2024), "2024 is a leap year");
+    assert!(!is_leap_year(2100), "2100 is not leap year");
+}
+
+#[test]
+fn test_iso_with_seconds() {
+    let time = DateTime::new("2022-02-06T23:59:59");
+    assert_eq!(
+        time.as_iso(),
+        "2022-02-06T23:59:59",
+        "as_iso() does not return the correct string"
+    );
+    assert_eq!(
+        format!("{}", time),
+        "06.02.2022_23:59:59",
+        "format!() does not return the correct string"
+    );
+}
+
+#[test]
+fn test_iso_without_seconds() {
+    let time = DateTime::new("2022-02-06T23:59");
+    assert_eq!(
+        time.as_iso(),
+        "2022-02-06T23:59:00",
+        "as_iso() does not return the correct string"
+    );
+    assert_eq!(
+        format!("{}", time),
+        "06.02.2022_23:59",
+        "format!() does not return the correct string"
+    );
+}
+
+#[test]
+fn test_iso_with_earliest() {
+    let time = DateTime::Earliest;
+    assert_eq!(
+        time.as_iso(),
+        "EARLIEST",
+        "as_iso() does not return the correct string"
+    );
+    assert_eq!(
+        format!("{}", time),
+        "Earliest",
+        "format!() does not return the correct string"
+    );
+}
+
+#[test]
+fn test_iso_with_latest() {
+    let time = DateTime::Latest;
+    assert_eq!(
+        time.as_iso(),
+        "LATEST",
+        "as_iso() does not return the correct string"
+    );
+    assert_eq!(
+        format!("{}", time),
+        "Latest",
+        "format!() does not return the correct string"
+    );
+}
 
 #[test]
 fn sum_up_duration() {
@@ -32,7 +186,7 @@ fn add_duration_to_time_no_leap_year() {
 
 #[test]
 fn add_duration_to_time_leap_year() {
-    let time = DateTime::new("2000-2-28T23:40");
+    let time = DateTime::new("2000-02-28T23:40");
     let dur = Duration::new("48:46:03");
     let sum = DateTime::new("2000-3-2T00:26:03");
     assert!(
