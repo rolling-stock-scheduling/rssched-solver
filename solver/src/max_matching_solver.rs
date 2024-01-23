@@ -6,17 +6,20 @@ use model::config::Config;
 use model::network::Network;
 use model::vehicle_types::VehicleTypes;
 use objective_framework::Objective;
+use solution::path::Path;
+use solution::Schedule;
+
 use rs_graph::linkedlistgraph::Node as RsNode;
-use rs_graph::maxflow::pushrelabel;
+use rs_graph::maxflow::dinic;
 use rs_graph::traits::Directed;
 use rs_graph::Buildable;
 use rs_graph::Builder;
 use rs_graph::IndexGraph;
 use rs_graph::LinkedListGraph;
-use solution::path::Path;
-use solution::Schedule;
+
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time;
 
 /// Solving the problem by finding a maximum-cardinally matching in a unweighted bipartit graph.
 /// For each service trip, we create two nodes, one on the left and one on the right.
@@ -48,14 +51,17 @@ impl Solver for MaxMatchingSolver {
     }
 
     fn solve(&self) -> Solution {
+        let start_time = time::Instant::now();
         // TODO decide on which vehicle type (biggest or best fitting)
         // for now: take biggest vehicles (good for a small count, as it might be reused for
         // later trips)
         let vehicle_type = self.vehicles.iter().last().unwrap();
         let seat_count = self.vehicles.get(vehicle_type).unwrap().seats();
 
+        // tested on bc_201:
+        // Dinic on VecGraph: 101 sec
+        // Dinic on LinkedListGraph: 23 sec
         let mut builder = LinkedListGraph::<u32>::new_builder();
-        // let mut builder = VecGraph::<u32>::new_builder();
 
         let mut left_node_to_trip: HashMap<RsNode, (NodeId, u8)> = HashMap::new();
         let mut trip_to_node: HashMap<(NodeId, u8), (RsNode, RsNode)> = HashMap::new();
@@ -63,7 +69,6 @@ impl Solver for MaxMatchingSolver {
         let sink = builder.add_node();
         let num_service_trips = self.network.service_nodes().count();
         for (counter, service_trip) in self.network.service_nodes().enumerate() {
-            println!("Adding service trip {}/{}", counter + 1, num_service_trips);
             let demand = self.network.node(service_trip).as_service_trip().demand();
             for i in 0..demand.div_ceil(seat_count) as u8 {
                 let left_node = builder.add_node();
@@ -83,11 +88,32 @@ impl Solver for MaxMatchingSolver {
                         }
                     });
             }
+            if counter % 100 == 99 {
+                println!(
+                    "  service trips added to matching graph: {}/{}",
+                    counter + 1,
+                    num_service_trips
+                );
+            }
         }
 
         let graph = builder.into_graph();
 
-        let (_, flow, _) = pushrelabel(&graph, source, sink, |_| 1);
+        println!(
+            "Matching graph loaded (elapsed time for max matching: {:0.2}sec)",
+            start_time.elapsed().as_secs_f32()
+        );
+
+        // tested on bc_201:
+        // dinic: 23 sec
+        // edmondskarp: 2682 sec
+        // pushrelabel: 38 sec
+        let (_, flow, _) = dinic(&graph, source, sink, |_| 1);
+
+        println!(
+            "Matching computed (elapsed time for max matching: {:0.2}sec)",
+            start_time.elapsed().as_secs_f32()
+        );
 
         let mut schedule = Schedule::empty(
             self.vehicles.clone(),
@@ -146,6 +172,10 @@ impl Solver for MaxMatchingSolver {
         }
 
         schedule = schedule.reassign_end_depots_greedily().unwrap();
+        println!(
+            "Maximum matching turned into schedule. (max matching running time: {:0.2}sec)",
+            start_time.elapsed().as_secs_f32()
+        );
 
         self.objective.evaluate(schedule)
     }
