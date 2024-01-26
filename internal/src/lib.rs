@@ -2,8 +2,9 @@ mod test_objective;
 
 #[allow(unused_imports)]
 use solver::greedy::Greedy;
-use solver::local_search::LocalSearch;
-use solver::max_matching_solver::MaxMatchingSolver;
+// use solver::local_search::LocalSearch;
+// use solver::max_matching_solver::MaxMatchingSolver;
+use solver::min_cost_max_matching_solver::MinCostMaxMatchingSolver;
 use solver::{first_phase_objective, Solver};
 
 use model::json_serialisation::load_rolling_stock_problem_instance_from_json;
@@ -35,7 +36,8 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
     );
     let start_solution = greedy.solve();
     // */
-    // /*
+
+    /*
     // use matching_solver as start solution
     let matching_solver = MaxMatchingSolver::initialize(
         vehicle_types.clone(),
@@ -49,10 +51,24 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
         start_time.elapsed().as_secs_f32()
     );
     // */
+    // /*
+    // use min_cost_max_matching_solver as start solution
+    let min_cost_max_matching_solver = MinCostMaxMatchingSolver::initialize(
+        vehicle_types.clone(),
+        network.clone(),
+        config.clone(),
+        objective.clone(),
+    );
+    let start_solution = min_cost_max_matching_solver.solve();
+    println!(
+        "\n*** MinCostMaxMatchingSolver computed initial schedule (elapsed time: {:0.2}sec) ***",
+        start_time.elapsed().as_secs_f32()
+    );
+    // */
     objective.print_objective_value(start_solution.objective_value());
 
-    // let final_solution = start_solution;
-    // /*
+    let final_solution = start_solution;
+    /*
     // initialize local search
     let mut local_search_solver = LocalSearch::initialize(
         vehicle_types.clone(),

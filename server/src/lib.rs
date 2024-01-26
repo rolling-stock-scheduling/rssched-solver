@@ -3,8 +3,7 @@ use objective_framework::Objective;
 use solution::json_serialisation::schedule_to_json;
 use solution::Schedule;
 use solver::first_phase_objective;
-use solver::greedy::Greedy;
-use solver::local_search::LocalSearch;
+use solver::min_cost_max_matching_solver::MinCostMaxMatchingSolver;
 use solver::Solution;
 use solver::Solver;
 use time::{DateTime, Duration};
@@ -26,35 +25,17 @@ pub fn solve_instance(input_data: serde_json::Value) -> serde_json::Value {
 
     let objective = Arc::new(first_phase_objective::build());
 
-    // initialize local search
-    let mut local_search_solver = LocalSearch::initialize(
+    let min_cost_max_matching_solver = MinCostMaxMatchingSolver::initialize(
         vehicle_types.clone(),
         network.clone(),
         config.clone(),
         objective.clone(),
     );
-
-    // use greedy algorithm as start solution
+    let final_solution = min_cost_max_matching_solver.solve();
     println!(
-        "\n*** Run Greedy (elapsed time: {:0.2}sec) ***",
+        "\n*** MinCostMaxMatchingSolver computed initial schedule (elapsed time: {:0.2}sec) ***",
         start_time.elapsed().as_secs_f32()
     );
-    let greedy = Greedy::initialize(
-        vehicle_types.clone(),
-        network.clone(),
-        config.clone(),
-        objective.clone(),
-    );
-    let start_solution = greedy.solve();
-    objective.print_objective_value(start_solution.objective_value());
-
-    // run local search
-    println!(
-        "\n*** Run Local Search (elapsed time: {:0.2}sec) ***",
-        start_time.elapsed().as_secs_f32()
-    );
-    local_search_solver.set_initial_solution(start_solution);
-    let final_solution = local_search_solver.solve();
 
     let end_time = stdtime::Instant::now();
     let runtime_duration = end_time.duration_since(start_time);
