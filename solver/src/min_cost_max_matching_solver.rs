@@ -22,6 +22,24 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time;
 
+/// Solving the problem by finding a min-cost maximum-cardinally matching in a bipartit graph.
+/// For each service trip, we create two nodes, one on the left and one on the right.
+/// If more than one vehicle is needed to cover the service trip, we create multiple nodes for this
+/// trip.
+/// If trip A can reach trip B, we add an edge from the left node of A to the right node of B.
+/// The cost of this edge is the dead-head distance between A and B multiplied by the number of
+/// seats of the vehicle type.
+///
+/// Via a maximum flow computation we find a maximum-cardinally matching:
+/// We add a source node and connect it to all left nodes with an edge of cost 0 and capacity 1.
+/// We add a sink node and connect all right nodes to it with an edge of cost 0 and capacity 1.
+/// We add an edge from source to sink with very large cost and capacity equal to the number of service trips.
+/// The flow value is equal to the number of service trips.
+///
+/// A matching edge means that the corresponding service trip are assigned in succession to a vehicle.
+/// As each matching edge reduces the number of vehicle by one, a min-cost maximum-cardinally matching
+/// corresponds to a feasible solution with a minimum number of vehicles, where the seat-distance
+/// is minimized
 pub struct MinCostMaxMatchingSolver {
     vehicles: Arc<VehicleTypes>,
     network: Arc<Network>,

@@ -93,6 +93,10 @@ impl Network {
         self.node(node_id).as_depot().depot_id()
     }
 
+    pub fn get_depot(&self, depot_id: DepotId) -> &Depot {
+        self.depots.get(&depot_id).unwrap()
+    }
+
     /// sum over all service trips: number of passenger * distance
     pub fn passenger_distance_demand(&self) -> SeatDistance {
         self.passenger_distance_demand
