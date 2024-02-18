@@ -1,5 +1,6 @@
 use crate::Solution;
 use crate::Solver;
+use model::base_types::DepotId;
 use model::base_types::NodeId;
 use model::base_types::VehicleId;
 use model::config::Config;
@@ -24,8 +25,17 @@ use std::iter::repeat;
 use std::sync::Arc;
 use std::time;
 
-const UPPER_BOUND_FOR_FORMATION_LENGTH: i64 = 100;
-const COST_FOR_SPAWNING_VEHICLE: i64 = 1000000000000;
+#[derive(Clone, Hash, Eq, PartialEq, Debug, Copy)]
+enum TripNode {
+    Service(NodeId),
+    Depot(DepotId),
+}
+
+type NetworkNumberType = i64;
+
+type LowerBound = NetworkNumberType;
+type UpperBound = NetworkNumberType;
+type Cost = NetworkNumberType;
 
 pub struct MinCostFlowSolver {
     vehicles: Arc<VehicleTypes>,
@@ -57,102 +67,102 @@ impl Solver for MinCostFlowSolver {
 
         let mut builder = LinkedListGraph::<u32>::new_builder();
 
-        let mut left_rsnode_to_node: HashMap<RsNode, NodeId> = HashMap::new();
-        let mut right_rsnode_to_node: HashMap<RsNode, NodeId> = HashMap::new();
-        let mut node_to_rsnode: HashMap<NodeId, (RsNode, RsNode)> = HashMap::new();
+        let mut left_rsnode_to_node: HashMap<RsNode, TripNode> = HashMap::new();
+        let mut right_rsnode_to_node: HashMap<RsNode, TripNode> = HashMap::new();
+        let mut node_to_rsnode: HashMap<TripNode, (RsNode, RsNode)> = HashMap::new();
 
-        // (lower_bound, upper_bound, cost)
-        let mut edges: HashMap<RsEdge, (i64, i64, i64)> = HashMap::new();
+        let mut edges: HashMap<RsEdge, (LowerBound, UpperBound, Cost)> = HashMap::new();
 
-        let mut max_cost = 0;
+        let mut total_cost: Cost = 0;
 
-        let node_count = self.network.service_nodes().count() + self.network.depots_iter().count();
+        let trip_node_count =
+            self.network.service_nodes().count() + self.network.depots_iter().count();
+        // number of nodes in the flow network will be twice this number
 
-        // create two nodes for each service trip and depot (represented by their end nodes)
-        for node in self.network.all_nodes().filter(|&node| {
-            self.network.node(node).is_service() || self.network.node(node).is_end_depot()
-        }) {
+        let maximal_formation_count: Cost = 100;
+
+        // create two nodes for each service trip and connect them with an edge
+        for service_trip in self.network.service_nodes() {
             let left_rsnode = builder.add_node();
             let right_rsnode = builder.add_node();
-            left_rsnode_to_node.insert(left_rsnode, node);
-            right_rsnode_to_node.insert(right_rsnode, node);
-            node_to_rsnode.insert(node, (left_rsnode, right_rsnode));
-            match self.network.node(node) {
-                Node::Service(service_trip) => {
-                    let required_vehicles_count = service_trip.demand().div_ceil(seat_count) as i64;
-                    edges.insert(
-                        builder.add_edge(left_rsnode, right_rsnode),
-                        (required_vehicles_count, UPPER_BOUND_FOR_FORMATION_LENGTH, 0),
-                    );
-                }
-                Node::EndDepot(depot_node) => {
-                    let capacity = self
-                        .network
-                        .get_depot(depot_node.depot_id())
-                        .capacity_for(vehicle_type)
-                        .map(|c| c as i64)
-                        .unwrap_or(i64::MAX);
-                    edges.insert(
-                        builder.add_edge(left_rsnode, right_rsnode),
-                        (0, capacity, COST_FOR_SPAWNING_VEHICLE),
-                    );
-                }
-                _ => {}
-            }
+            let trip_node = TripNode::Service(service_trip);
+            left_rsnode_to_node.insert(left_rsnode, trip_node);
+            right_rsnode_to_node.insert(right_rsnode, trip_node);
+            node_to_rsnode.insert(trip_node, (left_rsnode, right_rsnode));
+            let required_vehicles_count = self
+                .network
+                .node(service_trip)
+                .as_service_trip()
+                .demand()
+                .div_ceil(seat_count) as LowerBound;
+            edges.insert(
+                builder.add_edge(left_rsnode, right_rsnode),
+                (required_vehicles_count, maximal_formation_count, 0),
+            );
         }
 
-        // create the edges
-        for (counter, node) in self
-            .network
-            .all_nodes()
-            .filter(|&node| {
-                self.network.node(node).is_service() || self.network.node(node).is_end_depot()
-            })
-            .enumerate()
-        {
-            let left_rsnode = node_to_rsnode[&node].0;
-            self.network
-                .all_predecessors(node)
-                .filter(|&pred| self.network.node(pred).is_service())
-                .chain(self.network.end_depot_nodes()) // all depots are predecesors of all ttrips (here depots are represented by their end nodes)
-                .for_each(|pred| {
-                    let pred_right_node = node_to_rsnode[&pred].1;
-                    let cost: i64 = self
-                        .network
-                        .dead_head_distance_between(pred, node) // TODO a bit unclean for depots
-                        .in_meter() as i64
-                        * seat_count as i64;
-                    max_cost = i64::max(max_cost, cost);
-                    edges.insert(
-                        builder.add_edge(pred_right_node, left_rsnode),
-                        (0, UPPER_BOUND_FOR_FORMATION_LENGTH, cost),
-                    );
-                });
+        for depot in self.network.depots_iter() {
+            let left_rsnode = builder.add_node();
+            let right_rsnode = builder.add_node();
+            let depot_node = TripNode::Depot(depot);
+            left_rsnode_to_node.insert(left_rsnode, depot_node);
+            right_rsnode_to_node.insert(right_rsnode, depot_node);
+            node_to_rsnode.insert(depot_node, (left_rsnode, right_rsnode));
+        }
+
+        // create the edges between trips
+        for (counter, (trip_node, (left_rsnode, _))) in node_to_rsnode.iter().enumerate() {
+            let node_id = match trip_node {
+                TripNode::Service(s) => *s,
+                TripNode::Depot(d) => self.network.get_end_depot_node(*d),
+            };
+            for pred in self.network.all_predecessors(node_id) {
+                let pred_node = match self.network.node(pred) {
+                    Node::Service(_) => TripNode::Service(pred),
+                    Node::StartDepot(d) => TripNode::Depot(d.depot_id()),
+                    _ => continue,
+                };
+                let pred_right_rsnode = node_to_rsnode[&pred_node].1;
+
+                let cost: Cost = self
+                    .network
+                    .dead_head_distance_between(pred, node_id)
+                    .in_meter() as Cost
+                    * seat_count as Cost;
+                total_cost += cost;
+                edges.insert(
+                    builder.add_edge(pred_right_rsnode, *left_rsnode),
+                    (0, maximal_formation_count, cost),
+                );
+            }
             if counter % 100 == 99 {
                 println!(
                     "  service trips added to matching graph: {}/{}",
                     counter + 1,
-                    node_count
+                    trip_node_count
                 );
             }
         }
 
-        // TEMP:
-        assert!(
-            (node_count as i64).checked_mul(max_cost).expect("overflow")
-                < COST_FOR_SPAWNING_VEHICLE,
-            "max_cost * node_count = {} * {} = {} > {} = COST_FOW_SPAWNING_VEHICLE",
-            max_cost,
-            node_count,
-            (node_count as i64).checked_mul(max_cost).unwrap(),
-            COST_FOR_SPAWNING_VEHICLE
-        );
-        assert!(
-            COST_FOR_SPAWNING_VEHICLE
-                .checked_mul(node_count as i64)
-                .is_some(),
-            "overflow could happen"
-        );
+        let spawn_cost = total_cost + 1;
+        if spawn_cost.checked_mul(trip_node_count as Cost).is_none() {
+            // worst case one vehicle per trip would cause overflow
+            println!("WARNING: overflow could happen");
+        }
+
+        for depot in self.network.depots_iter() {
+            let (left_rsnode, right_rsnode) = node_to_rsnode[&TripNode::Depot(depot)];
+            let capacity = self
+                .network
+                .get_depot(depot)
+                .capacity_for(vehicle_type)
+                .map(|c| c as UpperBound)
+                .unwrap_or(UpperBound::MAX);
+            edges.insert(
+                builder.add_edge(left_rsnode, right_rsnode),
+                (0, capacity, spawn_cost),
+            );
+        }
 
         let graph = builder.into_graph();
 
@@ -163,11 +173,10 @@ impl Solver for MinCostFlowSolver {
 
         let (_, flow) = network_simplex(
             &graph,
-            |_| 0, // balance is 0 everywhere -> circulation
-            // |_| 0,
-            |e| edges[&e].0,
-            |e| edges[&e].1,
-            |e| edges[&e].2,
+            |_| 0,           // balance is 0 everywhere -> circulation
+            |e| edges[&e].0, // lower bounds
+            |e| edges[&e].1, // upper bounds
+            |e| edges[&e].2, // costs
         )
         .unwrap();
 
@@ -189,8 +198,14 @@ impl Solver for MinCostFlowSolver {
             .service_nodes()
             .chain(self.network.end_depot_nodes())
         {
-            let left_rsnode = node_to_rsnode[&node].0;
-            for pred in graph
+            let trip_node = match self.network.node(node) {
+                Node::Service(_) => TripNode::Service(node),
+                Node::EndDepot(d) => TripNode::Depot(d.depot_id()),
+                _ => continue,
+            };
+            let left_rsnode = node_to_rsnode[&trip_node].0;
+
+            for pred_trip_node in graph
                 .inedges(left_rsnode)
                 .filter_map(|(e, n)| {
                     if flow[graph.edge_id(e)].1 == 0 {
@@ -205,11 +220,11 @@ impl Solver for MinCostFlowSolver {
                 })
                 .flatten()
             {
-                match (self.network.node(pred), self.network.node(node)) {
-                    (Node::Service(_), Node::Service(_)) => {
+                match (pred_trip_node, trip_node) {
+                    (TripNode::Service(pred_service_trip), TripNode::Service(_)) => {
                         // Flow goes from service trip to service trip -> Use old vehicle
                         let vehicle = last_trip_to_vehicle
-                            .get_mut(&pred)
+                            .get_mut(&pred_service_trip)
                             .expect("pred not found")
                             .pop()
                             .unwrap();
@@ -222,10 +237,9 @@ impl Solver for MinCostFlowSolver {
                         // remember the vehicle for the next service trip
                         last_trip_to_vehicle.entry(node).or_default().push(vehicle);
                     }
-                    (Node::EndDepot(depot_node), Node::Service(_)) => {
+                    (TripNode::Depot(pred_depot_id), TripNode::Service(_)) => {
                         // Flow goes from depot to service trip -> Spawn new vehicle
-                        let start_depot_node =
-                            self.network.get_start_depot_node(depot_node.depot_id());
+                        let start_depot_node = self.network.get_start_depot_node(pred_depot_id);
 
                         let schedule_vehicle_pair = schedule
                             .spawn_vehicle_for_path(vehicle_type, vec![start_depot_node, node])
@@ -236,27 +250,24 @@ impl Solver for MinCostFlowSolver {
                         // remember the vehicle for the next service trip
                         last_trip_to_vehicle.entry(node).or_default().push(vehicle);
                     }
-                    (Node::Service(_), Node::EndDepot(_)) => {
+                    (TripNode::Service(pred_service_trip), TripNode::Depot(_)) => {
                         // Flow goes from service trip to depot -> Change end depot of vehicle
                         let vehicle = last_trip_to_vehicle
-                            .get_mut(&pred)
+                            .get_mut(&pred_service_trip)
                             .expect("pred not found")
                             .pop()
                             .unwrap();
                         schedule = schedule
                             .add_path_to_vehicle_tour(
                                 vehicle,
-                                Path::new(vec![pred, node], self.network.clone())
+                                Path::new(vec![pred_service_trip, node], self.network.clone())
                                     .unwrap()
                                     .unwrap(),
                             )
                             .unwrap();
                     }
-                    (Node::EndDepot(_), Node::EndDepot(_)) => {
+                    (TripNode::Depot(_), TripNode::Depot(_)) => {
                         panic!("flow should not go from depot to depot");
-                    }
-                    _ => {
-                        panic!("unexpected node type");
                     }
                 }
             }
