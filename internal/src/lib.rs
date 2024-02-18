@@ -5,7 +5,7 @@ use solver::greedy::Greedy;
 // use solver::local_search::LocalSearch;
 // use solver::max_matching_solver::MaxMatchingSolver;
 use solver::min_cost_flow_solver::MinCostFlowSolver;
-// use solver::min_cost_max_matching_solver::MinCostMaxMatchingSolver;
+use solver::min_cost_max_matching_solver::MinCostMaxMatchingSolver;
 use solver::{first_phase_objective, Solver};
 
 use model::json_serialisation::load_rolling_stock_problem_instance_from_json;
@@ -111,7 +111,11 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
     println!("\nfinal objective value:");
     objective.print_objective_value(final_solution.objective_value());
 
-    final_solution.solution().print_depot_balances();
+    // final_solution.solution().print_depot_balances();
+    println!(
+        "total depot balance violations: {}",
+        final_solution.solution().total_depot_balance_violation()
+    );
 
     println!("running time: {:0.2}sec", runtime_duration.as_secs_f32());
 

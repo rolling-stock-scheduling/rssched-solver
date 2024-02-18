@@ -31,7 +31,7 @@ enum TripNode {
     Depot(DepotId),
 }
 
-type NetworkNumberType = i128;
+type NetworkNumberType = i64;
 
 type LowerBound = NetworkNumberType;
 type UpperBound = NetworkNumberType;
@@ -73,7 +73,7 @@ impl Solver for MinCostFlowSolver {
 
         let mut edges: HashMap<RsEdge, (LowerBound, UpperBound, Cost)> = HashMap::new();
 
-        let mut total_cost: Cost = 0;
+        let mut max_cost: Cost = 0;
 
         let trip_node_count =
             self.network.service_nodes().count() + self.network.depots_iter().count();
@@ -129,7 +129,7 @@ impl Solver for MinCostFlowSolver {
                     .dead_head_distance_between(pred, node_id)
                     .in_meter() as Cost
                     * seat_count as Cost;
-                total_cost = total_cost.checked_add(cost).expect("overflow");
+                max_cost = max_cost.max(cost);
                 edges.insert(
                     builder.add_edge(pred_right_rsnode, *left_rsnode),
                     (0, maximal_formation_count, cost),
@@ -137,14 +137,18 @@ impl Solver for MinCostFlowSolver {
             }
             if counter % 100 == 99 {
                 println!(
-                    "  edge added to flow graph: {}/{}",
+                    "  adding edges to flow network; node {}/{}",
                     counter + 1,
                     trip_node_count
                 );
             }
         }
 
-        let spawn_cost = total_cost.checked_add(1).expect("overflow");
+        let spawn_cost = max_cost
+            .checked_mul(trip_node_count as Cost)
+            .expect("overflow")
+            .checked_add(1)
+            .expect("overflow");
         if spawn_cost.checked_mul(trip_node_count as Cost).is_none() {
             // worst case one vehicle per trip would cause overflow
             println!("WARNING: overflow could happen");
