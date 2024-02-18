@@ -155,12 +155,9 @@ impl Network {
         let n1 = self.nodes.get(&node1).unwrap();
         let n2 = self.nodes.get(&node2).unwrap();
 
-        if n1.is_start_depot() && n2.is_start_depot() {
-            // start depots cannot reach each other
-            return false;
-        }
-        if n1.is_end_depot() && n2.is_end_depot() {
-            // end depots cannot reach each other
+        if n2.is_start_depot() || n1.is_end_depot() {
+            // start depots cannot be reached
+            // end depots cannot reach anything
             return false;
         }
 
@@ -172,18 +169,26 @@ impl Network {
     pub fn all_successors(&self, node: NodeId) -> impl Iterator<Item = NodeId> + '_ {
         self.nodes_sorted_by_start
             .range((self.node(node).end_time(), NodeId::from(""))..)
-            .map(|(_, n)| n)
-            .copied()
-            .filter(move |&n| self.can_reach(node, n))
+            .filter_map(move |(_, &n)| {
+                if self.can_reach(node, n) {
+                    Some(n)
+                } else {
+                    None
+                }
+            })
     }
 
     /// provides all nodes that are can reach node
     pub fn all_predecessors(&self, node: NodeId) -> impl Iterator<Item = NodeId> + '_ {
         self.nodes_sorted_by_end
             .range(..(self.node(node).start_time(), NodeId::from("")))
-            .map(|(_, n)| n)
-            .copied()
-            .filter(move |&n| self.can_reach(n, node))
+            .filter_map(move |(_, &n)| {
+                if self.can_reach(n, node) {
+                    Some(n)
+                } else {
+                    None
+                }
+            })
     }
 
     /// Assume that node1 can reach node2.
