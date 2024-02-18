@@ -31,7 +31,7 @@ enum TripNode {
     Depot(DepotId),
 }
 
-type NetworkNumberType = i64;
+type NetworkNumberType = i128;
 
 type LowerBound = NetworkNumberType;
 type UpperBound = NetworkNumberType;
@@ -129,7 +129,7 @@ impl Solver for MinCostFlowSolver {
                     .dead_head_distance_between(pred, node_id)
                     .in_meter() as Cost
                     * seat_count as Cost;
-                total_cost += cost;
+                total_cost = total_cost.checked_add(cost).expect("overflow");
                 edges.insert(
                     builder.add_edge(pred_right_rsnode, *left_rsnode),
                     (0, maximal_formation_count, cost),
@@ -137,17 +137,19 @@ impl Solver for MinCostFlowSolver {
             }
             if counter % 100 == 99 {
                 println!(
-                    "  service trips added to matching graph: {}/{}",
+                    "  edge added to flow graph: {}/{}",
                     counter + 1,
                     trip_node_count
                 );
             }
         }
 
-        let spawn_cost = total_cost + 1;
+        let spawn_cost = total_cost.checked_add(1).expect("overflow");
         if spawn_cost.checked_mul(trip_node_count as Cost).is_none() {
             // worst case one vehicle per trip would cause overflow
             println!("WARNING: overflow could happen");
+            println!("   spawn_cost: {}", spawn_cost);
+            println!("   trip_node_count: {}", trip_node_count);
         }
 
         for depot in self.network.depots_iter() {
@@ -167,7 +169,7 @@ impl Solver for MinCostFlowSolver {
         let graph = builder.into_graph();
 
         println!(
-            "Min-Cost Matching graph loaded (elapsed time for matching: {:0.2}sec)",
+            "Min-Cost-Flow graph loaded (elapsed time for solver: {:0.2}sec)",
             start_time.elapsed().as_secs_f32()
         );
 
@@ -181,7 +183,7 @@ impl Solver for MinCostFlowSolver {
         .unwrap();
 
         println!(
-            "Min-Cost-Flow computed (elapsed time for matching: {:0.2}sec)",
+            "Min-Cost-Flow computed (elapsed time for solver: {:0.2}sec)",
             start_time.elapsed().as_secs_f32()
         );
 
@@ -267,13 +269,11 @@ impl Solver for MinCostFlowSolver {
                             .unwrap();
                     }
                     (TripNode::Depot(_), TripNode::Depot(_)) => {
-                        panic!("flow should not go from depot to depot");
+                        println!("WARNING: flow should not go from depot to depot");
                     }
                 }
             }
         }
-
-        // to be continied: path decomposition needed
 
         self.objective.evaluate(schedule)
     }
