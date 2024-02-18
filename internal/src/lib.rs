@@ -4,7 +4,8 @@ mod test_objective;
 use solver::greedy::Greedy;
 // use solver::local_search::LocalSearch;
 // use solver::max_matching_solver::MaxMatchingSolver;
-use solver::min_cost_max_matching_solver::MinCostMaxMatchingSolver;
+use solver::min_cost_flow_solver::MinCostFlowSolver;
+// use solver::min_cost_max_matching_solver::MinCostMaxMatchingSolver;
 use solver::{first_phase_objective, Solver};
 
 use model::json_serialisation::load_rolling_stock_problem_instance_from_json;
@@ -51,7 +52,8 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
         start_time.elapsed().as_secs_f32()
     );
     // */
-    // /*
+
+    /*
     // use min_cost_max_matching_solver as start solution
     let min_cost_max_matching_solver = MinCostMaxMatchingSolver::initialize(
         vehicle_types.clone(),
@@ -62,6 +64,21 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
     let start_solution = min_cost_max_matching_solver.solve();
     println!(
         "\n*** MinCostMaxMatchingSolver computed initial schedule (elapsed time: {:0.2}sec) ***",
+        start_time.elapsed().as_secs_f32()
+    );
+    // */
+
+    // /*
+    // use min_cost_flow_solver as start solution
+    let min_cost_flow_solver = MinCostFlowSolver::initialize(
+        vehicle_types.clone(),
+        network.clone(),
+        config.clone(),
+        objective.clone(),
+    );
+    let start_solution = min_cost_flow_solver.solve();
+    println!(
+        "\n*** MinCostFlowSolver computed initial schedule (elapsed time: {:0.2}sec) ***",
         start_time.elapsed().as_secs_f32()
     );
     // */
@@ -94,7 +111,7 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
     println!("\nfinal objective value:");
     objective.print_objective_value(final_solution.objective_value());
 
-    // final_solution.solution().print_depot_balances();
+    final_solution.solution().print_depot_balances();
 
     println!("running time: {:0.2}sec", runtime_duration.as_secs_f32());
 

@@ -183,8 +183,8 @@ impl Solver for MinCostMaxMatchingSolver {
                     }
                 });
 
-                let candidate =
-                    pred_left_node.map(|n| last_trip_to_vehicle[&left_node_to_trip[&n]]);
+                let candidate = pred_left_node
+                    .map(|n| last_trip_to_vehicle.remove(&left_node_to_trip[&n]).unwrap());
 
                 match candidate {
                     Some(v) => {
