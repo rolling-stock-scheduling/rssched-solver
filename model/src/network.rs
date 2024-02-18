@@ -21,7 +21,7 @@ use std::sync::Arc;
 
 pub struct Network {
     nodes: HashMap<NodeId, Node>,
-    depots: HashMap<DepotId, Depot>,
+    depots: HashMap<DepotId, (Depot, NodeId, NodeId)>, // depot, start_node, end_node
 
     // nodes are by default sorted by start_time (ties are broken by end_time then id)
     service_nodes: Vec<NodeId>,
@@ -86,7 +86,7 @@ impl Network {
         depot_id: DepotId,
         vehicle_type_id: VehicleTypeId,
     ) -> Option<PassengerCount> {
-        self.depots[&depot_id].capacity_for(vehicle_type_id)
+        self.depots[&depot_id].0.capacity_for(vehicle_type_id)
     }
 
     pub fn get_depot_id(&self, node_id: NodeId) -> DepotId {
@@ -94,25 +94,17 @@ impl Network {
     }
 
     pub fn get_depot(&self, depot_id: DepotId) -> &Depot {
-        self.depots.get(&depot_id).unwrap()
+        &self.depots.get(&depot_id).unwrap().0
     }
 
     // TODO this can be done more efficiently
     pub fn get_start_depot_node(&self, depot_id: DepotId) -> NodeId {
-        *self
-            .start_depot_nodes
-            .iter()
-            .find(|&&n| self.get_depot_id(n) == depot_id)
-            .unwrap()
+        self.depots.get(&depot_id).unwrap().1
     }
 
     // TODO this can be done more efficiently
     pub fn get_end_depot_node(&self, depot_id: DepotId) -> NodeId {
-        *self
-            .end_depot_nodes
-            .iter()
-            .find(|&&n| self.get_depot_id(n) == depot_id)
-            .unwrap()
+        self.depots.get(&depot_id).unwrap().2
     }
 
     /// sum over all service trips: number of passenger * distance
@@ -312,7 +304,7 @@ impl Network {
                 Node::create_end_depot_node(end_node_id, depot_id, depot.location(), end_node_name);
             nodes.insert(end_node_id, end_node);
             end_depot_nodes.push(end_node_id);
-            depots_lookup.insert(depot_id, depot);
+            depots_lookup.insert(depot_id, (depot, start_node_id, end_node_id));
         }
 
         for service_trip in service_trips.into_iter() {
