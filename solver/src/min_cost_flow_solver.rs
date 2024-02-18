@@ -79,7 +79,7 @@ impl Solver for MinCostFlowSolver {
             self.network.service_nodes().count() + self.network.depots_iter().count();
         // number of nodes in the flow network will be twice this number
 
-        let maximal_formation_count: Cost = 100;
+        let maximal_formation_count: UpperBound = 10; //TODO read this from vehicle type
 
         // create two nodes for each service trip and connect them with an edge
         for service_trip in self.network.service_nodes() {
@@ -144,17 +144,20 @@ impl Solver for MinCostFlowSolver {
             }
         }
 
-        let spawn_cost = max_cost
-            .checked_mul(trip_node_count as Cost)
-            .expect("overflow")
-            .checked_add(1)
-            .expect("overflow");
-        if spawn_cost.checked_mul(trip_node_count as Cost).is_none() {
-            // worst case one vehicle per trip would cause overflow
-            println!("WARNING: overflow could happen");
-            println!("   spawn_cost: {}", spawn_cost);
-            println!("   trip_node_count: {}", trip_node_count);
-        }
+        let spawn_cost = 1000000000000; //TODO: calculate this value as soon as costs are smaller (see below)
+                                        /*
+                                        let spawn_cost = max_cost
+                                            .checked_mul(trip_node_count as Cost)
+                                            .expect("overflow")
+                                            .checked_add(1)
+                                            .expect("overflow");
+                                        if spawn_cost.checked_mul(trip_node_count as Cost).is_none() {
+                                            // worst case one vehicle per trip would cause overflow
+                                            println!("WARNING: overflow could happen");
+                                            println!("   spawn_cost: {}", spawn_cost);
+                                            println!("   trip_node_count: {}", trip_node_count);
+                                        }
+                                        */
 
         for depot in self.network.depots_iter() {
             let (left_rsnode, right_rsnode) = node_to_rsnode[&TripNode::Depot(depot)];

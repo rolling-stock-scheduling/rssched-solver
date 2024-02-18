@@ -5,7 +5,7 @@ use solver::greedy::Greedy;
 // use solver::local_search::LocalSearch;
 // use solver::max_matching_solver::MaxMatchingSolver;
 use solver::min_cost_flow_solver::MinCostFlowSolver;
-use solver::min_cost_max_matching_solver::MinCostMaxMatchingSolver;
+// use solver::min_cost_max_matching_solver::MinCostMaxMatchingSolver;
 use solver::{first_phase_objective, Solver};
 
 use model::json_serialisation::load_rolling_stock_problem_instance_from_json;
