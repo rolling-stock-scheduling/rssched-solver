@@ -14,7 +14,7 @@ fn main() {
     let mut input_data = String::new();
     file.read_to_string(&mut input_data).unwrap();
     let input_data: serde_json::Value = serde_json::from_str(&input_data).unwrap();
-    println!("\n\n********** RUN: {} **********\n", path);
+    println!("\n---------- RUN: {} ----------", path);
 
     let output = internal::run(input_data);
 

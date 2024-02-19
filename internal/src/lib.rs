@@ -16,7 +16,7 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
     let (vehicle_types, network, config) =
         load_rolling_stock_problem_instance_from_json(input_data);
     println!(
-        "*** Instance with {} vehicle types and {} trips loaded (elapsed time: {:0.2}sec) ***",
+        "Instance with {} vehicle types and {} trips loaded (elapsed time: {:0.2}sec)",
         vehicle_types.iter().count(),
         network.size(),
         start_time.elapsed().as_secs_f32()
@@ -42,6 +42,7 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
 
     // /*
     // use min_cost_flow_solver as start solution
+    println!("Solve with MinCostFlowSolver:");
     let min_cost_flow_solver = MinCostFlowSolver::initialize(
         vehicle_types.clone(),
         network.clone(),
@@ -50,7 +51,7 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
     );
     let start_solution = min_cost_flow_solver.solve();
     println!(
-        "\n*** MinCostFlowSolver computed initial schedule (elapsed time: {:0.2}sec) ***",
+        "MinCostFlowSolver computed optimal schedule (elapsed time: {:0.2}sec)",
         start_time.elapsed().as_secs_f32()
     );
     // */
@@ -69,7 +70,6 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
     let end_time = stdtime::Instant::now();
     let runtime_duration = end_time.duration_since(start_time);
 
-    println!("\n*** Solved ***");
     // println!("\nfinal schedule (long version):");
     // final_solution.solution().print_tours_long();
 
@@ -78,16 +78,16 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
 
     // println!("\n\nFinal train formations:");
     // final_solution.solution().print_train_formations();
-    println!("\nfinal objective value:");
+    println!("Objective value:");
     objective.print_objective_value(final_solution.objective_value());
 
     // final_solution.solution().print_depot_balances();
     println!(
-        "total depot balance violations: {}",
+        "Total depot balance violations: {}",
         final_solution.solution().total_depot_balance_violation()
     );
 
-    println!("running time: {:0.2}sec", runtime_duration.as_secs_f32());
+    println!("Running time: {:0.2}sec", runtime_duration.as_secs_f32());
 
     server::create_output_json(&final_solution, &objective, runtime_duration)
 }

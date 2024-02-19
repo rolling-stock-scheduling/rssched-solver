@@ -17,7 +17,7 @@ pub fn solve_instance(input_data: serde_json::Value) -> serde_json::Value {
     let (vehicle_types, network, config) =
         load_rolling_stock_problem_instance_from_json(input_data);
     println!(
-        "*** Instance with {} vehicle types and {} trips loaded (elapsed time: {:0.2}sec) ***",
+        "Instance with {} vehicle types and {} trips loaded (elapsed time: {:0.2}sec)",
         vehicle_types.iter().count(),
         network.size(),
         start_time.elapsed().as_secs_f32()
@@ -31,21 +31,20 @@ pub fn solve_instance(input_data: serde_json::Value) -> serde_json::Value {
         config.clone(),
         objective.clone(),
     );
+    println!("Solve with MinCostFlowSolver:");
     let final_solution = min_cost_flow_solver.solve();
     println!(
-        "\n*** MinCostFlowSolver computed initial schedule (elapsed time: {:0.2}sec) ***",
+        "MinCostFlowSolver computed optimal schedule (elapsed time: {:0.2}sec)",
         start_time.elapsed().as_secs_f32()
     );
 
     let end_time = stdtime::Instant::now();
     let runtime_duration = end_time.duration_since(start_time);
 
-    println!("\n*** Solved ***");
-
-    println!("\nfinal objective value:");
+    println!("Objective value:");
     objective.print_objective_value(final_solution.objective_value());
 
-    println!("\nrunning time: {:0.2}sec", runtime_duration.as_secs_f32());
+    println!("Running time: {:0.2}sec", runtime_duration.as_secs_f32());
 
     create_output_json(&final_solution, &objective, runtime_duration)
 }

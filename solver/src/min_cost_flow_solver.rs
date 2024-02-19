@@ -21,6 +21,8 @@ use rs_graph::IndexGraph;
 use rs_graph::LinkedListGraph;
 
 use std::collections::HashMap;
+use std::io;
+use std::io::Write;
 use std::iter::repeat;
 use std::sync::Arc;
 use std::time;
@@ -61,6 +63,9 @@ impl Solver for MinCostFlowSolver {
 
     fn solve(&self) -> Solution {
         let start_time = time::Instant::now();
+
+        print!("  1) loading min-cost-flow network - \x1b[93m 0%\x1b[0m");
+        io::stdout().flush().unwrap();
 
         let vehicle_type = self.vehicles.iter().last().unwrap();
         let seat_count = self.vehicles.get(vehicle_type).unwrap().seats();
@@ -113,6 +118,7 @@ impl Solver for MinCostFlowSolver {
         }
 
         // create the edges between trips
+        let mut time_since_last_print = time::Instant::now();
         for (counter, (trip_node, (left_rsnode, _))) in node_to_rsnode.iter().enumerate() {
             let node_id = match trip_node {
                 TripNode::Service(s) => *s,
@@ -137,14 +143,16 @@ impl Solver for MinCostFlowSolver {
                     (0, maximal_formation_count, cost),
                 );
             }
-            if counter % 100 == 99 {
-                println!(
-                    "  adding edges to flow network; node {}/{}",
-                    counter + 1,
-                    trip_node_count
+            if time_since_last_print.elapsed().as_secs_f32() >= 5.0 {
+                print!(
+                    "\r  1) loading min-cost-flow network - \x1b[93m{:>2}%\x1b[0m",
+                    (counter + 1) * 100 / trip_node_count,
                 );
+                io::stdout().flush().unwrap();
+                time_since_last_print = time::Instant::now();
             }
         }
+        println!("\r  1) loading min-cost-flow network - \x1b[32mdone\x1b[0m");
 
         let spawn_cost = max_cost
             .checked_mul(trip_node_count as Cost)
@@ -153,9 +161,9 @@ impl Solver for MinCostFlowSolver {
             .expect("overflow");
         if spawn_cost.checked_mul(trip_node_count as Cost).is_none() {
             // worst case one vehicle per trip would cause overflow
-            println!("WARNING: overflow could happen");
+            println!("\x1b[93mWARNING: overflow could happen");
             println!("   spawn_cost: {}", spawn_cost);
-            println!("   trip_node_count: {}", trip_node_count);
+            println!("   trip_node_count: {}\x1b[0m", trip_node_count);
         }
 
         for depot in self.network.depots_iter() {
@@ -174,10 +182,12 @@ impl Solver for MinCostFlowSolver {
 
         let graph = builder.into_graph();
 
-        println!(
-            "Min-Cost-Flow graph loaded (elapsed time for solver: {:0.2}sec)",
-            start_time.elapsed().as_secs_f32()
+        let time_at_start_computing_min_cost_flow = start_time.elapsed();
+        print!(
+            "  2) start computing min-cost-flow (elapsed time for solver: {:0.2}sec)",
+            time_at_start_computing_min_cost_flow.as_secs_f32()
         );
+        io::stdout().flush().unwrap();
 
         let (_, flow) = network_simplex(
             &graph,
@@ -189,9 +199,15 @@ impl Solver for MinCostFlowSolver {
         .unwrap();
 
         println!(
-            "Min-Cost-Flow computed (elapsed time for solver: {:0.2}sec)",
-            start_time.elapsed().as_secs_f32()
+            "\r  2) start computing min-cost-flow (elapsed time for solver: {:0.2}sec) - \x1b[32mdone\x1b[0m",
+            time_at_start_computing_min_cost_flow.as_secs_f32()
         );
+        let time_at_building_schedule = start_time.elapsed();
+        print!(
+            "  3) building schedule (elapsed time for solver: {:0.2}sec)",
+            time_at_building_schedule.as_secs_f32()
+        );
+        io::stdout().flush().unwrap();
 
         let mut schedule = Schedule::empty(
             self.vehicles.clone(),
@@ -275,11 +291,15 @@ impl Solver for MinCostFlowSolver {
                             .unwrap();
                     }
                     (TripNode::Depot(_), TripNode::Depot(_)) => {
-                        println!("WARNING: flow should not go from depot to depot");
+                        println!("\x1b[93mWARNING: flow should not go from depot to depot\x1b[0m");
                     }
                 }
             }
         }
+        println!(
+            "\r  3) building schedule (elapsed time for solver: {:0.2}sec) - \x1b[32mdone\x1b[0m",
+            time_at_building_schedule.as_secs_f32()
+        );
         self.objective.evaluate(schedule)
     }
 }
