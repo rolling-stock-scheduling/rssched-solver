@@ -1,11 +1,11 @@
+#![allow(unused_imports)]
 mod test_objective;
 
-#[allow(unused_imports)]
 use solver::greedy::Greedy;
-// use solver::local_search::LocalSearch;
-// use solver::max_matching_solver::MaxMatchingSolver;
+use solver::local_search::LocalSearch;
+use solver::max_matching_solver::MaxMatchingSolver;
 use solver::min_cost_flow_solver::MinCostFlowSolver;
-// use solver::min_cost_max_matching_solver::MinCostMaxMatchingSolver;
+use solver::min_cost_max_matching_solver::MinCostMaxMatchingSolver;
 use solver::{first_phase_objective, Solver};
 
 use model::json_serialisation::load_rolling_stock_problem_instance_from_json;
@@ -82,8 +82,6 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
         start_time.elapsed().as_secs_f32()
     );
     // */
-    objective.print_objective_value(start_solution.objective_value());
-
     let final_solution = start_solution;
     /*
     // initialize local search

@@ -64,7 +64,7 @@ impl Solver for MinCostMaxMatchingSolver {
 
     fn solve(&self) -> Solution {
         let start_time = time::Instant::now();
-        // TODO decide on which vehicle type (biggest or best fitting)
+        // TODO split trips into vehicle types
         // for now: take biggest vehicles (good for a small count, as it might be reused for
         // later trips)
         let vehicle_type = self.vehicles.iter().last().unwrap();
