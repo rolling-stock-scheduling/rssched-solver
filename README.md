@@ -8,21 +8,15 @@
   docker build --tag eth_scheduling_image .
   ```
 
-- remove old version of the container if needed:
+- loading the image and running the server for the first time (removes old container of the same name):
   
   ```bash
-  docker container rm eth_scheduling_server
-  ```
-
-- loading the image and running the server for the first time:
-  
-  ```bash
-  docker run --env RAYON_NUM_THREADS=16 --publish 3000:3000 --name eth_scheduling_server eth_scheduling_image
+  docker run --rm --env RAYON_NUM_THREADS=16 --publish 3000:3000 --name eth_scheduling_server eth_scheduling_image
   ```
 
 - the server can use 16 threads and answers on port 3000.
 
-- if the environment variable RAYON_NUM_THREADS is not set, the server will use as many threads as possible.
+- if the environment variable `RAYON_NUM_THREADS` is not set, the server will use as many threads as possible.
 
 - short version (with a random name for the container):
   
@@ -42,15 +36,21 @@
   docker start --attach eth_scheduling_server
   ```
 
+- remove the container:
+  
+  ```bash
+  docker container rm eth_scheduling_server
+  ```
+
 # Server Usage
 
-- send `POST http://localhost:3000/solve' with a JSON body containing the input. After solving the solution is returned as JSON.
+- send `POST http://localhost:3000/solve` with a JSON body containing the input. After solving the solution is returned as JSON.
 
-- send `GET http://localhost:3000/health' to see if the server is running.
+- send `GET http://localhost:3000/health` to see if the server is running.
 
-- Insomnia or Postman can send this requests with a GUI.
+- `Insomnia` or `Postman` can send this requests with a GUI.
 
-- or curl:
+- or `curl`:
   
   ```bash
   curl -X POST -H "Content-Type: application/json" -d @path/to/input.json http://localhost:3000/solve
