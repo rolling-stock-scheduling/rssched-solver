@@ -3,7 +3,7 @@ use objective_framework::Objective;
 use solution::json_serialisation::schedule_to_json;
 use solution::Schedule;
 use solver::first_phase_objective;
-use solver::min_cost_max_matching_solver::MinCostMaxMatchingSolver;
+use solver::min_cost_flow_solver::MinCostFlowSolver;
 use solver::Solution;
 use solver::Solver;
 use time::{DateTime, Duration};
@@ -25,15 +25,15 @@ pub fn solve_instance(input_data: serde_json::Value) -> serde_json::Value {
 
     let objective = Arc::new(first_phase_objective::build());
 
-    let min_cost_max_matching_solver = MinCostMaxMatchingSolver::initialize(
+    let min_cost_flow_solver = MinCostFlowSolver::initialize(
         vehicle_types.clone(),
         network.clone(),
         config.clone(),
         objective.clone(),
     );
-    let final_solution = min_cost_max_matching_solver.solve();
+    let final_solution = min_cost_flow_solver.solve();
     println!(
-        "\n*** MinCostMaxMatchingSolver computed initial schedule (elapsed time: {:0.2}sec) ***",
+        "\n*** MinCostFlowSolver computed initial schedule (elapsed time: {:0.2}sec) ***",
         start_time.elapsed().as_secs_f32()
     );
 
