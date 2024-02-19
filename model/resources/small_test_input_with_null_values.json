@@ -1,83 +1,133 @@
 {
   "vehicleTypes" : [ {
-    "id" : "vt1",
-    "name" : null,
+    "id" : 0,
+    "name" : "IC",
     "seats" : 50,
     "capacity" : 100,
-    "length" : 10
+    "maximalFormationCount" : 4
   }, {
-    "id" : "vt2",
+    "id" : 1,
+    "name" : null,
     "seats" : 40,
-    "capacity" : 80,
-    "length" : 8
+    "capacity" : 80
   } ],
   "locations" : [ {
-    "id" : "loc1",
+    "id" : 0,
+    "name" : "Location 0"
+  }, {
+    "id" : 2,
+    "name" : "Location 2"
+  }, {
+    "id" : 3,
     "name" : null
-  }, {
-    "id" : "loc2"
-  }, {
-    "id" : "loc3",
-    "name" : "Location 3"
   } ],
   "depots" : [ {
-    "id" : "depot1",
-    "location" : "loc1",
+    "id" : 1,
+    "location" : 0,
     "capacities" : [ {
-      "vehicleType" : "vt1",
+      "vehicleType" : 0,
       "upperBound" : 7
     }, {
-      "vehicleType" : "vt2",
+      "vehicleType" : 1,
       "upperBound" : 5
     } ]
   }, {
-    "id" : "depot2",
-    "location" : "loc2",
+    "id" : 2,
+    "location" : 2,
     "capacities" : [ {
-      "vehicleType" : "vt2",
-      "upperBound" : 8
+      "vehicleType" : 1,
+      "upperBound" : null
     } ]
   } ],
   "routes" : [ {
-    "id" : "route1",
+    "id" : 0,
+    "line" : "Line 0",
+    "vehicleType" : 1,
+    "segments": [ {
+      "order" : 0,
+      "origin" : 0,
+      "destination" : 3,
+      "distance" : 600,
+      "duration" : 1800,
+      "maximalFormationCount" : 1
+    }, {
+      "order" : 1,
+      "origin" : 3,
+      "destination" : 2,
+      "distance" : 400,
+      "duration" : 1800,
+      "maximalFormationCount" : 3
+    } ]
+  }, {
+    "id" : 1,
     "line" : null,
-    "origin" : "loc1",
-    "destination" : "loc2",
-    "distance" : 1000,
-    "duration" : 3600,
-    "maximalFormationLength" : 50
-  }, {
-    "id" : "route2",
-    "origin" : "loc2",
-    "destination" : "loc3",
-    "distance" : 2000,
-    "duration" : 7200,
-    "maximalFormationLength" : 80
+    "vehicleType" : 0,
+    "segments": [ {
+      "order" : 0,
+      "origin" : 2,
+      "destination" : 3,
+      "distance" : 2000,
+      "duration" : 7200,
+      "maximalFormationCount" : 5
+    } ]
   } ],
-  "serviceTrips" : [ {
-    "id" : "trip1",
-    "route" : "route1",
-    "name" : null,
-    "departure" : "2023-07-24T11:59:41",
-    "passengers" : 50
+  "departures" : [ {
+    "id" : 0,
+    "route" : 0,
+    "name" : "Trip 0",
+    "segments": [ {
+      "order" : 0,
+      "departure" : "2023-07-24T12:00:00",
+      "passengers" : 50,
+      "seated" : 40
+    }, {
+      "order" : 1,
+      "departure" : "2023-7-24T12:40:00",
+      "passengers" : 100,
+      "seated" : 90
+    } ]
   }, {
-    "id" : "trip2",
-    "route" : "route2",
-    "departure" : "2023-07-24T11:59:41",
-    "passengers" : 80
+    "id" : 1,
+    "route" : 1,
+    "name" : null,
+    "segments" : [ {
+      "order" : 0,
+      "departure" : "2023-07-24T12:00:00",
+      "passengers" : 80,
+      "seated" : 80
+    } ]
+  }, {
+    "id" : 2,
+    "route" : 1,
+    "name" : null,
+    "segments" : [ {
+      "order" : 0,
+      "departure" : "2023-07-24T14:00:00",
+      "passengers" : 100,
+      "seated" : 0
+    } ]
   } ],
   "deadHeadTrips" : {
-    "indices" : [ "loc1", "loc2", "loc3" ],
+    "indices" : [ 0, 2, 3 ],
     "durations" : [ [ 0, 600, 300 ], [ 6000, 0, 400 ], [ 3000, 4000, 0 ] ],
     "distances" : [ [ 0, 1000, 500 ], [ 10000, 0, 700 ], [ 5000, 7000, 0 ] ]
   },
   "parameters" : {
+    "forbidDeadHeadTrips" : null,
+    "dayLimitThreshold" : 300,
     "shunting" : {
-      "minimalDuration" : 600,
-      "deadHeadTripDuration" : 300
+      "minimalDuration" : 120,
+      "deadHeadTripDuration" : 300,
+      "couplingDuration": 600,
     },
-    "defaults" : {
-      "maximalFormationLength" : 20
+    "maintenance" : {
+      "maximalDistance" : 30000000
+    },
+    "costs" : {
+      "serviceTripFirstVehicleCost" : 100,
+      "serviceTripAdditionalVehicleCost" : 50,
+      "deadHeadTripCost" : 500,
+      "idleCost" : 20
     }
   }
 }
