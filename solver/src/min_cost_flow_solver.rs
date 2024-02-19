@@ -95,9 +95,11 @@ impl Solver for MinCostFlowSolver {
                 .as_service_trip()
                 .demand()
                 .div_ceil(seat_count) as LowerBound;
+            let cost = self.network.node(service_trip).travel_distance().in_meter() as Cost
+                * seat_count as Cost;
             edges.insert(
                 builder.add_edge(left_rsnode, right_rsnode),
-                (required_vehicles_count, maximal_formation_count, 0),
+                (required_vehicles_count, required_vehicles_count, cost),
             );
         }
 
@@ -144,20 +146,17 @@ impl Solver for MinCostFlowSolver {
             }
         }
 
-        let spawn_cost = 1000000000000; //TODO: calculate this value as soon as costs are smaller (see below)
-                                        /*
-                                        let spawn_cost = max_cost
-                                            .checked_mul(trip_node_count as Cost)
-                                            .expect("overflow")
-                                            .checked_add(1)
-                                            .expect("overflow");
-                                        if spawn_cost.checked_mul(trip_node_count as Cost).is_none() {
-                                            // worst case one vehicle per trip would cause overflow
-                                            println!("WARNING: overflow could happen");
-                                            println!("   spawn_cost: {}", spawn_cost);
-                                            println!("   trip_node_count: {}", trip_node_count);
-                                        }
-                                        */
+        let spawn_cost = max_cost
+            .checked_mul(trip_node_count as Cost)
+            .expect("overflow")
+            .checked_add(1)
+            .expect("overflow");
+        if spawn_cost.checked_mul(trip_node_count as Cost).is_none() {
+            // worst case one vehicle per trip would cause overflow
+            println!("WARNING: overflow could happen");
+            println!("   spawn_cost: {}", spawn_cost);
+            println!("   trip_node_count: {}", trip_node_count);
+        }
 
         for depot in self.network.depots_iter() {
             let (left_rsnode, right_rsnode) = node_to_rsnode[&TripNode::Depot(depot)];
@@ -281,7 +280,6 @@ impl Solver for MinCostFlowSolver {
                 }
             }
         }
-
         self.objective.evaluate(schedule)
     }
 }

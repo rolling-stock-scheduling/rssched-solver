@@ -97,12 +97,10 @@ impl Network {
         &self.depots.get(&depot_id).unwrap().0
     }
 
-    // TODO this can be done more efficiently
     pub fn get_start_depot_node(&self, depot_id: DepotId) -> NodeId {
         self.depots.get(&depot_id).unwrap().1
     }
 
-    // TODO this can be done more efficiently
     pub fn get_end_depot_node(&self, depot_id: DepotId) -> NodeId {
         self.depots.get(&depot_id).unwrap().2
     }
