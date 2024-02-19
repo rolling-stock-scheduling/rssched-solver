@@ -142,26 +142,6 @@ impl Solver for LocalSearch {
             Some(start_time),
         )
         .unwrap()
-
-        /*
-        let mut current_result = Improvement(init_solution);
-
-        while let Improvement(current_solution) = current_result {
-            println!("\n* Local Search *");
-            current_result = self.find_local_optimum(
-                current_solution,
-                // _minimizer.clone(),
-                // _take_first.clone(),
-                _take_any.clone(),
-                true,
-                Some(start_time),
-            );
-            println!("\n* Diversification *");
-            current_result = self.diversify(current_result.unwrap(), true, Some(start_time));
-        }
-
-        current_result.unwrap()
-        */
     }
 }
 
@@ -196,64 +176,4 @@ impl LocalSearch {
         }
         result
     }
-
-    /*
-    /// Diversification: Remove each vehicle and try to find a better solution by local search with
-    /// only dummy providers.
-    fn diversify(
-        &self,
-        initial_solution: Solution,
-        verbose: bool,
-        start_time: Option<stdtime::Instant>,
-    ) -> SearchResult {
-        let initial_schedule = initial_solution.solution();
-        let take_any_dummy_provier_only = TakeAnyParallelRecursion::new(
-            LimitedExchanges::new(None, None, true, self.network.clone()),
-            0,
-            Some(5),
-            self.objective.clone(),
-        );
-
-        // TODO : parallelize
-        for vehicle in initial_schedule.vehicles_iter() {
-            println!("\n* Remove Vehicle {}", vehicle);
-            let reduced_schedule = initial_schedule.replace_vehicle_by_dummy(vehicle).unwrap();
-            let reduced_solution = self.objective.evaluate(reduced_schedule);
-            if verbose {
-                println!("start:");
-                self.objective
-                    .print_objective_value(reduced_solution.objective_value());
-            }
-            let old_objective_value = reduced_solution.objective_value().clone();
-            let improved_reduced_solution = self
-                .find_local_optimum(
-                    reduced_solution,
-                    take_any_dummy_provier_only.clone(),
-                    false,
-                    None,
-                )
-                .unwrap();
-
-            if verbose {
-                println!("end:");
-                self.objective.print_objective_value_with_comparison(
-                    improved_reduced_solution.objective_value(),
-                    &old_objective_value,
-                );
-                println!(
-                    "elapsed time: {:0.2}",
-                    stdtime::Instant::now()
-                        .duration_since(start_time.unwrap())
-                        .as_secs_f32()
-                );
-            }
-
-            if improved_reduced_solution < initial_solution {
-                println!("Diversification: found better solution");
-                return Improvement(improved_reduced_solution);
-            }
-        }
-        NoImprovement(initial_solution)
-    }
-    */
 }

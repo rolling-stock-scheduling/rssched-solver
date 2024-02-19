@@ -1,9 +1,7 @@
 #![allow(unused_imports)]
 mod test_objective;
 
-use solver::greedy::Greedy;
 use solver::local_search::LocalSearch;
-use solver::max_matching_solver::MaxMatchingSolver;
 use solver::min_cost_flow_solver::MinCostFlowSolver;
 use solver::min_cost_max_matching_solver::MinCostMaxMatchingSolver;
 use solver::{first_phase_objective, Solver};
@@ -26,32 +24,6 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
 
     let objective = Arc::new(first_phase_objective::build());
     // let objective = Arc::new(test_objective::build());
-
-    /*
-    // use greedy algorithm as start solution
-    let greedy = Greedy::initialize(
-        vehicle_types.clone(),
-        network.clone(),
-        config.clone(),
-        objective.clone(),
-    );
-    let start_solution = greedy.solve();
-    // */
-
-    /*
-    // use matching_solver as start solution
-    let matching_solver = MaxMatchingSolver::initialize(
-        vehicle_types.clone(),
-        network.clone(),
-        config.clone(),
-        objective.clone(),
-    );
-    let start_solution = matching_solver.solve();
-    println!(
-        "\n*** Matching-Solver computed initial schedule (elapsed time: {:0.2}sec) ***",
-        start_time.elapsed().as_secs_f32()
-    );
-    // */
 
     /*
     // use min_cost_max_matching_solver as start solution
