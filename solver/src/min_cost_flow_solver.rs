@@ -62,9 +62,9 @@ impl Solver for MinCostFlowSolver {
     }
 
     fn solve(&self) -> Solution {
-        let start_time = time::Instant::now();
+        let start_time_creating_network = time::Instant::now();
 
-        print!("  1) loading min-cost-flow network - \x1b[93m 0%\x1b[0m");
+        print!("  1) creating min-cost-flow network - \x1b[93m 0%\x1b[0m");
         io::stdout().flush().unwrap();
 
         let vehicle_type = self.vehicles.iter().last().unwrap();
@@ -145,14 +145,18 @@ impl Solver for MinCostFlowSolver {
             }
             if time_since_last_print.elapsed().as_secs_f32() >= 5.0 {
                 print!(
-                    "\r  1) loading min-cost-flow network - \x1b[93m{:>2}%\x1b[0m",
+                    "\r  1) creating min-cost-flow network - \x1b[93m{:>2}%\x1b[0m",
                     (counter + 1) * 100 / trip_node_count,
                 );
                 io::stdout().flush().unwrap();
                 time_since_last_print = time::Instant::now();
             }
         }
-        println!("\r  1) loading min-cost-flow network - \x1b[32mdone\x1b[0m");
+
+        println!(
+            "\r  1) creating min-cost-flow network - \x1b[32mdone ({:0.2}sec)\x1b[0m",
+            start_time_creating_network.elapsed().as_secs_f32()
+        );
 
         let spawn_cost = max_cost
             .checked_mul(trip_node_count as Cost)
@@ -179,14 +183,10 @@ impl Solver for MinCostFlowSolver {
                 (0, capacity, spawn_cost),
             );
         }
-
         let graph = builder.into_graph();
 
-        let time_at_start_computing_min_cost_flow = start_time.elapsed();
-        print!(
-            "  2) start computing min-cost-flow (elapsed time for solver: {:0.2}sec)",
-            time_at_start_computing_min_cost_flow.as_secs_f32()
-        );
+        let start_time_computing_min_cost_flow = time::Instant::now();
+        print!("  2) computing min-cost-flow");
         io::stdout().flush().unwrap();
 
         let (_, flow) = network_simplex(
@@ -199,14 +199,12 @@ impl Solver for MinCostFlowSolver {
         .unwrap();
 
         println!(
-            "\r  2) start computing min-cost-flow (elapsed time for solver: {:0.2}sec) - \x1b[32mdone\x1b[0m",
-            time_at_start_computing_min_cost_flow.as_secs_f32()
+            "\r  2) computing min-cost-flow - \x1b[32mdone ({:0.2}sec)\x1b[0m",
+            start_time_computing_min_cost_flow.elapsed().as_secs_f32()
         );
-        let time_at_building_schedule = start_time.elapsed();
-        print!(
-            "  3) building schedule (elapsed time for solver: {:0.2}sec)",
-            time_at_building_schedule.as_secs_f32()
-        );
+
+        let time_at_building_schedule = time::Instant::now();
+        print!("  3) building schedule");
         io::stdout().flush().unwrap();
 
         let mut schedule = Schedule::empty(
@@ -297,8 +295,8 @@ impl Solver for MinCostFlowSolver {
             }
         }
         println!(
-            "\r  3) building schedule (elapsed time for solver: {:0.2}sec) - \x1b[32mdone\x1b[0m",
-            time_at_building_schedule.as_secs_f32()
+            "\r  3) building schedule - \x1b[32mdone ({:0.2}sec)\x1b[0m",
+            time_at_building_schedule.elapsed().as_secs_f32()
         );
         self.objective.evaluate(schedule)
     }
