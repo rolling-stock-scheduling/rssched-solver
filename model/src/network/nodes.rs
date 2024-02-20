@@ -8,10 +8,24 @@ use std::fmt;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Node {
+    StartDepot(DepotNode),
     Service(ServiceTrip),
     Maintenance(MaintenanceSlot),
-    StartDepot(DepotNode),
     EndDepot(DepotNode),
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct DepotNode {
+    id: NodeId,
+    depot_id: DepotId,
+    location: Location,
+    name: String,
+}
+
+impl DepotNode {
+    pub fn depot_id(&self) -> DepotId {
+        self.depot_id
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -58,20 +72,6 @@ pub struct MaintenanceSlot {
 impl MaintenanceSlot {
     pub fn id(&self) -> NodeId {
         self.id
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct DepotNode {
-    id: NodeId,
-    depot_id: DepotId,
-    location: Location,
-    name: String,
-}
-
-impl DepotNode {
-    pub fn depot_id(&self) -> DepotId {
-        self.depot_id
     }
 }
 

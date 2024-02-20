@@ -3,5 +3,4 @@ pub mod config;
 pub mod json_serialisation;
 pub mod locations;
 pub mod network;
-pub mod utilities;
 pub mod vehicle_types;

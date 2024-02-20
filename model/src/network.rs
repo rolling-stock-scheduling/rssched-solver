@@ -158,7 +158,7 @@ impl Network {
     /// starting time)
     pub fn all_successors(&self, node: NodeId) -> impl Iterator<Item = NodeId> + '_ {
         self.nodes_sorted_by_start
-            .range((self.node(node).end_time(), NodeId::from(""))..)
+            .range((self.node(node).end_time(), NodeId::smallest())..)
             .filter_map(move |(_, &n)| {
                 if self.can_reach(node, n) {
                     Some(n)
@@ -171,7 +171,7 @@ impl Network {
     /// provides all nodes that are can reach node
     pub fn all_predecessors(&self, node: NodeId) -> impl Iterator<Item = NodeId> + '_ {
         self.nodes_sorted_by_end
-            .range(..(self.node(node).start_time(), NodeId::from("")))
+            .range(..(self.node(node).start_time(), NodeId::smallest()))
             .filter_map(move |(_, &n)| {
                 if self.can_reach(n, node) {
                     Some(n)
@@ -285,7 +285,7 @@ impl Network {
         for depot in depots {
             let depot_id = depot.depot_id();
 
-            let start_node_id = NodeId::from(&format!("s_{}", depot_id));
+            let start_node_id = NodeId::start_depot_from(depot_id.0);
             let start_node_name = format!("start_depot({},{})", depot_id, depot.location());
             let start_node = Node::create_start_depot_node(
                 start_node_id,
@@ -296,7 +296,7 @@ impl Network {
             nodes.insert(start_node_id, start_node);
             start_depot_nodes.push(start_node_id);
 
-            let end_node_id = NodeId::from(&format!("e_{}", depot_id));
+            let end_node_id = NodeId::end_depot_from(depot_id.0);
             let end_node_name = format!("end_depot({},{})", depot_id, depot.location());
             let end_node =
                 Node::create_end_depot_node(end_node_id, depot_id, depot.location(), end_node_name);
