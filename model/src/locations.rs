@@ -3,7 +3,7 @@ use std::collections::HashSet;
 
 use time::Duration;
 
-use crate::base_types::{Distance, Location, LocationId, StationSide};
+use crate::base_types::{Distance, Location, LocationId};
 
 /// a type for storing the pair-wise distances and travel times between all stations.
 /// Distances are stored as a Vec<Vec<Distance>>-matrix.
@@ -27,22 +27,13 @@ pub struct Locations {
 pub struct DeadHeadTrip {
     distance: Distance,
     travel_time: Duration,
-    origin_side: StationSide,
-    destination_side: StationSide,
 }
 
 impl DeadHeadTrip {
-    pub fn new(
-        distance: Distance,
-        travel_time: Duration,
-        origin_side: StationSide,
-        destination_side: StationSide,
-    ) -> DeadHeadTrip {
+    pub fn new(distance: Distance, travel_time: Duration) -> DeadHeadTrip {
         DeadHeadTrip {
             distance,
             travel_time,
-            origin_side,
-            destination_side,
         }
     }
 }
@@ -103,15 +94,6 @@ impl Locations {
                     Duration::zero()
                 }
             }
-        }
-    }
-
-    /// returns the StationSides of a dead-head trip. First entry is on which side the vehicle leaves
-    /// the origin, second entry is on which side the vehicle enters the destination
-    pub fn station_sides(&self, a: Location, b: Location) -> (StationSide, StationSide) {
-        match self.get_dead_head_trip(a, b) {
-            None => (StationSide::Front, StationSide::Back), // if some of the locations are Infinity, sides should not play any role
-            Some(d) => (d.origin_side, d.destination_side),
         }
     }
 

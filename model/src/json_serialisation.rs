@@ -8,8 +8,7 @@ use std::sync::Arc;
 use time::{DateTime, Duration};
 
 use crate::base_types::{
-    DepotId, Distance, LocationId, Meter, NodeId, PassengerCount, StationSide, TrainLength,
-    VehicleTypeId,
+    DepotId, Distance, Id, LocationId, Meter, NodeId, PassengerCount, VehicleCount, VehicleTypeId,
 };
 use crate::config::Config;
 use crate::locations::{DeadHeadTrip, Locations};
@@ -29,7 +28,8 @@ struct JsonInput {
     locations: Vec<Location>,
     depots: Vec<Depot>,
     routes: Vec<Route>,
-    service_trips: Vec<ServiceTrip>,
+    departures: Vec<Departures>,
+    maintenance_slots: Vec<MaintenanceSlots>,
     dead_head_trips: DeadHeadTrips,
     parameters: Parameters,
 }
@@ -37,60 +37,87 @@ struct JsonInput {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct VehicleType {
-    id: String,
+    id: Integer,
     name: Option<String>,
     seats: Integer,
     capacity: Integer,
-    length: Integer,
+    maximal_formation_count: Option<Integer>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Location {
-    id: String,
+    id: Integer,
     name: Option<String>,
+    day_limit: Option<Integer>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Depot {
-    id: String,
-    location: String,
-    capacities: Vec<Capacities>,
+    id: Integer,
+    location: Integer,
+    capacity: Integer,
+    allowed_types: Vec<TypeCapacities>,
 }
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-struct Capacities {
-    vehicle_type: String,
-    upper_bound: Integer, //TODO: Allow Inf
+struct TypeCapacities {
+    vehicle_type: Integer,
+    capacity: Option<Integer>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Route {
-    id: String,
-    line: Option<String>,
-    origin: String,
-    destination: String,
-    distance: Integer,
-    duration: Integer,
-    maximal_formation_length: Option<Integer>,
+    id: Integer,
+    name: Option<String>,
+    vehicle_type: Integer,
+    segments: Vec<RouteSegment>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-struct ServiceTrip {
-    id: String,
-    route: String,
+struct RouteSegment {
+    order: Integer,
+    origin: Integer,
+    destination: Integer,
+    distance: Integer,
+    duration: Integer,
+    maximal_formation_count: Option<Integer>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct Departures {
+    id: Integer,
+    route: Integer,
     name: Option<String>,
+    segments: Vec<DepartureSegment>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct DepartureSegment {
+    order: Integer,
     departure: String,
     passengers: Integer,
+    seated: Integer,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct MaintenanceSlots {
+    id: Integer,
+    location: Integer,
+    start: String,
+    end: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct DeadHeadTrips {
-    indices: Vec<String>,
+    indices: Vec<Integer>,
     durations: Vec<Vec<Integer>>,
     distances: Vec<Vec<Integer>>,
 }
@@ -98,8 +125,11 @@ struct DeadHeadTrips {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Parameters {
+    forbid_dead_head_trips: Option<bool>,
+    day_limit_threshold: Option<Integer>,
     shunting: Shunting,
-    defaults: Defaults,
+    maintenance: Maintenance,
+    costs: Costs,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -107,12 +137,22 @@ struct Parameters {
 struct Shunting {
     minimal_duration: Integer,
     dead_head_trip_duration: Integer,
+    coupling_duration: Integer,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-struct Defaults {
-    maximal_formation_length: Integer,
+struct Maintenance {
+    maximal_distance: Integer,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct Costs {
+    service_trip_first_vehicle_cost: Integer,
+    service_trip_additional_vehicle_cost: Integer,
+    dead_head_trip_cost: Integer,
+    idle_cost: Integer,
 }
 
 pub fn load_rolling_stock_problem_instance_from_json(
@@ -137,21 +177,19 @@ fn create_locations(json_input: &JsonInput) -> Locations {
 
     // add stations
     for location in &json_input.locations {
-        stations.insert(LocationId::from(&location.id));
+        stations.insert(LocationId::from(location.id as Id));
     }
 
     // add dead head trips
-    for (i, origin) in json_input.dead_head_trips.indices.iter().enumerate() {
-        let origin_station = LocationId::from(origin);
+    for (i, &origin) in json_input.dead_head_trips.indices.iter().enumerate() {
+        let origin_station = LocationId::from(origin as Id);
         let mut destination_map: HashMap<LocationId, DeadHeadTrip> = HashMap::new();
-        for (j, destination) in json_input.dead_head_trips.indices.iter().enumerate() {
+        for (j, &destination) in json_input.dead_head_trips.indices.iter().enumerate() {
             destination_map.insert(
-                LocationId::from(destination),
+                LocationId::from(destination as Id),
                 DeadHeadTrip::new(
                     Distance::from_meter(json_input.dead_head_trips.distances[i][j]),
                     Duration::from_seconds(json_input.dead_head_trips.durations[i][j]),
-                    StationSide::Back,  // TODO: Read this from json
-                    StationSide::Front, // TODO: Read this from json
                 ),
             );
         }
@@ -165,16 +203,18 @@ fn create_vehicle_types(json_input: &JsonInput) -> VehicleTypes {
     let vehicle_types: Vec<ModelVehicleType> = json_input
         .vehicle_types
         .iter()
-        .map(|unit_type| {
+        .map(|vehicle_type| {
             ModelVehicleType::new(
-                VehicleTypeId::from(&unit_type.id),
-                unit_type
+                VehicleTypeId::from(vehicle_type.id as Id),
+                vehicle_type
                     .name
                     .clone()
-                    .unwrap_or_else(|| unit_type.id.clone()),
-                unit_type.seats as PassengerCount,
-                unit_type.capacity as PassengerCount,
-                unit_type.length as TrainLength,
+                    .unwrap_or_else(|| format!("vehicle_{}", vehicle_type.id)),
+                vehicle_type.seats as PassengerCount,
+                vehicle_type.capacity as PassengerCount,
+                vehicle_type
+                    .maximal_formation_count
+                    .map(|x| x as VehicleCount),
             )
         })
         .collect();
@@ -223,7 +263,7 @@ fn create_depots(json_input: &JsonInput, loc: &Locations) -> Vec<ModelDepot> {
 
 fn create_service_trip(json_input: &JsonInput, locations: &Locations) -> Vec<ModelServiceTrip> {
     json_input
-        .service_trips
+        .departures
         .iter()
         .map(|service_trip| {
             let route = json_input
@@ -238,8 +278,6 @@ fn create_service_trip(json_input: &JsonInput, locations: &Locations) -> Vec<Mod
                 locations.get_location(LocationId::from(&route.destination)),
                 departure,
                 departure + Duration::from_seconds(route.duration),
-                StationSide::Front, // TODO: Read this from json
-                StationSide::Front, // TODO: Read this from json
                 Distance::from_meter(route.distance as Meter),
                 service_trip.passengers as PassengerCount,
                 service_trip

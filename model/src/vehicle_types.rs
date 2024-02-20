@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use crate::base_types::{PassengerCount, TrainLength, VehicleTypeId};
+use crate::base_types::{PassengerCount, VehicleCount, VehicleTypeId};
 
 pub struct VehicleTypes {
     vehicle_types: HashMap<VehicleTypeId, Arc<VehicleType>>,
@@ -17,7 +17,7 @@ impl VehicleTypes {
         let mut ids_sorted_by_seat_count: Vec<_> = vehicle_types.keys().cloned().collect();
         ids_sorted_by_seat_count.sort_by_key(|&id| {
             let vt = vehicle_types.get(&id).unwrap();
-            (vt.seats(), vt.capacity(), vt.length(), id)
+            (vt.seats(), vt.capacity(), vt.maximal_formation_count(), id)
         });
 
         VehicleTypes {
@@ -53,7 +53,7 @@ pub struct VehicleType {
     name: String,
     seats: PassengerCount,
     capacity: PassengerCount,
-    length: TrainLength,
+    maximal_formation_count: Option<VehicleCount>,
 }
 
 impl VehicleType {
@@ -62,14 +62,14 @@ impl VehicleType {
         name: String,
         number_of_seats: PassengerCount,
         capacity_of_passengers: PassengerCount,
-        vehicle_length: TrainLength,
+        maximal_formation_count: Option<VehicleCount>,
     ) -> VehicleType {
         VehicleType {
             id,
             name,
             seats: number_of_seats,
             capacity: capacity_of_passengers,
-            length: vehicle_length,
+            maximal_formation_count,
         }
     }
 
@@ -89,7 +89,7 @@ impl VehicleType {
         self.capacity
     }
 
-    pub fn length(&self) -> TrainLength {
-        self.length
+    pub fn maximal_formation_count(&self) -> Option<VehicleCount> {
+        self.maximal_formation_count
     }
 }
