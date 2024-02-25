@@ -84,9 +84,9 @@ impl Solver for MinCostMaxMatchingSolver {
         let mut node_counter: i64 = 0;
         let mut max_cost = 0;
 
-        let num_service_trips = self.network.service_nodes().count();
-        for (counter, service_trip) in self.network.service_nodes().enumerate() {
-            let demand = self.network.node(service_trip).as_service_trip().demand();
+        let num_service_trips = self.network.all_service_nodes().count();
+        for (counter, service_trip) in self.network.all_service_nodes().enumerate() {
+            let demand = self.network.passengers_of(service_trip);
             for i in 0..demand.div_ceil(seat_count) as u8 {
                 node_counter += 1;
                 let left_node = builder.add_node();
@@ -99,7 +99,7 @@ impl Solver for MinCostMaxMatchingSolver {
                     .all_predecessors(service_trip)
                     .filter(|&pred| self.network.node(pred).is_service())
                     .for_each(|pred| {
-                        let pred_demand = self.network.node(pred).as_service_trip().demand();
+                        let pred_demand = self.network.passengers_of(pred);
                         for j in 0..pred_demand.div_ceil(seat_count) as u8 {
                             let pred_left_node = trip_to_node[&(pred, j)].0;
                             let cost: i64 = self
@@ -171,8 +171,8 @@ impl Solver for MinCostMaxMatchingSolver {
 
         let mut last_trip_to_vehicle: HashMap<(NodeId, u8), VehicleId> = HashMap::new();
 
-        for service_trip in self.network.service_nodes() {
-            let demand = self.network.node(service_trip).as_service_trip().demand();
+        for service_trip in self.network.all_service_nodes() {
+            let demand = self.network.passengers_of(service_trip);
             for i in 0..demand.div_ceil(seat_count) as u8 {
                 let right_node = trip_to_node[&(service_trip, i)].1;
                 let pred_left_node = graph.inedges(right_node).find_map(|(edge, node)| {

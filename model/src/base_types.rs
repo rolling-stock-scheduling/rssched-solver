@@ -15,8 +15,20 @@ pub struct LocationId(pub Id);
 #[derive(Display, From, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VehicleTypeId(pub Id);
 
-#[derive(Display, From, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct VehicleId(pub Id);
+#[derive(Display, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum VehicleId {
+    Vehicle(Id),
+    Dummy(Id),
+}
+
+impl VehicleId {
+    pub fn vehicle_from(id: Id) -> VehicleId {
+        VehicleId::Vehicle(id)
+    }
+    pub fn dummy_from(id: Id) -> VehicleId {
+        VehicleId::Dummy(id)
+    }
+}
 
 #[derive(Display, From, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DepotId(pub Id);
@@ -24,7 +36,11 @@ pub struct DepotId(pub Id);
 #[derive(Display, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum NodeId {
     StartDepot(Id),
-    Service(Id),
+    #[display(fmt = "Service({}, {})", departure_id, order)]
+    Service {
+        departure_id: Id,
+        order: u8,
+    },
     Maintenance(Id),
     EndDepot(Id),
 }
@@ -36,8 +52,11 @@ impl NodeId {
     pub fn end_depot_from(id: Id) -> NodeId {
         NodeId::EndDepot(id)
     }
-    pub fn service_from(id: Id) -> NodeId {
-        NodeId::Service(id)
+    pub fn service_from(departure_id: Id, order: u8) -> NodeId {
+        NodeId::Service {
+            departure_id,
+            order,
+        }
     }
     pub fn maintenance_from(id: Id) -> NodeId {
         NodeId::Maintenance(id)
@@ -51,3 +70,4 @@ pub type VehicleCount = u32;
 pub type PassengerCount = u32;
 pub type SeatDistance = u64; // TODO remove this
 pub type Meter = u64;
+pub type Cost = u64;

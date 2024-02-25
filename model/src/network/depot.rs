@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 
-use crate::base_types::{DepotId, Location, PassengerCount, VehicleTypeId};
+use crate::base_types::{DepotId, Location, VehicleCount, VehicleTypeId};
 
 pub struct Depot {
     depot_id: DepotId,
     location: Location,
-    capacities: HashMap<VehicleTypeId, Option<PassengerCount>>, // number of vehicles that can be
-                                                                // spawned. None means no limit.
+    total_capacity: VehicleCount,
+    allowed_types: HashMap<VehicleTypeId, Option<VehicleCount>>, // number of vehicles that can be
+                                                                 // spawned. None means no limit.
 }
 
 // methods
@@ -19,9 +20,17 @@ impl Depot {
         self.location
     }
 
-    /// None means no limit
-    pub fn capacity_for(&self, vehicle_type_id: VehicleTypeId) -> Option<PassengerCount> {
-        *self.capacities.get(&vehicle_type_id).unwrap_or(&Some(0))
+    pub fn total_capacity(&self) -> VehicleCount {
+        self.total_capacity
+    }
+
+    /// takes the minimum of vehicle specific capacity (None means no limit) and depot capacity
+    pub fn capacity_for(&self, vehicle_type_id: VehicleTypeId) -> VehicleCount {
+        match self.allowed_types.get(&vehicle_type_id) {
+            Some(Some(capacity)) => VehicleCount::min(*capacity, self.total_capacity),
+            Some(None) => self.total_capacity, // no vehicle specific limit
+            None => 0,                         // vehicle type not allowed
+        }
     }
 }
 
@@ -30,12 +39,14 @@ impl Depot {
     pub fn new(
         depot_id: DepotId,
         location: Location,
-        capacities: HashMap<VehicleTypeId, Option<PassengerCount>>,
+        total_capacity: VehicleCount,
+        allowed_types: HashMap<VehicleTypeId, Option<VehicleCount>>,
     ) -> Self {
         Self {
             depot_id,
             location,
-            capacities,
+            total_capacity,
+            allowed_types,
         }
     }
 }

@@ -81,13 +81,13 @@ impl Solver for MinCostFlowSolver {
         let mut max_cost: Cost = 0;
 
         let trip_node_count =
-            self.network.service_nodes().count() + self.network.depots_iter().count();
+            self.network.all_service_nodes().count() + self.network.depots_iter().count();
         // number of nodes in the flow network will be twice this number
 
         let maximal_formation_count: UpperBound = 10; //TODO read this from vehicle type
 
         // create two nodes for each service trip and connect them with an edge
-        for service_trip in self.network.service_nodes() {
+        for service_trip in self.network.all_service_nodes() {
             let left_rsnode = builder.add_node();
             let right_rsnode = builder.add_node();
             let trip_node = TripNode::Service(service_trip);
@@ -96,9 +96,7 @@ impl Solver for MinCostFlowSolver {
             node_to_rsnode.insert(trip_node, (left_rsnode, right_rsnode));
             let required_vehicles_count = self
                 .network
-                .node(service_trip)
-                .as_service_trip()
-                .demand()
+                .passengers_of(service_trip)
                 .div_ceil(seat_count) as LowerBound;
             let cost = self.network.node(service_trip).travel_distance().in_meter() as Cost
                 * seat_count as Cost;
@@ -172,12 +170,7 @@ impl Solver for MinCostFlowSolver {
 
         for depot in self.network.depots_iter() {
             let (left_rsnode, right_rsnode) = node_to_rsnode[&TripNode::Depot(depot)];
-            let capacity = self
-                .network
-                .get_depot(depot)
-                .capacity_for(vehicle_type)
-                .map(|c| c as UpperBound)
-                .unwrap_or(UpperBound::MAX);
+            let capacity = self.network.get_depot(depot).capacity_for(vehicle_type) as UpperBound;
             edges.insert(
                 builder.add_edge(left_rsnode, right_rsnode),
                 (0, capacity, spawn_cost),
@@ -217,7 +210,7 @@ impl Solver for MinCostFlowSolver {
 
         for node in self
             .network
-            .service_nodes()
+            .all_service_nodes()
             .chain(self.network.end_depot_nodes())
         {
             let trip_node = match self.network.node(node) {

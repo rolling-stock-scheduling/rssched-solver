@@ -66,28 +66,6 @@ impl Indicator<Schedule> for DummyDurationIndicator {
     }
 }
 
-/// Earliest Dummy Start, time between earliest dummy start and latest end time of a service node
-struct EarliestDummyStartIndicator;
-
-impl Indicator<Schedule> for EarliestDummyStartIndicator {
-    fn evaluate(&self, schedule: &Schedule) -> BaseValue {
-        let latest_end_time = schedule.get_network().latest_end_time();
-        BaseValue::Integer(
-            (latest_end_time
-                - schedule
-                    .dummy_iter()
-                    .map(|d| schedule.tour_of(d).unwrap().start_time())
-                    .min()
-                    .unwrap_or(latest_end_time))
-            .in_sec() as i64,
-        )
-    }
-
-    fn name(&self) -> String {
-        String::from("earliestDummyStart")
-    }
-}
-
 /// Sum over all vehicles: overhead duration
 struct OverheadDurationIndicator;
 
@@ -179,11 +157,6 @@ pub fn _build() -> Objective<Schedule> {
         Box::new(DummyDurationIndicator),
     )]);
 
-    let _earliest_dummy_start_level = Level::new(vec![(
-        Coefficient::Integer(1),
-        Box::new(EarliestDummyStartIndicator),
-    )]);
-
     let _overhead_duration_level = Level::new(vec![(
         Coefficient::Integer(1),
         Box::new(OverheadDurationIndicator),
@@ -205,7 +178,6 @@ pub fn _build() -> Objective<Schedule> {
     )]);
 
     Objective::new(vec![
-        _earliest_dummy_start_level,
         // _dummy_level,
         _vehicle_count_level,
         // _overhead_duration_level,

@@ -130,6 +130,18 @@ impl Schedule {
             .unwrap_or(0) as VehicleCount
     }
 
+    pub fn number_of_vehicles_spawned_at(&self, depot: DepotId) -> VehicleCount {
+        self.vehicle_types
+            .iter()
+            .map(|vt| {
+                self.depot_usage
+                    .get(&(depot, vt))
+                    .map(|(spawned, _)| spawned.len() as VehicleCount)
+                    .unwrap_or(0)
+            })
+            .sum()
+    }
+
     /// Returns the number of vehicles of the given type that are spawned at the given depot - the
     /// number of vehicles of the given type that despawn at the given depot.
     /// Hence, negative values mean that there are more vehicles despawning than spawning.
@@ -152,29 +164,25 @@ impl Schedule {
     pub fn can_depot_spawn_vehicle(
         &self,
         start_depot: NodeId,
-        vehicle_type_id: VehicleTypeId,
+        vehicle_type: VehicleTypeId,
     ) -> bool {
         let depot = self.network.get_depot_id(start_depot);
-        let capacity = self.network.capacity_of(depot, vehicle_type_id);
+        let capacity_for_type = self.network.capacity_of(depot, vehicle_type);
 
-        if capacity == Some(0) {
+        if capacity_for_type == 0 {
             return false;
         }
 
-        if capacity.is_none() {
-            return true;
+        if self.number_of_vehicles_of_same_type_spawned_at(depot, vehicle_type) >= capacity_for_type
+        {
+            return false;
         }
 
-        let number_of_spawned_vehicles = self
-            .depot_usage
-            .get(&(depot, vehicle_type_id))
-            .map(|(spawned, _)| spawned.len() as VehicleCount)
-            .unwrap_or(0);
-
-        if number_of_spawned_vehicles < capacity.unwrap() {
-            return true;
+        if self.number_of_vehicles_spawned_at(depot) >= self.network.total_capacity_of(depot) {
+            return false;
         }
-        false
+
+        true
     }
 
     pub fn reduces_spawning_at_depot_violation(
@@ -193,8 +201,9 @@ impl Schedule {
         self.depot_balance(depot, vehicle_type) > 0
     }
 
+    // TODO integrate standing passengers
     pub fn unserved_passengers_at(&self, node: NodeId) -> PassengerCount {
-        let demand = self.network.node(node).as_service_trip().demand();
+        let demand = self.network.passengers_of(node);
         let served = self.train_formation_of(node).seats();
         if served > demand {
             0
@@ -205,14 +214,14 @@ impl Schedule {
 
     pub fn unserved_passengers(&self) -> PassengerCount {
         self.network
-            .service_nodes()
+            .all_service_nodes()
             .map(|node| self.unserved_passengers_at(node))
             .sum()
     }
 
+    // TODO integrate standing passengers
     pub fn is_fully_covered(&self, service_trip: NodeId) -> bool {
-        self.train_formation_of(service_trip).seats()
-            >= self.network.node(service_trip).as_service_trip().demand()
+        self.train_formation_of(service_trip).seats() >= self.network.passengers_of(service_trip)
     }
 
     /// sum over all vehicles: number of seats * distance
@@ -414,11 +423,16 @@ impl Schedule {
 
         // check if depot spawning limits are respected
         for (depot, vehicle_type) in self.depot_usage.keys().cloned() {
-            let (spawned, _) = self.depot_usage.get(&(depot, vehicle_type)).unwrap();
+            let number_of_spawned_vehicles =
+                self.number_of_vehicles_of_same_type_spawned_at(depot, vehicle_type);
             let capacity = self.network.capacity_of(depot, vehicle_type);
-            if let Some(capacity) = capacity {
-                assert!(spawned.len() as u32 <= capacity);
-            }
+            assert!(number_of_spawned_vehicles <= capacity);
+        }
+
+        for depot in self.network.depots_iter() {
+            let total_capacity = self.network.total_capacity_of(depot);
+            let total_spawned = self.number_of_vehicles_spawned_at(depot);
+            assert!(total_spawned <= total_capacity);
         }
 
         println!("Debug only: Schedule is consistent");

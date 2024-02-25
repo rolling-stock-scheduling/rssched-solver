@@ -24,7 +24,8 @@
   "depots" : [ {
     "id" : 1,
     "location" : 0,
-    "capacities" : [ {
+    "capacity" : 5,
+    "allowedTypes" : [ {
       "vehicleType" : 0,
       "upperBound" : 7
     }, {
@@ -34,7 +35,8 @@
   }, {
     "id" : 2,
     "location" : 2,
-    "capacities" : [ {
+    "capacity" : 500,
+    "allowedTypes" : [ {
       "vehicleType" : 1,
       "upperBound" : null
     } ]
@@ -107,6 +109,19 @@
       "seated" : 0
     } ]
   } ],
+    "maintenanceSlots" : [ {
+    "id": 0,
+    "name": "maintenence_slot_1",
+    "location" : 0,
+    "start" : "2023-07-24T6:00:00",
+    "end" :  "2023-07-24T12:00:00"
+  }, {
+    "id": 0,
+    "name": null,
+    "location" : 0,
+    "start" : "2023-07-24T12:00:00",
+    "end" :  "2023-07-24T18:00:00"
+  } ],
   "deadHeadTrips" : {
     "indices" : [ 0, 2, 3 ],
     "durations" : [ [ 0, 600, 300 ], [ 6000, 0, 400 ], [ 3000, 4000, 0 ] ],
@@ -118,7 +133,7 @@
     "shunting" : {
       "minimalDuration" : 120,
       "deadHeadTripDuration" : 300,
-      "couplingDuration": 600,
+      "couplingDuration": 600
     },
     "maintenance" : {
       "maximalDistance" : 30000000

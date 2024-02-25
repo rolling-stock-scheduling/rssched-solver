@@ -1,6 +1,6 @@
 use time::{DateTime, Duration};
 
-use crate::base_types::{DepotId, Distance, Location, NodeId, PassengerCount, StationSide};
+use crate::base_types::{DepotId, Distance, Location, NodeId, PassengerCount, VehicleTypeId};
 
 use core::cmp::Ordering;
 
@@ -31,14 +31,14 @@ impl DepotNode {
 #[derive(Debug, PartialEq, Eq)]
 pub struct ServiceTrip {
     id: NodeId,
+    vehicle_type: VehicleTypeId,
     origin: Location,
     destination: Location,
     departure: DateTime,
     arrival: DateTime,
-    departure_side: StationSide,
-    arrival_side: StationSide,
-    travel_distance: Distance,
-    demand: PassengerCount,
+    distance: Distance,
+    passengers: PassengerCount,
+    seated: PassengerCount,
     name: String,
 }
 
@@ -47,16 +47,16 @@ impl ServiceTrip {
         self.id
     }
 
-    pub fn departure_side(&self) -> StationSide {
-        self.departure_side
+    pub fn vehicle_type(&self) -> VehicleTypeId {
+        self.vehicle_type
     }
 
-    pub fn arrival_side(&self) -> StationSide {
-        self.arrival_side
+    pub fn passengers(&self) -> PassengerCount {
+        self.passengers
     }
 
-    pub fn demand(&self) -> PassengerCount {
-        self.demand
+    pub fn seated(&self) -> PassengerCount {
+        self.seated
     }
 }
 
@@ -152,19 +152,19 @@ impl Node {
 
     pub fn travel_distance(&self) -> Distance {
         match self {
-            Node::Service(s) => s.travel_distance,
+            Node::Service(s) => s.distance,
             _ => Distance::zero(),
         }
     }
 
-    pub fn as_service_trip(&self) -> &ServiceTrip {
+    pub(crate) fn as_service_trip(&self) -> &ServiceTrip {
         match self {
             Node::Service(s) => s,
             _ => panic!("Node is not a service trip"),
         }
     }
 
-    pub fn as_depot(&self) -> &DepotNode {
+    pub(crate) fn as_depot(&self) -> &DepotNode {
         match self {
             Node::StartDepot(d) => d,
             Node::EndDepot(d) => d,
@@ -228,26 +228,26 @@ impl Node {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn create_service_trip(
         id: NodeId,
+        vehicle_type: VehicleTypeId,
         origin: Location,
         destination: Location,
         departure: DateTime,
         arrival: DateTime,
-        departure_side: StationSide,
-        arrival_side: StationSide,
-        travel_distance: Distance,
-        demand: PassengerCount,
+        distance: Distance,
+        passengers: PassengerCount,
+        seated: PassengerCount,
         name: String,
     ) -> ServiceTrip {
         ServiceTrip {
             id,
+            vehicle_type,
             origin,
             destination,
             departure,
             arrival,
-            departure_side,
-            arrival_side,
-            travel_distance,
-            demand,
+            distance,
+            passengers,
+            seated,
             name,
         }
     }
@@ -256,7 +256,6 @@ impl Node {
         Node::Service(service_trip)
     }
 
-    /*
     pub(crate) fn create_maintenance(
         id: NodeId,
         location: Location,
@@ -271,7 +270,7 @@ impl Node {
             end,
             name,
         }
-    } */
+    }
 
     pub fn create_maintenance_node(maintenance_slot: MaintenanceSlot) -> Node {
         Node::Maintenance(maintenance_slot)

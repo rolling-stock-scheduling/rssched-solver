@@ -7,6 +7,6 @@ edition.workspace = true
 [dependencies]
 serde = { version = "1.0", features = ["derive"] } # for reading json-files
 serde_json = { version = "1.0", features = ["preserve_order"]} # for reading json-files
-derive_more = { version = "0.99.16", default-featuress = false, features = ["display"]} # for deriving more traits
+derive_more = { version = "0.99.16", default-features = false, features = ["display", "from"]} # for deriving more traits
 time = { path = "../time" }
 

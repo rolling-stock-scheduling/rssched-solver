@@ -1,4 +1,4 @@
-use crate::base_types::{Cost, Meter};
+use crate::base_types::Meter;
 use std::fmt;
 use std::ops::{Add, Sub};
 
@@ -13,15 +13,6 @@ impl Distance {
     pub fn in_meter(&self) -> Meter {
         match self {
             Distance::Distance(d) => *d,
-            Distance::Infinity => {
-                panic!("Distance is infinity")
-            }
-        }
-    }
-
-    pub fn as_km_cost(&self) -> Cost {
-        match self {
-            Distance::Distance(d) => *d as Cost / 1000.0,
             Distance::Infinity => {
                 panic!("Distance is infinity")
             }

@@ -3,7 +3,7 @@ use std::{fs::File, io::Read};
 use time::{DateTime, Duration};
 
 use crate::{
-    base_types::{DepotId, Distance, Location, LocationId, NodeId, StationSide, VehicleTypeId},
+    base_types::{DepotId, Distance, Location, LocationId, NodeId, VehicleTypeId},
     json_serialisation::load_rolling_stock_problem_instance_from_json,
     locations::Locations,
     network::nodes::Node,
@@ -185,14 +185,8 @@ fn test_load_from_json() {
     assert_travel_distance(loc3, loc2, 7000, locations);
     assert_travel_distance(loc3, loc3, 0, locations);
 
-    assert_eq!(
-        config.durations_between_activities.minimal,
-        Duration::from_seconds(600)
-    );
-    assert_eq!(
-        config.durations_between_activities.dead_head_trip,
-        Duration::from_seconds(300)
-    );
+    assert_eq!(config.shunting.minimal, Duration::from_seconds(600));
+    assert_eq!(config.shunting.dead_head_trip, Duration::from_seconds(300));
     assert_eq!(
         config.default_maximal_formation_length,
         Distance::from_meter(20)

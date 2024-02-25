@@ -109,7 +109,7 @@ fn tours_to_json(schedule: &Schedule) -> Vec<JsonTour> {
 }
 
 fn tour_to_json(schedule: &Schedule, vehicle_id: VehicleId) -> JsonTour {
-    let nw = schedule.get_network();
+    let network = schedule.get_network();
     let vehicle_type_id = schedule.vehicle_type_of(vehicle_id);
     let start_depot = schedule.tour_of(vehicle_id).unwrap().first_node();
     let end_depot = schedule.tour_of(vehicle_id).unwrap().last_node();
@@ -120,17 +120,18 @@ fn tour_to_json(schedule: &Schedule, vehicle_id: VehicleId) -> JsonTour {
         .all_nodes_iter()
         .tuple_windows()
     {
-        if nw.node(node1_id).end_location() != nw.node(node2_id).start_location() {
-            let (departure_time, arrival_time) = schedule_dead_head_trip(node1_id, node2_id, nw);
+        if network.node(node1_id).end_location() != network.node(node2_id).start_location() {
+            let (departure_time, arrival_time) =
+                schedule_dead_head_trip(node1_id, node2_id, network);
             let dead_head_trip = JsonTourStop::DeadHeadTrip {
-                origin: nw.node(node1_id).end_location().to_string(),
-                destination: nw.node(node2_id).start_location().to_string(),
+                origin: network.node(node1_id).end_location().to_string(),
+                destination: network.node(node2_id).start_location().to_string(),
                 departure_time: departure_time.as_iso(),
                 arrival_time: arrival_time.as_iso(),
             };
             tour.push(dead_head_trip);
         }
-        let node2 = nw.node(node2_id);
+        let node2 = network.node(node2_id);
         match node2 {
             Node::Service(_) => {
                 let service_trip = JsonTourStop::ServiceTrip {
@@ -157,8 +158,8 @@ fn tour_to_json(schedule: &Schedule, vehicle_id: VehicleId) -> JsonTour {
     let json_tour = JsonTour {
         vehicle_id: vehicle_id.to_string(),
         vehicle_type: vehicle_type_id.to_string(),
-        start_depot: nw.node(start_depot).as_depot().depot_id().to_string(),
-        end_depot: nw.node(end_depot).as_depot().depot_id().to_string(),
+        start_depot: network.get_depot_id(start_depot).to_string(),
+        end_depot: network.get_depot_id(end_depot).to_string(),
         tour,
     };
     json_tour

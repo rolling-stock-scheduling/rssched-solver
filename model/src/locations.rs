@@ -1,8 +1,8 @@
 use std::collections::HashMap;
-use std::collections::HashSet;
 
 use time::Duration;
 
+use crate::base_types::VehicleCount;
 use crate::base_types::{Distance, Location, LocationId};
 
 /// a type for storing the pair-wise distances and travel times between all stations.
@@ -20,7 +20,7 @@ use crate::base_types::{Distance, Location, LocationId};
 /// A DeadHeadMetrics instance can only be created together with the Vec<Distance> of wrapped
 /// stations. Use loactions::create_locations for that. Hence, the indices should always be consistent.
 pub struct Locations {
-    stations: HashSet<LocationId>,
+    stations: HashMap<LocationId, (String, Option<VehicleCount>)>, // values: (name, daylimit)
     dead_head_trips: HashMap<LocationId, HashMap<LocationId, DeadHeadTrip>>,
 }
 
@@ -45,7 +45,7 @@ impl DeadHeadTrip {
 // static functions
 impl Locations {
     pub fn new(
-        stations: HashSet<LocationId>,
+        stations: HashMap<LocationId, (String, Option<VehicleCount>)>,
         dead_head_trips: HashMap<LocationId, HashMap<LocationId, DeadHeadTrip>>,
     ) -> Locations {
         Locations {
@@ -57,17 +57,27 @@ impl Locations {
 
 // methods
 impl Locations {
-    // pub fn get_all_locations(&self) -> Vec<Location> {
-    // let mut stations: Vec<Station> = self.stations.iter().copied().collect();
-    // stations.sort();
-    // stations.iter().map(|s| Location::of(*s)).collect()
-    // }
+    pub fn get_location(&self, location_id: LocationId) -> Result<Location, &'static str> {
+        match self.stations.get(&location_id) {
+            Some(_) => Ok(Location::Station(location_id)),
+            None => Err("Location Id is invalid."),
+        }
+    }
 
-    pub fn get_location(&self, location_id: LocationId) -> Location {
-        if self.stations.contains(&location_id) {
-            Location::of(location_id)
-        } else {
-            panic!("Station code is invalid.");
+    pub fn get_location_name(&self, location_id: LocationId) -> Result<String, &'static str> {
+        match self.stations.get(&location_id) {
+            Some((name, _)) => Ok(name.clone()),
+            None => Err("Location Id is invalid."),
+        }
+    }
+
+    pub fn get_location_daylimit(
+        &self,
+        location_id: LocationId,
+    ) -> Result<Option<VehicleCount>, &'static str> {
+        match self.stations.get(&location_id) {
+            Some((_, daylimit)) => Ok(*daylimit),
+            None => Err("Location Id is invalid."),
         }
     }
 

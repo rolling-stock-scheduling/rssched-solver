@@ -1,7 +1,7 @@
 use std::{fmt, sync::Arc};
 
 use model::{
-    base_types::{PassengerCount, TrainLength, VehicleId, VehicleTypeId},
+    base_types::{PassengerCount, VehicleCount, VehicleId, VehicleTypeId},
     vehicle_types::{VehicleType, VehicleTypes},
 };
 
@@ -39,8 +39,8 @@ impl Vehicle {
         self.vehicle_type.capacity()
     }
 
-    pub fn length(&self) -> TrainLength {
-        self.vehicle_type.length()
+    pub fn maximal_formation_count(&self) -> Option<VehicleCount> {
+        self.vehicle_type.maximal_formation_count()
     }
 }
 
