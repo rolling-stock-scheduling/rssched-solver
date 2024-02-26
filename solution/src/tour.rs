@@ -1026,6 +1026,7 @@ impl Tour {
     }
 
     /// Creates a new tour from a vector of NodeIds. Trusts that the vector leads to a valid Tour.
+    #[allow(clippy::too_many_arguments)]
     fn new_precomputed(
         nodes: Vec<NodeId>,
         is_dummy: bool,

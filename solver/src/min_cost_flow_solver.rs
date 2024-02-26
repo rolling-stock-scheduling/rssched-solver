@@ -40,7 +40,7 @@ type UpperBound = NetworkNumberType;
 type Cost = NetworkNumberType;
 
 pub struct MinCostFlowSolver {
-    vehicles: Arc<VehicleTypes>,
+    vehicle_types: Arc<VehicleTypes>,
     network: Arc<Network>,
     config: Arc<Config>,
     objective: Arc<Objective<Schedule>>,
@@ -54,13 +54,13 @@ struct EdgeLabel {
 
 impl Solver for MinCostFlowSolver {
     fn initialize(
-        vehicles: Arc<VehicleTypes>,
+        vehicle_types: Arc<VehicleTypes>,
         network: Arc<Network>,
         config: Arc<Config>,
         objective: Arc<Objective<Schedule>>,
     ) -> Self {
         Self {
-            vehicles,
+            vehicle_types,
             network,
             config,
             objective,
@@ -73,8 +73,7 @@ impl Solver for MinCostFlowSolver {
         print!("  1) creating min-cost-flow network - \x1b[93m 0%\x1b[0m");
         io::stdout().flush().unwrap();
 
-        let vehicle_type = self.vehicles.iter().last().unwrap();
-        let seat_count = self.vehicles.get(vehicle_type).unwrap().seats();
+        let vehicle_type = self.vehicle_types.iter().last().unwrap();
 
         let mut builder = LinkedListGraph::<u32>::new_builder();
 
@@ -90,7 +89,12 @@ impl Solver for MinCostFlowSolver {
             self.network.all_service_nodes().count() + self.network.depots_iter().count();
         // number of nodes in the flow network will be twice this number
 
-        let maximal_formation_count: UpperBound = 10; //TODO read this from vehicle type
+        let maximal_formation_count: UpperBound = self
+            .vehicle_types
+            .get(vehicle_type)
+            .unwrap()
+            .maximal_formation_count()
+            .map_or(UpperBound::MAX, |x| x as UpperBound);
 
         // create two nodes for each service trip and connect them with an edge
         for service_trip in self.network.all_service_nodes() {
@@ -105,8 +109,8 @@ impl Solver for MinCostFlowSolver {
                 .number_of_vehicles_required_to_serve(vehicle_type, service_trip)
                 as LowerBound;
 
-            let cost = self.network.node(service_trip).travel_distance().in_meter() as Cost
-                * seat_count as Cost;
+            let cost = self.network.node(service_trip).duration().in_sec() as Cost
+                * self.config.costs.service_trip as Cost;
             edges.insert(
                 builder.add_edge(left_rsnode, right_rsnode),
                 EdgeLabel {
@@ -116,6 +120,8 @@ impl Solver for MinCostFlowSolver {
                 },
             );
         }
+
+        // TODO add maintenance nodes
 
         for depot in self.network.depots_iter() {
             let left_rsnode = builder.add_node();
@@ -141,11 +147,19 @@ impl Solver for MinCostFlowSolver {
                 };
                 let pred_right_rsnode = node_to_rsnode[&pred_node].1;
 
-                let cost: Cost = self
-                    .network
-                    .dead_head_distance_between(pred, node_id)
-                    .in_meter() as Cost
-                    * seat_count as Cost;
+                let idle_time_cost = if self.network.node(pred).is_depot()
+                    || self.network.node(node_id).is_depot()
+                {
+                    0
+                } else {
+                    self.network.idle_time_between(pred, node_id).in_sec() as Cost
+                        * self.config.costs.idle as Cost
+                };
+
+                let cost: Cost = self.network.dead_head_time_between(pred, node_id).in_sec()
+                    as Cost
+                    * self.config.costs.dead_head_trip as Cost
+                    + idle_time_cost;
                 max_cost = max_cost.max(cost);
                 edges.insert(
                     builder.add_edge(pred_right_rsnode, *left_rsnode),
@@ -220,7 +234,7 @@ impl Solver for MinCostFlowSolver {
         io::stdout().flush().unwrap();
 
         let mut schedule = Schedule::empty(
-            self.vehicles.clone(),
+            self.vehicle_types.clone(),
             self.network.clone(),
             self.config.clone(),
         );

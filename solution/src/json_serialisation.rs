@@ -155,14 +155,13 @@ fn tour_to_json(schedule: &Schedule, vehicle_id: VehicleId) -> JsonTour {
             _ => {}
         }
     }
-    let json_tour = JsonTour {
+    JsonTour {
         vehicle_id: vehicle_id.to_string(),
         vehicle_type: vehicle_type_id.to_string(),
         start_depot: network.get_depot_id(start_depot).to_string(),
         end_depot: network.get_depot_id(end_depot).to_string(),
         tour,
-    };
-    json_tour
+    }
 }
 
 fn schedule_dead_head_trip(
