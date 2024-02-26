@@ -86,13 +86,11 @@ impl Solver for MinCostMaxMatchingSolver {
 
         let num_service_trips = self.network.all_service_nodes().count();
         for (counter, service_trip) in self.network.all_service_nodes().enumerate() {
-            let required_vehicles = u8::max(
-                self.network
-                    .passengers_of(service_trip)
-                    .div_ceil(seat_count) as u8,
-                1,
-            );
-            for i in 0..required_vehicles {
+            let number_of_vehicles_required = self
+                .network
+                .number_of_vehicles_required_to_serve(vehicle_type, service_trip)
+                as u8;
+            for i in 0..number_of_vehicles_required {
                 node_counter += 1;
                 let left_node = builder.add_node();
                 let right_node = builder.add_node();
@@ -112,7 +110,7 @@ impl Solver for MinCostMaxMatchingSolver {
                                 .dead_head_distance_between(pred, service_trip)
                                 .in_meter() as i64
                                 * seat_count as i64;
-                            max_cost = i64::max(max_cost, cost);
+                            max_cost = max_cost.max(cost);
                             edges
                                 .insert(builder.add_edge(pred_left_node, right_node), (0, 1, cost));
                         }

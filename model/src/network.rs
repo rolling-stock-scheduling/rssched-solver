@@ -6,9 +6,12 @@ use nodes::Node;
 use nodes::{MaintenanceSlot, ServiceTrip};
 use time::{DateTime, Duration};
 
-use crate::base_types::{DepotId, Distance, Location, NodeId, PassengerCount, VehicleTypeId};
+use crate::base_types::{
+    DepotId, Distance, Location, NodeId, PassengerCount, VehicleCount, VehicleTypeId,
+};
 use crate::config::Config;
 use crate::locations::Locations;
+use crate::vehicle_types::VehicleTypes;
 
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
@@ -33,6 +36,7 @@ pub struct Network {
     // for convenience
     config: Arc<Config>,
     locations: Arc<Locations>,
+    vehicle_types: Arc<VehicleTypes>,
 }
 
 // methods
@@ -99,8 +103,22 @@ impl Network {
         self.node(service_trip).as_service_trip().passengers()
     }
 
-    pub fn seated_of(&self, service_trip: NodeId) -> PassengerCount {
+    pub fn seated_passengers_of(&self, service_trip: NodeId) -> PassengerCount {
         self.node(service_trip).as_service_trip().seated()
+    }
+
+    pub fn number_of_vehicles_required_to_serve(
+        &self,
+        vehicle_type: VehicleTypeId,
+        service_trip: NodeId,
+    ) -> VehicleCount {
+        let service_trip = self.node(service_trip).as_service_trip();
+        let vehicle_type = self.vehicle_types.get(vehicle_type).unwrap();
+        service_trip
+            .passengers()
+            .div_ceil(vehicle_type.capacity())
+            .max(service_trip.seated().div_ceil(vehicle_type.seats()))
+            .max(1) // one vehicle is always required
     }
 
     pub fn get_depot_id(&self, node_id: NodeId) -> DepotId {
@@ -282,6 +300,7 @@ impl Network {
         maintenance_slots: Vec<MaintenanceSlot>,
         config: Arc<Config>,
         locations: Arc<Locations>,
+        vehicle_types: Arc<VehicleTypes>,
     ) -> Network {
         let mut nodes = HashMap::new();
         let mut depots_lookup = HashMap::new();
@@ -294,7 +313,11 @@ impl Network {
             let depot_id = depot.depot_id();
 
             let start_node_id = NodeId::start_depot_from(depot_id.0);
-            let start_node_name = format!("start_depot({},{})", depot_id, depot.location());
+            let start_node_name = format!(
+                "start_depot({} at {})",
+                depot_id,
+                locations.get_location_name(depot.location()).unwrap()
+            );
             let start_node = Node::create_start_depot_node(
                 start_node_id,
                 depot_id,
@@ -305,7 +328,7 @@ impl Network {
             start_depot_nodes.push(start_node_id);
 
             let end_node_id = NodeId::end_depot_from(depot_id.0);
-            let end_node_name = format!("end_depot({},{})", depot_id, depot.location());
+            let end_node_name = format!("end_depot({} at {})", depot_id, depot.location());
             let end_node =
                 Node::create_end_depot_node(end_node_id, depot_id, depot.location(), end_node_name);
             nodes.insert(end_node_id, end_node);
@@ -385,6 +408,7 @@ impl Network {
             nodes_sorted_by_end,
             config,
             locations,
+            vehicle_types,
         }
     }
 }

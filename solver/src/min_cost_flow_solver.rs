@@ -100,19 +100,18 @@ impl Solver for MinCostFlowSolver {
             left_rsnode_to_node.insert(left_rsnode, trip_node);
             right_rsnode_to_node.insert(right_rsnode, trip_node);
             node_to_rsnode.insert(trip_node, (left_rsnode, right_rsnode));
-            let required_vehicles_count = LowerBound::max(
-                self.network
-                    .passengers_of(service_trip)
-                    .div_ceil(seat_count) as LowerBound,
-                1,
-            ); // at least one vehicle is always required
+            let number_of_vehicles_required = self
+                .network
+                .number_of_vehicles_required_to_serve(vehicle_type, service_trip)
+                as LowerBound;
+
             let cost = self.network.node(service_trip).travel_distance().in_meter() as Cost
                 * seat_count as Cost;
             edges.insert(
                 builder.add_edge(left_rsnode, right_rsnode),
                 EdgeLabel {
-                    lower_bound: required_vehicles_count,
-                    upper_bound: required_vehicles_count,
+                    lower_bound: number_of_vehicles_required,
+                    upper_bound: number_of_vehicles_required,
                     cost,
                 },
             );

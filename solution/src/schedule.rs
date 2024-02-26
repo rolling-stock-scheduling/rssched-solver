@@ -201,29 +201,43 @@ impl Schedule {
         self.depot_balance(depot, vehicle_type) > 0
     }
 
-    // TODO integrate standing passengers
-    pub fn unserved_passengers_at(&self, node: NodeId) -> PassengerCount {
+    /// Returns the number of passengers that do not fit (first entry) or seated passenger that
+    /// cannot sit (second entry) at the given node.
+    pub fn unserved_passengers_at(&self, node: NodeId) -> (PassengerCount, PassengerCount) {
         let demand = self.network.passengers_of(node);
-        let served = self.train_formation_of(node).seats();
-        if served > demand {
-            0
-        } else {
-            demand - served
-        }
+        let capacity = self.train_formation_of(node).capacity();
+
+        let seat_demand = self.network.seated_passengers_of(node);
+        let seat_capacity = self.train_formation_of(node).seats();
+        (
+            demand.saturating_sub(capacity), // return 0 if demand < capacity
+            seat_demand.saturating_sub(seat_capacity), // return 0 if seat_demand < seat_capacity
+        )
     }
 
-    pub fn unserved_passengers(&self) -> PassengerCount {
+    /// Returns the number of passengers that do not fit (first entry) or seated passenger that
+    /// cannot sit (second entry).
+    pub fn unserved_passengers(&self) -> (PassengerCount, PassengerCount) {
         self.network
             .all_service_nodes()
             .map(|node| self.unserved_passengers_at(node))
-            .sum()
+            .fold(
+                (0, 0),
+                |(unserved_demand, unserved_seated),
+                 (unserved_demand_at_node, unserved_seated_at_node)| {
+                    (
+                        unserved_demand + unserved_demand_at_node,
+                        unserved_seated + unserved_seated_at_node,
+                    )
+                },
+            )
     }
 
-    // TODO integrate standing passengers
     pub fn is_fully_covered(&self, service_trip: NodeId) -> bool {
-        self.train_formation_of(service_trip).seats() >= self.network.passengers_of(service_trip)
+        self.unserved_passengers_at(service_trip) == (0, 0)
     }
 
+    // TODO: remove this method
     /// sum over all vehicles: number of seats * distance
     pub fn seat_distance_traveled(&self) -> SeatDistance {
         self.tours
@@ -260,7 +274,11 @@ impl Schedule {
 
     pub fn print_tours(&self) {
         for vehicle in self.vehicles_iter() {
-            println!("{}: {}", vehicle, self.tours.get(&vehicle).unwrap());
+            println!(
+                "{}: {}",
+                self.get_vehicle(vehicle).unwrap(),
+                self.tours.get(&vehicle).unwrap()
+            );
         }
         for dummy in self.dummy_iter() {
             println!("{}: {}", dummy, self.dummy_tours.get(&dummy).unwrap());

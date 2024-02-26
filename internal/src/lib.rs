@@ -73,8 +73,8 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
     // println!("\nfinal schedule (long version):");
     // final_solution.solution().print_tours_long();
 
-    // println!("\n\nFinal schedule:");
-    // final_solution.solution().print_tours();
+    println!("Final schedule:");
+    final_solution.solution().print_tours();
 
     // println!("\n\nFinal train formations:");
     // final_solution.solution().print_train_formations();

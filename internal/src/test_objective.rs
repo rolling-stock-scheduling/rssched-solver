@@ -8,7 +8,8 @@ struct NumberOfUnservedPassengersIndicator;
 /// Sum over all service trips max{0, passengers - seats}
 impl Indicator<Schedule> for NumberOfUnservedPassengersIndicator {
     fn evaluate(&self, schedule: &Schedule) -> BaseValue {
-        BaseValue::Integer(schedule.unserved_passengers() as i64)
+        let unserved_passengers = schedule.unserved_passengers();
+        BaseValue::Integer((unserved_passengers.0 + unserved_passengers.1) as i64)
     }
 
     fn name(&self) -> String {

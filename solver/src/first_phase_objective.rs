@@ -6,7 +6,8 @@ struct UnservedPassengersIndicator;
 
 impl Indicator<Schedule> for UnservedPassengersIndicator {
     fn evaluate(&self, schedule: &Schedule) -> BaseValue {
-        BaseValue::Integer(schedule.unserved_passengers() as i64)
+        let unserved_passengers = schedule.unserved_passengers();
+        BaseValue::Integer((unserved_passengers.0 + unserved_passengers.1) as i64)
     }
 
     fn name(&self) -> String {

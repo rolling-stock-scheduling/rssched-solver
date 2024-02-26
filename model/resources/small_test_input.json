@@ -2,13 +2,13 @@
   "vehicleTypes" : [ {
     "id" : 0,
     "name" : "IC",
-    "seats" : 50,
     "capacity" : 100,
+    "seats" : 50,
     "maximalFormationCount" : 4
   }, {
     "id" : 1,
-    "seats" : 40,
-    "capacity" : 80
+    "capacity" : 80,
+    "seats" : 40
   } ],
   "locations" : [ {
     "id" : 0,
@@ -99,7 +99,7 @@
     "segments" : [ {
       "order" : 0,
       "departure" : "2023-07-24T14:00:00",
-      "passengers" : 100,
+      "passengers" : 0,
       "seated" : 0
     } ]
   } ],

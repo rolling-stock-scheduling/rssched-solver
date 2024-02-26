@@ -64,8 +64,8 @@ impl Locations {
         }
     }
 
-    pub fn get_location_name(&self, location_id: LocationId) -> Result<String, &'static str> {
-        match self.stations.get(&location_id) {
+    pub fn get_location_name(&self, location: Location) -> Result<String, &'static str> {
+        match self.stations.get(&location.id()) {
             Some((name, _)) => Ok(name.clone()),
             None => Err("Location Id is invalid."),
         }
@@ -73,9 +73,9 @@ impl Locations {
 
     pub fn get_location_daylimit(
         &self,
-        location_id: LocationId,
+        location: Location,
     ) -> Result<Option<VehicleCount>, &'static str> {
-        match self.stations.get(&location_id) {
+        match self.stations.get(&location.id()) {
             Some((_, daylimit)) => Ok(*daylimit),
             None => Err("Location Id is invalid."),
         }

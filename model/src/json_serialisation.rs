@@ -264,7 +264,14 @@ fn create_network(
     let depots = create_depots(json_input, &locations);
     let service_trips = create_service_trips(json_input, &locations, &vehicle_types);
     let maintenance_slots = create_maintenance_slots(json_input, &locations);
-    Network::new(depots, service_trips, maintenance_slots, config, locations)
+    Network::new(
+        depots,
+        service_trips,
+        maintenance_slots,
+        config,
+        locations,
+        vehicle_types,
+    )
 }
 
 fn create_depots(json_input: &JsonInput, loc: &Locations) -> Vec<ModelDepot> {
