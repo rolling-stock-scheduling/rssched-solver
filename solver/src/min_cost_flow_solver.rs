@@ -46,6 +46,12 @@ pub struct MinCostFlowSolver {
     objective: Arc<Objective<Schedule>>,
 }
 
+struct EdgeLabel {
+    lower_bound: LowerBound,
+    upper_bound: UpperBound,
+    cost: Cost,
+}
+
 impl Solver for MinCostFlowSolver {
     fn initialize(
         vehicles: Arc<VehicleTypes>,
@@ -76,7 +82,7 @@ impl Solver for MinCostFlowSolver {
         let mut right_rsnode_to_node: HashMap<RsNode, TripNode> = HashMap::new();
         let mut node_to_rsnode: HashMap<TripNode, (RsNode, RsNode)> = HashMap::new();
 
-        let mut edges: HashMap<RsEdge, (LowerBound, UpperBound, Cost)> = HashMap::new();
+        let mut edges: HashMap<RsEdge, EdgeLabel> = HashMap::new();
 
         let mut max_cost: Cost = 0;
 
@@ -104,7 +110,11 @@ impl Solver for MinCostFlowSolver {
                 * seat_count as Cost;
             edges.insert(
                 builder.add_edge(left_rsnode, right_rsnode),
-                (required_vehicles_count, required_vehicles_count, cost),
+                EdgeLabel {
+                    lower_bound: required_vehicles_count,
+                    upper_bound: required_vehicles_count,
+                    cost,
+                },
             );
         }
 
@@ -140,7 +150,11 @@ impl Solver for MinCostFlowSolver {
                 max_cost = max_cost.max(cost);
                 edges.insert(
                     builder.add_edge(pred_right_rsnode, *left_rsnode),
-                    (0, maximal_formation_count, cost),
+                    EdgeLabel {
+                        lower_bound: 0,
+                        upper_bound: maximal_formation_count,
+                        cost,
+                    },
                 );
             }
             if time_since_last_print.elapsed().as_secs_f32() >= 5.0 {
@@ -175,7 +189,11 @@ impl Solver for MinCostFlowSolver {
             let capacity = self.network.get_depot(depot).capacity_for(vehicle_type) as UpperBound;
             edges.insert(
                 builder.add_edge(left_rsnode, right_rsnode),
-                (0, capacity, spawn_cost),
+                EdgeLabel {
+                    lower_bound: 0,
+                    upper_bound: capacity,
+                    cost: spawn_cost,
+                },
             );
         }
         let graph = builder.into_graph();
@@ -186,10 +204,10 @@ impl Solver for MinCostFlowSolver {
 
         let (_, flow) = network_simplex(
             &graph,
-            |_| 0,           // balance is 0 everywhere -> circulation
-            |e| edges[&e].0, // lower bounds
-            |e| edges[&e].1, // upper bounds
-            |e| edges[&e].2, // costs
+            |_| 0,                     // balance is 0 everywhere -> circulation
+            |e| edges[&e].lower_bound, // lower bounds
+            |e| edges[&e].upper_bound, // upper bounds
+            |e| edges[&e].cost,        // costs
         )
         .unwrap();
 
