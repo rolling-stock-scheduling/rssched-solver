@@ -99,17 +99,15 @@ impl Indicator<Schedule> for NumberOfVehiclesIndicator {
     }
 }
 
-/// Sum over all vehicles: distance in m * number of seats
-/// - sum over all service trips: distance in km * number of passengers
-struct OverheadSeatDistanceIndicator;
+struct CostsIndicator;
 
-impl Indicator<Schedule> for OverheadSeatDistanceIndicator {
+impl Indicator<Schedule> for CostsIndicator {
     fn evaluate(&self, schedule: &Schedule) -> BaseValue {
-        BaseValue::Integer(schedule.seat_distance_traveled() as i64)
+        BaseValue::Integer(schedule.costs() as i64)
     }
 
     fn name(&self) -> String {
-        String::from("seatDistanceTraveled")
+        String::from("costs")
     }
 }
 
@@ -173,10 +171,7 @@ pub fn _build() -> Objective<Schedule> {
         Box::new(NumberOfVehiclesIndicator),
     )]);
 
-    let _overhead_seat_distance_level = Level::new(vec![(
-        Coefficient::Integer(1),
-        Box::new(OverheadSeatDistanceIndicator),
-    )]);
+    let _cost_level = Level::new(vec![(Coefficient::Integer(1), Box::new(CostsIndicator))]);
 
     Objective::new(vec![
         // _dummy_level,

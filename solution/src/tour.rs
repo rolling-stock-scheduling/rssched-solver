@@ -2,7 +2,9 @@
 mod tests;
 use crate::path::Path;
 use crate::segment::Segment;
-use model::base_types::{Distance, NodeId};
+use model::base_types::{Cost, Distance, NodeId};
+use model::config::Config;
+use model::network::nodes::Node;
 use model::network::Network;
 use std::cmp::Ordering;
 use std::fmt;
@@ -35,8 +37,10 @@ pub struct Tour {
     useful_duration: Duration, // duration of service trips and maintenance, excluding dead head and idle time
     service_distance: Distance, // distance covered by service trips
     dead_head_distance: Distance, // distance covered by dead head trips
-
+    costs: Cost, // given by service_trip_duration * costs.service_trip + dead_head_trip_duration *
+    // costs.dead_head_trip + idle_time * costs.idle + maintenance_time * costs.maintenance
     network: Arc<Network>,
+    config: Arc<Config>,
 }
 
 // basic public methods
@@ -80,6 +84,10 @@ impl Tour {
     /// return the total distance (service distance + dead head distance) of the tour
     pub fn total_distance(&self) -> Distance {
         self.service_distance + self.dead_head_distance
+    }
+
+    pub fn costs(&self) -> Cost {
+        self.costs
     }
 
     /// the overhead time (dead_head + idle) between the predecessor and the node itself
@@ -295,13 +303,26 @@ impl Tour {
             + self
                 .network
                 .dead_head_distance_between(new_start_depot, first_non_depot);
+        let new_costs = self.costs
+            - self
+                .network
+                .dead_head_time_between(self.first_node(), first_non_depot)
+                .in_sec()
+                * self.config.costs.dead_head_trip
+            + self
+                .network
+                .dead_head_time_between(new_start_depot, first_non_depot)
+                .in_sec()
+                * self.config.costs.dead_head_trip;
         Ok(Tour::new_precomputed(
             nodes,
             self.is_dummy,
             self.useful_duration,
             self.service_distance,
             new_dead_head_distance,
+            new_costs,
             self.network.clone(),
+            self.config.clone(),
         ))
     }
 
@@ -323,13 +344,26 @@ impl Tour {
             + self
                 .network
                 .dead_head_distance_between(last_non_depot, new_end_depot);
+        let new_costs = self.costs
+            - self
+                .network
+                .dead_head_time_between(last_non_depot, self.last_node())
+                .in_sec()
+                * self.config.costs.dead_head_trip
+            + self
+                .network
+                .dead_head_time_between(last_non_depot, new_end_depot)
+                .in_sec()
+                * self.config.costs.dead_head_trip;
         Ok(Tour::new_precomputed(
             nodes,
             self.is_dummy,
             self.useful_duration,
             self.service_distance,
             new_dead_head_distance,
+            new_costs,
             self.network.clone(),
+            self.config.clone(),
         ))
     }
 
@@ -384,6 +418,55 @@ impl Tour {
                 .dead_head_distance_between(self.nodes[start_pos - 1], self.nodes[end_pos + 1])
         };
 
+        // compute new costs
+        let new_costs = self.costs
+            // costs by dead head trip before removed segment
+            - if start_pos == 0 {
+                0
+                } else {
+                    self
+                    .network
+                    .dead_head_time_between(self.nodes[start_pos - 1], self.nodes[start_pos])
+                    .in_sec()
+                    * self.config.costs.dead_head_trip
+            }
+            // costs by dead head trips in between
+            - (start_pos..end_pos + 1).tuple_windows()
+                .map(|(i, j)| {
+                    self.network
+                        .dead_head_time_between(self.nodes[i], self.nodes[j])
+                        .in_sec()
+                        * self.config.costs.dead_head_trip
+                })
+                .sum::<Cost>()
+            // costs by dead head trip after removed segment
+            - if end_pos == self.nodes.len() - 1 {
+                0
+            } else {
+            self
+                .network
+                .dead_head_time_between(self.nodes[end_pos], self.nodes[end_pos + 1])
+                .in_sec()
+                * self.config.costs.dead_head_trip
+            }
+            // costs by nodes in segment
+            - (start_pos..end_pos + 1)
+                .map(|i| {
+                    self.network.node(self.nodes[i]).duration().in_sec()
+                        * match self.network.node(self.nodes[i]) {
+                            Node::Service(_) => self.config.costs.service_trip,
+                            Node::Maintenance(_) => self.config.costs.maintenance,
+                            _ => 0,
+                        }
+                })
+                .sum::<Cost>()
+            // new costs by dead head trip replacing the segment
+            + self
+                .network
+                .dead_head_time_between(self.nodes[start_pos - 1], self.nodes[end_pos + 1])
+                .in_sec()
+                * self.config.costs.dead_head_trip;
+
         // remove the segment from the tour:
         let mut tour_nodes: Vec<NodeId> = self.nodes[..start_pos].to_vec();
         tour_nodes.extend(self.nodes[end_pos + 1..].iter().copied());
@@ -408,7 +491,9 @@ impl Tour {
                 useful_duration,
                 service_distance,
                 dead_head_distance,
+                new_costs,
                 self.network.clone(),
+                self.config.clone(),
             )),
             Path::new_trusted(removed_nodes, self.network.clone())
                 .expect("empty path should be impossible."),
@@ -607,19 +692,104 @@ impl Tour {
                         .dead_head_distance_between(self.nodes[end_pos - 1], self.nodes[end_pos])
                 };
 
-        // remove all elements in start_pos..end_pos and replace them by
-        // node_sequence.
-        let mut new_tour_nodes = self.nodes.clone();
-        let removed_nodes: Vec<NodeId> = new_tour_nodes
-            .splice(start_pos..end_pos, new_nodes)
-            .collect();
-
         // compute the useful_duration, service_distance and dead_head_distance for the new tour:
         let useful_duration = self.useful_duration + path_useful_duration - removed_useful_duration;
         let service_distance =
             self.service_distance + path_service_distance - removed_service_distance;
         let dead_head_distance =
             self.dead_head_distance + path_dead_head_distance - removed_dead_head_distance;
+
+        let new_costs = self.costs
+            // costs by dead head trip before removed segment
+            - if start_pos == 0 {
+                0
+            } else {
+                self
+                    .network
+                    .dead_head_time_between(self.nodes[start_pos - 1], self.nodes[start_pos])
+                    .in_sec()
+                    * self.config.costs.dead_head_trip
+            }
+            // costs by dead head trips in between
+            - (start_pos..end_pos).tuple_windows()
+                .map(|(i, j)| {
+                    self.network
+                        .dead_head_time_between(self.nodes[i], self.nodes[j])
+                        .in_sec()
+                        * self.config.costs.dead_head_trip
+                })
+                .sum::<Cost>()
+            // costs by dead head trip after removed segment
+            - if end_pos == self.nodes.len() {
+                0
+            } else {
+                self
+                    .network
+                    .dead_head_time_between(self.nodes[end_pos- 1], self.nodes[end_pos])
+                    .in_sec()
+                    * self.config.costs.dead_head_trip
+            }
+            // costs of removed nodes
+            - (start_pos..end_pos)
+                .map(|i| {
+                    self.network.node(self.nodes[i]).duration().in_sec()
+                        * match self.network.node(self.nodes[i]) {
+                            Node::Service(_) => self.config.costs.service_trip,
+                            Node::Maintenance(_) => self.config.costs.maintenance,
+                            _ => 0,
+                        }
+                })
+            .sum::<Cost>()
+            // new costs for dead head trip before new nodes
+            + if start_pos == 0 {
+                0
+            } else {
+                self
+                    .network
+                    .dead_head_time_between(self.nodes[start_pos - 1], new_nodes[0])
+                    .in_sec()
+                    * self.config.costs.dead_head_trip
+            }
+            // new costs for dead head trips in between
+            + new_nodes
+                .iter()
+                .tuple_windows()
+                .map(|(a, b)| {
+                    self.network
+                        .dead_head_time_between(*a, *b)
+                        .in_sec()
+                        * self.config.costs.dead_head_trip
+                })
+                .sum::<Cost>()
+            // new costs for dead head trip after new nodes
+            + if end_pos == self.nodes.len() {
+                0
+            } else {
+                self
+                    .network
+                    .dead_head_time_between(new_nodes[new_nodes.len() - 1], self.nodes[end_pos])
+                    .in_sec()
+                    * self.config.costs.dead_head_trip
+            }
+            // new costs for the new nodes
+            + new_nodes
+                .iter()
+                .map(|n| {
+                    self.network.node(*n).duration().in_sec()
+                        * match self.network.node(*n) {
+                            Node::Service(_) => self.config.costs.service_trip,
+                            Node::Maintenance(_) => self.config.costs.maintenance,
+                            _ => 0,
+                        }
+                })
+                .sum::<Cost>();
+
+        // remove all elements in start_pos..end_pos and replace them by
+        // node_sequence.
+        let mut new_tour_nodes = self.nodes.clone();
+        let removed_nodes: Vec<NodeId> = new_tour_nodes
+            .splice(start_pos..end_pos, new_nodes)
+            .collect();
 
         (
             Tour::new_precomputed(
@@ -628,7 +798,9 @@ impl Tour {
                 useful_duration,
                 service_distance,
                 dead_head_distance,
+                new_costs,
                 self.network.clone(),
+                self.config.clone(),
             ),
             Path::new_trusted(removed_nodes, self.network.clone()),
         )
@@ -726,8 +898,12 @@ impl Tour {
     /// * only Service or MaintenanceNodes in the middle
     /// * each node can reach its successor
     /// If one of the checks fails an error message is returned.
-    pub(super) fn new(nodes: Vec<NodeId>, network: Arc<Network>) -> Result<Tour, String> {
-        Tour::new_allow_invalid(nodes, network).map_err(|(_, error_msg)| error_msg)
+    pub(super) fn new(
+        nodes: Vec<NodeId>,
+        network: Arc<Network>,
+        config: Arc<Config>,
+    ) -> Result<Tour, String> {
+        Tour::new_allow_invalid(nodes, network, config).map_err(|(_, error_msg)| error_msg)
     }
 
     /// Creates a new tour from a vector of NodeIds. Checks that the tour is valid:
@@ -740,6 +916,7 @@ impl Tour {
     pub(super) fn new_allow_invalid(
         nodes: Vec<NodeId>,
         network: Arc<Network>,
+        config: Arc<Config>,
     ) -> Result<Tour, (Tour, String)> {
         let mut error_msg = String::new();
         if !network.node(nodes[0]).is_start_depot() {
@@ -776,13 +953,16 @@ impl Tour {
             }
         }
         if !error_msg.is_empty() {
-            Err((Tour::new_computing(nodes, false, network), error_msg))
+            Err((
+                Tour::new_computing(nodes, false, network, config),
+                error_msg,
+            ))
         } else {
-            Ok(Tour::new_computing(nodes, false, network))
+            Ok(Tour::new_computing(nodes, false, network, config))
         }
     }
 
-    pub(super) fn new_dummy(path: Path, network: Arc<Network>) -> Tour {
+    pub(super) fn new_dummy(path: Path, network: Arc<Network>, config: Arc<Config>) -> Tour {
         let mut nodes = path.consume();
         // remove start and end depot
         if network.node(*nodes.first().unwrap()).is_depot() {
@@ -792,10 +972,15 @@ impl Tour {
             nodes.pop();
         };
         assert!(!nodes.is_empty());
-        Tour::new_computing(nodes, true, network)
+        Tour::new_computing(nodes, true, network, config)
     }
 
-    fn new_computing(nodes: Vec<NodeId>, is_dummy: bool, network: Arc<Network>) -> Tour {
+    fn new_computing(
+        nodes: Vec<NodeId>,
+        is_dummy: bool,
+        network: Arc<Network>,
+        config: Arc<Config>,
+    ) -> Tour {
         let useful_duration = nodes
             .iter()
             .map(|&n| network.node(n).duration())
@@ -809,6 +994,24 @@ impl Tour {
             .tuple_windows()
             .map(|(&a, &b)| network.dead_head_distance_between(a, b))
             .sum();
+        let costs = nodes
+            .iter()
+            .map(|&n| {
+                network.node(n).duration().in_sec()
+                    * match network.node(n) {
+                        Node::Service(_) => config.costs.service_trip,
+                        Node::Maintenance(_) => config.costs.maintenance,
+                        _ => 0,
+                    }
+            })
+            .sum::<Cost>()
+            + nodes
+                .iter()
+                .tuple_windows()
+                .map(|(&a, &b)| {
+                    network.dead_head_time_between(a, b).in_sec() * config.costs.dead_head_trip
+                })
+                .sum::<Cost>();
 
         Tour::new_precomputed(
             nodes,
@@ -816,7 +1019,9 @@ impl Tour {
             useful_duration,
             service_distance,
             dead_head_distance,
+            costs,
             network,
+            config,
         )
     }
 
@@ -827,7 +1032,9 @@ impl Tour {
         useful_duration: Duration,
         service_distance: Distance,
         dead_head_distance: Distance,
+        costs: Cost,
         network: Arc<Network>,
+        config: Arc<Config>,
     ) -> Tour {
         Tour {
             nodes,
@@ -835,7 +1042,9 @@ impl Tour {
             useful_duration,
             service_distance,
             dead_head_distance,
+            costs,
             network,
+            config,
         }
     }
 }

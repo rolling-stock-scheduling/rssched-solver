@@ -33,6 +33,9 @@ pub struct Network {
     nodes_sorted_by_start: BTreeMap<(DateTime, NodeId), NodeId>,
     nodes_sorted_by_end: BTreeMap<(DateTime, NodeId), NodeId>,
 
+    // redundant information
+    number_of_service_nodes: usize,
+
     // for convenience
     config: Arc<Config>,
     locations: Arc<Locations>,
@@ -54,12 +57,15 @@ impl Network {
         self.service_nodes[&vehicle_type].iter().copied()
     }
 
-    // TODO can this be removed at the end?
     pub fn all_service_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
         self.nodes_sorted_by_start
             .values()
             .filter(move |&n| self.node(*n).is_service())
             .copied()
+    }
+
+    pub fn number_of_service_nodes(&self) -> usize {
+        self.number_of_service_nodes
     }
 
     pub fn maintenance_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
@@ -397,6 +403,8 @@ impl Network {
             })
             .collect();
 
+        let number_of_service_nodes = service_nodes.values().map(|v| v.len()).sum();
+
         Network {
             nodes,
             depots: depots_lookup,
@@ -406,6 +414,7 @@ impl Network {
             end_depot_nodes,
             nodes_sorted_by_start,
             nodes_sorted_by_end,
+            number_of_service_nodes,
             config,
             locations,
             vehicle_types,

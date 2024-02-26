@@ -48,7 +48,7 @@ impl Schedule {
         let mut vehicle_ids_sorted = self.vehicle_ids_sorted.clone();
 
         let vehicle_id = VehicleId::vehicle_from(self.vehicle_counter as Id);
-        let tour = Tour::new(nodes, self.network.clone())?;
+        let tour = Tour::new(nodes, self.network.clone(), self.config.clone())?;
         let vehicle = Vehicle::new(vehicle_id, vehicle_type_id, self.vehicle_types.clone());
 
         vehicles.insert(vehicle_id, vehicle.clone());
@@ -698,7 +698,7 @@ impl Schedule {
         dummy_id: VehicleId,
         path: Path,
     ) {
-        let dummy_tour = Tour::new_dummy(path, self.network.clone());
+        let dummy_tour = Tour::new_dummy(path, self.network.clone(), self.config.clone());
         dummy_tours.insert(dummy_id, dummy_tour);
         dummy_ids_sorted.insert(
             dummy_ids_sorted

@@ -1,7 +1,7 @@
 use objective_framework::{BaseValue, Coefficient, Indicator, Level, Objective};
 use solution::Schedule;
 
-/// Sum over all service trips max{0, passengers - seats}
+/// Sum over all service trips: max{0, passengers - capacity} + max{0, seated_passengers - seats}
 struct UnservedPassengersIndicator;
 
 impl Indicator<Schedule> for UnservedPassengersIndicator {
@@ -28,17 +28,15 @@ impl Indicator<Schedule> for VehicleCountIndicator {
     }
 }
 
-/// Sum over all vehicles: distance in m * number of seats
-/// - sum over all service trips: distance in km * number of passengers
-struct OverheadSeatDistanceIndicator;
+struct CostsIndicator;
 
-impl Indicator<Schedule> for OverheadSeatDistanceIndicator {
+impl Indicator<Schedule> for CostsIndicator {
     fn evaluate(&self, schedule: &Schedule) -> BaseValue {
-        BaseValue::Integer(schedule.seat_distance_traveled() as i64)
+        BaseValue::Integer(schedule.costs() as i64)
     }
 
     fn name(&self) -> String {
-        String::from("seatDistanceTraveled")
+        String::from("costs")
     }
 }
 
@@ -53,14 +51,7 @@ pub fn build() -> Objective<Schedule> {
         Box::new(VehicleCountIndicator),
     )]);
 
-    let overhead_seat_distance = Level::new(vec![(
-        Coefficient::Integer(1),
-        Box::new(OverheadSeatDistanceIndicator),
-    )]);
+    let costs = Level::new(vec![(Coefficient::Integer(1), Box::new(CostsIndicator))]);
 
-    Objective::new(vec![
-        unserved_passengers,
-        vehicle_count,
-        overhead_seat_distance,
-    ])
+    Objective::new(vec![unserved_passengers, vehicle_count, costs])
 }

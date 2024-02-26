@@ -132,10 +132,11 @@
       "maximalDistance" : 30000000
     },
     "costs" : {
-      "serviceTripFirstVehicleCost" : 100,
-      "serviceTripAdditionalVehicleCost" : 50,
-      "deadHeadTripCost" : 500,
-      "idleCost" : 20
+      "staff" : 100,
+      "serviceTrip" : 50,
+      "maintenance" : 0,
+      "deadHeadTrip" : 500,
+      "idle" : 20
     }
   }
 }

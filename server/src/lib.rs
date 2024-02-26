@@ -2,8 +2,8 @@ use model::json_serialisation::load_rolling_stock_problem_instance_from_json;
 use objective_framework::Objective;
 use solution::json_serialisation::schedule_to_json;
 use solution::Schedule;
-use solver::first_phase_objective;
 use solver::min_cost_flow_solver::MinCostFlowSolver;
+use solver::objective;
 use solver::Solution;
 use solver::Solver;
 use time::{DateTime, Duration};
@@ -23,7 +23,7 @@ pub fn solve_instance(input_data: serde_json::Value) -> serde_json::Value {
         start_time.elapsed().as_secs_f32()
     );
 
-    let objective = Arc::new(first_phase_objective::build());
+    let objective = Arc::new(objective::build());
 
     let min_cost_flow_solver = MinCostFlowSolver::initialize(
         vehicle_types.clone(),

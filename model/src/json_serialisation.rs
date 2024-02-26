@@ -151,10 +151,11 @@ struct Maintenance {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Costs {
-    service_trip_first_vehicle_cost: Integer,
-    service_trip_additional_vehicle_cost: Integer,
-    dead_head_trip_cost: Integer,
-    idle_cost: Integer,
+    staff: Integer,
+    service_trip: Integer,
+    maintenance: Integer,
+    dead_head_trip: Integer,
+    idle: Integer,
 }
 
 pub fn load_rolling_stock_problem_instance_from_json(
@@ -245,13 +246,11 @@ fn create_config(json_input: &JsonInput) -> Config {
         Duration::from_seconds(json_input.parameters.shunting.dead_head_trip_duration),
         Duration::from_seconds(json_input.parameters.shunting.coupling_duration),
         Distance::from_meter(json_input.parameters.maintenance.maximal_distance),
-        json_input.parameters.costs.service_trip_first_vehicle_cost,
-        json_input
-            .parameters
-            .costs
-            .service_trip_additional_vehicle_cost,
-        json_input.parameters.costs.dead_head_trip_cost,
-        json_input.parameters.costs.idle_cost,
+        json_input.parameters.costs.staff,
+        json_input.parameters.costs.service_trip,
+        json_input.parameters.costs.maintenance,
+        json_input.parameters.costs.dead_head_trip,
+        json_input.parameters.costs.idle,
     )
 }
 

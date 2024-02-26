@@ -10,6 +10,8 @@ use crate::{
 
 use super::Tour;
 
+// TODO: Assert Costs
+
 fn default_tour(d: &TestData) -> Tour {
     Tour::new(
         vec![

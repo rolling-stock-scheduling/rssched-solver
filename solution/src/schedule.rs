@@ -3,11 +3,11 @@ mod modifications;
 mod tests;
 
 use itertools::Itertools;
+use model::base_types::Cost;
 use model::base_types::DepotId;
 use model::base_types::Distance;
 use model::base_types::NodeId;
 use model::base_types::PassengerCount;
-use model::base_types::SeatDistance;
 use model::base_types::VehicleCount;
 use model::base_types::VehicleId;
 use model::base_types::VehicleTypeId;
@@ -237,16 +237,9 @@ impl Schedule {
         self.unserved_passengers_at(service_trip) == (0, 0)
     }
 
-    // TODO: remove this method
-    /// sum over all vehicles: number of seats * distance
-    pub fn seat_distance_traveled(&self) -> SeatDistance {
-        self.tours
-            .iter()
-            .map(|(vehicle, tour)| {
-                tour.total_distance().in_meter() as SeatDistance
-                    * self.get_vehicle(*vehicle).unwrap().seats() as SeatDistance
-            })
-            .sum::<SeatDistance>()
+    pub fn costs(&self) -> Cost {
+        self.tours.values().map(|tour| tour.costs()).sum::<Cost>()
+            + self.network.number_of_service_nodes() as Cost * self.config.costs.staff
     }
 
     pub fn print_tours_long(&self) {

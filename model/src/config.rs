@@ -21,8 +21,9 @@ pub struct MaintenanceConfig {
 }
 
 pub struct CostsConfig {
-    pub service_trip_first_vehicle: Cost,
-    pub service_trip_additional_vehicle: Cost,
+    pub staff: Cost,
+    pub service_trip: Cost,
+    pub maintenance: Cost,
     pub dead_head_trip: Cost,
     pub idle: Cost,
 }
@@ -36,8 +37,9 @@ impl Config {
         shunting_dead_head_trip: Duration,
         shunting_coupling: Duration,
         maintenance_maximal_distance: Distance,
-        costs_service_trip_first_vehicle: Cost,
-        costs_service_trip_additional_vehicle: Cost,
+        costs_staff: Cost,
+        costs_service_trip: Cost,
+        costs_maintenance: Cost,
         costs_dead_head_trip: Cost,
         costs_idle: Cost,
     ) -> Config {
@@ -53,8 +55,9 @@ impl Config {
                 maximal_distance: maintenance_maximal_distance,
             },
             costs: CostsConfig {
-                service_trip_first_vehicle: costs_service_trip_first_vehicle,
-                service_trip_additional_vehicle: costs_service_trip_additional_vehicle,
+                staff: costs_staff,
+                service_trip: costs_service_trip,
+                maintenance: costs_maintenance,
                 dead_head_trip: costs_dead_head_trip,
                 idle: costs_idle,
             },
