@@ -86,8 +86,13 @@ impl Solver for MinCostMaxMatchingSolver {
 
         let num_service_trips = self.network.all_service_nodes().count();
         for (counter, service_trip) in self.network.all_service_nodes().enumerate() {
-            let demand = self.network.passengers_of(service_trip);
-            for i in 0..demand.div_ceil(seat_count) as u8 {
+            let required_vehicles = u8::max(
+                self.network
+                    .passengers_of(service_trip)
+                    .div_ceil(seat_count) as u8,
+                1,
+            );
+            for i in 0..required_vehicles {
                 node_counter += 1;
                 let left_node = builder.add_node();
                 let right_node = builder.add_node();
