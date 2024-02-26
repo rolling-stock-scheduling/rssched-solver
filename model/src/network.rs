@@ -50,10 +50,12 @@ impl Network {
         self.service_nodes[&vehicle_type].iter().copied()
     }
 
+    // TODO can this be removed at the end?
     pub fn all_service_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
-        self.service_nodes
-            .iter()
-            .flat_map(|(_, v)| v.iter().copied())
+        self.nodes_sorted_by_start
+            .values()
+            .filter(move |&n| self.node(*n).is_service())
+            .copied()
     }
 
     pub fn maintenance_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
