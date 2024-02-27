@@ -123,7 +123,7 @@ impl LimitedExchanges {
             .map(move |seg_end| Segment::new(seg_start, seg_end))
         )
         // test whether the segment can be removed
-        .filter(move |seg| schedule.tour_of(provider).unwrap().removable(*seg))
+        .filter(move |seg| schedule.tour_of(provider).unwrap().check_removable(*seg).is_ok())
     }
 
     fn dummy_and_real_vehicles<'a>(

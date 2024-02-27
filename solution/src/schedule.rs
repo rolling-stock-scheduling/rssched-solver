@@ -359,9 +359,6 @@ impl Schedule {
         // check tours
         for vehicle in self.vehicles.keys() {
             let tour = self.tours.get(vehicle).unwrap();
-            for (node1, node2) in tour.all_nodes_iter().tuple_windows() {
-                assert!(self.network.can_reach(node1, node2));
-            }
 
             assert!(!tour.is_dummy());
 
@@ -386,6 +383,8 @@ impl Schedule {
             let end_depot = self.network.get_depot_id(tour.end_depot().unwrap());
             let (_, despawned) = self.depot_usage.get(&(end_depot, vehicle_type)).unwrap();
             assert!(despawned.contains(vehicle));
+
+            tour.verify_consistency();
         }
 
         // check that all tours are in the depot_usage
