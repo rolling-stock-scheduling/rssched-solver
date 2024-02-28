@@ -1,291 +1,429 @@
 {
-  "vehicleTypes" : [ {
-    "id" : 1,
-    "name" : "Vehicle Type 1",
-    "seats" : 50,
-    "capacity" : 100
-  }, {
-    "id" : 2,
-    "name" : "Vehicle Type 2",
-    "seats" : 40,
-    "capacity" : 80
-  } ],
-  "locations" : [ {
-    "id" : 1,
-    "name" : "Location 1"
-  }, {
-    "id" : 2,
-    "name" : "Location 2"
-  }, {
-    "id" : 3,
-    "name" : "Location 3"
-  }, {
-    "id" : 4,
-    "name" : "Location 4"
-  }, {
-    "id" : 5,
-    "name" : "Location 5"
-  } ],
-  "depots" : [ {
-    "id" : 1,
-    "location" : 1,
-    "capacity" : 2,
-    "allowedTypes" : [ {
-  "vehicleType" : 1,
-  "capacity" : 1
-    }, {
-  "vehicleType" : 2,
-  "capacity" : 1
-    } ]
-  }, {
-    "id" : 2,
-    "location" : 2,
-    "capacity" : 5,
-    "allowedTypes" : [ {
-  "vehicleType" : 2,
-  "capacity" : 1
-    } ]
-  },
-  {
-    "id" : 3,
-    "location" : 3,
-    "capacity" : 2,
-    "allowedTypes" : [ {
-  "vehicleType" : 1,
-  "capacity" : 1
-    }, {
-  "vehicleType" : 2,
-  "capacity" : 1
-    } ]
-  }, {
-    "id" : 4,
-    "location" : 4,
-    "capacity" : 1,
-    "capacities" : [ {
-  "vehicleType" : 2
-    } ]
-  },
-  {
-    "id" : 5,
-    "location" : 5,
-    "capacity" : 2,
-    "allowedTypes" : [ {
-  "vehicleType" : 1,
-  "capacity" : 1
-    }, {
-  "vehicleType" : 2,
-  "capacity" : 1
-    } ]
-  }],
-  "routes" : [ {
-    "id" : 12,
-    "name" : "Route 1-2",
-    "vehicleType" : 1,
-    "segments": [
-  {
-    "order": 0,
-    "origin" : 1,
-    "destination" : 2,
-    "distance" : 1000,
-    "duration" : 1800
-  }]
-  }, {
-    "id" : 23,
-    "name" : "Route 2-3",
-    "vehicleType" : 1,
-    "segments": [
-  {
-    "order": 0,
-    "origin" : 2,
-    "destination" : 3,
-    "distance" : 2000,
-    "duration" : 1800
-  }]
-  }, {
-    "id" : 34,
-    "name" : "Route 3",
-    "vehicleType" : 1,
-    "segments": [
-  {
-    "order": 0,
-    "origin" : 3,
-    "destination" : 4,
-    "distance" : 3000,
-    "duration" : 1800
-   }]
-  }, {
-    "id" : 45,
-    "name" : "Route 4-5",
-    "vehicleType" : 1,
-    "segments": [
-  {
-    "order": 0,
-    "origin" : 4,
-    "destination" : 5,
-    "distance" : 4000,
-    "duration" : 1800
-  }]
-  }, {
-    "id" : 450,
-    "name" : "FastRoute 4-5",
-    "vehicleType" : 1,
-    "segments": [
-  {
-    "order": 0,
-    "origin" : 4,
-    "destination" : 5,
-    "distance" : 4000,
-    "duration" : 600
-  }]
-  }, {
-    "id" : 51,
-    "name" : "Route 5",
-    "vehicleType" : 1,
-    "segments": [
-  {
-    "order": 0,
-    "origin" : 5,
-    "destination" : 1,
-    "distance" : 5000,
-    "duration" : 1800
-  }]
-  }, {
-    "id" : 31,
-    "name" : "Route 3-1",
-    "vehicleType" : 1,
-    "segments": [
-  {
-    "order": 0,
-    "origin" : 3,
-    "destination" : 1,
-    "distance" : 6000,
-    "duration" : 1800
-  }]
-  }, {
-    "id" : 14,
-    "name" : "Route 1-4",
-    "vehicleType" : 1,
-    "segments": [
-  {
-    "order": 0,
-    "origin" : 1,
-    "destination" : 4,
-    "distance" : 7000,
-    "duration" : 1800
-  }]
-  } ],
-  "departures" : [ {
-    "id" : 12,
-    "route" : 12,
-    "name" : "Trip 1-2",
-    "segments": [
-  {
-    "order": 0,
-    "departure" : "2020-01-01T06:00:00",
-    "passengers" : 80,
-    "seated" : 0
-  } ]
-  }, {
-    "id" : 23,
-    "route" : 23,
-    "name" : "Trip 2-3",
-    "segments": [
-  {
-    "order": 0,
-    "departure" : "2020-01-01T07:00:00",
-    "passengers" : 80,
-    "seated" : 0
-  } ]
-  }, {
-    "id" : 34,
-    "route" : 34,
-    "name" : "Trip 3-4",
-    "segments": [
-  {
-    "order": 0,
-    "departure" : "2020-01-01T08:00:00",
-    "passengers" : 80,
-    "seated" : 0
-  } ]
-  }, {
-    "id" : 45,
-    "route" : 45,
-    "name" : "Trip 4-5",
-    "segments": [
-  {
-    "order": 0,
-    "departure" : "2020-01-01T09:00:00",
-    "passengers" : 80,
-    "seated" : 0
-  } ]
-  }, {
-    "id" : 450,
-    "route" : 450,
-    "name" : "Trip 4-5 Fast",
-    "segments": [
-  {
-    "order": 0,
-    "departure" : "2020-01-01T09:40:00",
-    "passengers" : 0,
-    "seated" : 0
-  } ]
-  }, {
-    "id" : 51,
-    "route" : 51,
-    "name" : "Trip 5-1",
-    "segments": [
-  {
-    "order": 0,
-    "departure" : "2020-01-01T10:00:00",
-    "passengers" : 80,
-    "seated" : 0
-  } ]
-  }, {
-    "id" : 31,
-    "route" : 31,
-    "name" : "Trip 3-1",
-    "segments": [
-  {
-    "order": 0,
-    "departure" : "2020-01-01T08:00:00",
-    "passengers" : 80,
-    "seated" : 0
-  } ]
-  }, {
-    "id" : 14,
-    "route" : 14,
-    "name" : "Trip 1-4",
-    "segments": [
-  {
-    "order": 0,
-    "departure" : "2020-01-01T09:00:00",
-    "passengers" : 80,
-    "seated" : 0
-  } ]
-  } ],
-  "maintenanceSlots" : [],
-  "deadHeadTrips" : {
-    "indices" : [ 1, 2, 3, 4, 5 ],
-    "durations" : [ [ 0, 2700, 2700, 2700, 2700], [ 2700, 0, 2700, 2700, 2700], [ 2700, 2700, 0, 2700, 2700 ], [ 2700, 2700, 2700, 0, 2700 ], [ 2700, 2700, 2700, 2700, 0]],
-    "distances" : [ [ 0, 12000, 13000, 14000, 15000 ], [ 21000, 0, 23000, 24000, 25000 ], [ 31000, 32000, 0, 34000, 35000 ], [ 41000, 42000, 43000, 0, 45000 ], [ 51000, 52000, 53000, 54000, 0 ] ]
-  },
-  "parameters" : {
-    "forbidDeadHeadTrips" : false,
-    "dayLimitThreshold" : 300,
-    "shunting" : {
-  "minimalDuration" : 120,
-  "deadHeadTripDuration" : 300,
-  "couplingDuration": 600
+  "vehicleTypes": [
+    {
+      "id": 1,
+      "name": "Vehicle Type 1",
+      "seats": 50,
+      "capacity": 100
     },
-    "maintenance" : {
-  "maximalDistance" : 30000000
+    {
+      "id": 2,
+      "name": "Vehicle Type 2",
+      "seats": 40,
+      "capacity": 80
+    }
+  ],
+  "locations": [
+    {
+      "id": 1,
+      "name": "Location 1"
     },
-    "costs" : {
-  "staff" : 100,
-  "serviceTrip" : 50,
-  "maintenance" : 0,
-  "deadHeadTrip" : 500,
-  "idle" : 20
+    {
+      "id": 2,
+      "name": "Location 2"
+    },
+    {
+      "id": 3,
+      "name": "Location 3"
+    },
+    {
+      "id": 4,
+      "name": "Location 4"
+    },
+    {
+      "id": 5,
+      "name": "Location 5"
+    }
+  ],
+  "depots": [
+    {
+      "id": 1,
+      "location": 1,
+      "capacity": 2,
+      "allowedTypes": [
+        {
+          "vehicleType": 1,
+          "capacity": 1
+        },
+        {
+          "vehicleType": 2,
+          "capacity": 1
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "location": 2,
+      "capacity": 5,
+      "allowedTypes": [
+        {
+          "vehicleType": 2,
+          "capacity": 1
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "location": 3,
+      "capacity": 2,
+      "allowedTypes": [
+        {
+          "vehicleType": 1,
+          "capacity": 1
+        },
+        {
+          "vehicleType": 2,
+          "capacity": 1
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "location": 4,
+      "capacity": 1,
+      "allowedTypes": [
+        {
+          "vehicleType": 2
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "location": 5,
+      "capacity": 2,
+      "allowedTypes": [
+        {
+          "vehicleType": 1,
+          "capacity": 1
+        },
+        {
+          "vehicleType": 2,
+          "capacity": 1
+        }
+      ]
+    }
+  ],
+  "routes": [
+    {
+      "id": 12,
+      "name": "Route 1-2",
+      "vehicleType": 1,
+      "segments": [
+        {
+          "order": 0,
+          "origin": 1,
+          "destination": 2,
+          "distance": 1000,
+          "duration": 1800
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "name": "Route 2-3",
+      "vehicleType": 1,
+      "segments": [
+        {
+          "order": 0,
+          "origin": 2,
+          "destination": 3,
+          "distance": 2000,
+          "duration": 1800
+        }
+      ]
+    },
+    {
+      "id": 34,
+      "name": "Route 3",
+      "vehicleType": 1,
+      "segments": [
+        {
+          "order": 0,
+          "origin": 3,
+          "destination": 4,
+          "distance": 3000,
+          "duration": 1800
+        }
+      ]
+    },
+    {
+      "id": 45,
+      "name": "Route 4-5",
+      "vehicleType": 1,
+      "segments": [
+        {
+          "order": 0,
+          "origin": 4,
+          "destination": 5,
+          "distance": 4000,
+          "duration": 1800
+        }
+      ]
+    },
+    {
+      "id": 450,
+      "name": "FastRoute 4-5",
+      "vehicleType": 1,
+      "segments": [
+        {
+          "order": 0,
+          "origin": 4,
+          "destination": 5,
+          "distance": 4000,
+          "duration": 600
+        }
+      ]
+    },
+    {
+      "id": 51,
+      "name": "Route 5",
+      "vehicleType": 1,
+      "segments": [
+        {
+          "order": 0,
+          "origin": 5,
+          "destination": 1,
+          "distance": 5000,
+          "duration": 1800
+        }
+      ]
+    },
+    {
+      "id": 31,
+      "name": "Route 3-1",
+      "vehicleType": 1,
+      "segments": [
+        {
+          "order": 0,
+          "origin": 3,
+          "destination": 1,
+          "distance": 6000,
+          "duration": 1800
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "name": "Route 1-4",
+      "vehicleType": 1,
+      "segments": [
+        {
+          "order": 0,
+          "origin": 1,
+          "destination": 4,
+          "distance": 7000,
+          "duration": 1800
+        }
+      ]
+    }
+  ],
+  "departures": [
+    {
+      "id": 12,
+      "route": 12,
+      "name": "Trip 1-2",
+      "segments": [
+        {
+          "order": 0,
+          "departure": "2020-01-01T06:00:00",
+          "passengers": 80,
+          "seated": 0
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "route": 23,
+      "name": "Trip 2-3",
+      "segments": [
+        {
+          "order": 0,
+          "departure": "2020-01-01T07:00:00",
+          "passengers": 80,
+          "seated": 0
+        }
+      ]
+    },
+    {
+      "id": 34,
+      "route": 34,
+      "name": "Trip 3-4",
+      "segments": [
+        {
+          "order": 0,
+          "departure": "2020-01-01T08:00:00",
+          "passengers": 80,
+          "seated": 0
+        }
+      ]
+    },
+    {
+      "id": 45,
+      "route": 45,
+      "name": "Trip 4-5",
+      "segments": [
+        {
+          "order": 0,
+          "departure": "2020-01-01T09:00:00",
+          "passengers": 80,
+          "seated": 0
+        }
+      ]
+    },
+    {
+      "id": 450,
+      "route": 450,
+      "name": "Trip 4-5 Fast",
+      "segments": [
+        {
+          "order": 0,
+          "departure": "2020-01-01T09:40:00",
+          "passengers": 0,
+          "seated": 0
+        }
+      ]
+    },
+    {
+      "id": 51,
+      "route": 51,
+      "name": "Trip 5-1",
+      "segments": [
+        {
+          "order": 0,
+          "departure": "2020-01-01T10:00:00",
+          "passengers": 80,
+          "seated": 0
+        }
+      ]
+    },
+    {
+      "id": 31,
+      "route": 31,
+      "name": "Trip 3-1",
+      "segments": [
+        {
+          "order": 0,
+          "departure": "2020-01-01T08:00:00",
+          "passengers": 80,
+          "seated": 0
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "route": 14,
+      "name": "Trip 1-4",
+      "segments": [
+        {
+          "order": 0,
+          "departure": "2020-01-01T09:00:00",
+          "passengers": 80,
+          "seated": 0
+        }
+      ]
+    }
+  ],
+  "maintenanceSlots": [],
+  "deadHeadTrips": {
+    "indices": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "durations": [
+      [
+        0,
+        2700,
+        2700,
+        2700,
+        2700
+      ],
+      [
+        2700,
+        0,
+        2700,
+        2700,
+        2700
+      ],
+      [
+        2700,
+        2700,
+        0,
+        2700,
+        2700
+      ],
+      [
+        2700,
+        2700,
+        2700,
+        0,
+        2700
+      ],
+      [
+        2700,
+        2700,
+        2700,
+        2700,
+        0
+      ]
+    ],
+    "distances": [
+      [
+        0,
+        12000,
+        13000,
+        14000,
+        15000
+      ],
+      [
+        21000,
+        0,
+        23000,
+        24000,
+        25000
+      ],
+      [
+        31000,
+        32000,
+        0,
+        34000,
+        35000
+      ],
+      [
+        41000,
+        42000,
+        43000,
+        0,
+        45000
+      ],
+      [
+        51000,
+        52000,
+        53000,
+        54000,
+        0
+      ]
+    ]
+  },
+  "parameters": {
+    "forbidDeadHeadTrips": false,
+    "dayLimitThreshold": 300,
+    "shunting": {
+      "minimalDuration": 120,
+      "deadHeadTripDuration": 300,
+      "couplingDuration": 600
+    },
+    "maintenance": {
+      "maximalDistance": 30000000
+    },
+    "costs": {
+      "staff": 100,
+      "serviceTrip": 50,
+      "maintenance": 0,
+      "deadHeadTrip": 500,
+      "idle": 20
     }
   }
 }
