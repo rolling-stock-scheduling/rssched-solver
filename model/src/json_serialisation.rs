@@ -40,8 +40,8 @@ struct JsonInput {
 struct VehicleType {
     id: Integer,
     name: Option<String>,
-    seats: Integer,
     capacity: Integer,
+    seats: Integer,
     maximal_formation_count: Option<Integer>,
 }
 
@@ -187,7 +187,7 @@ fn create_locations(json_input: &JsonInput) -> Locations {
                 location
                     .name
                     .clone()
-                    .unwrap_or_else(|| format!("station_{}", location.id)),
+                    .unwrap_or_else(|| format!("Location {}", location.id)),
                 location.day_limit.map(|x| x as VehicleCount),
             ),
         );
@@ -222,9 +222,9 @@ fn create_vehicle_types(json_input: &JsonInput) -> VehicleTypes {
                 vehicle_type
                     .name
                     .clone()
-                    .unwrap_or_else(|| format!("vehicle_{}", vehicle_type.id)),
-                vehicle_type.seats as PassengerCount,
+                    .unwrap_or_else(|| format!("Vehicle Type {}", vehicle_type.id)),
                 vehicle_type.capacity as PassengerCount,
+                vehicle_type.seats as PassengerCount,
                 vehicle_type
                     .maximal_formation_count
                     .map(|x| x as VehicleCount),
@@ -315,7 +315,7 @@ fn create_service_trips(
         let name = departure
             .name
             .clone()
-            .unwrap_or_else(|| format!("service_trip_{}", departure.id));
+            .unwrap_or_else(|| format!("Service Trip {}", departure.id));
 
         let segment_count = departure.segments.len() as Integer;
 
@@ -385,7 +385,7 @@ fn create_maintenance_slots(
             let name = maintenance_slot
                 .name
                 .clone()
-                .unwrap_or_else(|| format!("maintenance_{}", maintenance_slot.id));
+                .unwrap_or_else(|| format!("Maintenance {}", maintenance_slot.id));
 
             Node::create_maintenance(
                 NodeId::maintenance_from(maintenance_slot.id as Id),

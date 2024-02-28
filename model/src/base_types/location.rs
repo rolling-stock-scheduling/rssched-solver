@@ -14,6 +14,10 @@ impl Location {
             Location::Nowhere => panic!("Location::Nowhere has no id."),
         }
     }
+
+    pub fn of(id: LocationId) -> Location {
+        Location::Station(id)
+    }
 }
 
 impl fmt::Display for Location {

@@ -60,8 +60,8 @@ impl VehicleType {
     pub fn new(
         id: VehicleTypeId,
         name: String,
-        number_of_seats: PassengerCount,
         capacity_of_passengers: PassengerCount,
+        number_of_seats: PassengerCount,
         maximal_formation_count: Option<VehicleCount>,
     ) -> VehicleType {
         VehicleType {

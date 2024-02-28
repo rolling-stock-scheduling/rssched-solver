@@ -144,6 +144,9 @@ impl Network {
     }
 
     pub fn idle_time_between(&self, node1: NodeId, node2: NodeId) -> Duration {
+        if self.node(node1).is_start_depot() || self.node(node2).is_end_depot() {
+            return Duration::zero();
+        }
         let idle_start = self.node(node1).end_time() + self.dead_head_time_between(node1, node2);
         let idle_end = self.node(node2).start_time();
         if idle_start <= idle_end {
@@ -319,11 +322,7 @@ impl Network {
             let depot_id = depot.depot_id();
 
             let start_node_id = NodeId::start_depot_from(depot_id.0);
-            let start_node_name = format!(
-                "start_depot({} at {})",
-                depot_id,
-                locations.get_location_name(depot.location()).unwrap()
-            );
+            let start_node_name = format!("Start Depot {} (at {})", depot_id, depot.location());
             let start_node = Node::create_start_depot_node(
                 start_node_id,
                 depot_id,
@@ -334,7 +333,7 @@ impl Network {
             start_depot_nodes.push(start_node_id);
 
             let end_node_id = NodeId::end_depot_from(depot_id.0);
-            let end_node_name = format!("end_depot({} at {})", depot_id, depot.location());
+            let end_node_name = format!("End Depot {} (at {})", depot_id, depot.location());
             let end_node =
                 Node::create_end_depot_node(end_node_id, depot_id, depot.location(), end_node_name);
             nodes.insert(end_node_id, end_node);

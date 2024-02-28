@@ -39,6 +39,8 @@ impl Tour {
                 .dead_head_time_between(new_start_depot, first_non_depot)
                 .in_sec()
                 * self.config.costs.dead_head_trip;
+        // there is no idle time.
+
         Ok(Tour::new_precomputed(
             nodes,
             self.is_dummy,
@@ -81,6 +83,8 @@ impl Tour {
                 .dead_head_time_between(last_non_depot, new_end_depot)
                 .in_sec()
                 * self.config.costs.dead_head_trip;
+        // there is no idle time.
+
         Ok(Tour::new_precomputed(
             nodes,
             self.is_dummy,
@@ -99,54 +103,41 @@ impl Tour {
     /// Fails if the start or end node would get removed but not both.
     /// In case that there is no non-depot left after the removel None is returned.
     pub fn remove(&self, segment: Segment) -> Result<(Option<Tour>, Path), String> {
-        let start_pos = self.position_of(segment.start())?;
-        let end_pos = self.position_of(segment.end())?;
-        self.check_if_sequence_is_removable(start_pos, end_pos)?;
+        let pos_seg_start = self.position_of(segment.start())?;
+        let pos_seg_end = self.position_of(segment.end())?;
+        self.check_if_sequence_is_removable(pos_seg_start, pos_seg_end)?;
 
-        // compute useful_duration, service_distance and dead_head_distance for the removed segment:
-        let removed_useful_duration = (start_pos..end_pos + 1)
-            .map(|i| self.network.node(self.nodes[i]).duration())
-            .sum();
-        let removed_service_distance = (start_pos..end_pos + 1)
-            .map(|i| self.network.node(self.nodes[i]).travel_distance())
-            .sum();
-        let removed_dead_head_distance: Distance = if start_pos == 0 {
-            Distance::zero()
-        } else {
-            self.network
-                .dead_head_distance_between(self.nodes[start_pos - 1], self.nodes[start_pos])
-        } + (start_pos..end_pos + 1)
-            .tuple_windows()
-            .map(|(i, j)| {
-                self.network
-                    .dead_head_distance_between(self.nodes[i], self.nodes[j])
-            })
-            .sum()
-            + if end_pos == self.nodes.len() - 1 {
+        // compute useful_duration, service_distance, dead_head_distance, and costs for the new tour:
+        let new_useful_duration = self.useful_duration
+            - (pos_seg_start..pos_seg_end + 1)
+                .map(|i| self.network.node(self.nodes[i]).duration())
+                .sum();
+        let new_service_distance = self.service_distance
+            - (pos_seg_start..pos_seg_end + 1)
+                .map(|i| self.network.node(self.nodes[i]).travel_distance())
+                .sum();
+        let new_dead_head_distance = self.dead_head_distance
+            - self.dead_head_distance_of_segment(pos_seg_start, pos_seg_end+1)
+            // dead_head_distance for the new gap that is created:
+            + if pos_seg_start == 0 || pos_seg_end == self.nodes.len() - 1 {
                 Distance::zero()
             } else {
                 self.network
-                    .dead_head_distance_between(self.nodes[end_pos], self.nodes[end_pos + 1])
+                    .dead_head_distance_between(self.nodes[pos_seg_start - 1], self.nodes[pos_seg_end + 1])
+            };
+        let new_costs = self.costs
+            - self.costs_of_segment(pos_seg_start, pos_seg_end+1)
+            // new costs by dead head trip replacing the segment
+            + if pos_seg_start == 0 || pos_seg_end == self.nodes.len() - 1 {
+                0
+            } else {
+                self.dead_head_and_idle_costs_between_two_nodes(self.nodes[pos_seg_start - 1], self.nodes[pos_seg_end + 1])
             };
 
-        // compute the dead_head_distance for the new gap that is created:
-        let added_dead_head_distance = if start_pos == 0 || end_pos == self.nodes.len() - 1 {
-            Distance::zero()
-        } else {
-            self.network
-                .dead_head_distance_between(self.nodes[start_pos - 1], self.nodes[end_pos + 1])
-        };
-
-        // compute new costs
-        let new_costs = self.costs
-            - self.costs_of_segment(start_pos, end_pos)
-            // new costs by dead head trip replacing the segment
-            + self.dead_head_and_idle_costs_between_two_nodes(self.nodes[start_pos - 1], self.nodes[end_pos + 1]);
-
         // remove the segment from the tour:
-        let mut tour_nodes: Vec<NodeId> = self.nodes[..start_pos].to_vec();
-        tour_nodes.extend(self.nodes[end_pos + 1..].iter().copied());
-        let removed_nodes: Vec<NodeId> = self.nodes[start_pos..end_pos + 1].to_vec();
+        let mut tour_nodes: Vec<NodeId> = self.nodes[..pos_seg_start].to_vec();
+        tour_nodes.extend(self.nodes[pos_seg_end + 1..].iter().copied());
+        let removed_nodes: Vec<NodeId> = self.nodes[pos_seg_start..pos_seg_end + 1].to_vec();
         if tour_nodes.is_empty() || (!self.is_dummy() && tour_nodes.len() <= 2) {
             return Ok((
                 None,
@@ -155,18 +146,13 @@ impl Tour {
             ));
         }
 
-        let useful_duration = self.useful_duration - removed_useful_duration;
-        let service_distance = self.service_distance - removed_service_distance;
-        let dead_head_distance =
-            self.dead_head_distance + added_dead_head_distance - removed_dead_head_distance;
-
         Ok((
             Some(Tour::new_precomputed(
                 tour_nodes,
                 self.is_dummy,
-                useful_duration,
-                service_distance,
-                dead_head_distance,
+                new_useful_duration,
+                new_service_distance,
+                new_dead_head_distance,
                 new_costs,
                 self.network.clone(),
                 self.config.clone(),
@@ -201,79 +187,46 @@ impl Tour {
 
         // get insertion position and check if insertion is valid
         let segment = Segment::new(*new_nodes.first().unwrap(), *new_nodes.last().unwrap());
-        let (start_pos, end_pos) = self.get_insert_positions(segment); // start_pos up to end_pos-1 will be removed
+        let (start_pos, end_pos) = self.get_insert_positions(segment); // start_pos up to end_pos-1 (inclusive) will be removed
 
-        // compute useful_duration, service_distance and dead_head_distance for the path:
-        let path_useful_duration = new_nodes
-            .iter()
-            .copied()
-            .map(|n| self.network.node(n).duration())
-            .sum();
-        let path_service_distance = new_nodes
-            .iter()
-            .map(|n| self.network.node(*n).travel_distance())
-            .sum();
-        let path_dead_head_distance: Distance = if start_pos == 0 {
-            Distance::zero()
-        } else {
-            self.network
-                .dead_head_distance_between(self.nodes[start_pos - 1], segment.start())
-        } + new_nodes
-            .iter()
-            .copied()
-            .tuple_windows()
-            .map(|(a, b)| self.network.dead_head_distance_between(a, b))
-            .sum()
-            + if end_pos >= self.nodes.len() {
-                Distance::zero()
-            } else {
-                self.network
-                    .dead_head_distance_between(segment.end(), self.nodes[end_pos])
-            };
+        // TEMP
+        println!("\n\ninsert_path");
+        self.print();
+        println!("start_pos: {}", start_pos);
+        println!("end_pos: {}", end_pos);
+        println!(
+            "new_nodes: {:?}",
+            new_nodes
+                .iter()
+                .map(|n| self.network.node(*n))
+                .collect_vec()
+        );
+        println!("dead_head_distance: {}", self.dead_head_distance);
+        // TEMP END
 
-        // compute useful_duration, service_distance and dead_head_distance for the segment that is
-        // removed:
-        let removed_useful_duration = (start_pos..end_pos)
-            .map(|i| self.network.node(self.nodes[i]).duration())
-            .sum();
-        let removed_service_distance = (start_pos..end_pos)
-            .map(|i| self.network.node(self.nodes[i]).travel_distance())
-            .sum();
-        let removed_dead_head_distance: Distance =
-            if start_pos == 0 || start_pos >= self.nodes.len() {
-                Distance::zero()
-            } else {
-                self.network
-                    .dead_head_distance_between(self.nodes[start_pos - 1], self.nodes[start_pos])
-            } + (start_pos..end_pos)
-                .tuple_windows()
-                .map(|(i, j)| {
-                    self.network
-                        .dead_head_distance_between(self.nodes[i], self.nodes[j])
-                })
+        // compute the useful_duration, service_distance, dead_head_distance, and costs for the new tour:
+        let new_useful_duration = self.useful_duration
+            - (start_pos..end_pos)
+                .map(|i| self.network.node(self.nodes[i]).duration())
                 .sum()
-                + if end_pos == self.nodes.len()
-                    || (start_pos == end_pos && start_pos > 0)
-                    || end_pos == 0
-                {
-                    Distance::zero()
-                } else {
-                    self.network
-                        .dead_head_distance_between(self.nodes[end_pos - 1], self.nodes[end_pos])
-                };
+            + new_nodes
+                .iter()
+                .map(|n| self.network.node(*n).duration())
+                .sum();
+        let new_service_distance = self.service_distance
+            - (start_pos..end_pos)
+                .map(|i| self.network.node(self.nodes[i]).travel_distance())
+                .sum()
+            + new_nodes
+                .iter()
+                .map(|n| self.network.node(*n).travel_distance())
+                .sum();
+        let new_dead_head_distance = self.dead_head_distance
+            - self.dead_head_distance_of_segment(start_pos, end_pos)
+            + self.dead_head_distance_of_new_nodes(&new_nodes, start_pos, end_pos);
+        let new_costs = self.costs - self.costs_of_segment(start_pos, end_pos)
+            + self.costs_of_new_nodes(&new_nodes, start_pos, end_pos);
 
-        // compute the useful_duration, service_distance and dead_head_distance for the new tour:
-        let useful_duration = self.useful_duration + path_useful_duration - removed_useful_duration;
-        let service_distance =
-            self.service_distance + path_service_distance - removed_service_distance;
-        let dead_head_distance =
-            self.dead_head_distance + path_dead_head_distance - removed_dead_head_distance;
-
-        let new_costs = self.costs
-            // costs of removed segment
-            - self.costs_of_segment(start_pos, end_pos-1)
-            // new costs for dead head trip before new nodes
-            + self.costs_of_new_nodes(&new_nodes, start_pos, end_pos-1);
         // remove all elements in start_pos..end_pos and replace them by
         // node_sequence.
         let mut new_tour_nodes = self.nodes.clone();
@@ -281,13 +234,30 @@ impl Tour {
             .splice(start_pos..end_pos, new_nodes)
             .collect();
 
+        // TEMP
+        let new_tour = Tour::new_precomputed(
+            new_tour_nodes.clone(),
+            self.is_dummy,
+            new_useful_duration,
+            new_service_distance,
+            new_dead_head_distance,
+            new_costs,
+            self.network.clone(),
+            self.config.clone(),
+        );
+        new_tour.verify_consistency();
+        println!("new_tour");
+        new_tour.print();
+        println!("new_dead_head_distance: {}", new_dead_head_distance);
+        // TEMP END
+
         (
             Tour::new_precomputed(
                 new_tour_nodes,
                 self.is_dummy,
-                useful_duration,
-                service_distance,
-                dead_head_distance,
+                new_useful_duration,
+                new_service_distance,
+                new_dead_head_distance,
                 new_costs,
                 self.network.clone(),
                 self.config.clone(),
@@ -299,13 +269,80 @@ impl Tour {
 
 // private methods
 impl Tour {
-    /// Returns the costs reduction if the all nodes between start_pos and end_pos (inclusive start_pos and end_pos) are removed.
+    /// Returns the dead_head_distance reduction if the all nodes between start_pos and end_pos - 1 (inclusive start_pos and end_pos - 1) are removed.
     /// Does not count for the new dead head trip of the created gap.
+    /// If start_pos == end_pos, the distance is given by the dead head before the node at start_pos.
+    fn dead_head_distance_of_segment(&self, start_pos: Position, end_pos: Position) -> Distance {
+        if start_pos >= end_pos {
+            // no nodes to be remove
+            // return the distance of the dead head trip before the node at start_pos
+            return if start_pos == 0 {
+                Distance::zero()
+            } else {
+                self.network
+                    .dead_head_distance_between(self.nodes[start_pos - 1], self.nodes[start_pos])
+            };
+        }
+        let result: Distance = if start_pos == 0 {
+            Distance::zero()
+        } else {
+            self.network
+                .dead_head_distance_between(self.nodes[start_pos - 1], self.nodes[start_pos])
+        } + (start_pos..end_pos)
+            .tuple_windows()
+            .map(|(i, j)| {
+                self.network
+                    .dead_head_distance_between(self.nodes[i], self.nodes[j])
+            })
+            .sum()
+            + if end_pos == self.nodes.len() {
+                Distance::zero()
+            } else {
+                self.network
+                    .dead_head_distance_between(self.nodes[end_pos - 1], self.nodes[end_pos])
+            };
+        result
+    }
+
+    /// Returns the dead_head_distance of the new nodes if they are inserted between the old nodes at start_pos-1 and end_pos, i.e.,
+    /// it is assumed that the nodes between start_pos and end_pos-1 (inclusive) are removed.
+    fn dead_head_distance_of_new_nodes(
+        &self,
+        new_nodes: &[NodeId],
+        start_pos: Position,
+        end_pos: Position,
+    ) -> Distance {
+        let dead_head_distance: Distance = if start_pos == 0 {
+            Distance::zero()
+        } else {
+            self.network
+                .dead_head_distance_between(self.nodes[start_pos - 1], new_nodes[0])
+        } + new_nodes
+            .iter()
+            .tuple_windows()
+            .map(|(a, b)| self.network.dead_head_distance_between(*a, *b))
+            .sum::<Distance>()
+            + if end_pos >= self.nodes.len() {
+                Distance::zero()
+            } else {
+                self.network
+                    .dead_head_distance_between(new_nodes[new_nodes.len() - 1], self.nodes[end_pos])
+            };
+        dead_head_distance
+    }
+
+    /// Returns the costs reduction if the all nodes between start_pos and end_pos-1 (inclusive start_pos and end_pos-1) are removed.
+    /// Does not count for the new dead head trip of the created gap.
+    /// If start_pos == end_pos, the costs are are given by the dead head trip and idle time before the node at start_pos.
     fn costs_of_segment(&self, start_pos: Position, end_pos: Position) -> Cost {
+        if start_pos >= end_pos {
+            // no nodes to be remove
+            return self.dead_head_and_idle_costs_before_node(start_pos);
+        }
         // costs by dead head trip before removed segment
         self.dead_head_and_idle_costs_before_node(start_pos)
             // costs by dead head trips in between
-            + (start_pos..end_pos)
+            + (start_pos..end_pos-1)
                 .map(|pos| {
                     self.dead_head_and_idle_costs_after_node_unchecked(pos)
                 })
@@ -313,15 +350,15 @@ impl Tour {
             // costs by dead head trip after removed segment
             + self.dead_head_and_idle_costs_after_node(end_pos)
             // costs by nodes in segment
-            + (start_pos..end_pos + 1)
+            + (start_pos..end_pos)
                 .map(|i| {
                     self.service_and_maintenance_costs_by_pos(i)
                 })
                 .sum::<Cost>()
     }
 
-    /// Returns the costs of the new nodes if they are inserted between the old nodes at start_pos-1 and end_pos+1, i.e.,
-    /// it is assumed that the nodes between start_pos and end_pos (inclusive) are removed.
+    /// Returns the costs of the new nodes if they are inserted between the old nodes at start_pos-1 and end_pos, i.e.,
+    /// it is assumed that the nodes between start_pos and end_pos-1 (inclusive) are removed.
     fn costs_of_new_nodes(
         &self,
         new_nodes: &[NodeId],
@@ -342,10 +379,10 @@ impl Tour {
             })
             .sum::<Cost>()
         // new costs for dead head trip after new nodes
-        + if end_pos+1 == self.nodes.len() {
+        + if end_pos >= self.nodes.len() {
             0
         } else {
-            self.dead_head_and_idle_costs_between_two_nodes(new_nodes[new_nodes.len() - 1], self.nodes[end_pos+1])
+            self.dead_head_and_idle_costs_between_two_nodes(new_nodes[new_nodes.len() - 1], self.nodes[end_pos])
         }
         // new costs for the new nodes
         + new_nodes
@@ -370,10 +407,10 @@ impl Tour {
     /// Returns the costs for the dead head trip and the idle time between the nodes at pos and pos+1.
     /// If pos is the last node, the costs are 0.
     fn dead_head_and_idle_costs_after_node(&self, pos: Position) -> Cost {
-        if pos == self.nodes.len() - 1 {
+        if pos >= self.nodes.len() - 1 {
             0
         } else {
-            self.dead_head_and_idle_costs_after_node(pos)
+            self.dead_head_and_idle_costs_after_node_unchecked(pos)
         }
     }
 

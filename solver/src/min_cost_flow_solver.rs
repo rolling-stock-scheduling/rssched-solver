@@ -324,6 +324,10 @@ impl Solver for MinCostFlowSolver {
             "\r  3) building schedule - \x1b[32mdone ({:0.2}sec)\x1b[0m",
             time_at_building_schedule.elapsed().as_secs_f32()
         );
+
+        // TEMP
+        schedule.verify_consistency();
+
         self.objective.evaluate(schedule)
     }
 }

@@ -111,12 +111,12 @@
   } ],
     "maintenanceSlots" : [ {
     "id": 0,
-    "name": "maintenence_slot_1",
+    "name": "Maintenance Slot 0",
     "location" : 0,
     "start" : "2023-07-24T6:00:00",
     "end" :  "2023-07-24T12:00:00"
   }, {
-    "id": 0,
+    "id": 1,
     "name": null,
     "location" : 0,
     "start" : "2023-07-24T12:00:00",

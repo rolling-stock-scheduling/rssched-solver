@@ -24,6 +24,7 @@ fn default_tour(d: &TestData) -> Tour {
             d.end_depot2,
         ],
         d.network.clone(),
+        d.config.clone(),
     )
     .unwrap()
 }
@@ -43,7 +44,7 @@ fn basic_methods_test() {
     // ACT
     let tour = default_tour(&d);
     let path = default_path(&d);
-    let dummy_tour = Tour::new_dummy(path, d.network.clone());
+    let dummy_tour = Tour::new_dummy(path, d.network.clone(), d.config.clone());
 
     // ASSERT
     assert!(!tour.is_dummy());
@@ -195,14 +196,20 @@ fn invalid_constructor_test() {
     let d = init_test_data();
 
     // ACT
-    let invalid_tour1 = Tour::new(vec![d.start_depot1, d.end_depot1], d.network.clone());
+    let invalid_tour1 = Tour::new(
+        vec![d.start_depot1, d.end_depot1],
+        d.network.clone(),
+        d.config.clone(),
+    );
     let invalid_tour2 = Tour::new(
         vec![d.end_depot1, d.trip12, d.end_depot1],
         d.network.clone(),
+        d.config.clone(),
     );
     let invalid_tour3 = Tour::new(
         vec![d.start_depot1, d.trip12, d.start_depot1],
         d.network.clone(),
+        d.config.clone(),
     );
     let invalid_tour4 = Tour::new(
         vec![
@@ -213,14 +220,28 @@ fn invalid_constructor_test() {
             d.end_depot1,
         ],
         d.network.clone(),
+        d.config.clone(),
     );
     let invalid_tour5 = Tour::new(
         vec![d.start_depot1, d.trip23, d.trip12, d.end_depot2],
         d.network.clone(),
+        d.config.clone(),
     );
-    let invalid_dummy_tour1 = Tour::new(vec![d.start_depot1, d.trip12], d.network.clone());
-    let invalid_dummy_tour2 = Tour::new(vec![d.trip12, d.end_depot1], d.network.clone());
-    let invalid_dummy_tour3 = Tour::new(vec![d.trip23, d.trip12], d.network.clone());
+    let invalid_dummy_tour1 = Tour::new(
+        vec![d.start_depot1, d.trip12],
+        d.network.clone(),
+        d.config.clone(),
+    );
+    let invalid_dummy_tour2 = Tour::new(
+        vec![d.trip12, d.end_depot1],
+        d.network.clone(),
+        d.config.clone(),
+    );
+    let invalid_dummy_tour3 = Tour::new(
+        vec![d.trip23, d.trip12],
+        d.network.clone(),
+        d.config.clone(),
+    );
 
     // ASSERT
     assert!(invalid_tour1.is_err());
@@ -534,6 +555,7 @@ fn insert_path_such_that_only_depot_is_removed_test() {
     let tour = Tour::new(
         vec![d.start_depot1, d.trip34, d.trip45, d.end_depot2],
         d.network.clone(),
+        d.config.clone(),
     )
     .unwrap();
     let path1 = Path::new(vec![d.start_depot2, d.trip12], d.network.clone())
@@ -596,7 +618,7 @@ fn insert_path_with_depot_to_dummy_tour() {
     )
     .unwrap()
     .unwrap();
-    let dummy_tour = Tour::new_dummy(path, d.network.clone());
+    let dummy_tour = Tour::new_dummy(path, d.network.clone(), d.config.clone());
 
     let path = Path::new(
         vec![d.start_depot1, d.trip31, d.trip14, d.end_depot2],
