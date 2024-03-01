@@ -3,14 +3,14 @@
     {
       "id": 1,
       "name": "Vehicle Type 1",
-      "seats": 50,
-      "capacity": 100
+      "capacity": 50,
+      "seats": 30
     },
     {
       "id": 2,
       "name": "Vehicle Type 2",
-      "seats": 40,
-      "capacity": 80
+      "capacity": 40,
+      "seats": 20
     }
   ],
   "locations": [

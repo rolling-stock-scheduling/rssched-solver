@@ -428,53 +428,19 @@ impl Tour {
     }
 
     fn compute_useful_duration(&self) -> Duration {
-        self.nodes
-            .iter()
-            .map(|n| self.network.node(*n).duration())
-            .sum()
+        Tour::compute_useful_duration_of_nodes(&self.nodes, &self.network)
     }
 
     fn compute_service_distance(&self) -> Distance {
-        self.nodes
-            .iter()
-            .map(|n| self.network.node(*n).travel_distance())
-            .sum()
+        Tour::compute_service_distance_of_nodes(&self.nodes, &self.network)
     }
 
     fn compute_dead_head_distance(&self) -> Distance {
-        if self.nodes.len() == 1 {
-            Distance::zero()
-        } else {
-            self.nodes
-                .iter()
-                .tuple_windows()
-                .map(|(a, b)| self.network.dead_head_distance_between(*a, *b))
-                .sum()
-        }
+        Tour::compute_dead_head_distance_of_nodes(&self.nodes, &self.network)
     }
 
     fn compute_costs(&self) -> Cost {
-        self.nodes
-            .iter()
-            .map(|n| {
-                self.network.node(*n).duration().in_sec()
-                    * match self.network.node(*n) {
-                        Node::Service(_) => self.config.costs.service_trip,
-                        Node::Maintenance(_) => self.config.costs.maintenance,
-                        _ => 0,
-                    }
-            })
-            .sum::<Cost>()
-            + self
-                .nodes
-                .iter()
-                .tuple_windows()
-                .map(|(a, b)| {
-                    self.network.dead_head_time_between(*a, *b).in_sec()
-                        * self.config.costs.dead_head_trip
-                        + self.network.idle_time_between(*a, *b).in_sec() * self.config.costs.idle
-                })
-                .sum::<Cost>()
+        Self::compute_costs_of_nodes(&self.nodes, &self.network, &self.config)
     }
 }
 
@@ -619,37 +585,10 @@ impl Tour {
         network: Arc<Network>,
         config: Arc<Config>,
     ) -> Tour {
-        let useful_duration = nodes
-            .iter()
-            .map(|&n| network.node(n).duration())
-            .sum::<Duration>();
-        let service_distance = nodes
-            .iter()
-            .map(|&n| network.node(n).travel_distance())
-            .sum();
-        let dead_head_distance = nodes
-            .iter()
-            .tuple_windows()
-            .map(|(&a, &b)| network.dead_head_distance_between(a, b))
-            .sum();
-        let costs = nodes
-            .iter()
-            .map(|&n| {
-                network.node(n).duration().in_sec()
-                    * match network.node(n) {
-                        Node::Service(_) => config.costs.service_trip,
-                        Node::Maintenance(_) => config.costs.maintenance,
-                        _ => 0,
-                    }
-            })
-            .sum::<Cost>()
-            + nodes
-                .iter()
-                .tuple_windows()
-                .map(|(&a, &b)| {
-                    network.dead_head_time_between(a, b).in_sec() * config.costs.dead_head_trip
-                })
-                .sum::<Cost>();
+        let useful_duration = Tour::compute_useful_duration_of_nodes(&nodes, &network);
+        let service_distance = Tour::compute_service_distance_of_nodes(&nodes, &network);
+        let dead_head_distance = Tour::compute_dead_head_distance_of_nodes(&nodes, &network);
+        let costs = Tour::compute_costs_of_nodes(&nodes, &network, &config);
 
         Tour::new_precomputed(
             nodes,
@@ -661,6 +600,51 @@ impl Tour {
             network,
             config,
         )
+    }
+
+    fn compute_service_distance_of_nodes(nodes: &[NodeId], network: &Network) -> Distance {
+        nodes
+            .iter()
+            .map(|n| network.node(*n).travel_distance())
+            .sum()
+    }
+
+    fn compute_dead_head_distance_of_nodes(nodes: &[NodeId], network: &Network) -> Distance {
+        if nodes.len() == 1 {
+            Distance::zero()
+        } else {
+            nodes
+                .iter()
+                .tuple_windows()
+                .map(|(a, b)| network.dead_head_distance_between(*a, *b))
+                .sum()
+        }
+    }
+
+    fn compute_useful_duration_of_nodes(nodes: &[NodeId], network: &Network) -> Duration {
+        nodes.iter().map(|n| network.node(*n).duration()).sum()
+    }
+
+    fn compute_costs_of_nodes(nodes: &[NodeId], network: &Network, config: &Config) -> Cost {
+        nodes
+            .iter()
+            .map(|n| {
+                network.node(*n).duration().in_sec()
+                    * match network.node(*n) {
+                        Node::Service(_) => config.costs.service_trip,
+                        Node::Maintenance(_) => config.costs.maintenance,
+                        _ => 0,
+                    }
+            })
+            .sum::<Cost>()
+            + nodes
+                .iter()
+                .tuple_windows()
+                .map(|(a, b)| {
+                    network.dead_head_time_between(*a, *b).in_sec() * config.costs.dead_head_trip
+                        + network.idle_time_between(*a, *b).in_sec() * config.costs.idle
+                })
+                .sum::<Cost>()
     }
 
     /// Creates a new tour from a vector of NodeIds. Trusts that the vector leads to a valid Tour.

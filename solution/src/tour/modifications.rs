@@ -189,21 +189,6 @@ impl Tour {
         let segment = Segment::new(*new_nodes.first().unwrap(), *new_nodes.last().unwrap());
         let (start_pos, end_pos) = self.get_insert_positions(segment); // start_pos up to end_pos-1 (inclusive) will be removed
 
-        // TEMP
-        println!("\n\ninsert_path");
-        self.print();
-        println!("start_pos: {}", start_pos);
-        println!("end_pos: {}", end_pos);
-        println!(
-            "new_nodes: {:?}",
-            new_nodes
-                .iter()
-                .map(|n| self.network.node(*n))
-                .collect_vec()
-        );
-        println!("dead_head_distance: {}", self.dead_head_distance);
-        // TEMP END
-
         // compute the useful_duration, service_distance, dead_head_distance, and costs for the new tour:
         let new_useful_duration = self.useful_duration
             - (start_pos..end_pos)
@@ -224,6 +209,7 @@ impl Tour {
         let new_dead_head_distance = self.dead_head_distance
             - self.dead_head_distance_of_segment(start_pos, end_pos)
             + self.dead_head_distance_of_new_nodes(&new_nodes, start_pos, end_pos);
+
         let new_costs = self.costs - self.costs_of_segment(start_pos, end_pos)
             + self.costs_of_new_nodes(&new_nodes, start_pos, end_pos);
 
@@ -233,23 +219,6 @@ impl Tour {
         let removed_nodes: Vec<NodeId> = new_tour_nodes
             .splice(start_pos..end_pos, new_nodes)
             .collect();
-
-        // TEMP
-        let new_tour = Tour::new_precomputed(
-            new_tour_nodes.clone(),
-            self.is_dummy,
-            new_useful_duration,
-            new_service_distance,
-            new_dead_head_distance,
-            new_costs,
-            self.network.clone(),
-            self.config.clone(),
-        );
-        new_tour.verify_consistency();
-        println!("new_tour");
-        new_tour.print();
-        println!("new_dead_head_distance: {}", new_dead_head_distance);
-        // TEMP END
 
         (
             Tour::new_precomputed(
@@ -275,10 +244,12 @@ impl Tour {
     fn dead_head_distance_of_segment(&self, start_pos: Position, end_pos: Position) -> Distance {
         if start_pos >= end_pos {
             // no nodes to be remove
-            // return the distance of the dead head trip before the node at start_pos
-            return if start_pos == 0 {
+            return if start_pos == 0 || start_pos == self.nodes.len() {
+                // new nodes are inserted before the first or after the last node
                 Distance::zero()
             } else {
+                // new nodes are inserted within the tour
+                // return the distance of the dead head trip before the node at start_pos
                 self.network
                     .dead_head_distance_between(self.nodes[start_pos - 1], self.nodes[start_pos])
             };
@@ -339,6 +310,7 @@ impl Tour {
             // no nodes to be remove
             return self.dead_head_and_idle_costs_before_node(start_pos);
         }
+
         // costs by dead head trip before removed segment
         self.dead_head_and_idle_costs_before_node(start_pos)
             // costs by dead head trips in between
@@ -348,7 +320,7 @@ impl Tour {
                 })
                 .sum::<Cost>()
             // costs by dead head trip after removed segment
-            + self.dead_head_and_idle_costs_after_node(end_pos)
+            + self.dead_head_and_idle_costs_after_node(end_pos-1)
             // costs by nodes in segment
             + (start_pos..end_pos)
                 .map(|i| {

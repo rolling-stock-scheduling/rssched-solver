@@ -17,7 +17,9 @@ pub struct VehicleTypeId(pub Id);
 
 #[derive(Display, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum VehicleId {
+    #[display(fmt = "veh{}", _0)]
     Vehicle(Id),
+    #[display(fmt = "dummy{}", _0)]
     Dummy(Id),
 }
 
@@ -35,13 +37,13 @@ pub struct DepotId(pub Id);
 
 #[derive(Display, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum NodeId {
+    #[display(fmt = "sdep_{}", _0)]
     StartDepot(Id),
-    #[display(fmt = "Service({}, {})", departure_id, order)]
-    Service {
-        departure_id: Id,
-        order: u8,
-    },
+    #[display(fmt = "serv_{}_{}", departure_id, order)]
+    Service { departure_id: Id, order: u8 },
+    #[display(fmt = "main_{}", _0)]
     Maintenance(Id),
+    #[display(fmt = "edep_{}", _0)]
     EndDepot(Id),
 }
 

@@ -46,7 +46,7 @@ impl Vehicle {
 
 impl fmt::Display for Vehicle {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "veh_{}({})", self.id, self.vehicle_type.name())?;
+        write!(f, "{}({})", self.id, self.vehicle_type.name())?;
         Ok(())
     }
 }

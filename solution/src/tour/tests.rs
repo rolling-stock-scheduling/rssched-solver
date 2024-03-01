@@ -10,8 +10,6 @@ use crate::{
 
 use super::Tour;
 
-// TODO: Assert Costs
-
 fn default_tour(d: &TestData) -> Tour {
     Tour::new(
         vec![
@@ -53,6 +51,13 @@ fn basic_methods_test() {
     assert_eq!(tour.useful_duration(), Duration::new("2:30"));
     assert_eq!(tour.service_distance(), Distance::from_meter(15000));
     assert_eq!(tour.dead_head_distance(), Distance::from_meter(12000));
+    // costs:
+    // service_time: 30 + 30 + 30 + 30 + 30 = 150 min
+    // idle_time: 30 + 30 + 30 + 30 = 120 min
+    // dead_head_time: 45 min
+    // costs: 50 * 150 * 60 + 20 * 120 * 60 + 500 * 45 * 60 = 1944000
+    assert_eq!(tour.costs(), 1944000);
+
     assert_eq!(
         tour.preceding_overhead(d.start_depot1),
         Ok(Duration::Infinity)
@@ -303,8 +308,15 @@ fn insert_path_test() {
     assert_eq!(new_tour.dead_head_distance(), Distance::from_meter(42000));
     assert_eq!(new_tour.useful_duration(), Duration::new("2:00"));
     assert_eq!(new_tour.service_distance(), Distance::from_meter(16000));
+    // costs:
+    // service_time: 30 + 30 + 30 + 30 = 120 min
+    // idle_time: 30 + 30 + 30 = 90 min
+    // dead_head_time: 45 min
+    // costs: 50 * 120 * 60 + 20 * 90 * 60 + 500 * 45 * 60 = 1818000
+    assert_eq!(new_tour.costs(), 1818000);
     assert_eq!(new_tour.start_time(), DateTime::new("2020-01-01T06:00"));
     assert_eq!(new_tour.end_time(), DateTime::new("2020-01-01T10:15"));
+    new_tour.verify_consistency();
 }
 
 #[test]
@@ -336,6 +348,13 @@ fn replace_start_depot_test() {
     );
     assert_eq!(new_tour.start_time(), DateTime::new("2020-01-01T05:15"));
     assert_eq!(new_tour.dead_head_distance(), Distance::from_meter(33000));
+    // costs:
+    // service_time: 30 + 30 + 30 + 30 + 30 = 150 min
+    // idle_time: 30 + 30 + 30 + 30 = 120 min
+    // dead_head_time: 45 + 45 min
+    // costs: 50 * 150 * 60 + 20 * 120 * 60 + 500 * 90 * 60 = 3294000
+    assert_eq!(new_tour.costs(), 3294000);
+    new_tour.verify_consistency();
 }
 
 #[test]
@@ -367,6 +386,13 @@ fn replace_end_depot_test() {
     );
     assert_eq!(new_tour.end_time(), DateTime::new("2020-01-01T10:30"));
     assert_eq!(new_tour.dead_head_distance(), Distance::from_meter(0));
+    // costs:
+    // service_time: 30 + 30 + 30 + 30 + 30 = 150 min
+    // idle_time: 30 + 30 + 30 + 30 = 120 min
+    // dead_head_time: 0 min
+    // costs: 50 * 150 * 60 + 20 * 120 * 60 = 594 000
+    assert_eq!(new_tour.costs(), 594000);
+    new_tour.verify_consistency();
 }
 
 #[test]
@@ -411,6 +437,13 @@ fn remove_test() {
     assert_eq!(new_tour.service_distance(), Distance::from_meter(5000));
     assert_eq!(new_tour.start_time(), DateTime::new("2020-01-01T09:15"));
     assert_eq!(new_tour.end_time(), DateTime::new("2020-01-01T11:15"));
+    // costs:
+    // service_time: 30 min
+    // idle_time: 0 min
+    // dead_head_time: 45 + 45 = 90 min
+    // costs: 30 * 50 * 60 + 90 * 500 * 60 = 2700 000
+    assert_eq!(new_tour.costs(), 2790000);
+    new_tour.verify_consistency();
 }
 
 #[test]
@@ -467,6 +500,13 @@ fn insert_path_with_start_depot_test() {
     assert_eq!(new_tour.service_distance(), Distance::from_meter(11000));
     assert_eq!(new_tour.start_time(), DateTime::new("2020-01-01T07:15"));
     assert_eq!(new_tour.end_time(), DateTime::new("2020-01-01T11:15"));
+    // costs:
+    // service_time: 30 + 30 = 60 min
+    // idle_time: 45 min
+    // dead_head_time: 45 + 45 + 45 = 135 min
+    // costs: 60 * 50 * 60 + 45 * 20 * 60 + 135 * 500 * 60 = 4284 000
+    assert_eq!(new_tour.costs(), 4284000);
+    new_tour.verify_consistency();
 }
 
 #[test]
@@ -500,6 +540,13 @@ fn insert_path_with_end_depot_test() {
     assert_eq!(new_tour.service_distance(), Distance::from_meter(10000));
     assert_eq!(new_tour.start_time(), DateTime::new("2020-01-01T06:00"));
     assert_eq!(new_tour.end_time(), DateTime::new("2020-01-01T10:15"));
+    // costs:
+    // service_time: 30 + 30 + 30 = 90 min
+    // idle_time: 30 + 45 = 75 min
+    // dead_head_time: 45 + 45 = 90 min
+    // costs: 90 * 50 * 60 + 75 * 20 * 60 + 90 * 500 * 60 = 3060 000
+    assert_eq!(new_tour.costs(), 3060000);
+    new_tour.verify_consistency();
 }
 
 #[test]
@@ -546,6 +593,13 @@ fn insert_path_with_start_and_end_depot_test() {
     assert_eq!(new_tour.service_distance(), Distance::from_meter(13000));
     assert_eq!(new_tour.start_time(), DateTime::new("2020-01-01T07:15"));
     assert_eq!(new_tour.end_time(), DateTime::new("2020-01-01T10:15"));
+    // costs:
+    // service_time: 30 + 30 = 60 min
+    // idle_time: 30 min
+    // dead_head_time: 45 + 45 = 90 min
+    // costs: 60 * 50 * 60 + 30 * 20 * 60 + 90 * 500 * 60 = 2916 000
+    assert_eq!(new_tour.costs(), 2916000);
+    new_tour.verify_consistency();
 }
 
 #[test]
@@ -606,6 +660,10 @@ fn insert_path_such_that_only_depot_is_removed_test() {
         .cloned(),
     );
     assert!(removed_path_option3.is_none());
+
+    new_tour1.verify_consistency();
+    new_tour2.verify_consistency();
+    new_tour3.verify_consistency();
 }
 
 #[test]
@@ -650,6 +708,13 @@ fn insert_path_with_depot_to_dummy_tour() {
         DateTime::new("2020-01-01T06:00")
     );
     assert_eq!(new_dummy_tour.end_time(), DateTime::new("2020-01-01T09:30"));
+    // costs:
+    // service_time: 30 + 30 + 30 + 30 = 120 min
+    // idle_time: 30 + 30 + 30 = 90 min
+    // dead_head_time: 0 min
+    // costs: 120 * 50 * 60 + 30 * 90 * 60 = 468 000
+    assert_eq!(new_dummy_tour.costs(), 468000);
+    new_dummy_tour.verify_consistency();
 }
 
 #[test]

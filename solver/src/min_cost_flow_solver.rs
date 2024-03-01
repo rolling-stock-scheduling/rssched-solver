@@ -325,9 +325,6 @@ impl Solver for MinCostFlowSolver {
             time_at_building_schedule.elapsed().as_secs_f32()
         );
 
-        // TEMP
-        schedule.verify_consistency();
-
         self.objective.evaluate(schedule)
     }
 }

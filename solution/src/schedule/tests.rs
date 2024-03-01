@@ -217,7 +217,7 @@ fn spawn_vehicle_to_repalce_dummy_tour_test() {
     let veh0 = VehicleId::vehicle_from(0);
     let veh4 = VehicleId::vehicle_from(4);
     let schedule = default_schedule(&d).replace_vehicle_by_dummy(veh0).unwrap();
-    let dummy3 = VehicleId::vehicle_from(3);
+    let dummy3 = VehicleId::dummy_from(3);
 
     // ACT
     let (new_schedule, new_vehicle) = schedule
