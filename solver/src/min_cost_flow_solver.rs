@@ -138,8 +138,6 @@ impl MinCostFlowSolver {
             );
         }
 
-        // TODO add maintenance nodes
-
         for depot in self.network.depots_iter() {
             let left_rsnode = builder.add_node();
             let right_rsnode = builder.add_node();

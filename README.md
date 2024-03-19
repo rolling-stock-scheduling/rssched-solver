@@ -95,3 +95,73 @@
 # Development
 
 - install the rust compiler rustc and the rust package manager cargo via rustup: https://www.rust-lang.org/tools/install
+
+## Project Structure
+
+The project is structured into the following sub-projects:
+
+### time
+
+- provides the types DateTime and Duration
+
+- DateTime:
+  
+  - represents a point in time including year, month, day, hour, minute, second
+  
+  - enriched by Earliest (- infinity) and Latest (+ infinity)
+  
+  - integer based, whole seconds is the smallest unit
+
+- Duration:
+  
+  - represents non-negative time duration represented by hours, minutes, seconds
+  
+  - enriched by Infinity
+
+- basic calculations:
+  
+  - DateTime - DateTime = Duration
+  
+  - DateTime + Duration = DateTime
+  
+  - ...
+
+### model
+
+- model for an rolling stock scheduling instance
+
+- provides base types (Ids, Distance, Cost,...), VehicleTypes, Locations, Config, Network, as well as the functionality to (de)serialize from json
+
+- all this data stay constant during one run
+
+- VehicleTypes:
+  
+  - provides VehicleTypes consisting of a VehicleTypeId, name, seats, capacity, and maximal formation length
+
+- Locations:
+  
+  - stores the locations (name, optional day limit)
+  
+  - provides dead-head-trip information between two locations (distance and duration)
+
+- Config:
+  
+  - stores additional instance parameters, e.g., shunting durations, maintenance limits, costs coefficients
+
+- Network:
+  
+  - stores all nodes (service trips, maintenance slots, start and end depots)
+  
+  - provides connection between these nodes via can_reach(), predecessor(), successor()
+
+#### solution
+
+#### objective framework
+
+#### solver
+
+#### server
+
+#### internal
+
+#### python_visualization
