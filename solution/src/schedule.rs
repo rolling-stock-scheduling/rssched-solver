@@ -22,6 +22,7 @@ use crate::vehicle::Vehicle;
 use im::HashMap;
 use im::HashSet;
 use std::cmp::Ordering;
+use std::collections::HashMap as StdHashMap;
 use std::sync::Arc;
 
 type DepotUsage = HashMap<(DepotId, VehicleTypeId), (HashSet<VehicleId>, HashSet<VehicleId>)>;
@@ -537,6 +538,26 @@ impl Schedule {
             vehicle_types,
             network,
         }
+    }
+
+    /// initializing a schedule with a given list of tours (in Vec<NodeId> form) for each vehicle
+    /// type
+    pub fn from_tours(
+        tours: StdHashMap<VehicleTypeId, Vec<Vec<NodeId>>>,
+        vehicle_types: Arc<VehicleTypes>,
+        network: Arc<Network>,
+        config: Arc<Config>,
+    ) -> Result<Schedule, String> {
+        let mut schedule = Schedule::empty(vehicle_types, network, config);
+
+        for (vehicle_type, tours) in tours {
+            for tour in tours {
+                let result = schedule.spawn_vehicle_for_path(vehicle_type, tour)?;
+                schedule = result.0;
+            }
+        }
+
+        Ok(schedule)
     }
 }
 

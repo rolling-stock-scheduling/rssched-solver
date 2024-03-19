@@ -2,13 +2,12 @@ use crate::Solution;
 use crate::Solver;
 use model::base_types::DepotId;
 use model::base_types::NodeId;
-use model::base_types::VehicleId;
+use model::base_types::VehicleTypeId;
 use model::config::Config;
 use model::network::nodes::Node;
 use model::network::Network;
 use model::vehicle_types::VehicleTypes;
 use objective_framework::Objective;
-use solution::path::Path;
 use solution::Schedule;
 
 use rs_graph::linkedlistgraph::Edge as RsEdge;
@@ -68,12 +67,30 @@ impl Solver for MinCostFlowSolver {
     }
 
     fn solve(&self) -> Solution {
+        // split into vehicle types
+        let mut tours: HashMap<VehicleTypeId, Vec<Vec<NodeId>>> = HashMap::new();
+        for vehicle_type in self.vehicle_types.iter() {
+            tours.insert(vehicle_type, self.solve_for_vehicle_type(vehicle_type));
+        }
+
+        let schedule = Schedule::from_tours(
+            tours,
+            self.vehicle_types.clone(),
+            self.network.clone(),
+            self.config.clone(),
+        )
+        .unwrap();
+
+        self.objective.evaluate(schedule)
+    }
+}
+
+impl MinCostFlowSolver {
+    fn solve_for_vehicle_type(&self, vehicle_type: VehicleTypeId) -> Vec<Vec<NodeId>> {
         let start_time_creating_network = time::Instant::now();
 
         print!("  1) creating min-cost-flow network - \x1b[93m 0%\x1b[0m");
         io::stdout().flush().unwrap();
-
-        let vehicle_type = self.vehicle_types.iter().last().unwrap();
 
         let mut builder = LinkedListGraph::<u32>::new_builder();
 
@@ -86,7 +103,7 @@ impl Solver for MinCostFlowSolver {
         let mut max_cost: Cost = 0;
 
         let trip_node_count =
-            self.network.all_service_nodes().count() + self.network.depots_iter().count();
+            self.network.service_nodes(vehicle_type).count() + self.network.depots_iter().count();
         // number of nodes in the flow network will be twice this number
 
         let maximal_formation_count: UpperBound = self
@@ -97,7 +114,7 @@ impl Solver for MinCostFlowSolver {
             .map_or(UpperBound::MAX, |x| x as UpperBound);
 
         // create two nodes for each service trip and connect them with an edge
-        for service_trip in self.network.all_service_nodes() {
+        for service_trip in self.network.service_nodes(vehicle_type) {
             let left_rsnode = builder.add_node();
             let right_rsnode = builder.add_node();
             let trip_node = TripNode::Service(service_trip);
@@ -139,7 +156,7 @@ impl Solver for MinCostFlowSolver {
                 TripNode::Service(s) => *s,
                 TripNode::Depot(d) => self.network.get_end_depot_node(*d),
             };
-            for pred in self.network.all_predecessors(node_id) {
+            for pred in self.network.predecessors(vehicle_type, node_id) {
                 let pred_node = match self.network.node(pred) {
                     Node::Service(_) => TripNode::Service(pred),
                     Node::StartDepot(d) => TripNode::Depot(d.depot_id()),
@@ -233,19 +250,18 @@ impl Solver for MinCostFlowSolver {
         print!("  3) building schedule");
         io::stdout().flush().unwrap();
 
-        let mut schedule = Schedule::empty(
-            self.vehicle_types.clone(),
-            self.network.clone(),
-            self.config.clone(),
-        );
+        let mut tours: Vec<Vec<NodeId>> = Vec::new();
 
-        let mut last_trip_to_vehicle: HashMap<NodeId, Vec<VehicleId>> = HashMap::new();
+        let mut last_trip_to_tour: HashMap<NodeId, Vec<usize>> = HashMap::new();
+        // for each service trip store the tours (as index of tours) that are currently ending there
 
         for node in self
             .network
-            .all_service_nodes()
+            .service_nodes(vehicle_type)
             .chain(self.network.end_depot_nodes())
         {
+            // for each service trip and each depot in chronological order
+
             let trip_node = match self.network.node(node) {
                 Node::Service(_) => TripNode::Service(node),
                 Node::EndDepot(d) => TripNode::Depot(d.depot_id()),
@@ -269,50 +285,31 @@ impl Solver for MinCostFlowSolver {
                 .flatten()
             {
                 match (pred_trip_node, trip_node) {
-                    (TripNode::Service(pred_service_trip), TripNode::Service(_)) => {
-                        // Flow goes from service trip to service trip -> Use old vehicle
-                        let vehicle = last_trip_to_vehicle
+                    (TripNode::Service(pred_service_trip), _) => {
+                        // Flow goes from service trip to service trip -> Use existing tour
+                        let existing_tour_index = last_trip_to_tour
                             .get_mut(&pred_service_trip)
                             .expect("pred not found")
                             .pop()
                             .unwrap();
-                        schedule = schedule
-                            .add_path_to_vehicle_tour(
-                                vehicle,
-                                Path::new_from_single_node(node, self.network.clone()),
-                            )
-                            .unwrap();
-                        // remember the vehicle for the next service trip
-                        last_trip_to_vehicle.entry(node).or_default().push(vehicle);
+                        tours[existing_tour_index].push(node);
+                        // remember the tour for the next service trip
+                        last_trip_to_tour
+                            .entry(node)
+                            .or_default()
+                            .push(existing_tour_index);
                     }
                     (TripNode::Depot(pred_depot_id), TripNode::Service(_)) => {
-                        // Flow goes from depot to service trip -> Spawn new vehicle
+                        // Flow goes from depot to service trip -> Create new tour
                         let start_depot_node = self.network.get_start_depot_node(pred_depot_id);
 
-                        let schedule_vehicle_pair = schedule
-                            .spawn_vehicle_for_path(vehicle_type, vec![start_depot_node, node])
-                            .unwrap();
-                        schedule = schedule_vehicle_pair.0;
-                        let vehicle = schedule_vehicle_pair.1;
+                        tours.push(vec![start_depot_node, node]);
 
-                        // remember the vehicle for the next service trip
-                        last_trip_to_vehicle.entry(node).or_default().push(vehicle);
-                    }
-                    (TripNode::Service(pred_service_trip), TripNode::Depot(_)) => {
-                        // Flow goes from service trip to depot -> Change end depot of vehicle
-                        let vehicle = last_trip_to_vehicle
-                            .get_mut(&pred_service_trip)
-                            .expect("pred not found")
-                            .pop()
-                            .unwrap();
-                        schedule = schedule
-                            .add_path_to_vehicle_tour(
-                                vehicle,
-                                Path::new(vec![pred_service_trip, node], self.network.clone())
-                                    .unwrap()
-                                    .unwrap(),
-                            )
-                            .unwrap();
+                        // remember the tour for the next service trip
+                        last_trip_to_tour
+                            .entry(node)
+                            .or_default()
+                            .push(tours.len() - 1);
                     }
                     (TripNode::Depot(_), TripNode::Depot(_)) => {
                         println!("\x1b[93mWARNING: flow should not go from depot to depot\x1b[0m");
@@ -324,7 +321,6 @@ impl Solver for MinCostFlowSolver {
             "\r  3) building schedule - \x1b[32mdone ({:0.2}sec)\x1b[0m",
             time_at_building_schedule.elapsed().as_secs_f32()
         );
-
-        self.objective.evaluate(schedule)
+        tours
     }
 }

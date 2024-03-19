@@ -20,6 +20,8 @@ use std::iter::Iterator;
 
 use std::sync::Arc;
 
+type SortedNodes = BTreeMap<(DateTime, NodeId), NodeId>;
+
 pub struct Network {
     nodes: HashMap<NodeId, Node>,
     depots: HashMap<DepotId, (Depot, NodeId, NodeId)>, // depot, start_node, end_node
@@ -30,8 +32,10 @@ pub struct Network {
     start_depot_nodes: Vec<NodeId>,
     end_depot_nodes: Vec<NodeId>,
 
-    nodes_sorted_by_start: BTreeMap<(DateTime, NodeId), NodeId>,
-    nodes_sorted_by_end: BTreeMap<(DateTime, NodeId), NodeId>,
+    nodes_sorted_by_start: SortedNodes,
+
+    vehicle_type_nodes_sorted_by_start: HashMap<VehicleTypeId, SortedNodes>,
+    vehicle_type_nodes_sorted_by_end: HashMap<VehicleTypeId, SortedNodes>,
 
     // redundant information
     number_of_service_nodes: usize,
@@ -189,10 +193,13 @@ impl Network {
         n1.end_time() + self.minimal_duration_between_nodes_as_ref(n1, n2) <= n2.start_time()
     }
 
-    /// provides all nodes that are reachable from node (in increasing order according to the
-    /// starting time)
-    pub fn all_successors(&self, node: NodeId) -> impl Iterator<Item = NodeId> + '_ {
-        self.nodes_sorted_by_start
+    /// provides all nodes of the given vehicle_type that are can be reached by node
+    pub fn successors(
+        &self,
+        vehicle_type: VehicleTypeId,
+        node: NodeId,
+    ) -> impl Iterator<Item = NodeId> + '_ {
+        self.vehicle_type_nodes_sorted_by_start[&vehicle_type]
             .range((self.node(node).end_time(), NodeId::smallest())..)
             .filter_map(move |(_, &n)| {
                 if self.can_reach(node, n) {
@@ -203,9 +210,13 @@ impl Network {
             })
     }
 
-    /// provides all nodes that are can reach node
-    pub fn all_predecessors(&self, node: NodeId) -> impl Iterator<Item = NodeId> + '_ {
-        self.nodes_sorted_by_end
+    /// provides all nodes of the given vehicle_type that are can reach node
+    pub fn predecessors(
+        &self,
+        vehicle_type: VehicleTypeId,
+        node: NodeId,
+    ) -> impl Iterator<Item = NodeId> + '_ {
+        self.vehicle_type_nodes_sorted_by_end[&vehicle_type]
             .range(..(self.node(node).start_time(), NodeId::smallest()))
             .filter_map(move |(_, &n)| {
                 if self.can_reach(n, node) {
@@ -386,7 +397,7 @@ impl Network {
                 .cmp_start_time(nodes.get(&n2).unwrap())
         });
 
-        let nodes_sorted_by_start: BTreeMap<(DateTime, NodeId), NodeId> = nodes
+        let nodes_sorted_by_start: SortedNodes = nodes
             .keys()
             .map(|&n| {
                 let node = nodes.get(&n).unwrap();
@@ -394,11 +405,37 @@ impl Network {
             })
             .collect();
 
-        let nodes_sorted_by_end: BTreeMap<(DateTime, NodeId), NodeId> = nodes
-            .keys()
-            .map(|&n| {
-                let node = nodes.get(&n).unwrap();
-                ((node.end_time(), n), n)
+        let vehicle_type_nodes_sorted_by_start: HashMap<VehicleTypeId, SortedNodes> = vehicle_types
+            .iter()
+            .map(|vt| {
+                let nodes = service_nodes[&vt]
+                    .iter()
+                    .chain(maintenance_nodes.iter())
+                    .chain(start_depot_nodes.iter())
+                    .chain(end_depot_nodes.iter())
+                    .map(|&n| {
+                        let node = nodes.get(&n).unwrap();
+                        ((node.start_time(), n), n)
+                    })
+                    .collect();
+                (vt, nodes)
+            })
+            .collect();
+
+        let vehicle_type_nodes_sorted_by_end: HashMap<VehicleTypeId, SortedNodes> = vehicle_types
+            .iter()
+            .map(|vt| {
+                let nodes = service_nodes[&vt]
+                    .iter()
+                    .chain(maintenance_nodes.iter())
+                    .chain(start_depot_nodes.iter())
+                    .chain(end_depot_nodes.iter())
+                    .map(|&n| {
+                        let node = nodes.get(&n).unwrap();
+                        ((node.end_time(), n), n)
+                    })
+                    .collect();
+                (vt, nodes)
             })
             .collect();
 
@@ -412,7 +449,8 @@ impl Network {
             start_depot_nodes,
             end_depot_nodes,
             nodes_sorted_by_start,
-            nodes_sorted_by_end,
+            vehicle_type_nodes_sorted_by_start,
+            vehicle_type_nodes_sorted_by_end,
             number_of_service_nodes,
             config,
             locations,
