@@ -1,3 +1,11 @@
+
+
+This algorithm is the product of a collaboration between Swiss Federal Railways SBB and ETH Zürich with the goal to compute an optimized rolling stock scheduling.
+
+The objectives are to minimize the number of rolling stock units and the travel distance of dead-head-trips, while meeting the dynamic passenger demand and still satisfying the maintenance regulations.
+
+Our optimization approach combines local-search meta-heuristics and the classic network simplex for computing a minimum-cost circulation. Local search improves rolling stock schedules through small, local modifications, such as exchanging adjusting train compositions, or exchanging a sequence of service trips to another rolling stock vehicle. Simultaneously, the optimality of the network simplex ensures minimal overall costs.
+
 # Deployment via Docker
 
 - install the docker engine: https://docs.docker.com/engine/install/
@@ -132,6 +140,8 @@ The project is structured into the following sub-projects:
 
 - provides base types (Ids, Distance, Cost,...), VehicleTypes, Locations, Config, Network, as well as the functionality to (de)serialize from json
 
+- see `model/resources/small_test_input.json` for an example input
+
 - all this data stay constant during one run
 
 - VehicleTypes:
@@ -234,7 +244,7 @@ The project is structured into the following sub-projects:
 
 - an ObjectiveValue is a Vector of BaseValues which matches the objective hierarchy and implements the Ord trait.
 
-#### solver
+#### solver (TODO)
 
 - min-cost-circulation algorithm via the rs_graph crate (using the network simplex)
 
@@ -252,7 +262,7 @@ The project is structured into the following sub-projects:
 
 - /solve (POST)
   
-  - expects a valid rolling stock scheduling instance in json form in the body
+  - expects a valid rolling stock scheduling instance in json form in the body (see ```model/resources/small_test_input.json``` for an example input)
   
   - executes the solver to produce a good schedule
   
