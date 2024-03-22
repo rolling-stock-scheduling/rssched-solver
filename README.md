@@ -156,12 +156,117 @@ The project is structured into the following sub-projects:
 
 #### solution
 
+- defines a cyclic rolling stock Schedule consisting of
+  
+  - vehicles that are used (specified by their type)
+  
+  - for each vehicle the tour it is driving
+  
+  - for each node the train formation (coupled vehicles)
+  
+  - the next day mapping, describing which vehicle of day 1 becomes which vehicle of day 2, when the schedule is repeated
+  
+  - service trips nodes that are not fully covered (= not all passengers are satisfied) are organized in dummy tours
+  
+  - note that schedules do not store their objective value
+
+- each vehicle drives a Tour, which consists of
+  
+  - the nodes it is driving
+  
+  - some stored information for fast calculations (e.g., the total dead head distance of the tour or the cost for the tour)
+  
+  - tours always start at a start_depot_node and end at a end_depot_node
+  
+  - in between are only service trips and maintenance nodes are allowed
+  
+  - for each consecutive nodes n1 and n2 of a tour n1 can reach n2 (see Network)
+
+- a Path is a sequence of nodes, such that consecutive nodes can be reached, but it must not start nor end at a depot node
+
+- a Segment is a pair of a start and a end node and represents a sub path of a tour
+
+- TrainFormation is a ordered list of vehicles, index 0 is supposed to be the front of the formation
+
+- a Vehicle consists of an Id and a vehicle type
+
+- Schedules can be serialized into Json objects which are the primary part of the algorithm's output
+
+- tour modifications:
+  
+  - tours should be immutable, so each modification creates a modified copy
+  
+  - replace start/end depot
+  
+  - remove segment
+  
+  - insert path (and remove conflicting nodes)
+
+- schedule modifications:
+  
+  - schedules should be immutable, so each modification creates a modified copy
+  
+  - spawn vehicles (given a path or a dummy tour)
+  
+  - delete a vehicle (replace it by a dummy tour)
+  
+  - add a path to the tour of a vehicle
+  
+  - fit_reassign: given a provider and a receiver vehicle as well as a segment of the provider's tour: tries to insert as many nodes of the segment to the receiver's tour without causing any conflicts
+  
+  - override_reassign: given a provider and a receiver vehicle as well as a segment of the provider's tour: insert the segment into the receiver's tour removing all conflicting nodes
+
 #### objective framework
+
+- an objective consists of a hierarchy of linear combinations (levels) of indicators of a schedule (called solution)
+
+- to define a new objective first define all indicators for a given schedule (e.g. number of unserved passenger, total dead head distance, ...) by implementing the Indicator<Schedule> trait, which needs an evaluate and a name function
+
+- the evaluate method must return a BaseValue, which could be Integer, Float or Duration
+
+- linear combine multiple indicators to a level by choosing Coefficients (integer or float)
+
+- each level must be either Integer, Float or Duration and the indicators cannot be mixed within the same level
+
+- multiple levels form an hierarchical Objective, the first level is the most important one, ties are broken by the second level and so forth
+
+- given an Objective instance, a solution (schedule) can be evaluated. This method consumes the schedule and returns an EvaluatedSolution object which consists of the schedule and an ObjectiveValue
+
+- an ObjectiveValue is a Vector of BaseValues which matches the objective hierarchy and implements the Ord trait.
 
 #### solver
 
-#### server
+- min-cost-circulation algorithm via the rs_graph crate (using the network simplex)
+
+- a local search algorithm with recursion
+
+- defines the objective (at the moment)
+
+#### #### server
+
+- a simple HTTP-server using the create axum.
+
+- there are two routes /health and /solve
+
+- /health (GET) returns "Healthy"
+
+- /solve (POST)
+  
+  - expects a valid rolling stock scheduling instance in json form in the body
+  
+  - executes the solver to produce a good schedule
+  
+  - answers with the specified output json, containing the objective value, the final schedule, as well as some additional information (running time, number of theads, timestamp, hostname)
 
 #### internal
 
+- this is a playground for the developer
+
+- has a main which is similar to the /solve function of the server
+
+- here is the place to try test-objectives
+
 #### python_visualization
+
+- a schedule in json-format can be visualized using poetry
+- see the README.md within the python_visualization folder
