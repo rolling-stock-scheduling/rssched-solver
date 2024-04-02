@@ -1,8 +1,7 @@
-use objective_framework::{EvaluatedSolution, Objective};
-use std::sync::Arc;
+pub mod local_search;
 
-pub trait Solver<I, S> {
-    fn initialize(instance: I, objective: Arc<Objective<S>>) -> Self;
+use objective_framework::EvaluatedSolution;
 
+pub trait Solver<S> {
     fn solve(&self) -> EvaluatedSolution<S>;
 }

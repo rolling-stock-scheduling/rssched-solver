@@ -13,6 +13,7 @@ path = "src/lib.rs"
 [dependencies]
 time = { path = "../time" }
 model = { path = "../model" }
+solver_framework = { path = "../solver_framework" }
 im = "15.0.0" # for lazy copies of data structures
 itertools = "0.10"
 serde = { version = "1.0", features = ["derive"] } # for reading json-files

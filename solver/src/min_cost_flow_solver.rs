@@ -38,6 +38,12 @@ type LowerBound = NetworkNumberType;
 type UpperBound = NetworkNumberType;
 type Cost = NetworkNumberType;
 
+struct EdgeLabel {
+    lower_bound: LowerBound,
+    upper_bound: UpperBound,
+    cost: Cost,
+}
+
 pub struct MinCostFlowSolver {
     vehicle_types: Arc<VehicleTypes>,
     config: Arc<Config>,
@@ -45,14 +51,8 @@ pub struct MinCostFlowSolver {
     objective: Arc<Objective<Schedule>>,
 }
 
-struct EdgeLabel {
-    lower_bound: LowerBound,
-    upper_bound: UpperBound,
-    cost: Cost,
-}
-
-impl Solver<Arc<Network>, Schedule> for MinCostFlowSolver {
-    fn initialize(network: Arc<Network>, objective: Arc<Objective<Schedule>>) -> Self {
+impl MinCostFlowSolver {
+    pub fn initialize(network: Arc<Network>, objective: Arc<Objective<Schedule>>) -> Self {
         Self {
             vehicle_types: network.vehicle_types(),
             config: network.config(),
@@ -60,7 +60,9 @@ impl Solver<Arc<Network>, Schedule> for MinCostFlowSolver {
             objective,
         }
     }
+}
 
+impl Solver<Schedule> for MinCostFlowSolver {
     fn solve(&self) -> EvaluatedSolution<Schedule> {
         // split into vehicle types
         let mut tours: HashMap<VehicleTypeId, Vec<Vec<NodeId>>> = HashMap::new();

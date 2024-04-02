@@ -1,8 +1,8 @@
 use super::swaps::{PathExchange, Swap};
+use crate::segment::Segment;
+use crate::Schedule;
 use model::base_types::VehicleId;
 use model::network::Network;
-use solution::segment::Segment;
-use solution::Schedule;
 use std::sync::Arc;
 use time::Duration;
 

@@ -8,12 +8,13 @@ pub struct OneNodePerTour {
     network: Arc<Network>,
     objective: Arc<Objective<Schedule>>,
 }
-
-impl Solver<Arc<Network>, Schedule> for OneNodePerTour {
-    fn initialize(network: Arc<Network>, objective: Arc<Objective<Schedule>>) -> Self {
+impl OneNodePerTour {
+    pub fn initialize(network: Arc<Network>, objective: Arc<Objective<Schedule>>) -> Self {
         Self { network, objective }
     }
+}
 
+impl Solver<Schedule> for OneNodePerTour {
     fn solve(&self) -> EvaluatedSolution<Schedule> {
         let mut schedule = Schedule::empty(self.network.clone());
 
