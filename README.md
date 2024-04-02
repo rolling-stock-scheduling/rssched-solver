@@ -1,5 +1,3 @@
-
-
 This algorithm is the product of a collaboration between Swiss Federal Railways SBB and ETH Zürich with the goal to compute an optimized rolling stock scheduling.
 
 The objectives are to minimize the number of rolling stock units and the travel distance of dead-head-trips, while meeting the dynamic passenger demand and still satisfying the maintenance regulations.

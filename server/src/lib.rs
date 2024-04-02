@@ -1,10 +1,10 @@
 use model::json_serialisation::load_rolling_stock_problem_instance_from_json;
+use objective_framework::EvaluatedSolution;
 use objective_framework::Objective;
 use solution::json_serialisation::schedule_to_json;
 use solution::Schedule;
 use solver::min_cost_flow_solver::MinCostFlowSolver;
 use solver::objective;
-use solver::Solution;
 use solver::Solver;
 use time::{DateTime, Duration};
 
@@ -50,7 +50,7 @@ pub fn solve_instance(input_data: serde_json::Value) -> serde_json::Value {
 }
 
 pub fn create_output_json(
-    final_solution: &Solution,
+    final_solution: &EvaluatedSolution<Schedule>,
     objective: &Objective<Schedule>,
     runtime_duration: stdtime::Duration,
 ) -> serde_json::Value {

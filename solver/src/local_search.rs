@@ -7,9 +7,9 @@ use std::time as stdtime;
 
 use super::Solver;
 use crate::one_node_per_tour::OneNodePerTour;
-use crate::Solution;
 use local_improver::LocalImprover;
 use model::{config::Config, network::Network, vehicle_types::VehicleTypes};
+use objective_framework::EvaluatedSolution;
 use objective_framework::Objective;
 use solution::Schedule;
 use swap_factory::LimitedExchanges;
@@ -25,6 +25,8 @@ use local_improver::TakeFirstRecursion;
 
 #[allow(unused_imports)]
 use local_improver::TakeAnyParallelRecursion;
+
+pub type Solution = EvaluatedSolution<Schedule>;
 
 enum SearchResult {
     Improvement(Solution),
@@ -64,7 +66,7 @@ impl LocalSearch {
     }
 }
 
-impl Solver for LocalSearch {
+impl Solver<Schedule> for LocalSearch {
     fn initialize(
         vehicles: Arc<VehicleTypes>,
         network: Arc<Network>,

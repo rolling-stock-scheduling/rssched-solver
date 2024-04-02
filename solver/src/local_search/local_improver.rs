@@ -1,4 +1,4 @@
-use crate::Solution;
+use super::Solution;
 
 use super::swap_factory::SwapFactory;
 

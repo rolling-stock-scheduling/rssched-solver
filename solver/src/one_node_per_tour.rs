@@ -1,9 +1,8 @@
-use crate::Solution;
 use crate::Solver;
 use model::config::Config;
 use model::network::Network;
 use model::vehicle_types::VehicleTypes;
-use objective_framework::Objective;
+use objective_framework::{EvaluatedSolution, Objective};
 use solution::Schedule;
 use std::sync::Arc;
 
@@ -14,7 +13,7 @@ pub struct OneNodePerTour {
     objective: Arc<Objective<Schedule>>,
 }
 
-impl Solver for OneNodePerTour {
+impl Solver<Schedule> for OneNodePerTour {
     fn initialize(
         vehicles: Arc<VehicleTypes>,
         network: Arc<Network>,
@@ -29,7 +28,7 @@ impl Solver for OneNodePerTour {
         }
     }
 
-    fn solve(&self) -> Solution {
+    fn solve(&self) -> EvaluatedSolution<Schedule> {
         let mut schedule = Schedule::empty(
             self.vehicles.clone(),
             self.network.clone(),

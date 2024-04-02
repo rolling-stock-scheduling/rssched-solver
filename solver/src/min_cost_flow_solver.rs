@@ -1,4 +1,3 @@
-use crate::Solution;
 use crate::Solver;
 use model::base_types::DepotId;
 use model::base_types::NodeId;
@@ -7,6 +6,7 @@ use model::config::Config;
 use model::network::nodes::Node;
 use model::network::Network;
 use model::vehicle_types::VehicleTypes;
+use objective_framework::EvaluatedSolution;
 use objective_framework::Objective;
 use solution::Schedule;
 
@@ -51,7 +51,7 @@ struct EdgeLabel {
     cost: Cost,
 }
 
-impl Solver for MinCostFlowSolver {
+impl Solver<Schedule> for MinCostFlowSolver {
     fn initialize(
         vehicle_types: Arc<VehicleTypes>,
         network: Arc<Network>,
@@ -66,7 +66,7 @@ impl Solver for MinCostFlowSolver {
         }
     }
 
-    fn solve(&self) -> Solution {
+    fn solve(&self) -> EvaluatedSolution<Schedule> {
         // split into vehicle types
         let mut tours: HashMap<VehicleTypeId, Vec<Vec<NodeId>>> = HashMap::new();
         for vehicle_type in self.vehicle_types.iter() {
