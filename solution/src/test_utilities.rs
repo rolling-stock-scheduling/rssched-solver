@@ -2,16 +2,12 @@ use std::{fs::File, io::Read, sync::Arc};
 
 use model::{
     base_types::{DepotId, NodeId, VehicleTypeId},
-    config::Config,
     json_serialisation::load_rolling_stock_problem_instance_from_json,
     network::Network,
-    vehicle_types::VehicleTypes,
 };
 
 pub(crate) struct TestData {
-    pub(crate) vehicle_types: Arc<VehicleTypes>,
     pub(crate) network: Arc<Network>,
-    pub(crate) config: Arc<Config>,
     pub(crate) vt1: VehicleTypeId,
     pub(crate) vt2: VehicleTypeId,
     pub(crate) depot1: DepotId,
@@ -47,12 +43,9 @@ pub(crate) fn init_test_data() -> TestData {
     let mut input_data = String::new();
     file.read_to_string(&mut input_data).unwrap();
     let input_data: serde_json::Value = serde_json::from_str(&input_data).unwrap();
-    let (vehicle_types, network, config) =
-        load_rolling_stock_problem_instance_from_json(input_data);
+    let network = load_rolling_stock_problem_instance_from_json(input_data);
     TestData {
-        vehicle_types,
         network,
-        config,
         vt1: VehicleTypeId::from(1),
         vt2: VehicleTypeId::from(2),
         depot1: DepotId::from(1),

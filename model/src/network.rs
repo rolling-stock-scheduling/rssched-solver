@@ -48,6 +48,14 @@ pub struct Network {
 
 // methods
 impl Network {
+    pub fn vehicle_types(&self) -> Arc<VehicleTypes> {
+        self.vehicle_types.clone()
+    }
+
+    pub fn config(&self) -> Arc<Config> {
+        self.config.clone()
+    }
+
     pub fn node(&self, id: NodeId) -> &Node {
         self.nodes.get(&id).unwrap()
     }

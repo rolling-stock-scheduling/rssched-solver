@@ -9,8 +9,7 @@ use crate::{
 };
 
 fn default_schedule(d: &TestData) -> Schedule {
-    let mut schedule =
-        Schedule::empty(d.vehicle_types.clone(), d.network.clone(), d.config.clone());
+    let mut schedule = Schedule::empty(d.network.clone());
 
     // veh00000
     schedule = schedule
@@ -1273,7 +1272,7 @@ fn override_reassign_dummy_provider_and_receiver_test() {
 fn improve_depots_test() {
     // ARRANGE
     let d = init_test_data();
-    let schedule = Schedule::empty(d.vehicle_types.clone(), d.network.clone(), d.config.clone())
+    let schedule = Schedule::empty(d.network.clone())
         .spawn_vehicle_for_path(
             d.vt1,
             vec![d.start_depot3, d.trip23, d.trip34, d.end_depot2],
@@ -1330,7 +1329,7 @@ fn improve_depots_test() {
 fn reassign_end_depots_greedily_test() {
     // ARRANGE
     let d = init_test_data();
-    let schedule = Schedule::empty(d.vehicle_types.clone(), d.network.clone(), d.config.clone())
+    let schedule = Schedule::empty(d.network.clone())
         .spawn_vehicle_for_path(
             d.vt1,
             vec![d.start_depot3, d.trip23, d.trip34, d.end_depot2],

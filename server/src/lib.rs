@@ -14,23 +14,17 @@ use std::time as stdtime;
 
 pub fn solve_instance(input_data: serde_json::Value) -> serde_json::Value {
     let start_time = stdtime::Instant::now();
-    let (vehicle_types, network, config) =
-        load_rolling_stock_problem_instance_from_json(input_data);
+    let network = load_rolling_stock_problem_instance_from_json(input_data);
     println!(
         "Instance with {} vehicle types and {} trips loaded (elapsed time: {:0.2}sec)",
-        vehicle_types.iter().count(),
+        network.vehicle_types().iter().count(),
         network.size(),
         start_time.elapsed().as_secs_f32()
     );
 
     let objective = Arc::new(objective::build());
 
-    let min_cost_flow_solver = MinCostFlowSolver::initialize(
-        vehicle_types.clone(),
-        network.clone(),
-        config.clone(),
-        objective.clone(),
-    );
+    let min_cost_flow_solver = MinCostFlowSolver::initialize(network.clone(), objective.clone());
     println!("Solve with MinCostFlowSolver:");
     let final_solution = min_cost_flow_solver.solve();
     println!(

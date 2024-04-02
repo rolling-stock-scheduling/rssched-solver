@@ -8,7 +8,7 @@ use std::time as stdtime;
 use super::Solver;
 use crate::one_node_per_tour::OneNodePerTour;
 use local_improver::LocalImprover;
-use model::{config::Config, network::Network, vehicle_types::VehicleTypes};
+use model::network::Network;
 use objective_framework::EvaluatedSolution;
 use objective_framework::Objective;
 use solution::Schedule;
@@ -53,9 +53,7 @@ impl SearchResult {
 }
 
 pub struct LocalSearch {
-    vehicles: Arc<VehicleTypes>,
     network: Arc<Network>,
-    config: Arc<Config>,
     objective: Arc<Objective<Schedule>>,
     initial_solution: Option<Solution>,
 }
@@ -66,17 +64,10 @@ impl LocalSearch {
     }
 }
 
-impl Solver<Schedule> for LocalSearch {
-    fn initialize(
-        vehicles: Arc<VehicleTypes>,
-        network: Arc<Network>,
-        config: Arc<Config>,
-        objective: Arc<Objective<Schedule>>,
-    ) -> Self {
+impl Solver<Arc<Network>, Schedule> for LocalSearch {
+    fn initialize(network: Arc<Network>, objective: Arc<Objective<Schedule>>) -> Self {
         Self {
-            vehicles,
             network,
-            config,
             objective,
             initial_solution: None,
         }
@@ -86,12 +77,8 @@ impl Solver<Schedule> for LocalSearch {
         let start_time = stdtime::Instant::now();
         // if there is no start schedule, create new schedule, where each vehicle has exactly one tour and the demand is covered.
         let init_solution = self.initial_solution.clone().unwrap_or_else(|| {
-            let one_node_per_tour = OneNodePerTour::initialize(
-                self.vehicles.clone(),
-                self.network.clone(),
-                self.config.clone(),
-                self.objective.clone(),
-            );
+            let one_node_per_tour =
+                OneNodePerTour::initialize(self.network.clone(), self.objective.clone());
             one_node_per_tour.solve()
         });
 

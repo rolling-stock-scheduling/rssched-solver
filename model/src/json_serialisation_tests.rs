@@ -27,8 +27,9 @@ fn test_load_from_json(path: &str) {
     file.read_to_string(&mut input_data).unwrap();
     let input_data: serde_json::Value = serde_json::from_str(&input_data).unwrap();
 
-    let (vehicle_types, network, config) =
-        load_rolling_stock_problem_instance_from_json(input_data);
+    let network = load_rolling_stock_problem_instance_from_json(input_data);
+    let vehicle_types = network.vehicle_types();
+    let config = network.config();
 
     // ASSERT
     let locations = network.locations();

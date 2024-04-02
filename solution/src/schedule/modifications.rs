@@ -48,8 +48,8 @@ impl Schedule {
         let mut vehicle_ids_sorted = self.vehicle_ids_sorted.clone();
 
         let vehicle_id = VehicleId::vehicle_from(self.vehicle_counter as Id);
-        let tour = Tour::new(nodes, self.network.clone(), self.config.clone())?;
-        let vehicle = Vehicle::new(vehicle_id, vehicle_type_id, self.vehicle_types.clone());
+        let tour = Tour::new(nodes, self.network.clone())?;
+        let vehicle = Vehicle::new(vehicle_id, vehicle_type_id, self.network.vehicle_types());
 
         vehicles.insert(vehicle_id, vehicle.clone());
         vehicle_ids_sorted.insert(
@@ -80,8 +80,6 @@ impl Schedule {
                 vehicle_ids_sorted,
                 dummy_ids_sorted: self.dummy_ids_sorted.clone(),
                 vehicle_counter: self.vehicle_counter + 1,
-                config: self.config.clone(),
-                vehicle_types: self.vehicle_types.clone(),
                 network: self.network.clone(),
             },
             vehicle_id,
@@ -136,8 +134,6 @@ impl Schedule {
             vehicle_ids_sorted,
             dummy_ids_sorted,
             vehicle_counter: self.vehicle_counter + 1,
-            config: self.config.clone(),
-            vehicle_types: self.vehicle_types.clone(),
             network: self.network.clone(),
         })
     }
@@ -201,8 +197,6 @@ impl Schedule {
             vehicle_ids_sorted: self.vehicle_ids_sorted.clone(),
             dummy_ids_sorted: self.dummy_ids_sorted.clone(),
             vehicle_counter: self.vehicle_counter,
-            config: self.config.clone(),
-            vehicle_types: self.vehicle_types.clone(),
             network: self.network.clone(),
         })
     }
@@ -254,8 +248,6 @@ impl Schedule {
             vehicle_ids_sorted,
             dummy_ids_sorted,
             vehicle_counter: self.vehicle_counter,
-            config: self.config.clone(),
-            vehicle_types: self.vehicle_types.clone(),
             network: self.network.clone(),
         })
     }
@@ -339,8 +331,6 @@ impl Schedule {
                 vehicle_ids_sorted,
                 dummy_ids_sorted,
                 vehicle_counter,
-                config: self.config.clone(),
-                vehicle_types: self.vehicle_types.clone(),
                 network: self.network.clone(),
             },
             new_dummy_opt,
@@ -376,8 +366,6 @@ impl Schedule {
             vehicle_ids_sorted: self.vehicle_ids_sorted.clone(),
             dummy_ids_sorted: self.dummy_ids_sorted.clone(),
             vehicle_counter: self.vehicle_counter,
-            config: self.config.clone(),
-            vehicle_types: self.vehicle_types.clone(),
             network: self.network.clone(),
         }
     }
@@ -414,8 +402,6 @@ impl Schedule {
             vehicle_ids_sorted: self.vehicle_ids_sorted.clone(),
             dummy_ids_sorted: self.dummy_ids_sorted.clone(),
             vehicle_counter: self.vehicle_counter + 1,
-            config: self.config.clone(),
-            vehicle_types: self.vehicle_types.clone(),
             network: self.network.clone(),
         })
     }
@@ -446,8 +432,6 @@ impl Schedule {
             vehicle_ids_sorted: self.vehicle_ids_sorted.clone(),
             dummy_ids_sorted,
             vehicle_counter: self.vehicle_counter,
-            config: self.config.clone(),
-            vehicle_types: self.vehicle_types.clone(),
             network: self.network.clone(),
         })
     }
@@ -698,7 +682,7 @@ impl Schedule {
         dummy_id: VehicleId,
         path: Path,
     ) {
-        let dummy_tour = Tour::new_dummy(path, self.network.clone(), self.config.clone());
+        let dummy_tour = Tour::new_dummy(path, self.network.clone());
         dummy_tours.insert(dummy_id, dummy_tour);
         dummy_ids_sorted.insert(
             dummy_ids_sorted

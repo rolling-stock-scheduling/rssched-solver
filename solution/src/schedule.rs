@@ -11,7 +11,6 @@ use model::base_types::PassengerCount;
 use model::base_types::VehicleCount;
 use model::base_types::VehicleId;
 use model::base_types::VehicleTypeId;
-use model::config::Config;
 use model::network::Network;
 use model::vehicle_types::VehicleTypes;
 
@@ -60,8 +59,6 @@ pub struct Schedule {
     vehicle_ids_sorted: Vec<VehicleId>,
     dummy_ids_sorted: Vec<VehicleId>,
 
-    config: Arc<Config>,
-    vehicle_types: Arc<VehicleTypes>,
     network: Arc<Network>,
 }
 
@@ -132,7 +129,8 @@ impl Schedule {
     }
 
     pub fn number_of_vehicles_spawned_at(&self, depot: DepotId) -> VehicleCount {
-        self.vehicle_types
+        self.network
+            .vehicle_types()
             .iter()
             .map(|vt| {
                 self.depot_usage
@@ -240,7 +238,7 @@ impl Schedule {
 
     pub fn costs(&self) -> Cost {
         self.tours.values().map(|tour| tour.costs()).sum::<Cost>()
-            + self.network.number_of_service_nodes() as Cost * self.config.costs.staff
+            + self.network.number_of_service_nodes() as Cost * self.network.config().costs.staff
     }
 
     pub fn print_tours_long(&self) {
@@ -281,7 +279,7 @@ impl Schedule {
 
     pub fn print_depot_balances(&self) {
         for depot in self.network.depots_iter() {
-            for vehicle_type in self.vehicle_types.iter() {
+            for vehicle_type in self.network.vehicle_types().iter() {
                 println!(
                     "  depot {}, vehicle type {}: {}",
                     depot,
@@ -306,8 +304,8 @@ impl Schedule {
         &self.network
     }
 
-    pub fn get_vehicle_types(&self) -> &VehicleTypes {
-        &self.vehicle_types
+    pub fn get_vehicle_types(&self) -> Arc<VehicleTypes> {
+        self.network.vehicle_types()
     }
 
     pub fn verify_consistency(&self) {
@@ -515,11 +513,7 @@ impl Eq for Schedule {}
 // static methods
 impl Schedule {
     /// initializing an empty schedule
-    pub fn empty(
-        vehicle_types: Arc<VehicleTypes>,
-        network: Arc<Network>,
-        config: Arc<Config>,
-    ) -> Schedule {
+    pub fn empty(network: Arc<Network>) -> Schedule {
         let mut train_formations = HashMap::new();
         for node in network.coverable_nodes() {
             train_formations.insert(node, TrainFormation::empty());
@@ -534,8 +528,6 @@ impl Schedule {
             vehicle_ids_sorted: Vec::new(),
             dummy_ids_sorted: Vec::new(),
             vehicle_counter: 0,
-            config,
-            vehicle_types,
             network,
         }
     }
@@ -544,11 +536,9 @@ impl Schedule {
     /// type
     pub fn from_tours(
         tours: StdHashMap<VehicleTypeId, Vec<Vec<NodeId>>>,
-        vehicle_types: Arc<VehicleTypes>,
         network: Arc<Network>,
-        config: Arc<Config>,
     ) -> Result<Schedule, String> {
-        let mut schedule = Schedule::empty(vehicle_types, network, config);
+        let mut schedule = Schedule::empty(network);
 
         for (vehicle_type, tours) in tours {
             for tour in tours {

@@ -33,12 +33,12 @@ impl Tour {
                 .network
                 .dead_head_time_between(self.first_node(), first_non_depot)
                 .in_sec()
-                * self.config.costs.dead_head_trip
+                * self.network.config().costs.dead_head_trip
             + self
                 .network
                 .dead_head_time_between(new_start_depot, first_non_depot)
                 .in_sec()
-                * self.config.costs.dead_head_trip;
+                * self.network.config().costs.dead_head_trip;
         // there is no idle time.
 
         Ok(Tour::new_precomputed(
@@ -49,7 +49,6 @@ impl Tour {
             new_dead_head_distance,
             new_costs,
             self.network.clone(),
-            self.config.clone(),
         ))
     }
 
@@ -77,12 +76,12 @@ impl Tour {
                 .network
                 .dead_head_time_between(last_non_depot, self.last_node())
                 .in_sec()
-                * self.config.costs.dead_head_trip
+                * self.network.config().costs.dead_head_trip
             + self
                 .network
                 .dead_head_time_between(last_non_depot, new_end_depot)
                 .in_sec()
-                * self.config.costs.dead_head_trip;
+                * self.network.config().costs.dead_head_trip;
         // there is no idle time.
 
         Ok(Tour::new_precomputed(
@@ -93,7 +92,6 @@ impl Tour {
             new_dead_head_distance,
             new_costs,
             self.network.clone(),
-            self.config.clone(),
         ))
     }
 
@@ -155,7 +153,6 @@ impl Tour {
                 new_dead_head_distance,
                 new_costs,
                 self.network.clone(),
-                self.config.clone(),
             )),
             Path::new_trusted(removed_nodes, self.network.clone())
                 .expect("empty path should be impossible."),
@@ -229,7 +226,6 @@ impl Tour {
                 new_dead_head_distance,
                 new_costs,
                 self.network.clone(),
-                self.config.clone(),
             ),
             Path::new_trusted(removed_nodes, self.network.clone()),
         )
@@ -392,20 +388,21 @@ impl Tour {
         self.network
             .dead_head_time_between(self.nodes[pos], self.nodes[pos + 1])
             .in_sec()
-            * self.config.costs.dead_head_trip
+            * self.network.config().costs.dead_head_trip
             + self
                 .network
                 .idle_time_between(self.nodes[pos], self.nodes[pos + 1])
                 .in_sec()
-                * self.config.costs.idle
+                * self.network.config().costs.idle
     }
 
     /// Returns the costs for the dead head trip and the idle time between the two nodes assuming
     /// no intermediate stops.
     fn dead_head_and_idle_costs_between_two_nodes(&self, node1: NodeId, node2: NodeId) -> Cost {
         self.network.dead_head_time_between(node1, node2).in_sec()
-            * self.config.costs.dead_head_trip
-            + self.network.idle_time_between(node1, node2).in_sec() * self.config.costs.idle
+            * self.network.config().costs.dead_head_trip
+            + self.network.idle_time_between(node1, node2).in_sec()
+                * self.network.config().costs.idle
     }
 
     fn service_and_maintenance_costs_by_pos(&self, pos: Position) -> Cost {
@@ -415,8 +412,8 @@ impl Tour {
     fn service_and_maintenance_costs_by_id(&self, node: NodeId) -> Cost {
         self.network.node(node).duration().in_sec()
             * match self.network.node(node) {
-                Node::Service(_) => self.config.costs.service_trip,
-                Node::Maintenance(_) => self.config.costs.maintenance,
+                Node::Service(_) => self.network.config().costs.service_trip,
+                Node::Maintenance(_) => self.network.config().costs.maintenance,
                 _ => 0,
             }
     }

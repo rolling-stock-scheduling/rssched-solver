@@ -40,8 +40,8 @@ type Cost = NetworkNumberType;
 
 pub struct MinCostFlowSolver {
     vehicle_types: Arc<VehicleTypes>,
-    network: Arc<Network>,
     config: Arc<Config>,
+    network: Arc<Network>,
     objective: Arc<Objective<Schedule>>,
 }
 
@@ -51,17 +51,12 @@ struct EdgeLabel {
     cost: Cost,
 }
 
-impl Solver<Schedule> for MinCostFlowSolver {
-    fn initialize(
-        vehicle_types: Arc<VehicleTypes>,
-        network: Arc<Network>,
-        config: Arc<Config>,
-        objective: Arc<Objective<Schedule>>,
-    ) -> Self {
+impl Solver<Arc<Network>, Schedule> for MinCostFlowSolver {
+    fn initialize(network: Arc<Network>, objective: Arc<Objective<Schedule>>) -> Self {
         Self {
-            vehicle_types,
+            vehicle_types: network.vehicle_types(),
+            config: network.config(),
             network,
-            config,
             objective,
         }
     }
@@ -73,13 +68,7 @@ impl Solver<Schedule> for MinCostFlowSolver {
             tours.insert(vehicle_type, self.solve_for_vehicle_type(vehicle_type));
         }
 
-        let schedule = Schedule::from_tours(
-            tours,
-            self.vehicle_types.clone(),
-            self.network.clone(),
-            self.config.clone(),
-        )
-        .unwrap();
+        let schedule = Schedule::from_tours(tours, self.network.clone()).unwrap();
 
         self.objective.evaluate(schedule)
     }

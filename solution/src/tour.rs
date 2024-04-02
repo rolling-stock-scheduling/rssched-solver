@@ -4,7 +4,6 @@ mod tests;
 use crate::path::Path;
 use crate::segment::Segment;
 use model::base_types::{Cost, Distance, NodeId};
-use model::config::Config;
 use model::network::nodes::Node;
 use model::network::Network;
 use std::cmp::Ordering;
@@ -44,7 +43,6 @@ pub struct Tour {
     // + idle_time * costs.idle
     costs: Cost,
     network: Arc<Network>,
-    config: Arc<Config>,
 }
 
 // basic public methods
@@ -440,7 +438,7 @@ impl Tour {
     }
 
     fn compute_costs(&self) -> Cost {
-        Self::compute_costs_of_nodes(&self.nodes, &self.network, &self.config)
+        Self::compute_costs_of_nodes(&self.nodes, &self.network)
     }
 }
 
@@ -502,12 +500,8 @@ impl Tour {
     /// * only Service or MaintenanceNodes in the middle
     /// * each node can reach its successor
     /// If one of the checks fails an error message is returned.
-    pub(super) fn new(
-        nodes: Vec<NodeId>,
-        network: Arc<Network>,
-        config: Arc<Config>,
-    ) -> Result<Tour, String> {
-        Tour::new_allow_invalid(nodes, network, config).map_err(|(_, error_msg)| error_msg)
+    pub(super) fn new(nodes: Vec<NodeId>, network: Arc<Network>) -> Result<Tour, String> {
+        Tour::new_allow_invalid(nodes, network).map_err(|(_, error_msg)| error_msg)
     }
 
     /// Creates a new tour from a vector of NodeIds. Checks that the tour is valid:
@@ -520,7 +514,6 @@ impl Tour {
     pub(super) fn new_allow_invalid(
         nodes: Vec<NodeId>,
         network: Arc<Network>,
-        config: Arc<Config>,
     ) -> Result<Tour, (Tour, String)> {
         let mut error_msg = String::new();
         if !network.node(nodes[0]).is_start_depot() {
@@ -557,16 +550,13 @@ impl Tour {
             }
         }
         if !error_msg.is_empty() {
-            Err((
-                Tour::new_computing(nodes, false, network, config),
-                error_msg,
-            ))
+            Err((Tour::new_computing(nodes, false, network), error_msg))
         } else {
-            Ok(Tour::new_computing(nodes, false, network, config))
+            Ok(Tour::new_computing(nodes, false, network))
         }
     }
 
-    pub(super) fn new_dummy(path: Path, network: Arc<Network>, config: Arc<Config>) -> Tour {
+    pub(super) fn new_dummy(path: Path, network: Arc<Network>) -> Tour {
         let mut nodes = path.consume();
         // remove start and end depot
         if network.node(*nodes.first().unwrap()).is_depot() {
@@ -576,19 +566,14 @@ impl Tour {
             nodes.pop();
         };
         assert!(!nodes.is_empty());
-        Tour::new_computing(nodes, true, network, config)
+        Tour::new_computing(nodes, true, network)
     }
 
-    fn new_computing(
-        nodes: Vec<NodeId>,
-        is_dummy: bool,
-        network: Arc<Network>,
-        config: Arc<Config>,
-    ) -> Tour {
+    fn new_computing(nodes: Vec<NodeId>, is_dummy: bool, network: Arc<Network>) -> Tour {
         let useful_duration = Tour::compute_useful_duration_of_nodes(&nodes, &network);
         let service_distance = Tour::compute_service_distance_of_nodes(&nodes, &network);
         let dead_head_distance = Tour::compute_dead_head_distance_of_nodes(&nodes, &network);
-        let costs = Tour::compute_costs_of_nodes(&nodes, &network, &config);
+        let costs = Tour::compute_costs_of_nodes(&nodes, &network);
 
         Tour::new_precomputed(
             nodes,
@@ -598,7 +583,6 @@ impl Tour {
             dead_head_distance,
             costs,
             network,
-            config,
         )
     }
 
@@ -625,14 +609,14 @@ impl Tour {
         nodes.iter().map(|n| network.node(*n).duration()).sum()
     }
 
-    fn compute_costs_of_nodes(nodes: &[NodeId], network: &Network, config: &Config) -> Cost {
+    fn compute_costs_of_nodes(nodes: &[NodeId], network: &Network) -> Cost {
         nodes
             .iter()
             .map(|n| {
                 network.node(*n).duration().in_sec()
                     * match network.node(*n) {
-                        Node::Service(_) => config.costs.service_trip,
-                        Node::Maintenance(_) => config.costs.maintenance,
+                        Node::Service(_) => network.config().costs.service_trip,
+                        Node::Maintenance(_) => network.config().costs.maintenance,
                         _ => 0,
                     }
             })
@@ -641,8 +625,9 @@ impl Tour {
                 .iter()
                 .tuple_windows()
                 .map(|(a, b)| {
-                    network.dead_head_time_between(*a, *b).in_sec() * config.costs.dead_head_trip
-                        + network.idle_time_between(*a, *b).in_sec() * config.costs.idle
+                    network.dead_head_time_between(*a, *b).in_sec()
+                        * network.config().costs.dead_head_trip
+                        + network.idle_time_between(*a, *b).in_sec() * network.config().costs.idle
                 })
                 .sum::<Cost>()
     }
@@ -657,7 +642,6 @@ impl Tour {
         dead_head_distance: Distance,
         costs: Cost,
         network: Arc<Network>,
-        config: Arc<Config>,
     ) -> Tour {
         Tour {
             nodes,
@@ -667,7 +651,6 @@ impl Tour {
             dead_head_distance,
             costs,
             network,
-            config,
         }
     }
 }

@@ -160,18 +160,17 @@ struct Costs {
 
 pub fn load_rolling_stock_problem_instance_from_json(
     input_data: serde_json::Value,
-) -> (Arc<VehicleTypes>, Arc<Network>, Arc<Config>) {
+) -> Arc<Network> {
     let json_input = serde_json::from_value(input_data).unwrap();
     let locations = Arc::new(create_locations(&json_input));
     let vehicle_types = Arc::new(create_vehicle_types(&json_input));
     let config = Arc::new(create_config(&json_input));
-    let network = Arc::new(create_network(
+    Arc::new(create_network(
         &json_input,
-        locations.clone(),
-        vehicle_types.clone(),
-        config.clone(),
-    ));
-    (vehicle_types, network, config)
+        locations,
+        vehicle_types,
+        config,
+    ))
 }
 
 fn create_locations(json_input: &JsonInput) -> Locations {

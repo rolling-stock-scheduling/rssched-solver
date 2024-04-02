@@ -12,11 +12,10 @@ use std::time as stdtime;
 
 pub fn run(input_data: serde_json::Value) -> serde_json::Value {
     let start_time = stdtime::Instant::now();
-    let (vehicle_types, network, config) =
-        load_rolling_stock_problem_instance_from_json(input_data);
+    let network = load_rolling_stock_problem_instance_from_json(input_data);
     println!(
         "Instance with {} vehicle types and {} trips loaded (elapsed time: {:0.2}sec)",
-        vehicle_types.iter().count(),
+        network.vehicle_types().iter().count(),
         network.size(),
         start_time.elapsed().as_secs_f32()
     );
@@ -27,9 +26,7 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
     /*
     // use min_cost_max_matching_solver as start solution
     let min_cost_max_matching_solver = MinCostMaxMatchingSolver::initialize(
-        vehicle_types.clone(),
         network.clone(),
-        config.clone(),
         objective.clone(),
     );
     let start_solution = min_cost_max_matching_solver.solve();
@@ -42,12 +39,7 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
     // /*
     // use min_cost_flow_solver as start solution
     println!("Solve with MinCostFlowSolver:");
-    let min_cost_flow_solver = MinCostFlowSolver::initialize(
-        vehicle_types.clone(),
-        network.clone(),
-        config.clone(),
-        objective.clone(),
-    );
+    let min_cost_flow_solver = MinCostFlowSolver::initialize(network.clone(), objective.clone());
     let start_solution = min_cost_flow_solver.solve();
     println!(
         "MinCostFlowSolver computed optimal schedule (elapsed time: {:0.2}sec)",
@@ -58,9 +50,7 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
     /*
     // initialize local search
     let mut local_search_solver = LocalSearch::initialize(
-        vehicle_types.clone(),
         network.clone(),
-        config.clone(),
         objective.clone(),
     );
     local_search_solver.set_initial_solution(start_solution);
