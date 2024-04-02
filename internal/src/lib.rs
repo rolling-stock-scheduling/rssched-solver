@@ -3,7 +3,8 @@ mod test_objective;
 
 use solver::local_search::LocalSearch;
 use solver::min_cost_flow_solver::MinCostFlowSolver;
-use solver::{objective, Solver};
+use solver::objective;
+use solver_framework::Solver;
 
 use model::json_serialisation::load_rolling_stock_problem_instance_from_json;
 

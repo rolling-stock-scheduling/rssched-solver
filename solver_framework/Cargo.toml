@@ -1,22 +1,16 @@
 [package]
-name = "solver"
+name = "solver_framework"
 authors.workspace = true
 version.workspace = true
 edition.workspace = true
 
 [lib]
-name = "solver"
+name = "solver_framework"
 path = "src/lib.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-time = { path = "../time" }
-model = { path = "../model" }
-solution = { path = "../solution" }
 objective_framework = { path = "../objective_framework" }
-solver_framework = { path = "../solver_framework" }
 rayon = "1.5.1" # for parallel iterator
-serde_json = { version = "1.0", features = ["preserve_order"]} # for reading json-files
 itertools = "0.12.0"
-rs-graph = "0.21"

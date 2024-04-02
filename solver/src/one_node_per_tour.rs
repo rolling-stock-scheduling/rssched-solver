@@ -1,7 +1,7 @@
-use crate::Solver;
 use model::network::Network;
 use objective_framework::{EvaluatedSolution, Objective};
 use solution::Schedule;
+use solver_framework::Solver;
 use std::sync::Arc;
 
 pub struct OneNodePerTour {

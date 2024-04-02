@@ -5,13 +5,13 @@ pub mod swaps;
 use std::sync::Arc;
 use std::time as stdtime;
 
-use super::Solver;
 use crate::one_node_per_tour::OneNodePerTour;
 use local_improver::LocalImprover;
 use model::network::Network;
 use objective_framework::EvaluatedSolution;
 use objective_framework::Objective;
 use solution::Schedule;
+use solver_framework::Solver;
 use swap_factory::LimitedExchanges;
 
 #[allow(unused_imports)]

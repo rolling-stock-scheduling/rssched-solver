@@ -5,7 +5,7 @@ use solution::json_serialisation::schedule_to_json;
 use solution::Schedule;
 use solver::min_cost_flow_solver::MinCostFlowSolver;
 use solver::objective;
-use solver::Solver;
+use solver_framework::Solver;
 use time::{DateTime, Duration};
 
 use gethostname::gethostname;

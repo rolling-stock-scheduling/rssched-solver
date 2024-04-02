@@ -1,4 +1,3 @@
-use crate::Solver;
 use model::base_types::DepotId;
 use model::base_types::NodeId;
 use model::base_types::VehicleTypeId;
@@ -9,6 +8,7 @@ use model::vehicle_types::VehicleTypes;
 use objective_framework::EvaluatedSolution;
 use objective_framework::Objective;
 use solution::Schedule;
+use solver_framework::Solver;
 
 use rs_graph::linkedlistgraph::Edge as RsEdge;
 use rs_graph::linkedlistgraph::Node as RsNode;
