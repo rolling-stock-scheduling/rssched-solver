@@ -37,13 +37,12 @@ pub struct Network {
     vehicle_type_nodes_sorted_by_start: HashMap<VehicleTypeId, SortedNodes>,
     vehicle_type_nodes_sorted_by_end: HashMap<VehicleTypeId, SortedNodes>,
 
-    // redundant information
-    number_of_service_nodes: usize,
-
-    // for convenience
     config: Arc<Config>,
     locations: Arc<Locations>,
     vehicle_types: Arc<VehicleTypes>,
+
+    // redundant information
+    number_of_service_nodes: usize,
 }
 
 // methods
@@ -459,10 +458,10 @@ impl Network {
             nodes_sorted_by_start,
             vehicle_type_nodes_sorted_by_start,
             vehicle_type_nodes_sorted_by_end,
-            number_of_service_nodes,
             config,
             locations,
             vehicle_types,
+            number_of_service_nodes,
         }
     }
 }
