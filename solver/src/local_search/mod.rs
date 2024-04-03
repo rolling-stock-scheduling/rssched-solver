@@ -1,3 +1,4 @@
+pub mod objective;
 use heuristic_framework::local_search::LocalSearch;
 use solution::Schedule;
 

@@ -1,9 +1,9 @@
 #![allow(unused_imports)]
 mod test_objective;
 
+use solver::local_search::objective;
 use solver::local_search::RollingStockLocalSearch;
 use solver::min_cost_flow_solver::MinCostFlowSolver;
-use solver::objective;
 
 use model::json_serialisation::load_rolling_stock_problem_instance_from_json;
 

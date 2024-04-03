@@ -3,8 +3,8 @@ use objective_framework::EvaluatedSolution;
 use objective_framework::Objective;
 use solution::json_serialisation::schedule_to_json;
 use solution::Schedule;
+use solver::local_search::objective;
 use solver::min_cost_flow_solver::MinCostFlowSolver;
-use solver::objective;
 use time::{DateTime, Duration};
 
 use gethostname::gethostname;
