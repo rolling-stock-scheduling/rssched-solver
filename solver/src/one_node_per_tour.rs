@@ -1,7 +1,6 @@
 use model::network::Network;
 use objective_framework::{EvaluatedSolution, Objective};
 use solution::Schedule;
-use solver_framework::Solver;
 use std::sync::Arc;
 
 pub struct OneNodePerTour {
@@ -12,10 +11,8 @@ impl OneNodePerTour {
     pub fn initialize(network: Arc<Network>, objective: Arc<Objective<Schedule>>) -> Self {
         Self { network, objective }
     }
-}
 
-impl Solver<Schedule> for OneNodePerTour {
-    fn solve(&self) -> EvaluatedSolution<Schedule> {
+    pub fn solve(&self) -> EvaluatedSolution<Schedule> {
         let mut schedule = Schedule::empty(self.network.clone());
 
         for service_trip in self.network.all_service_nodes() {

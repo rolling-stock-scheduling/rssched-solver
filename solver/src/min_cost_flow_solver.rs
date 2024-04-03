@@ -5,10 +5,7 @@ use model::config::Config;
 use model::network::nodes::Node;
 use model::network::Network;
 use model::vehicle_types::VehicleTypes;
-use objective_framework::EvaluatedSolution;
-use objective_framework::Objective;
 use solution::Schedule;
-use solver_framework::Solver;
 
 use rs_graph::linkedlistgraph::Edge as RsEdge;
 use rs_graph::linkedlistgraph::Node as RsNode;
@@ -48,31 +45,25 @@ pub struct MinCostFlowSolver {
     vehicle_types: Arc<VehicleTypes>,
     config: Arc<Config>,
     network: Arc<Network>,
-    objective: Arc<Objective<Schedule>>,
 }
 
 impl MinCostFlowSolver {
-    pub fn initialize(network: Arc<Network>, objective: Arc<Objective<Schedule>>) -> Self {
+    pub fn initialize(network: Arc<Network>) -> Self {
         Self {
             vehicle_types: network.vehicle_types(),
             config: network.config(),
             network,
-            objective,
         }
     }
-}
 
-impl Solver<Schedule> for MinCostFlowSolver {
-    fn solve(&self) -> EvaluatedSolution<Schedule> {
+    pub fn solve(&self) -> Schedule {
         // split into vehicle types
         let mut tours: HashMap<VehicleTypeId, Vec<Vec<NodeId>>> = HashMap::new();
         for vehicle_type in self.vehicle_types.iter() {
             tours.insert(vehicle_type, self.solve_for_vehicle_type(vehicle_type));
         }
 
-        let schedule = Schedule::from_tours(tours, self.network.clone()).unwrap();
-
-        self.objective.evaluate(schedule)
+        Schedule::from_tours(tours, self.network.clone()).unwrap()
     }
 }
 

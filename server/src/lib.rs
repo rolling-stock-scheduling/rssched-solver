@@ -5,7 +5,6 @@ use solution::json_serialisation::schedule_to_json;
 use solution::Schedule;
 use solver::min_cost_flow_solver::MinCostFlowSolver;
 use solver::objective;
-use solver_framework::Solver;
 use time::{DateTime, Duration};
 
 use gethostname::gethostname;
@@ -24,9 +23,9 @@ pub fn solve_instance(input_data: serde_json::Value) -> serde_json::Value {
 
     let objective = Arc::new(objective::build());
 
-    let min_cost_flow_solver = MinCostFlowSolver::initialize(network.clone(), objective.clone());
+    let min_cost_flow_solver = MinCostFlowSolver::initialize(network.clone());
     println!("Solve with MinCostFlowSolver:");
-    let final_solution = min_cost_flow_solver.solve();
+    let final_solution = objective.evaluate(min_cost_flow_solver.solve());
     println!(
         "MinCostFlowSolver computed optimal schedule (elapsed time: {:0.2}sec)",
         start_time.elapsed().as_secs_f32()

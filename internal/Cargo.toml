@@ -19,7 +19,6 @@ time = { path = "../time" }
 model = { path = "../model" }
 solution = { path = "../solution" }
 objective_framework = { path = "../objective_framework" }
-solver_framework = { path = "../solver_framework" }
 solver = { path = "../solver" }
 server = { path = "../server" }
 rayon = "1.5.1" # for parallel iterator

@@ -2,7 +2,7 @@
 members = [
     "time",
     "objective_framework",
-    "solver_framework",
+    "heuristic_framework",
     "model",
     "solution",
     "solver",

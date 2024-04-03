@@ -19,7 +19,6 @@ time = { path = "../time" }
 model = { path = "../model" }
 solution = { path = "../solution" }
 objective_framework = { path = "../objective_framework" }
-solver_framework = { path = "../solver_framework" }
 solver = { path = "../solver" }
 serde_json = { version = "1.0", features = ["preserve_order"]} # for reading json-files
 axum = "0.7.3"

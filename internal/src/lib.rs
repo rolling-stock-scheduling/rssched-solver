@@ -1,10 +1,9 @@
 #![allow(unused_imports)]
 mod test_objective;
 
-use solver::local_search::LocalSearch;
+use solver::local_search::RollingStockLocalSearch;
 use solver::min_cost_flow_solver::MinCostFlowSolver;
 use solver::objective;
-use solver_framework::Solver;
 
 use model::json_serialisation::load_rolling_stock_problem_instance_from_json;
 
@@ -40,8 +39,8 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
     // /*
     // use min_cost_flow_solver as start solution
     println!("Solve with MinCostFlowSolver:");
-    let min_cost_flow_solver = MinCostFlowSolver::initialize(network.clone(), objective.clone());
-    let start_solution = min_cost_flow_solver.solve();
+    let min_cost_flow_solver = MinCostFlowSolver::initialize(network.clone());
+    let start_solution = objective.evaluate(min_cost_flow_solver.solve());
     println!(
         "MinCostFlowSolver computed optimal schedule (elapsed time: {:0.2}sec)",
         start_time.elapsed().as_secs_f32()

@@ -1,5 +1,5 @@
+use heuristic_framework::local_search::LocalSearch;
 use solution::Schedule;
-use solver_framework::local_search::LocalSearch;
 
 /*pub type Solution = EvaluatedSolution<Schedule>;
 
@@ -15,4 +15,4 @@ let swap_factory = LimitedExchanges::new(
     self.network.clone(),
 ); */
 
-type RollingStockLocalSearch = LocalSearch<Schedule>;
+pub type RollingStockLocalSearch = LocalSearch<Schedule>;

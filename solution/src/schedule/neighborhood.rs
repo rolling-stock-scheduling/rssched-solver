@@ -1,4 +1,4 @@
-use solver_framework::local_search::LocalSearchable;
+use heuristic_framework::local_search::LocalSearchable;
 
 use crate::Schedule;
 

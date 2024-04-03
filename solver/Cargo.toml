@@ -15,7 +15,7 @@ time = { path = "../time" }
 model = { path = "../model" }
 solution = { path = "../solution" }
 objective_framework = { path = "../objective_framework" }
-solver_framework = { path = "../solver_framework" }
+heuristic_framework = { path = "../heuristic_framework" }
 rayon = "1.5.1" # for parallel iterator
 serde_json = { version = "1.0", features = ["preserve_order"]} # for reading json-files
 itertools = "0.12.0"
