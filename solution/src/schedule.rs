@@ -1,5 +1,4 @@
 mod modifications;
-mod neighborhood;
 #[cfg(test)]
 mod tests;
 

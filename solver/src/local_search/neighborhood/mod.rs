@@ -1,22 +1,14 @@
-use super::swaps::{PathExchange, Swap};
-use crate::segment::Segment;
-use crate::Schedule;
+mod swaps;
+use heuristic_framework::local_search::Neighborhood;
 use model::base_types::VehicleId;
 use model::network::Network;
+use solution::{segment::Segment, Schedule};
 use std::sync::Arc;
 use time::Duration;
 
 use std::iter;
 
-/// Computes for a given schedule all Swaps in the neighborhood.
-/// The providers are rotated such that the start_provider is the first provider.
-pub trait SwapFactory: Send + Sync {
-    fn create_swap_iterator<'a>(
-        &'a self,
-        schedule: &'a Schedule,
-        start_provider: Option<VehicleId>,
-    ) -> Box<dyn Iterator<Item = Box<dyn Swap>> + Send + 'a>;
-}
+use self::swaps::{PathExchange, Swap};
 
 ///////////////////////////////////////////////////////////
 ////////////////// LimitedExchanges ///////////////////////
@@ -51,12 +43,12 @@ impl LimitedExchanges {
     }
 }
 
-impl SwapFactory for LimitedExchanges {
-    fn create_swap_iterator<'a>(
-        &'a self,
-        schedule: &'a Schedule,
-        start_provider: Option<VehicleId>,
-    ) -> Box<dyn Iterator<Item = Box<dyn Swap>> + Send + 'a> {
+impl Neighborhood<Schedule> for LimitedExchanges {
+    fn neighbors_of(
+        &self,
+        schedule: &Schedule,
+        // start_provider: Option<VehicleId>,
+    ) -> Box<dyn Iterator<Item = Schedule> + Send + Sync> {
         let mut providers: Vec<VehicleId> = if self.only_dummy_provider {
             schedule.dummy_iter().collect()
         } else {
@@ -67,9 +59,9 @@ impl SwapFactory for LimitedExchanges {
         // e.g. start_provider = v5
         // so v0, v1, v2, v3, v4, v5, v6, v7, v8, v9
         // becomes v5, v6, v7, v8, v9, v0, v1, v2, v3, v4
-        if let Some(position) = providers.iter().position(|&v| Some(v) == start_provider) {
-            providers.rotate_left(position);
-        }
+        // if let Some(position) = providers.iter().position(|&v| Some(v) == start_provider) {
+        // providers.rotate_left(position);
+        // }
 
         Box::new(
             // as provider first take dummies then real Vehicles:
@@ -83,7 +75,7 @@ impl SwapFactory for LimitedExchanges {
                     .filter(move |&u| u != provider)
                     // create the swap
                     .map(move |receiver| -> Box<dyn Swap> {
-                        Box::new(PathExchange::new(seg, provider, receiver))
+                        Box::new(PathExchange::new(seg, provider, receiver).apply(schedule).unwrap())
                     })
                 )),
         )

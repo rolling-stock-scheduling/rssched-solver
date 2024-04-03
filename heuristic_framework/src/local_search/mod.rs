@@ -1,4 +1,5 @@
 pub mod local_improver;
+mod search_result;
 
 use std::sync::Arc;
 use std::time as stdtime;
@@ -17,75 +18,67 @@ use local_improver::TakeFirstRecursion;
 #[allow(unused_imports)]
 use local_improver::TakeAnyParallelRecursion;
 
-pub trait LocalSearchable: Send + Sync + Clone + Ord {
-    fn neighborhood(&self) -> Box<dyn Iterator<Item = Self> + Send + Sync>;
+use search_result::SearchResult;
+use search_result::SearchResult::{Improvement, NoImprovement};
+
+pub trait Neighborhood<S: Send + Sync + Clone + Ord>: Send + Sync {
+    fn neighbors_of(&self, current_solution: &S) -> Box<dyn Iterator<Item = S> + Send + Sync>;
 }
 
-enum SearchResult<S> {
-    Improvement(EvaluatedSolution<S>),
-    NoImprovement(EvaluatedSolution<S>),
-}
-
-impl<S> SearchResult<S> {
-    fn unwrap(self) -> EvaluatedSolution<S> {
-        match self {
-            SearchResult::Improvement(solution) => solution,
-            SearchResult::NoImprovement(solution) => solution,
-        }
-    }
-
-    fn as_ref(&self) -> &EvaluatedSolution<S> {
-        match self {
-            SearchResult::Improvement(solution) => solution,
-            SearchResult::NoImprovement(solution) => solution,
-        }
-    }
-}
-
-use SearchResult::{Improvement, NoImprovement};
-
-pub struct LocalSearch<S: LocalSearchable> {
-    objective: Arc<Objective<S>>,
+pub struct LocalSearch<S> {
     initial_solution: S,
+    neighborhood: Arc<dyn Neighborhood<S>>,
+    objective: Arc<Objective<S>>,
+    local_improver: Option<Box<dyn LocalImprover<S>>>,
 }
 
-impl<S: LocalSearchable> LocalSearch<S> {
-    pub fn initialize(initial_solution: S, objective: Arc<Objective<S>>) -> Self {
+impl<S: Send + Sync + Clone + Ord> LocalSearch<S> {
+    pub fn initialize(
+        initial_solution: S,
+        neighborhood: Arc<dyn Neighborhood<S>>,
+        objective: Arc<Objective<S>>,
+    ) -> Self {
         Self {
-            objective,
             initial_solution,
+            neighborhood,
+            objective,
+            local_improver: None,
+        }
+    }
+
+    /// This method is used to set the local improver to be used in the local search.
+    /// They can be found in the local_improver module.
+    pub fn with_local_improver(
+        initial_solution: S,
+        neighborhood: Arc<dyn Neighborhood<S>>,
+        objective: Arc<Objective<S>>,
+        local_improver: Box<dyn LocalImprover<S>>,
+    ) -> Self {
+        Self {
+            initial_solution,
+            neighborhood,
+            objective,
+            local_improver: Some(local_improver),
         }
     }
 }
 
-impl<S: LocalSearchable> Solver<S> for LocalSearch<S> {
+impl<S: Send + Sync + Clone + Ord> Solver<S> for LocalSearch<S> {
     fn solve(&self) -> EvaluatedSolution<S> {
         let start_time = stdtime::Instant::now();
-        // if there is no start schedule, create new schedule, where each vehicle has exactly one tour and the demand is covered.
         let init_solution = self.objective.evaluate(self.initial_solution.clone());
 
-        let _minimizer = Minimizer::new(self.objective.clone());
-
-        let recursion_depth = 0;
-        let recursion_width = 5;
-
-        let _take_first = TakeFirstRecursion::new(
-            recursion_depth,
-            Some(recursion_width),
+        // default local improver is TakeAnyParallelRecursion without recursion
+        let take_any: Box<dyn LocalImprover<S>> = Box::new(TakeAnyParallelRecursion::new(
+            0,
+            Some(0),
+            self.neighborhood.clone(),
             self.objective.clone(),
-        );
-
-        let _take_any = TakeAnyParallelRecursion::new(
-            recursion_depth,
-            Some(recursion_width),
-            self.objective.clone(),
-        );
+        ));
 
         self.find_local_optimum(
             init_solution,
-            // _minimizer.clone(),
-            // _take_first.clone(),
-            _take_any.clone(),
+            self.local_improver.as_ref().unwrap_or(&take_any).as_ref(),
             true,
             Some(start_time),
         )
@@ -93,11 +86,11 @@ impl<S: LocalSearchable> Solver<S> for LocalSearch<S> {
     }
 }
 
-impl<S: LocalSearchable> LocalSearch<S> {
+impl<S: Send + Sync + Clone + Ord> LocalSearch<S> {
     fn find_local_optimum(
         &self,
         start_solution: EvaluatedSolution<S>,
-        local_improver: impl LocalImprover<S>,
+        local_improver: &dyn LocalImprover<S>,
         verbose: bool,
         start_time: Option<stdtime::Instant>,
     ) -> SearchResult<S> {

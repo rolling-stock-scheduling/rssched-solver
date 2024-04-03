@@ -1,5 +1,5 @@
-use crate::{segment::Segment, Schedule};
 use model::base_types::VehicleId;
+use solution::{segment::Segment, Schedule};
 
 use std::fmt;
 
