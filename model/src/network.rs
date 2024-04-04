@@ -279,9 +279,6 @@ impl Network {
         n1: &Node,
         n2: &Node,
     ) -> Duration {
-        // let (dht_start_side, dht_end_side) = self
-        // .loc
-        // .station_sides(n1.end_location(), n2.start_location());
         let previous: Duration = match n1 {
             Node::Service(_) => self.config.shunting.dead_head_trip,
             Node::Maintenance(_) => self.config.shunting.dead_head_trip,
