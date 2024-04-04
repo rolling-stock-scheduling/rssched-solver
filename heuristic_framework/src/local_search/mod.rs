@@ -28,13 +28,13 @@ pub trait Neighborhood<S>: Send + Sync {
     ) -> Box<dyn Iterator<Item = S> + Send + Sync + 'a>;
 }
 
-pub struct LocalSearch<S> {
+pub struct LocalSearchSolver<S> {
     neighborhood: Arc<dyn Neighborhood<S>>,
     objective: Arc<Objective<S>>,
     local_improver: Option<Box<dyn LocalImprover<S>>>,
 }
 
-impl<S> LocalSearch<S> {
+impl<S> LocalSearchSolver<S> {
     pub fn initialize(
         neighborhood: Arc<dyn Neighborhood<S>>,
         objective: Arc<Objective<S>>,
@@ -61,7 +61,7 @@ impl<S> LocalSearch<S> {
     }
 }
 
-impl<S> Solver<S> for LocalSearch<S> {
+impl<S> Solver<S> for LocalSearchSolver<S> {
     fn solve(&self, initial_solution: S) -> EvaluatedSolution<S> {
         let start_time = stdtime::Instant::now();
         let init_solution = self.objective.evaluate(initial_solution);
@@ -82,7 +82,7 @@ impl<S> Solver<S> for LocalSearch<S> {
     }
 }
 
-impl<S> LocalSearch<S> {
+impl<S> LocalSearchSolver<S> {
     fn find_local_optimum(
         &self,
         start_solution: EvaluatedSolution<S>,
