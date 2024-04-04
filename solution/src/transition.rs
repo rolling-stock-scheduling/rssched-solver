@@ -36,6 +36,10 @@ impl Transition {
 
     // TODO implement greedy
 
+    pub fn maintenance_violation(&self) -> MaintenanceCounter {
+        self.total_maintenance_violation
+    }
+
     pub fn verify_consistency(
         &self,
         tours: &HashMap<VehicleId, Tour>,

@@ -6,6 +6,7 @@ use itertools::Itertools;
 use model::base_types::Cost;
 use model::base_types::DepotId;
 use model::base_types::Distance;
+use model::base_types::MaintenanceCounter;
 use model::base_types::NodeId;
 use model::base_types::PassengerCount;
 use model::base_types::VehicleCount;
@@ -116,6 +117,10 @@ impl Schedule {
                 vehicle
             )),
         }
+    }
+
+    pub fn maintenance_violation(&self) -> MaintenanceCounter {
+        self.next_period_transition.maintenance_violation()
     }
 
     pub fn train_formation_of(&self, node: NodeId) -> &TrainFormation {
