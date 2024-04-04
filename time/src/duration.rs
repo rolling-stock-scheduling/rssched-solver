@@ -39,6 +39,8 @@ impl Duration {
 }
 
 impl Duration {
+    pub const ZERO: Duration = Duration::Length(DurationLength { seconds: 0 });
+
     pub fn new(string: &str) -> Duration {
         // "hh:mm" or "hh:mm:ss"
         let splitted: Vec<&str> = string.split(&[':'][..]).collect();
@@ -101,10 +103,6 @@ impl Duration {
             seconds: from_d_hh_mm_ss_to_seconds(days, hours, minutes, seconds),
         })
     }
-
-    pub fn zero() -> Duration {
-        Duration::Length(DurationLength { seconds: 0 })
-    }
 }
 
 impl Add for Duration {
@@ -146,7 +144,7 @@ impl Sum for Duration {
     where
         I: Iterator<Item = Self>,
     {
-        iter.fold(Duration::zero(), |a, b| a + b)
+        iter.fold(Duration::ZERO, |a, b| a + b)
     }
 }
 

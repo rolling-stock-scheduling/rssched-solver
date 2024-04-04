@@ -22,6 +22,8 @@ impl Distance {
 
 // static functions:
 impl Distance {
+    pub const ZERO: Distance = Distance::Distance(0);
+
     pub fn from_meter(m: Meter) -> Distance {
         Distance::Distance(m)
     }
@@ -38,10 +40,6 @@ impl Distance {
             km_string.parse::<i32>().unwrap() as f32
         };
         Distance::from_km(km)
-    }
-
-    pub fn zero() -> Distance {
-        Distance::Distance(0)
     }
 }
 
@@ -81,7 +79,7 @@ impl std::iter::Sum<Self> for Distance {
     where
         I: Iterator<Item = Self>,
     {
-        iter.fold(Distance::zero(), |a, b| a + b)
+        iter.fold(Distance::ZERO, |a, b| a + b)
     }
 }
 

@@ -156,7 +156,7 @@ impl Network {
 
     pub fn idle_time_between(&self, node1: NodeId, node2: NodeId) -> Duration {
         if self.node(node1).is_start_depot() || self.node(node2).is_end_depot() {
-            return Duration::zero();
+            return Duration::ZERO;
         }
         let idle_start = self.node(node1).end_time() + self.dead_head_time_between(node1, node2);
         let idle_end = self.node(node2).start_time();
@@ -164,7 +164,7 @@ impl Network {
             idle_end - idle_start
         } else {
             println!("negative idle time!");
-            Duration::zero()
+            Duration::ZERO
         }
     }
 
@@ -266,11 +266,11 @@ impl Network {
                 self.config.shunting.minimal
             } else {
                 // n2 is no service trip
-                Duration::zero()
+                Duration::ZERO
             }
         } else {
             // n1 is no service trip
-            Duration::zero()
+            Duration::ZERO
         }
     }
 
@@ -285,13 +285,13 @@ impl Network {
         let previous: Duration = match n1 {
             Node::Service(_) => self.config.shunting.dead_head_trip,
             Node::Maintenance(_) => self.config.shunting.dead_head_trip,
-            _ => Duration::zero(),
+            _ => Duration::ZERO,
         };
 
         let next: Duration = match n2 {
             Node::Service(_) => self.config.shunting.dead_head_trip,
             Node::Maintenance(_) => self.config.shunting.dead_head_trip,
-            _ => Duration::zero(),
+            _ => Duration::ZERO,
         };
 
         previous + next

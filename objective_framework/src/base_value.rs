@@ -113,12 +113,12 @@ impl Ord for BaseValue {
             (BaseValue::Zero, BaseValue::Integer(_)) => BaseValue::Integer(0).cmp(other),
             (BaseValue::Zero, BaseValue::Float(_)) => BaseValue::Float(0.0).cmp(other),
             (BaseValue::Zero, BaseValue::Duration(_)) => {
-                BaseValue::Duration(Duration::zero()).cmp(other)
+                BaseValue::Duration(Duration::ZERO).cmp(other)
             }
             (BaseValue::Integer(_), BaseValue::Zero) => self.cmp(&BaseValue::Integer(0)),
             (BaseValue::Float(_), BaseValue::Zero) => self.cmp(&BaseValue::Float(0.0)),
             (BaseValue::Duration(_), BaseValue::Zero) => {
-                self.cmp(&BaseValue::Duration(Duration::zero()))
+                self.cmp(&BaseValue::Duration(Duration::ZERO))
             }
             _ => panic!("Cannot compare {:?} and {:?}", self, other),
         }

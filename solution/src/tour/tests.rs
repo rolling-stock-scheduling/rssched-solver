@@ -121,7 +121,7 @@ fn basic_methods_test() {
     assert_eq!(dummy_tour.all_non_depot_nodes_iter().count(), 2);
     assert_eq!(dummy_tour.useful_duration(), Duration::new("1:00"));
     assert_eq!(dummy_tour.service_distance(), Distance::from_meter(13000));
-    assert_eq!(dummy_tour.dead_head_distance(), Distance::zero());
+    assert_eq!(dummy_tour.dead_head_distance(), Distance::ZERO);
     assert_eq!(
         dummy_tour.preceding_overhead(d.trip31),
         Ok(Duration::Infinity)

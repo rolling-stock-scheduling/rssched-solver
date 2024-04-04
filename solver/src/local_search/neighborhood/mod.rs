@@ -89,7 +89,7 @@ impl LimitedExchanges {
         schedule: &'a Schedule,
     ) -> impl Iterator<Item = Segment> + 'a {
         let threshold = match self.overhead_threshold {
-            None => Duration::zero(),
+            None => Duration::ZERO,
             Some(d) => d,
         };
         let tour = schedule

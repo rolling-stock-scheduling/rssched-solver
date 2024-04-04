@@ -118,7 +118,7 @@ impl Tour {
             - self.dead_head_distance_of_segment(pos_seg_start, pos_seg_end+1)
             // dead_head_distance for the new gap that is created:
             + if pos_seg_start == 0 || pos_seg_end == self.nodes.len() - 1 {
-                Distance::zero()
+                Distance::ZERO
             } else {
                 self.network
                     .dead_head_distance_between(self.nodes[pos_seg_start - 1], self.nodes[pos_seg_end + 1])
@@ -242,7 +242,7 @@ impl Tour {
             // no nodes to be remove
             return if start_pos == 0 || start_pos == self.nodes.len() {
                 // new nodes are inserted before the first or after the last node
-                Distance::zero()
+                Distance::ZERO
             } else {
                 // new nodes are inserted within the tour
                 // return the distance of the dead head trip before the node at start_pos
@@ -251,7 +251,7 @@ impl Tour {
             };
         }
         let result: Distance = if start_pos == 0 {
-            Distance::zero()
+            Distance::ZERO
         } else {
             self.network
                 .dead_head_distance_between(self.nodes[start_pos - 1], self.nodes[start_pos])
@@ -263,7 +263,7 @@ impl Tour {
             })
             .sum()
             + if end_pos == self.nodes.len() {
-                Distance::zero()
+                Distance::ZERO
             } else {
                 self.network
                     .dead_head_distance_between(self.nodes[end_pos - 1], self.nodes[end_pos])
@@ -280,7 +280,7 @@ impl Tour {
         end_pos: Position,
     ) -> Distance {
         let dead_head_distance: Distance = if start_pos == 0 {
-            Distance::zero()
+            Distance::ZERO
         } else {
             self.network
                 .dead_head_distance_between(self.nodes[start_pos - 1], new_nodes[0])
@@ -290,7 +290,7 @@ impl Tour {
             .map(|(a, b)| self.network.dead_head_distance_between(*a, *b))
             .sum::<Distance>()
             + if end_pos >= self.nodes.len() {
-                Distance::zero()
+                Distance::ZERO
             } else {
                 self.network
                     .dead_head_distance_between(new_nodes[new_nodes.len() - 1], self.nodes[end_pos])

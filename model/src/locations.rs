@@ -88,7 +88,7 @@ impl Locations {
                 if a == Location::Nowhere || b == Location::Nowhere {
                     Distance::Infinity
                 } else {
-                    Distance::zero()
+                    Distance::ZERO
                 }
             }
         }
@@ -101,7 +101,7 @@ impl Locations {
                 if a == Location::Nowhere || b == Location::Nowhere {
                     Duration::Infinity
                 } else {
-                    Duration::zero()
+                    Duration::ZERO
                 }
             }
         }

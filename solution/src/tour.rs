@@ -595,7 +595,7 @@ impl Tour {
 
     fn compute_dead_head_distance_of_nodes(nodes: &[NodeId], network: &Network) -> Distance {
         if nodes.len() == 1 {
-            Distance::zero()
+            Distance::ZERO
         } else {
             nodes
                 .iter()

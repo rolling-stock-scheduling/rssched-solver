@@ -126,8 +126,8 @@ impl Node {
 
     pub fn duration(&self) -> Duration {
         match self {
-            Node::StartDepot(_) => Duration::zero(),
-            Node::EndDepot(_) => Duration::zero(),
+            Node::StartDepot(_) => Duration::ZERO,
+            Node::EndDepot(_) => Duration::ZERO,
             _ => self.end_time() - self.start_time(),
         }
     }
@@ -153,7 +153,7 @@ impl Node {
     pub fn travel_distance(&self) -> Distance {
         match self {
             Node::Service(s) => s.distance,
-            _ => Distance::zero(),
+            _ => Distance::ZERO,
         }
     }
 
