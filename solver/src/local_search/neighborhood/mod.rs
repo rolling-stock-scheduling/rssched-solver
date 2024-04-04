@@ -74,8 +74,8 @@ impl Neighborhood<Schedule> for LimitedExchanges {
                     // skip provider as receiver
                     .filter(move |&u| u != provider)
                     // create the swap
-                    .map(move |receiver|{
-                        PathExchange::new(seg, provider, receiver).apply(schedule).unwrap()
+                    .filter_map(move |receiver|{
+                        PathExchange::new(seg, provider, receiver).apply(schedule).ok()
                     })
                 )),
         )
