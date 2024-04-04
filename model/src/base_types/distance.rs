@@ -18,6 +18,23 @@ impl Distance {
             }
         }
     }
+
+    /// Returns max{self-other, 0}
+    pub fn sub_max_zero(self, other: Distance) -> Distance {
+        match self {
+            Distance::Infinity => Distance::Infinity,
+            Distance::Distance(d1) => match other {
+                Distance::Infinity => Distance::ZERO,
+                Distance::Distance(d2) => {
+                    if d1 < d2 {
+                        Distance::ZERO
+                    } else {
+                        Distance::Distance(d1 - d2)
+                    }
+                }
+            },
+        }
+    }
 }
 
 // static functions:

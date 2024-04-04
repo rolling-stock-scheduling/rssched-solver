@@ -3,7 +3,7 @@ mod modifications;
 mod tests;
 use crate::path::Path;
 use crate::segment::Segment;
-use model::base_types::{Cost, Distance, NodeId};
+use model::base_types::{Cost, Distance, MaintenanceCounter, NodeId};
 use model::network::nodes::Node;
 use model::network::Network;
 use std::cmp::Ordering;
@@ -34,6 +34,7 @@ pub struct Tour {
     // and last node is a depot
     is_dummy: bool, // true if this is a dummy tour
 
+    visits_maintenance: bool,  // true if this tour visits a maintenance node
     useful_duration: Duration, // duration of service trips and maintenance, excluding dead head and idle time
     service_distance: Distance, // distance covered by service trips
     dead_head_distance: Distance, // distance covered by dead head trips
@@ -86,6 +87,22 @@ impl Tour {
     /// return the total distance (service distance + dead head distance) of the tour
     pub fn total_distance(&self) -> Distance {
         self.service_distance + self.dead_head_distance
+    }
+
+    /// return the maintenance counter of the tour which is the total distance traveled minus the
+    /// maximal distance allowed if the tour visits a maintenance node.
+    pub fn maintenance_counter(&self) -> MaintenanceCounter {
+        if self.visits_maintenance {
+            self.total_distance().in_meter() as MaintenanceCounter
+                - self
+                    .network
+                    .config()
+                    .maintenance
+                    .maximal_distance
+                    .in_meter() as MaintenanceCounter
+        } else {
+            self.total_distance().in_meter() as MaintenanceCounter
+        }
     }
 
     pub fn costs(&self) -> Cost {
@@ -275,6 +292,14 @@ impl Tour {
             assert!(self.network.node(self.first_node()).is_start_depot());
             assert!(self.network.node(self.last_node()).is_end_depot());
         }
+
+        // check if visits maintenance
+        assert_eq!(
+            self.nodes
+                .iter()
+                .any(|&n| self.network.node(n).is_maintenance()),
+            self.visits_maintenance
+        );
 
         // check useful_duration
         assert_eq!(self.compute_useful_duration(), self.useful_duration);
@@ -574,10 +599,12 @@ impl Tour {
         let service_distance = Tour::compute_service_distance_of_nodes(&nodes, &network);
         let dead_head_distance = Tour::compute_dead_head_distance_of_nodes(&nodes, &network);
         let costs = Tour::compute_costs_of_nodes(&nodes, &network);
+        let visits_maintenance = nodes.iter().any(|&n| network.node(n).is_maintenance());
 
         Tour::new_precomputed(
             nodes,
             is_dummy,
+            visits_maintenance,
             useful_duration,
             service_distance,
             dead_head_distance,
@@ -637,6 +664,7 @@ impl Tour {
     fn new_precomputed(
         nodes: Vec<NodeId>,
         is_dummy: bool,
+        visits_maintenance: bool,
         useful_duration: Duration,
         service_distance: Distance,
         dead_head_distance: Distance,
@@ -646,6 +674,7 @@ impl Tour {
         Tour {
             nodes,
             is_dummy,
+            visits_maintenance,
             useful_duration,
             service_distance,
             dead_head_distance,

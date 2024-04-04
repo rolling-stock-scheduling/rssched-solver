@@ -2,8 +2,8 @@ use im::{HashMap, HashSet};
 use model::base_types::{Id, NodeId, VehicleId, VehicleTypeId};
 
 use crate::{
-    path::Path, segment::Segment, tour::Tour, train_formation::TrainFormation, vehicle::Vehicle,
-    Schedule,
+    path::Path, segment::Segment, tour::Tour, train_formation::TrainFormation,
+    transition::Transition, vehicle::Vehicle, Schedule,
 };
 
 use super::DepotUsage;
@@ -74,6 +74,10 @@ impl Schedule {
             Schedule {
                 vehicles,
                 tours,
+                next_period_transition: Transition::one_cycle_per_vehicle(
+                    &HashMap::new(),
+                    self.network.config().maintenance.maximal_distance,
+                ), // TODO TEMP
                 train_formations,
                 depot_usage,
                 dummy_tours: self.dummy_tours.clone(),
@@ -128,6 +132,10 @@ impl Schedule {
         Ok(Schedule {
             vehicles,
             tours,
+            next_period_transition: Transition::one_cycle_per_vehicle(
+                &HashMap::new(),
+                self.network.config().maintenance.maximal_distance,
+            ), // TODO TEMP
             train_formations,
             depot_usage,
             dummy_tours,
@@ -191,6 +199,10 @@ impl Schedule {
         Ok(Schedule {
             vehicles: self.vehicles.clone(),
             tours,
+            next_period_transition: Transition::one_cycle_per_vehicle(
+                &HashMap::new(),
+                self.network.config().maintenance.maximal_distance,
+            ), // TODO TEMP
             train_formations,
             depot_usage,
             dummy_tours: self.dummy_tours.clone(),
@@ -242,6 +254,10 @@ impl Schedule {
         Ok(Schedule {
             vehicles,
             tours,
+            next_period_transition: Transition::one_cycle_per_vehicle(
+                &HashMap::new(),
+                self.network.config().maintenance.maximal_distance,
+            ), // TODO TEMP
             train_formations,
             depot_usage,
             dummy_tours,
@@ -325,6 +341,10 @@ impl Schedule {
             Schedule {
                 vehicles,
                 tours,
+                next_period_transition: Transition::one_cycle_per_vehicle(
+                    &HashMap::new(),
+                    self.network.config().maintenance.maximal_distance,
+                ), // TODO TEMP
                 train_formations,
                 depot_usage,
                 dummy_tours,
@@ -360,6 +380,10 @@ impl Schedule {
         Schedule {
             vehicles: self.vehicles.clone(),
             tours,
+            next_period_transition: Transition::one_cycle_per_vehicle(
+                &HashMap::new(),
+                self.network.config().maintenance.maximal_distance,
+            ), // TODO TEMP
             train_formations: self.train_formations.clone(),
             depot_usage,
             dummy_tours: self.dummy_tours.clone(),
@@ -396,6 +420,10 @@ impl Schedule {
         Ok(Schedule {
             vehicles: self.vehicles.clone(),
             tours,
+            next_period_transition: Transition::one_cycle_per_vehicle(
+                &HashMap::new(),
+                self.network.config().maintenance.maximal_distance,
+            ), // TODO TEMP
             train_formations: self.train_formations.clone(),
             depot_usage,
             dummy_tours: self.dummy_tours.clone(),
@@ -426,6 +454,10 @@ impl Schedule {
         Ok(Schedule {
             vehicles: self.vehicles.clone(),
             tours: self.tours.clone(),
+            next_period_transition: Transition::one_cycle_per_vehicle(
+                &HashMap::new(),
+                self.network.config().maintenance.maximal_distance,
+            ), // TODO TEMP
             train_formations: self.train_formations.clone(),
             depot_usage: self.depot_usage.clone(),
             dummy_tours,

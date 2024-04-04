@@ -6,6 +6,7 @@ pub mod segment;
 mod test_utilities;
 mod tour;
 mod train_formation;
+mod transition;
 mod vehicle;
 
 pub use schedule::Schedule;

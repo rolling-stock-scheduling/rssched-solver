@@ -16,6 +16,7 @@ use model::vehicle_types::VehicleTypes;
 
 use crate::tour::Tour;
 use crate::train_formation::TrainFormation;
+use crate::transition::Transition;
 use crate::vehicle::Vehicle;
 
 use im::HashMap;
@@ -36,6 +37,11 @@ pub struct Schedule {
 
     // the tours assigned to vehicles
     tours: HashMap<VehicleId, Tour>,
+
+    // A schedule is thought to be repeated each period but vehicles may take a different tour on
+    // the next period. The information which vehicles of the first execution of the schedule
+    // becomes which vehicle in the next period is stored in the next_period_transition.
+    next_period_transition: Transition,
 
     // for each node (except for depots) we store the train formation that covers it.
     // If a node is not covered yet, there is still an entry with an empty train formation.
@@ -386,6 +392,12 @@ impl Schedule {
             tour.verify_consistency();
         }
 
+        // check next_period_transition
+        self.next_period_transition.verify_consistency(
+            &self.tours,
+            self.network.config().maintenance.maximal_distance,
+        );
+
         // check that all tours are in the depot_usage
         for (depot, vehicle_type) in self.depot_usage.keys() {
             let (spawned, despawned) = self.depot_usage.get(&(*depot, *vehicle_type)).unwrap();
@@ -519,9 +531,15 @@ impl Schedule {
             train_formations.insert(node, TrainFormation::empty());
         }
 
+        let next_period_transition = Transition::one_cycle_per_vehicle(
+            &HashMap::new(),
+            network.config().maintenance.maximal_distance,
+        );
+
         Schedule {
             vehicles: HashMap::new(),
             tours: HashMap::new(),
+            next_period_transition,
             train_formations,
             depot_usage: HashMap::new(),
             dummy_tours: HashMap::new(),

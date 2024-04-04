@@ -44,6 +44,7 @@ impl Tour {
         Ok(Tour::new_precomputed(
             nodes,
             self.is_dummy,
+            self.visits_maintenance,
             self.useful_duration,
             self.service_distance,
             new_dead_head_distance,
@@ -87,6 +88,7 @@ impl Tour {
         Ok(Tour::new_precomputed(
             nodes,
             self.is_dummy,
+            self.visits_maintenance,
             self.useful_duration,
             self.service_distance,
             new_dead_head_distance,
@@ -144,10 +146,24 @@ impl Tour {
             ));
         }
 
+        // 1) if the old tour had no maintenance node than the new tour has no maintenance node either.
+        // 2) if the old tour had a maintenance node and the removed segment had no maintenance than the
+        //    new tour has a maintenance node.
+        // 3) if the old tour had a maintenance node and the removed segment had also a maintenance node
+        //    than the new tour might have a second mateinance node, so we need to check all remaining nodes.
+        let visits_maintenance = self.visits_maintenance
+            && (!removed_nodes
+                .iter()
+                .any(|n| self.network.node(*n).is_maintenance())
+                || tour_nodes
+                    .iter()
+                    .any(|n| self.network.node(*n).is_maintenance()));
+
         Ok((
             Some(Tour::new_precomputed(
                 tour_nodes,
                 self.is_dummy,
+                visits_maintenance,
                 new_useful_duration,
                 new_service_distance,
                 new_dead_head_distance,
@@ -180,6 +196,10 @@ impl Tour {
                 path = path.drop_last().unwrap();
             }
         }
+
+        let visits_maintenance =
+            self.visits_maintenance || path.iter().any(|n| self.network.node(n).is_maintenance());
+
         let new_nodes = path.consume();
 
         // get insertion position and check if insertion is valid
@@ -221,6 +241,7 @@ impl Tour {
             Tour::new_precomputed(
                 new_tour_nodes,
                 self.is_dummy,
+                visits_maintenance,
                 new_useful_duration,
                 new_service_distance,
                 new_dead_head_distance,
