@@ -2,7 +2,8 @@ mod neighborhood;
 pub mod objective; // TODO make this private
 use std::sync::Arc;
 
-use heuristic_framework::{local_search::LocalSearch, Solver};
+use heuristic_framework::local_search::{local_improver::TakeAnyParallelRecursion, LocalSearch};
+use heuristic_framework::Solver;
 use model::network::Network;
 use objective_framework::EvaluatedSolution;
 use solution::Schedule;
@@ -15,10 +16,7 @@ pub struct RollingStockLocalSearch {
 }
 
 impl RollingStockLocalSearch {
-    pub fn initialize(
-        initial_solution: Schedule,
-        network: Arc<Network>,
-    ) -> RollingStockLocalSearch {
+    pub fn initialize(network: Arc<Network>) -> RollingStockLocalSearch {
         let objective = Arc::new(objective::build());
 
         // let segment_limit = Duration::new("3:00:00");
@@ -30,12 +28,19 @@ impl RollingStockLocalSearch {
             None, None, false, network,
         ));
 
-        let solver = LocalSearch::initialize(initial_solution, neighborhood, objective);
+        let take_any = Box::new(TakeAnyParallelRecursion::new(
+            0,
+            Some(0),
+            neighborhood.clone(),
+            objective.clone(),
+        ));
+
+        let solver = LocalSearch::with_local_improver(neighborhood, objective, take_any);
 
         RollingStockLocalSearch { solver }
     }
 
-    pub fn solve(&self) -> EvaluatedSolution<Schedule> {
-        self.solver.solve()
+    pub fn solve(&self, initial_solution: Schedule) -> EvaluatedSolution<Schedule> {
+        self.solver.solve(initial_solution)
     }
 }

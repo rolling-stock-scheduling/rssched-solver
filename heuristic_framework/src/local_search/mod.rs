@@ -29,7 +29,6 @@ pub trait Neighborhood<S>: Send + Sync {
 }
 
 pub struct LocalSearch<S> {
-    initial_solution: S,
     neighborhood: Arc<dyn Neighborhood<S>>,
     objective: Arc<Objective<S>>,
     local_improver: Option<Box<dyn LocalImprover<S>>>,
@@ -37,12 +36,10 @@ pub struct LocalSearch<S> {
 
 impl<S> LocalSearch<S> {
     pub fn initialize(
-        initial_solution: S,
         neighborhood: Arc<dyn Neighborhood<S>>,
         objective: Arc<Objective<S>>,
     ) -> Self {
         Self {
-            initial_solution,
             neighborhood,
             objective,
             local_improver: None,
@@ -52,13 +49,11 @@ impl<S> LocalSearch<S> {
     /// This method is used to set the local improver to be used in the local search.
     /// They can be found in the local_improver module.
     pub fn with_local_improver(
-        initial_solution: S,
         neighborhood: Arc<dyn Neighborhood<S>>,
         objective: Arc<Objective<S>>,
         local_improver: Box<dyn LocalImprover<S>>,
     ) -> Self {
         Self {
-            initial_solution,
             neighborhood,
             objective,
             local_improver: Some(local_improver),
@@ -66,18 +61,10 @@ impl<S> LocalSearch<S> {
     }
 }
 
-impl<S: Clone> Solver<S> for LocalSearch<S> {
-    fn solve(&self) -> EvaluatedSolution<S> {
+impl<S> Solver<S> for LocalSearch<S> {
+    fn solve(&self, initial_solution: S) -> EvaluatedSolution<S> {
         let start_time = stdtime::Instant::now();
-        let init_solution = self.objective.evaluate(self.initial_solution.clone());
-
-        // default local improver is TakeAnyParallelRecursion without recursion
-        /* let take_any: Box<dyn LocalImprover<S>> = Box::new(TakeAnyParallelRecursion::new(
-            0,
-            Some(0),
-            self.neighborhood.clone(),
-            self.objective.clone(),
-        )); */
+        let init_solution = self.objective.evaluate(initial_solution);
 
         // default local improver is Minimizer
         let minimizer: Box<dyn LocalImprover<S>> = Box::new(Minimizer::new(
