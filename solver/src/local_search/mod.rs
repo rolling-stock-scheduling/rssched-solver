@@ -1,5 +1,5 @@
 mod neighborhood;
-mod objective;
+pub mod objective; // TODO make this private
 use std::sync::Arc;
 
 use heuristic_framework::{local_search::LocalSearch, Solver};

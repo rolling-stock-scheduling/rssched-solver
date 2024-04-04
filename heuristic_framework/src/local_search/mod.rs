@@ -22,7 +22,10 @@ use search_result::SearchResult;
 use search_result::SearchResult::{Improvement, NoImprovement};
 
 pub trait Neighborhood<S: Send + Sync + Clone + Ord>: Send + Sync {
-    fn neighbors_of(&self, current_solution: &S) -> Box<dyn Iterator<Item = S> + Send + Sync>;
+    fn neighbors_of<'a>(
+        &'a self,
+        current_solution: &'a S,
+    ) -> Box<dyn Iterator<Item = S> + Send + Sync + 'a>;
 }
 
 pub struct LocalSearch<S> {

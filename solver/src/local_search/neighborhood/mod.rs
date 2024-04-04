@@ -44,12 +44,12 @@ impl LimitedExchanges {
 }
 
 impl Neighborhood<Schedule> for LimitedExchanges {
-    fn neighbors_of(
-        &self,
-        schedule: &Schedule,
+    fn neighbors_of<'a>(
+        &'a self,
+        schedule: &'a Schedule,
         // start_provider: Option<VehicleId>,
-    ) -> Box<dyn Iterator<Item = Schedule> + Send + Sync> {
-        let mut providers: Vec<VehicleId> = if self.only_dummy_provider {
+    ) -> Box<dyn Iterator<Item = Schedule> + Send + Sync + 'a> {
+        let providers: Vec<VehicleId> = if self.only_dummy_provider {
             schedule.dummy_iter().collect()
         } else {
             self.dummy_and_real_vehicles(schedule).collect()
@@ -74,8 +74,8 @@ impl Neighborhood<Schedule> for LimitedExchanges {
                     // skip provider as receiver
                     .filter(move |&u| u != provider)
                     // create the swap
-                    .map(move |receiver| -> Box<dyn Swap> {
-                        Box::new(PathExchange::new(seg, provider, receiver).apply(schedule).unwrap())
+                    .map(move |receiver|{
+                        PathExchange::new(seg, provider, receiver).apply(schedule).unwrap()
                     })
                 )),
         )
