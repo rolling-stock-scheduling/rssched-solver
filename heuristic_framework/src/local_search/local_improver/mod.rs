@@ -9,6 +9,6 @@ pub use take_first_recursion::TakeFirstRecursion;
 use objective_framework::EvaluatedSolution;
 /// Determines for a given solution the best neighbor that has an improving objective function.
 /// Returns None if there is no better solution in the neighborhood.
-pub trait LocalImprover<S: Send + Sync + Clone + Ord> {
+pub trait LocalImprover<S> {
     fn improve(&self, solution: &EvaluatedSolution<S>) -> Option<EvaluatedSolution<S>>;
 }

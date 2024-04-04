@@ -16,7 +16,7 @@ use std::sync::Mutex;
 /// (dublicates are removed)
 /// Due to the parallel computation and find_any() this improver is the fastest but not
 /// deterministic.
-pub struct TakeAnyParallelRecursion<S: Send + Sync + Clone + Ord> {
+pub struct TakeAnyParallelRecursion<S> {
     recursion_depth: u8,
     recursion_width: Option<usize>, // number of schedule that are considered per schedule for the next recursion (the one with best objectivevalue are taken for each schedule, dublicates are removed)
     neighborhood: Arc<dyn Neighborhood<S>>,
@@ -140,15 +140,12 @@ impl<S: Send + Sync + Clone + Ord> TakeAnyParallelRecursion<S> {
         });
 
         if result.is_none() {
-            // println!("No improvement found.");
-
             if remaining_recursion > 0 {
                 let mut schedules_for_recursion: Vec<EvaluatedSolution<S>> =
                     solution_collection.into_iter().flatten().collect();
 
                 schedules_for_recursion.sort();
-                // schedules_for_recursion.dedup(); //remove dublicates
-                schedules_for_recursion.dedup_by(|s1, s2| s1.cmp(&s2).is_eq()); //remove dublicates according to objective_value
+                schedules_for_recursion.dedup_by(|s1, s2| s1.cmp(&s2).is_eq());
 
                 self.improve_recursion(
                     schedules_for_recursion,
@@ -156,11 +153,9 @@ impl<S: Send + Sync + Clone + Ord> TakeAnyParallelRecursion<S> {
                     remaining_recursion - 1,
                 )
             } else {
-                // println!("No recursion-depth left.");
                 None
             }
         } else {
-            // println!("Improvement found.");
             result
         }
     }

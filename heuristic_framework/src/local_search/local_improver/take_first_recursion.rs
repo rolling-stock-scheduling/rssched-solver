@@ -6,14 +6,14 @@ use std::sync::Arc;
 
 /// Find the first improving solution in the neighborhood of the given solution.
 /// As there is no parallelization this improver is fully deterministic.
-pub struct TakeFirstRecursion<S: Send + Sync + Clone + Ord> {
+pub struct TakeFirstRecursion<S> {
     recursion_depth: u8,
     recursion_width: Option<usize>, // number of schedule that are considered for recursion (the one with best value are taken)
     neighborhood: Arc<dyn Neighborhood<S>>,
     objective: Arc<Objective<S>>,
 }
 
-impl<S: Send + Sync + Clone + Ord> LocalImprover<S> for TakeFirstRecursion<S> {
+impl<S: Clone + Ord> LocalImprover<S> for TakeFirstRecursion<S> {
     fn improve(&self, solution: &EvaluatedSolution<S>) -> Option<EvaluatedSolution<S>> {
         let old_objective_value = solution.objective_value();
         self.improve_recursion(
@@ -24,7 +24,7 @@ impl<S: Send + Sync + Clone + Ord> LocalImprover<S> for TakeFirstRecursion<S> {
     }
 }
 
-impl<S: Send + Sync + Clone + Ord> TakeFirstRecursion<S> {
+impl<S: Clone + Ord> TakeFirstRecursion<S> {
     pub fn new(
         recursion_depth: u8,
         recursion_width: Option<usize>,

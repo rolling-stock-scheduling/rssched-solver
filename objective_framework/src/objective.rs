@@ -14,7 +14,7 @@ pub struct Objective<S> {
 }
 
 // methods
-impl<S: Send + Sync> Objective<S> {
+impl<S> Objective<S> {
     /// Consumes solution, computes objective value, and returns both, as EvaluatedSolution.
     pub fn evaluate(&self, solution: S) -> EvaluatedSolution<S> {
         let objective_value_hierarchy: Vec<BaseValue> = self

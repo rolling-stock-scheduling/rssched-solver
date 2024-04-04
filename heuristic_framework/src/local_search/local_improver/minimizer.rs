@@ -4,12 +4,12 @@ use objective_framework::EvaluatedSolution;
 use objective_framework::Objective;
 use std::sync::Arc;
 
-pub struct Minimizer<S: Send + Sync + Clone + Ord> {
+pub struct Minimizer<S> {
     neighborhood: Arc<dyn Neighborhood<S>>,
     objective: Arc<Objective<S>>,
 }
 
-impl<S: Send + Sync + Clone + Ord> Minimizer<S> {
+impl<S> Minimizer<S> {
     pub fn new(
         neighborhood: Arc<dyn Neighborhood<S>>,
         objective: Arc<Objective<S>>,
@@ -21,7 +21,7 @@ impl<S: Send + Sync + Clone + Ord> Minimizer<S> {
     }
 }
 
-impl<S: Send + Sync + Clone + Ord> LocalImprover<S> for Minimizer<S> {
+impl<S> LocalImprover<S> for Minimizer<S> {
     fn improve(&self, solution: &EvaluatedSolution<S>) -> Option<EvaluatedSolution<S>> {
         let best_neighbor_opt = self
             .neighborhood

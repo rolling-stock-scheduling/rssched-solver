@@ -21,7 +21,7 @@ use local_improver::TakeAnyParallelRecursion;
 use search_result::SearchResult;
 use search_result::SearchResult::{Improvement, NoImprovement};
 
-pub trait Neighborhood<S: Send + Sync + Clone + Ord>: Send + Sync {
+pub trait Neighborhood<S>: Send + Sync {
     fn neighbors_of<'a>(
         &'a self,
         current_solution: &'a S,
@@ -35,7 +35,7 @@ pub struct LocalSearch<S> {
     local_improver: Option<Box<dyn LocalImprover<S>>>,
 }
 
-impl<S: Send + Sync + Clone + Ord> LocalSearch<S> {
+impl<S> LocalSearch<S> {
     pub fn initialize(
         initial_solution: S,
         neighborhood: Arc<dyn Neighborhood<S>>,
@@ -66,22 +66,28 @@ impl<S: Send + Sync + Clone + Ord> LocalSearch<S> {
     }
 }
 
-impl<S: Send + Sync + Clone + Ord> Solver<S> for LocalSearch<S> {
+impl<S: Clone> Solver<S> for LocalSearch<S> {
     fn solve(&self) -> EvaluatedSolution<S> {
         let start_time = stdtime::Instant::now();
         let init_solution = self.objective.evaluate(self.initial_solution.clone());
 
         // default local improver is TakeAnyParallelRecursion without recursion
-        let take_any: Box<dyn LocalImprover<S>> = Box::new(TakeAnyParallelRecursion::new(
+        /* let take_any: Box<dyn LocalImprover<S>> = Box::new(TakeAnyParallelRecursion::new(
             0,
             Some(0),
+            self.neighborhood.clone(),
+            self.objective.clone(),
+        )); */
+
+        // default local improver is Minimizer
+        let minimizer: Box<dyn LocalImprover<S>> = Box::new(Minimizer::new(
             self.neighborhood.clone(),
             self.objective.clone(),
         ));
 
         self.find_local_optimum(
             init_solution,
-            self.local_improver.as_ref().unwrap_or(&take_any).as_ref(),
+            self.local_improver.as_ref().unwrap_or(&minimizer).as_ref(),
             true,
             Some(start_time),
         )
@@ -89,7 +95,7 @@ impl<S: Send + Sync + Clone + Ord> Solver<S> for LocalSearch<S> {
     }
 }
 
-impl<S: Send + Sync + Clone + Ord> LocalSearch<S> {
+impl<S> LocalSearch<S> {
     fn find_local_optimum(
         &self,
         start_solution: EvaluatedSolution<S>,

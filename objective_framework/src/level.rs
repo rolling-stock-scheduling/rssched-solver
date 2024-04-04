@@ -10,7 +10,7 @@ pub struct Level<S> {
     summands: Vec<(Coefficient, Box<dyn Indicator<S>>)>,
 }
 
-impl<S: Send + Sync> Level<S> {
+impl<S> Level<S> {
     pub fn evaluate(&self, solution: &S) -> BaseValue {
         self.summands
             .iter()
@@ -23,7 +23,7 @@ impl<S: Send + Sync> Level<S> {
     }
 }
 
-impl<S: Send + Sync> fmt::Display for Level<S> {
+impl<S> fmt::Display for Level<S> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
