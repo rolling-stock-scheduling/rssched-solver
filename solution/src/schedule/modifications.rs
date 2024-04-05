@@ -59,6 +59,8 @@ impl Schedule {
             vehicle_id,
         );
 
+        // TODO: remove vehicles other vehicles if they do not fit (especially for maintenance
+        // slots)
         self.update_train_formation(
             &mut train_formations,
             None,

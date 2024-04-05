@@ -4,7 +4,6 @@ mod search_result;
 use std::sync::Arc;
 use std::time as stdtime;
 
-use crate::Solver;
 use local_improver::LocalImprover;
 use objective_framework::EvaluatedSolution;
 use objective_framework::Objective;
@@ -65,8 +64,8 @@ impl<S> LocalSearchSolver<S> {
     }
 }
 
-impl<S> Solver<S> for LocalSearchSolver<S> {
-    fn solve(&self, initial_solution: S) -> EvaluatedSolution<S> {
+impl<S> LocalSearchSolver<S> {
+    pub fn solve(&self, initial_solution: S) -> EvaluatedSolution<S> {
         let start_time = stdtime::Instant::now();
         let init_solution = self.objective.evaluate(initial_solution);
 
@@ -84,9 +83,7 @@ impl<S> Solver<S> for LocalSearchSolver<S> {
         )
         .unwrap()
     }
-}
 
-impl<S> LocalSearchSolver<S> {
     fn find_local_optimum(
         &self,
         start_solution: EvaluatedSolution<S>,

@@ -20,41 +20,22 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
     );
 
     let objective = Arc::new(objective::build());
-    // let objective = Arc::new(test_objective::build());
 
-    /*
-    // use min_cost_max_matching_solver as start solution
-    let min_cost_max_matching_solver = MinCostMaxMatchingSolver::initialize(
-        network.clone(),
-        objective.clone(),
-    );
-    let start_solution = min_cost_max_matching_solver.solve();
-    println!(
-        "\n*** MinCostMaxMatchingSolver computed initial schedule (elapsed time: {:0.2}sec) ***",
-        start_time.elapsed().as_secs_f32()
-    );
-    // */
-
-    // /*
     // use min_cost_flow_solver as start solution
     println!("Solve with MinCostFlowSolver:");
     let min_cost_flow_solver = MinCostFlowSolver::initialize(network.clone());
-    let start_solution = objective.evaluate(min_cost_flow_solver.solve());
+    let start_schedule = min_cost_flow_solver.solve();
     println!(
-        "MinCostFlowSolver computed optimal schedule (elapsed time: {:0.2}sec)",
+        "MinCostFlowSolver computed start schedule (elapsed time: {:0.2}sec)",
         start_time.elapsed().as_secs_f32()
     );
-    // */
-    let final_solution = start_solution;
-    /*
+    objective.print_objective_value(objective.evaluate(start_schedule.clone()).objective_value());
+
+    println!("\nStarting local search:");
     // initialize local search
-    let mut local_search_solver = LocalSearch::initialize(
-        network.clone(),
-        objective.clone(),
-    );
-    local_search_solver.set_initial_solution(start_solution);
-    let final_solution = local_search_solver.solve();
-    // */
+    let local_search_solver = solver::local_search::build_local_search_solver(network.clone());
+    let final_solution = local_search_solver.solve(start_schedule);
+
     let end_time = stdtime::Instant::now();
     let runtime_duration = end_time.duration_since(start_time);
 

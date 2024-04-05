@@ -1,4 +1,4 @@
-use model::base_types::VehicleId;
+use model::base_types::{NodeId, VehicleId, VehicleTypeId};
 use solution::{segment::Segment, Schedule};
 
 use std::fmt;
@@ -6,8 +6,41 @@ use std::fmt;
 /// An elementary modification. Defining the "neighborhood" for the local search.
 pub trait Swap: fmt::Display + Send + Sync {
     fn apply(&self, schedule: &Schedule) -> Result<Schedule, String>;
+}
 
-    fn provider(&self) -> VehicleId;
+pub struct SpawnVehicleForMaintenance {
+    maintenance_slot: NodeId,
+    vehicle_type: VehicleTypeId,
+}
+
+impl SpawnVehicleForMaintenance {
+    pub(crate) fn new(
+        maintenance_slot: NodeId,
+        vehicle_type: VehicleTypeId,
+    ) -> SpawnVehicleForMaintenance {
+        SpawnVehicleForMaintenance {
+            maintenance_slot,
+            vehicle_type,
+        }
+    }
+}
+
+impl Swap for SpawnVehicleForMaintenance {
+    fn apply(&self, schedule: &Schedule) -> Result<Schedule, String> {
+        schedule
+            .spawn_vehicle_for_path(self.vehicle_type, vec![self.maintenance_slot])
+            .map(|(s, _)| s)
+    }
+}
+
+impl fmt::Display for SpawnVehicleForMaintenance {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "spawn vehicle for maintenance at {}",
+            self.maintenance_slot
+        )
+    }
 }
 
 /// Removes the path from the provider's tour and insert it into the receiver's tour.
@@ -27,13 +60,12 @@ impl PathExchange {
             receiver,
         }
     }
+    pub(crate) fn provider(&self) -> VehicleId {
+        self.provider
+    }
 }
 
 impl Swap for PathExchange {
-    fn provider(&self) -> VehicleId {
-        self.provider
-    }
-
     fn apply(&self, schedule: &Schedule) -> Result<Schedule, String> {
         let (first_schedule, new_dummy_opt) =
             schedule.override_reassign(self.segment, self.provider, self.receiver)?;

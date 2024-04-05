@@ -42,7 +42,7 @@ pub struct Schedule {
     // A schedule is thought to be repeated each period but vehicles may take a different tour on
     // the next period. The information which vehicles of the first execution of the schedule
     // becomes which vehicle in the next period is stored in the next_period_transition.
-    next_period_transition: Transition,
+    next_period_transition: Transition, // TODO: we need one transition per vehicle type
 
     // for each node (except for depots) we store the train formation that covers it.
     // If a node is not covered yet, there is still an entry with an empty train formation.
