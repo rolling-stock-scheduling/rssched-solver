@@ -398,10 +398,7 @@ impl Schedule {
         }
 
         // check next_period_transition
-        self.next_period_transition.verify_consistency(
-            &self.tours,
-            self.network.config().maintenance.maximal_distance,
-        );
+        self.next_period_transition.verify_consistency(&self.tours);
 
         // check that all tours are in the depot_usage
         for (depot, vehicle_type) in self.depot_usage.keys() {
@@ -536,10 +533,7 @@ impl Schedule {
             train_formations.insert(node, TrainFormation::empty());
         }
 
-        let next_period_transition = Transition::one_cycle_per_vehicle(
-            &HashMap::new(),
-            network.config().maintenance.maximal_distance,
-        );
+        let next_period_transition = Transition::one_cycle_per_vehicle(&HashMap::new());
 
         Schedule {
             vehicles: HashMap::new(),

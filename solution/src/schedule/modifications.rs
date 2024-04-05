@@ -70,14 +70,13 @@ impl Schedule {
 
         self.update_depot_usage(&mut depot_usage, &vehicles, &tours, vehicle_id);
 
+        let next_period_transition = Transition::one_cycle_per_vehicle(&tours); // TODO TEMP
+
         Ok((
             Schedule {
                 vehicles,
                 tours,
-                next_period_transition: Transition::one_cycle_per_vehicle(
-                    &HashMap::new(),
-                    self.network.config().maintenance.maximal_distance,
-                ), // TODO TEMP
+                next_period_transition,
                 train_formations,
                 depot_usage,
                 dummy_tours: self.dummy_tours.clone(),
@@ -129,13 +128,12 @@ impl Schedule {
             tour.sub_path(Segment::new(tour.first_node(), tour.last_node()))?,
         );
 
+        let next_period_transition = Transition::one_cycle_per_vehicle(&tours); // TODO TEMP
+
         Ok(Schedule {
             vehicles,
             tours,
-            next_period_transition: Transition::one_cycle_per_vehicle(
-                &HashMap::new(),
-                self.network.config().maintenance.maximal_distance,
-            ), // TODO TEMP
+            next_period_transition,
             train_formations,
             depot_usage,
             dummy_tours,
@@ -196,13 +194,12 @@ impl Schedule {
 
         self.update_depot_usage(&mut depot_usage, &self.vehicles, &tours, vehicle_id);
 
+        let next_period_transition = Transition::one_cycle_per_vehicle(&tours); // TODO TEMP
+
         Ok(Schedule {
             vehicles: self.vehicles.clone(),
             tours,
-            next_period_transition: Transition::one_cycle_per_vehicle(
-                &HashMap::new(),
-                self.network.config().maintenance.maximal_distance,
-            ), // TODO TEMP
+            next_period_transition,
             train_formations,
             depot_usage,
             dummy_tours: self.dummy_tours.clone(),
@@ -251,13 +248,12 @@ impl Schedule {
             moved_nodes.iter().copied(),
         );
 
+        let next_period_transition = Transition::one_cycle_per_vehicle(&tours); // TODO TEMP
+
         Ok(Schedule {
             vehicles,
             tours,
-            next_period_transition: Transition::one_cycle_per_vehicle(
-                &HashMap::new(),
-                self.network.config().maintenance.maximal_distance,
-            ), // TODO TEMP
+            next_period_transition,
             train_formations,
             depot_usage,
             dummy_tours,
@@ -336,15 +332,13 @@ impl Schedule {
             self.add_dummy_tour(&mut dummy_tours, &mut dummy_ids_sorted, new_dummy, new_path);
             vehicle_counter += 1;
         }
+        let next_period_transition = Transition::one_cycle_per_vehicle(&tours); // TODO TEMP
 
         Ok((
             Schedule {
                 vehicles,
                 tours,
-                next_period_transition: Transition::one_cycle_per_vehicle(
-                    &HashMap::new(),
-                    self.network.config().maintenance.maximal_distance,
-                ), // TODO TEMP
+                next_period_transition,
                 train_formations,
                 depot_usage,
                 dummy_tours,
@@ -377,13 +371,12 @@ impl Schedule {
             self.update_depot_usage(&mut depot_usage, &self.vehicles, &tours, *vehicle_id);
         }
 
+        let next_period_transition = Transition::one_cycle_per_vehicle(&tours); // TODO TEMP
+
         Schedule {
             vehicles: self.vehicles.clone(),
             tours,
-            next_period_transition: Transition::one_cycle_per_vehicle(
-                &HashMap::new(),
-                self.network.config().maintenance.maximal_distance,
-            ), // TODO TEMP
+            next_period_transition,
             train_formations: self.train_formations.clone(),
             depot_usage,
             dummy_tours: self.dummy_tours.clone(),
@@ -417,13 +410,12 @@ impl Schedule {
             self.update_depot_usage(&mut depot_usage, &self.vehicles, &tours, *vehicle_id);
         }
 
+        let next_period_transition = Transition::one_cycle_per_vehicle(&tours); // TODO TEMP
+
         Ok(Schedule {
             vehicles: self.vehicles.clone(),
             tours,
-            next_period_transition: Transition::one_cycle_per_vehicle(
-                &HashMap::new(),
-                self.network.config().maintenance.maximal_distance,
-            ), // TODO TEMP
+            next_period_transition,
             train_formations: self.train_formations.clone(),
             depot_usage,
             dummy_tours: self.dummy_tours.clone(),
@@ -454,10 +446,7 @@ impl Schedule {
         Ok(Schedule {
             vehicles: self.vehicles.clone(),
             tours: self.tours.clone(),
-            next_period_transition: Transition::one_cycle_per_vehicle(
-                &HashMap::new(),
-                self.network.config().maintenance.maximal_distance,
-            ), // TODO TEMP
+            next_period_transition: self.next_period_transition.clone(),
             train_formations: self.train_formations.clone(),
             depot_usage: self.depot_usage.clone(),
             dummy_tours,

@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use im::HashMap;
-use model::base_types::{Distance, MaintenanceCounter, VehicleId};
+use model::base_types::{MaintenanceCounter, VehicleId};
 
 use crate::tour::Tour;
 
@@ -12,17 +12,12 @@ pub struct Transition {
 }
 
 impl Transition {
-    pub fn one_cycle_per_vehicle(
-        tours: &HashMap<VehicleId, Tour>,
-        maintenance_distance: Distance,
-    ) -> Transition {
+    pub fn one_cycle_per_vehicle(tours: &HashMap<VehicleId, Tour>) -> Transition {
         let mut total_maintenance_violation = 0;
         let cycles = tours
             .iter()
             .map(|(&vehicle_id, tour)| {
-                let maintenance_violation = (tour.maintenance_counter()
-                    - maintenance_distance.in_meter() as MaintenanceCounter)
-                    .max(0);
+                let maintenance_violation = tour.maintenance_counter().max(0);
                 total_maintenance_violation += maintenance_violation;
                 TransitionCycle::new(vec![vehicle_id], maintenance_violation)
             })
@@ -40,20 +35,16 @@ impl Transition {
         self.total_maintenance_violation
     }
 
-    pub fn verify_consistency(
-        &self,
-        tours: &HashMap<VehicleId, Tour>,
-        maintenance_distance: Distance,
-    ) {
+    pub fn verify_consistency(&self, tours: &HashMap<VehicleId, Tour>) {
         // each vehicle is present in exactly one cycle
-        let cycles = self
+        let cycles: Vec<VehicleId> = self
             .cycles
             .iter()
-            .flat_map(|transition_cycle| transition_cycle.cycle.iter())
-            .collect::<Vec<_>>();
+            .flat_map(|transition_cycle| transition_cycle.cycle.iter().cloned())
+            .collect();
         assert_eq!(cycles.len(), tours.len());
         let vehicles_from_tours: HashSet<VehicleId> = tours.keys().cloned().collect();
-        let vehicles_from_cycles: HashSet<VehicleId> = cycles.iter().cloned().cloned().collect();
+        let vehicles_from_cycles: HashSet<VehicleId> = cycles.iter().cloned().collect();
         assert_eq!(vehicles_from_tours, vehicles_from_cycles);
 
         // verify maintenance violations
@@ -64,9 +55,7 @@ impl Transition {
                 .iter()
                 .map(|&vehicle_id| tours.get(&vehicle_id).unwrap().maintenance_counter())
                 .sum();
-            let computed_maintenance_violation = (maintenance_counter
-                - maintenance_distance.in_meter() as MaintenanceCounter)
-                .max(0);
+            let computed_maintenance_violation = maintenance_counter.max(0);
             assert_eq!(
                 computed_maintenance_violation,
                 transition_cycle.maintenance_violation
@@ -80,7 +69,7 @@ impl Transition {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct TransitionCycle {
     cycle: Vec<VehicleId>,
     maintenance_violation: MaintenanceCounter,
