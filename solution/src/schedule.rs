@@ -533,7 +533,7 @@ impl Schedule {
             train_formations.insert(node, TrainFormation::empty());
         }
 
-        let next_period_transition = Transition::one_cycle_per_vehicle(&HashMap::new());
+        let next_period_transition = Transition::one_cluster_per_maintenance(&HashMap::new());
 
         Schedule {
             vehicles: HashMap::new(),

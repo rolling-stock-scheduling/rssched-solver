@@ -70,7 +70,7 @@ impl Schedule {
 
         self.update_depot_usage(&mut depot_usage, &vehicles, &tours, vehicle_id);
 
-        let next_period_transition = Transition::one_cycle_per_vehicle(&tours); // TODO TEMP
+        let next_period_transition = Transition::one_cluster_per_maintenance(&tours); // TODO TEMP
 
         Ok((
             Schedule {
@@ -128,7 +128,7 @@ impl Schedule {
             tour.sub_path(Segment::new(tour.first_node(), tour.last_node()))?,
         );
 
-        let next_period_transition = Transition::one_cycle_per_vehicle(&tours); // TODO TEMP
+        let next_period_transition = Transition::one_cluster_per_maintenance(&tours); // TODO TEMP
 
         Ok(Schedule {
             vehicles,
@@ -194,7 +194,7 @@ impl Schedule {
 
         self.update_depot_usage(&mut depot_usage, &self.vehicles, &tours, vehicle_id);
 
-        let next_period_transition = Transition::one_cycle_per_vehicle(&tours); // TODO TEMP
+        let next_period_transition = Transition::one_cluster_per_maintenance(&tours); // TODO TEMP
 
         Ok(Schedule {
             vehicles: self.vehicles.clone(),
@@ -248,7 +248,7 @@ impl Schedule {
             moved_nodes.iter().copied(),
         );
 
-        let next_period_transition = Transition::one_cycle_per_vehicle(&tours); // TODO TEMP
+        let next_period_transition = Transition::one_cluster_per_maintenance(&tours); // TODO TEMP
 
         Ok(Schedule {
             vehicles,
@@ -332,7 +332,7 @@ impl Schedule {
             self.add_dummy_tour(&mut dummy_tours, &mut dummy_ids_sorted, new_dummy, new_path);
             vehicle_counter += 1;
         }
-        let next_period_transition = Transition::one_cycle_per_vehicle(&tours); // TODO TEMP
+        let next_period_transition = Transition::one_cluster_per_maintenance(&tours); // TODO TEMP
 
         Ok((
             Schedule {
@@ -371,7 +371,7 @@ impl Schedule {
             self.update_depot_usage(&mut depot_usage, &self.vehicles, &tours, *vehicle_id);
         }
 
-        let next_period_transition = Transition::one_cycle_per_vehicle(&tours); // TODO TEMP
+        let next_period_transition = Transition::one_cluster_per_maintenance(&tours); // TODO TEMP
 
         Schedule {
             vehicles: self.vehicles.clone(),
@@ -410,7 +410,7 @@ impl Schedule {
             self.update_depot_usage(&mut depot_usage, &self.vehicles, &tours, *vehicle_id);
         }
 
-        let next_period_transition = Transition::one_cycle_per_vehicle(&tours); // TODO TEMP
+        let next_period_transition = Transition::one_cluster_per_maintenance(&tours); // TODO TEMP
 
         Ok(Schedule {
             vehicles: self.vehicles.clone(),

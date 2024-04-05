@@ -12,7 +12,7 @@ pub struct Transition {
 }
 
 impl Transition {
-    pub fn one_cycle_per_vehicle(tours: &HashMap<VehicleId, Tour>) -> Transition {
+    pub fn one_cylce_per_vehicle(tours: &HashMap<VehicleId, Tour>) -> Transition {
         let mut total_maintenance_violation = 0;
         let cycles = tours
             .iter()
@@ -29,7 +29,65 @@ impl Transition {
         }
     }
 
-    // TODO implement greedy
+    pub fn one_cluster_per_maintenance(tours: &HashMap<VehicleId, Tour>) -> Transition {
+        let mut sorted_clusters: Vec<(Vec<VehicleId>, MaintenanceCounter)> = Vec::new(); // TODO Use BTreeMap
+        let mut sorted_unassigned_vehicles: Vec<VehicleId> = Vec::new(); // all none maintenance
+                                                                         // vehicles sorted by
+                                                                         // maintenance counter in descending order
+
+        for (vehicle_id, tour) in tours.iter() {
+            if tour.maintenance_counter() < 0 {
+                sorted_clusters.push((vec![*vehicle_id], tour.maintenance_counter()));
+            } else {
+                sorted_unassigned_vehicles.push(*vehicle_id);
+            }
+        }
+
+        sorted_unassigned_vehicles
+            .sort_by_key(|&vehicle_id| -tours.get(&vehicle_id).unwrap().maintenance_counter());
+        sorted_clusters.sort_by_key(|&(_, maintenance_counter)| maintenance_counter);
+
+        for vehicle in sorted_unassigned_vehicles {
+            let maintenance_counter_of_tour = tours.get(&vehicle).unwrap().maintenance_counter();
+
+            let best_cluster_opt = sorted_clusters.iter_mut().find(|(_, maintenance_counter)| {
+                *maintenance_counter + maintenance_counter_of_tour <= 0
+            });
+            match best_cluster_opt {
+                Some((best_cluster, maintenance_counter)) => {
+                    best_cluster.push(vehicle);
+                    *maintenance_counter += maintenance_counter_of_tour;
+                }
+                None => {
+                    let last_cluster_opt = sorted_clusters.last_mut();
+                    match last_cluster_opt {
+                        Some((last_cluster, maintenance_counter)) => {
+                            last_cluster.push(vehicle);
+                            *maintenance_counter += maintenance_counter_of_tour;
+                        }
+                        None => {
+                            sorted_clusters.push((vec![vehicle], maintenance_counter_of_tour));
+                        }
+                    }
+                }
+            }
+            sorted_clusters.sort_by_key(|&(_, maintenance_counter)| maintenance_counter);
+        }
+
+        let mut total_maintenance_violation = 0;
+        let cycles = sorted_clusters
+            .into_iter()
+            .map(|(vehicles, maintenance_counter)| {
+                let maintenance_violation = maintenance_counter.max(0);
+                total_maintenance_violation += maintenance_violation;
+                TransitionCycle::new(vehicles, maintenance_violation)
+            })
+            .collect();
+        Transition {
+            cycles,
+            total_maintenance_violation,
+        }
+    }
 
     pub fn maintenance_violation(&self) -> MaintenanceCounter {
         self.total_maintenance_violation
