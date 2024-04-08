@@ -74,7 +74,7 @@ impl Indicator<Schedule> for OverheadDurationIndicator {
     fn evaluate(&self, schedule: &Schedule) -> BaseValue {
         BaseValue::Duration(
             schedule
-                .vehicles_iter()
+                .vehicles_iter_all()
                 .chain(schedule.dummy_iter())
                 .map(|v| schedule.tour_of(v).unwrap().total_overhead_duration())
                 .sum(),
@@ -117,7 +117,7 @@ impl Indicator<Schedule> for ServiceTimeSquaredIndicator {
     fn evaluate(&self, schedule: &Schedule) -> BaseValue {
         BaseValue::Integer(
             schedule
-                .vehicles_iter()
+                .vehicles_iter_all()
                 .map(|v| {
                     schedule
                         .tour_of(v)

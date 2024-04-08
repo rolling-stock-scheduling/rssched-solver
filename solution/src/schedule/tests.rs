@@ -31,7 +31,7 @@ fn default_schedule(d: &TestData) -> Schedule {
     // veh00001
     schedule = schedule
         .spawn_vehicle_for_path(
-            d.vt2,
+            d.vt1,
             vec![d.start_depot2, d.trip31, d.trip14, d.end_depot1],
         )
         .unwrap()
@@ -40,7 +40,7 @@ fn default_schedule(d: &TestData) -> Schedule {
     // veh00002
     schedule = schedule
         .spawn_vehicle_for_path(
-            d.vt2,
+            d.vt1,
             vec![d.start_depot1, d.trip12, d.trip23, d.trip31, d.end_depot2],
         )
         .unwrap()
@@ -64,7 +64,10 @@ fn basic_methods_test() {
 
     // ASSERT
     assert_eq!(schedule.number_of_vehicles(), 3);
-    assert_equal(schedule.vehicles_iter(), [veh0, veh1, veh2].iter().cloned());
+    assert_equal(
+        schedule.vehicles_iter_all(),
+        [veh0, veh1, veh2].iter().cloned(),
+    );
     assert!(schedule.is_vehicle(veh0));
     assert!(schedule.is_vehicle(veh1));
     assert!(schedule.is_vehicle(veh2));

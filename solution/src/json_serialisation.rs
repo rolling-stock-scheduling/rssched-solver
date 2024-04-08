@@ -102,7 +102,7 @@ fn depot_usage_to_json(schedule: &Schedule, depot_id: DepotId) -> Vec<Load> {
 fn tours_to_json(schedule: &Schedule) -> Vec<JsonTour> {
     let mut tours = vec![];
 
-    for vehicle_id in schedule.vehicles_iter() {
+    for vehicle_id in schedule.vehicles_iter_all() {
         tours.push(tour_to_json(schedule, vehicle_id));
     }
     tours

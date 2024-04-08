@@ -1,6 +1,6 @@
 use std::fmt;
 
-use model::base_types::{PassengerCount, VehicleId};
+use model::base_types::{PassengerCount, VehicleCount, VehicleId};
 
 use crate::vehicle::Vehicle;
 use std::iter::Iterator;
@@ -85,6 +85,10 @@ impl TrainFormation {
 
     pub(crate) fn seats(&self) -> PassengerCount {
         self.formation.iter().map(|v| v.seats()).sum()
+    }
+
+    pub(crate) fn vehicle_count(&self) -> VehicleCount {
+        self.formation.len() as VehicleCount
     }
 }
 

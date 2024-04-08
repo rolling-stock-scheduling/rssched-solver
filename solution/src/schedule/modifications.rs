@@ -23,6 +23,16 @@ impl Schedule {
             ))?
             .all_nodes_iter()
             .collect();
+        if nodes.iter().any(|n| {
+            !self
+                .network
+                .compatible_with_vehicle_type(*n, vehicle_type_id)
+        }) {
+            return Err(format!(
+                "Cannot spawn vehicle to replace dummy tour {}. Nodes are not compatible with vehicle type {}.",
+                dummy_id, vehicle_type_id,
+            ));
+        }
         let intermediate_schedule = self.delete_dummy(dummy_id)?;
         intermediate_schedule.spawn_vehicle_for_path(vehicle_type_id, nodes)
     }
@@ -39,25 +49,35 @@ impl Schedule {
         vehicle_type_id: VehicleTypeId,
         path_as_vec: Vec<NodeId>,
     ) -> Result<(Schedule, VehicleId), String> {
+        if path_as_vec.iter().any(|n| {
+            !self
+                .network
+                .compatible_with_vehicle_type(*n, vehicle_type_id)
+        }) {
+            return Err(format!(
+                "Cannot spawn vehicle for path {:?}. Nodes are not compatible with vehicle type {}.",
+                path_as_vec, vehicle_type_id,
+            ));
+        }
+
         let nodes = self.add_suitable_start_and_end_depot_to_path(vehicle_type_id, path_as_vec)?;
 
         let mut vehicles = self.vehicles.clone();
         let mut tours = self.tours.clone();
         let mut train_formations = self.train_formations.clone();
         let mut depot_usage = self.depot_usage.clone();
-        let mut vehicle_ids_sorted = self.vehicle_ids_sorted.clone();
+        let mut vehicle_ids_grouped_and_sorted = self.vehicle_ids_grouped_and_sorted.clone();
 
         let vehicle_id = VehicleId::vehicle_from(self.vehicle_counter as Id);
         let tour = Tour::new(nodes, self.network.clone())?;
         let vehicle = Vehicle::new(vehicle_id, vehicle_type_id, self.network.vehicle_types());
 
         vehicles.insert(vehicle_id, vehicle.clone());
-        vehicle_ids_sorted.insert(
-            vehicle_ids_sorted
-                .binary_search(&vehicle_id)
-                .unwrap_or_else(|e| e),
-            vehicle_id,
-        );
+
+        let position = vehicle_ids_grouped_and_sorted[&vehicle_type_id]
+            .binary_search(&vehicle_id)
+            .unwrap_or_else(|e| e);
+        vehicle_ids_grouped_and_sorted[&vehicle_type_id].insert(position, vehicle_id);
 
         // TODO: remove vehicles other vehicles if they do not fit (especially for maintenance
         // slots)
@@ -82,7 +102,7 @@ impl Schedule {
                 train_formations,
                 depot_usage,
                 dummy_tours: self.dummy_tours.clone(),
-                vehicle_ids_sorted,
+                vehicle_ids_grouped_and_sorted,
                 dummy_ids_sorted: self.dummy_ids_sorted.clone(),
                 vehicle_counter: self.vehicle_counter + 1,
                 network: self.network.clone(),
@@ -99,16 +119,23 @@ impl Schedule {
                 vehicle_id
             ));
         }
+
+        let vehicle_type_id = self.vehicle_type_of(vehicle_id);
+
         let mut vehicles = self.vehicles.clone();
         let mut tours = self.tours.clone();
         let mut train_formations = self.train_formations.clone();
         let mut depot_usage = self.depot_usage.clone();
-        let mut vehicle_ids_sorted = self.vehicle_ids_sorted.clone();
+        let mut vehicle_ids_grouped_and_sorted = self.vehicle_ids_grouped_and_sorted.clone();
         let mut dummy_tours = self.dummy_tours.clone();
         let mut dummy_ids_sorted = self.dummy_ids_sorted.clone();
 
         vehicles.remove(&vehicle_id);
-        vehicle_ids_sorted.remove(vehicle_ids_sorted.binary_search(&vehicle_id).unwrap());
+
+        let position = vehicle_ids_grouped_and_sorted[&vehicle_type_id]
+            .binary_search(&vehicle_id)
+            .unwrap();
+        vehicle_ids_grouped_and_sorted[&vehicle_type_id].remove(position);
 
         self.update_train_formation(
             &mut train_formations,
@@ -139,7 +166,7 @@ impl Schedule {
             train_formations,
             depot_usage,
             dummy_tours,
-            vehicle_ids_sorted,
+            vehicle_ids_grouped_and_sorted,
             dummy_ids_sorted,
             vehicle_counter: self.vehicle_counter + 1,
             network: self.network.clone(),
@@ -153,6 +180,17 @@ impl Schedule {
         vehicle_id: VehicleId,
         path: Path,
     ) -> Result<Schedule, String> {
+        let vehicle_type_id = self.vehicle_type_of(vehicle_id);
+        if path.iter().any(|n| {
+            !self
+                .network
+                .compatible_with_vehicle_type(n, vehicle_type_id)
+        }) {
+            return Err(format!(
+                "Cannot add path {} to vehicle tour {}. Nodes are not compatible with vehicle type {}.",
+                path, vehicle_id, vehicle_type_id,
+            ));
+        }
         if self.network.node(path.first()).is_depot() {
             // path starts with a depot, so we need to ensure that the new depot has capacities
             // available
@@ -205,7 +243,7 @@ impl Schedule {
             train_formations,
             depot_usage,
             dummy_tours: self.dummy_tours.clone(),
-            vehicle_ids_sorted: self.vehicle_ids_sorted.clone(),
+            vehicle_ids_grouped_and_sorted: self.vehicle_ids_grouped_and_sorted.clone(),
             dummy_ids_sorted: self.dummy_ids_sorted.clone(),
             vehicle_counter: self.vehicle_counter,
             network: self.network.clone(),
@@ -221,12 +259,31 @@ impl Schedule {
         provider: VehicleId,
         receiver: VehicleId,
     ) -> Result<Schedule, String> {
+        if self.vehicle_type_of(provider) != self.vehicle_type_of(receiver) {
+            // vehicle types do not match, check if there are any service trip in the segment
+            if self
+                .tour_of(provider)
+                .unwrap()
+                .sub_path(segment)?
+                .iter()
+                .any(|n| {
+                    !self
+                        .network
+                        .compatible_with_vehicle_type(n, self.vehicle_type_of(receiver))
+                })
+            {
+                return Err(format!(
+                "Cannot fit_reassign segment {} from vehicle {} to vehicle {}. Vehicle types do not match and segment contains service trip.",
+                segment, provider, receiver,
+            ));
+            }
+        }
         let mut vehicles = self.vehicles.clone();
         let mut tours = self.tours.clone();
         let mut train_formations = self.train_formations.clone();
         let mut depot_usage = self.depot_usage.clone();
         let mut dummy_tours = self.dummy_tours.clone();
-        let mut vehicle_ids_sorted = self.vehicle_ids_sorted.clone();
+        let mut vehicle_ids_grouped_and_sorted = self.vehicle_ids_grouped_and_sorted.clone();
         let mut dummy_ids_sorted = self.dummy_ids_sorted.clone();
 
         let (new_tour_provider, new_tour_receiver, moved_nodes) = self.fit_path_into_tour(
@@ -241,7 +298,7 @@ impl Schedule {
             &mut train_formations,
             &mut depot_usage,
             &mut dummy_tours,
-            &mut vehicle_ids_sorted,
+            &mut vehicle_ids_grouped_and_sorted,
             &mut dummy_ids_sorted,
             Some(provider),
             new_tour_provider,
@@ -259,7 +316,7 @@ impl Schedule {
             train_formations,
             depot_usage,
             dummy_tours,
-            vehicle_ids_sorted,
+            vehicle_ids_grouped_and_sorted,
             dummy_ids_sorted,
             vehicle_counter: self.vehicle_counter,
             network: self.network.clone(),
@@ -278,12 +335,31 @@ impl Schedule {
         provider: VehicleId,
         receiver: VehicleId,
     ) -> Result<(Schedule, Option<VehicleId>), String> {
+        if self.vehicle_type_of(provider) != self.vehicle_type_of(receiver) {
+            // vehicle types do not match, check if there are any service trip in the segment
+            if self
+                .tour_of(provider)
+                .unwrap()
+                .sub_path(segment)?
+                .iter()
+                .any(|n| {
+                    !self
+                        .network
+                        .compatible_with_vehicle_type(n, self.vehicle_type_of(receiver))
+                })
+            {
+                return Err(format!(
+                "Cannot override_reassign segment {} from vehicle {} to vehicle {}. Vehicle types do not match and segment contains service trip.",
+                segment, provider, receiver,
+            ));
+            }
+        }
         let mut vehicles = self.vehicles.clone();
         let mut tours = self.tours.clone();
         let mut dummy_tours = self.dummy_tours.clone();
         let mut train_formations = self.train_formations.clone();
         let mut depot_usage = self.depot_usage.clone();
-        let mut vehicle_ids_sorted = self.vehicle_ids_sorted.clone();
+        let mut vehicle_ids_grouped_and_sorted = self.vehicle_ids_grouped_and_sorted.clone();
         let mut dummy_ids_sorted = self.dummy_ids_sorted.clone();
         let mut vehicle_counter = self.vehicle_counter;
 
@@ -304,7 +380,7 @@ impl Schedule {
             &mut train_formations,
             &mut depot_usage,
             &mut dummy_tours,
-            &mut vehicle_ids_sorted,
+            &mut vehicle_ids_grouped_and_sorted,
             &mut dummy_ids_sorted,
             Some(provider),
             shrinked_tour_provider,
@@ -344,7 +420,7 @@ impl Schedule {
                 train_formations,
                 depot_usage,
                 dummy_tours,
-                vehicle_ids_sorted,
+                vehicle_ids_grouped_and_sorted,
                 dummy_ids_sorted,
                 vehicle_counter,
                 network: self.network.clone(),
@@ -362,7 +438,7 @@ impl Schedule {
         let mut depot_usage = self.depot_usage.clone();
 
         for vehicle_id in vehicles
-            .unwrap_or_else(|| self.vehicle_ids_sorted.clone())
+            .unwrap_or_else(|| self.vehicles_iter_all().collect())
             .iter()
         {
             let tour = self.tour_of(*vehicle_id).unwrap();
@@ -382,19 +458,20 @@ impl Schedule {
             train_formations: self.train_formations.clone(),
             depot_usage,
             dummy_tours: self.dummy_tours.clone(),
-            vehicle_ids_sorted: self.vehicle_ids_sorted.clone(),
+            vehicle_ids_grouped_and_sorted: self.vehicle_ids_grouped_and_sorted.clone(),
             dummy_ids_sorted: self.dummy_ids_sorted.clone(),
             vehicle_counter: self.vehicle_counter,
             network: self.network.clone(),
         }
     }
 
+    /// Reassigns the end depots of all vehicles greedily. Capacties of depots are ignored.
     pub fn reassign_end_depots_greedily(&self) -> Result<Schedule, String> {
         let mut tours = self.tours.clone();
         let mut depot_usage = self.depot_usage.clone();
 
-        for vehicle_id in self.vehicle_ids_sorted.iter() {
-            let tour = self.tour_of(*vehicle_id).unwrap();
+        for vehicle_id in self.vehicles_iter_all() {
+            let tour = self.tour_of(vehicle_id).unwrap();
             let last_node_location = self
                 .network
                 .node(tour.last_non_depot().unwrap())
@@ -407,9 +484,9 @@ impl Schedule {
                 .ok_or(format!("Cannot find end depot for vehicle {}.", vehicle_id))?;
 
             let new_tour = tour.replace_end_depot(new_end_depot_node).unwrap();
-            tours.insert(*vehicle_id, new_tour);
+            tours.insert(vehicle_id, new_tour);
 
-            self.update_depot_usage(&mut depot_usage, &self.vehicles, &tours, *vehicle_id);
+            self.update_depot_usage(&mut depot_usage, &self.vehicles, &tours, vehicle_id);
         }
 
         let next_period_transition = Transition::one_cluster_per_maintenance(&tours); // TODO TEMP
@@ -421,7 +498,7 @@ impl Schedule {
             train_formations: self.train_formations.clone(),
             depot_usage,
             dummy_tours: self.dummy_tours.clone(),
-            vehicle_ids_sorted: self.vehicle_ids_sorted.clone(),
+            vehicle_ids_grouped_and_sorted: self.vehicle_ids_grouped_and_sorted.clone(),
             dummy_ids_sorted: self.dummy_ids_sorted.clone(),
             vehicle_counter: self.vehicle_counter + 1,
             network: self.network.clone(),
@@ -452,7 +529,7 @@ impl Schedule {
             train_formations: self.train_formations.clone(),
             depot_usage: self.depot_usage.clone(),
             dummy_tours,
-            vehicle_ids_sorted: self.vehicle_ids_sorted.clone(),
+            vehicle_ids_grouped_and_sorted: self.vehicle_ids_grouped_and_sorted.clone(),
             dummy_ids_sorted,
             vehicle_counter: self.vehicle_counter,
             network: self.network.clone(),
@@ -462,7 +539,7 @@ impl Schedule {
     /// Reassign vehicles to the new tours.
     /// The depots of the tours are improved.
     /// Updates all relevant data structures.
-    /// It assumed that provider (if some) and receiver are part of self.vehicles.
+    /// It is assumed that provider (if some) and receiver are part of self.vehicles.
     #[allow(clippy::too_many_arguments)]
     fn update_tours(
         &self,
@@ -471,7 +548,7 @@ impl Schedule {
         train_formations: &mut HashMap<NodeId, TrainFormation>,
         depot_usage: &mut DepotUsage,
         dummy_tours: &mut HashMap<VehicleId, Tour>,
-        vehicle_ids_sorted: &mut Vec<VehicleId>,
+        vehicle_ids_grouped_and_sorted: &mut HashMap<VehicleTypeId, Vec<VehicleId>>,
         dummy_ids_sorted: &mut Vec<VehicleId>,
         provider: Option<VehicleId>,     // None: there is no provider
         new_tour_provider: Option<Tour>, // None: provider is deleted
@@ -492,10 +569,14 @@ impl Schedule {
                         dummy_ids_sorted
                             .remove(dummy_ids_sorted.binary_search(&provider_id).unwrap());
                     } else if self.is_vehicle(provider_id) {
+                        let provider_vehicle_type = self.vehicle_type_of(provider_id);
                         vehicles.remove(&provider_id);
                         tours.remove(&provider_id); // old_tour is completely removed
-                        vehicle_ids_sorted
-                            .remove(vehicle_ids_sorted.binary_search(&provider_id).unwrap());
+
+                        let position = vehicle_ids_grouped_and_sorted[&provider_vehicle_type]
+                            .binary_search(&provider_id)
+                            .unwrap();
+                        vehicle_ids_grouped_and_sorted[&provider_vehicle_type].remove(position);
                     }
                 }
             }

@@ -63,7 +63,7 @@ pub struct Schedule {
     vehicle_counter: usize,
 
     // redundant information for faster access
-    vehicle_ids_sorted: Vec<VehicleId>,
+    vehicle_ids_grouped_and_sorted: HashMap<VehicleTypeId, Vec<VehicleId>>,
     dummy_ids_sorted: Vec<VehicleId>,
 
     network: Arc<Network>,
@@ -75,8 +75,20 @@ impl Schedule {
         self.vehicles.len()
     }
 
-    pub fn vehicles_iter(&self) -> impl Iterator<Item = VehicleId> + '_ {
-        self.vehicle_ids_sorted.iter().copied()
+    pub fn vehicles_iter(
+        &self,
+        vehicle_type: VehicleTypeId,
+    ) -> impl Iterator<Item = VehicleId> + '_ {
+        self.vehicle_ids_grouped_and_sorted[&vehicle_type]
+            .iter()
+            .copied()
+    }
+
+    pub fn vehicles_iter_all(&self) -> impl Iterator<Item = VehicleId> + '_ {
+        let vehicle_types: Vec<_> = self.network.vehicle_types().iter().collect();
+        vehicle_types
+            .into_iter()
+            .flat_map(|vt| self.vehicles_iter(vt))
     }
 
     pub fn is_vehicle(&self, vehicle: VehicleId) -> bool {
@@ -258,7 +270,7 @@ impl Schedule {
             self.tours.len(),
             self.dummy_tours.len()
         );
-        for vehicle in self.vehicles_iter() {
+        for vehicle in self.vehicles_iter_all() {
             print!("     {}: ", self.get_vehicle(vehicle).unwrap());
             self.tours.get(&vehicle).unwrap().print();
         }
@@ -276,7 +288,7 @@ impl Schedule {
     }
 
     pub fn print_tours(&self) {
-        for vehicle in self.vehicles_iter() {
+        for vehicle in self.vehicles_iter_all() {
             println!(
                 "{}: {}",
                 self.get_vehicle(vehicle).unwrap(),
@@ -340,8 +352,7 @@ impl Schedule {
             .flat_map(|(spawned, despawned)| spawned.iter().chain(despawned.iter()))
             .cloned()
             .collect();
-        let vehicles_from_sorted: HashSet<VehicleId> =
-            self.vehicle_ids_sorted.iter().cloned().collect();
+        let vehicles_from_sorted: HashSet<VehicleId> = self.vehicles_iter_all().collect();
 
         assert_eq!(vehicles, vehicles_from_tours);
         assert_eq!(vehicles, vehicles_from_sorted);
@@ -351,8 +362,13 @@ impl Schedule {
         assert_eq!(vehicles, vehicles_from_depot_usage);
 
         // check if vehicles are sorted
-        for (vehicle1, vehicle2) in self.vehicle_ids_sorted.iter().tuple_windows() {
-            assert!(vehicle1 < vehicle2);
+        for vehicle_type in self.network.vehicle_types().iter() {
+            for (vehicle1, vehicle2) in self.vehicle_ids_grouped_and_sorted[&vehicle_type]
+                .iter()
+                .tuple_windows()
+            {
+                assert!(vehicle1 < vehicle2);
+            }
         }
 
         // check dummy tours
@@ -372,6 +388,16 @@ impl Schedule {
 
             assert!(!tour.is_dummy());
 
+            // check that vehicle type of service trips matches vehicle type of vehicle
+            for node in tour.all_non_depot_nodes_iter() {
+                if self.network.node(node).is_service() {
+                    assert_eq!(
+                        self.vehicle_type_of(*vehicle),
+                        self.network.vehicle_type_for(node)
+                    );
+                }
+            }
+
             // check that all nodes are covered by a train_formation
             for node in tour.all_non_depot_nodes_iter() {
                 assert!(self.train_formations.contains_key(&node));
@@ -381,6 +407,25 @@ impl Schedule {
                     .unwrap()
                     .ids()
                     .contains(vehicle));
+            }
+
+            // check that train_formations do not violate maximal formation count
+            for node in tour.all_non_depot_nodes_iter() {
+                let maximal_formation_count_opt = if self.network.node(node).is_service() {
+                    self.network
+                        .vehicle_types()
+                        .get(self.network.vehicle_type_for(node))
+                        .unwrap()
+                        .maximal_formation_count()
+                } else if self.network.node(node).is_maintenance() {
+                    Some(1)
+                } else {
+                    None
+                };
+                let train_formation = self.train_formations.get(&node).unwrap();
+                if let Some(maximal_formation_count) = maximal_formation_count_opt {
+                    assert!(train_formation.vehicle_count() <= maximal_formation_count);
+                }
             }
 
             // check depots usage
@@ -478,8 +523,8 @@ impl Ord for Schedule {
             .cmp(&other.number_of_vehicles())
             .then(
                 match self
-                    .vehicles_iter()
-                    .zip(other.vehicles_iter())
+                    .vehicles_iter_all()
+                    .zip(other.vehicles_iter_all())
                     .map(|(vehicle, other_vehicle)| {
                         self.tour_of(vehicle)
                             .unwrap()
@@ -534,6 +579,11 @@ impl Schedule {
         }
 
         let next_period_transition = Transition::one_cluster_per_maintenance(&HashMap::new());
+        let vehicle_ids_grouped_and_sorted = network
+            .vehicle_types()
+            .iter()
+            .map(|vt| (vt, Vec::new()))
+            .collect();
 
         Schedule {
             vehicles: HashMap::new(),
@@ -542,7 +592,7 @@ impl Schedule {
             train_formations,
             depot_usage: HashMap::new(),
             dummy_tours: HashMap::new(),
-            vehicle_ids_sorted: Vec::new(),
+            vehicle_ids_grouped_and_sorted,
             dummy_ids_sorted: Vec::new(),
             vehicle_counter: 0,
             network,

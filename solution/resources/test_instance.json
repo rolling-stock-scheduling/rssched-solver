@@ -43,7 +43,7 @@
       "allowedTypes": [
         {
           "vehicleType": 1,
-          "capacity": 1
+          "capacity": 2
         },
         {
           "vehicleType": 2,
@@ -56,6 +56,10 @@
       "location": 2,
       "capacity": 5,
       "allowedTypes": [
+        {
+          "vehicleType": 1,
+          "capacity": 1
+        },
         {
           "vehicleType": 2,
           "capacity": 1

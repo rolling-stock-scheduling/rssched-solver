@@ -116,6 +116,14 @@ impl Network {
         self.node(service_trip).as_service_trip().vehicle_type()
     }
 
+    pub fn compatible_with_vehicle_type(&self, node: NodeId, vehicle_type: VehicleTypeId) -> bool {
+        if self.node(node).is_service() {
+            self.vehicle_type_for(node) == vehicle_type
+        } else {
+            true
+        }
+    }
+
     pub fn passengers_of(&self, service_trip: NodeId) -> PassengerCount {
         self.node(service_trip).as_service_trip().passengers()
     }

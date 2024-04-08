@@ -122,13 +122,13 @@ impl LimitedExchanges {
         &'a self,
         schedule: &'a Schedule,
     ) -> impl Iterator<Item = VehicleId> + 'a {
-        schedule.dummy_iter().chain(schedule.vehicles_iter())
+        schedule.dummy_iter().chain(schedule.vehicles_iter_all())
     }
 
     fn real_and_dummy_vehicles<'a>(
         &'a self,
         schedule: &'a Schedule,
     ) -> impl Iterator<Item = VehicleId> + 'a {
-        schedule.vehicles_iter().chain(schedule.dummy_iter())
+        schedule.vehicles_iter_all().chain(schedule.dummy_iter())
     }
 }
