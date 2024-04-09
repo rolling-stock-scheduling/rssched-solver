@@ -1,7 +1,7 @@
 mod neighborhood;
-pub mod objective; // TODO the objective should only be created once.
 use std::sync::Arc;
 
+use crate::objective;
 use heuristic_framework::local_search::local_improver::TakeAnyParallelRecursion;
 use heuristic_framework::local_search::LocalSearchSolver;
 use model::network::Network;

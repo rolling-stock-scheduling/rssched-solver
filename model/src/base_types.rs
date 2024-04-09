@@ -70,7 +70,6 @@ impl NodeId {
 
 pub type VehicleCount = u32;
 pub type PassengerCount = u32;
-pub type SeatDistance = u64; // TODO remove this
 pub type Meter = u64;
 pub type Cost = u64;
 pub type MaintenanceCounter = i64;
