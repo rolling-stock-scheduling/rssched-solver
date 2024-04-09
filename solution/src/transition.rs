@@ -12,11 +12,15 @@ pub struct Transition {
 }
 
 impl Transition {
-    pub fn one_cylce_per_vehicle(tours: &HashMap<VehicleId, Tour>) -> Transition {
+    pub fn one_cylce_per_vehicle(
+        vehicles: &[VehicleId],
+        tours: &HashMap<VehicleId, Tour>,
+    ) -> Transition {
         let mut total_maintenance_violation = 0;
-        let cycles = tours
+        let cycles = vehicles
             .iter()
-            .map(|(&vehicle_id, tour)| {
+            .map(|&vehicle_id| {
+                let tour = tours.get(&vehicle_id).unwrap();
                 let maintenance_violation = tour.maintenance_counter().max(0);
                 total_maintenance_violation += maintenance_violation;
                 TransitionCycle::new(vec![vehicle_id], maintenance_violation)
@@ -29,13 +33,21 @@ impl Transition {
         }
     }
 
-    pub fn one_cluster_per_maintenance(tours: &HashMap<VehicleId, Tour>) -> Transition {
+    /// Assigns each vehicle greedily to a cluster with the goal of minimizing the total maintenance violation.
+    /// It is assumed that all vehicles are of the same type.
+    /// It is assumed that each vehicle has a tour.
+    /// tours might contain tours of vehicle of other types.
+    pub fn one_cluster_per_maintenance(
+        vehicles: &[VehicleId],
+        tours: &HashMap<VehicleId, Tour>,
+    ) -> Transition {
         let mut sorted_clusters: Vec<(Vec<VehicleId>, MaintenanceCounter)> = Vec::new(); // TODO Use BTreeMap
         let mut sorted_unassigned_vehicles: Vec<VehicleId> = Vec::new(); // all none maintenance
                                                                          // vehicles sorted by
                                                                          // maintenance counter in descending order
 
-        for (vehicle_id, tour) in tours.iter() {
+        for vehicle_id in vehicles.iter() {
+            let tour = tours.get(vehicle_id).unwrap();
             if tour.maintenance_counter() < 0 {
                 sorted_clusters.push((vec![*vehicle_id], tour.maintenance_counter()));
             } else {
@@ -44,7 +56,7 @@ impl Transition {
         }
 
         sorted_unassigned_vehicles
-            .sort_by_key(|&vehicle_id| -tours.get(&vehicle_id).unwrap().maintenance_counter());
+            .sort_by_key(|&vehicle| -tours.get(&vehicle).unwrap().maintenance_counter());
         sorted_clusters.sort_by_key(|&(_, maintenance_counter)| maintenance_counter);
 
         for vehicle in sorted_unassigned_vehicles {

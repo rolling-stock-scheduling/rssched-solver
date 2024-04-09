@@ -2,8 +2,8 @@ use im::{HashMap, HashSet};
 use model::base_types::{Id, NodeId, VehicleId, VehicleTypeId};
 
 use crate::{
-    path::Path, segment::Segment, tour::Tour, train_formation::TrainFormation,
-    transition::Transition, vehicle::Vehicle, Schedule,
+    path::Path, segment::Segment, tour::Tour, train_formation::TrainFormation, vehicle::Vehicle,
+    Schedule,
 };
 
 use super::DepotUsage;
@@ -37,13 +37,18 @@ impl Schedule {
         intermediate_schedule.spawn_vehicle_for_path(vehicle_type_id, nodes)
     }
 
-    /// Spawn new vehicle.
+    /// Spawn new vehicle for the given path.
+    ///
     /// If path does not start with a depot the vehicle is spawned from the nearest availabe depot
     /// (from the start location of the first trip).
     /// Similarly, if path does not end with a depot the vehicle is spawned to the nearest depot
     /// (from the end location of the last trip).
+    ///
+    /// # Errors
     /// If no depot is available, an error is returned.
     /// If the depot given in the path in not available, an error is returned.
+    /// If some node on the path is not compatible with the vehicle type an error is returned.
+    /// If a train formation of some node on the path is full, an error is returned.
     pub fn spawn_vehicle_for_path(
         &self,
         vehicle_type_id: VehicleTypeId,
@@ -79,32 +84,32 @@ impl Schedule {
             .unwrap_or_else(|e| e);
         vehicle_ids_grouped_and_sorted[&vehicle_type_id].insert(position, vehicle_id);
 
-        // TODO: remove vehicles other vehicles if they do not fit (especially for maintenance
-        // slots)
         self.update_train_formation(
             &mut train_formations,
             None,
             Some(vehicle.clone()),
             tour.all_nodes_iter(),
-        );
+        )?;
 
         tours.insert(vehicle_id, tour);
 
         self.update_depot_usage(&mut depot_usage, &vehicles, &tours, vehicle_id);
 
-        let next_period_transition = Transition::one_cluster_per_maintenance(&tours); // TODO TEMP
+        let (next_period_transitions, maintenance_violation) =
+            Schedule::compute_transitions_and_violation(&vehicle_ids_grouped_and_sorted, &tours);
 
         Ok((
             Schedule {
                 vehicles,
                 tours,
-                next_period_transition,
+                next_period_transitions,
                 train_formations,
                 depot_usage,
                 dummy_tours: self.dummy_tours.clone(),
                 vehicle_ids_grouped_and_sorted,
                 dummy_ids_sorted: self.dummy_ids_sorted.clone(),
                 vehicle_counter: self.vehicle_counter + 1,
+                maintenance_violation,
                 network: self.network.clone(),
             },
             vehicle_id,
@@ -142,7 +147,7 @@ impl Schedule {
             Some(vehicle_id),
             None,
             tours.get(&vehicle_id).unwrap().all_nodes_iter(),
-        );
+        )?;
 
         tours.remove(&vehicle_id);
 
@@ -157,17 +162,19 @@ impl Schedule {
             tour.sub_path(Segment::new(tour.first_node(), tour.last_node()))?,
         );
 
-        let next_period_transition = Transition::one_cluster_per_maintenance(&tours); // TODO TEMP
+        let (next_period_transitions, maintenance_violation) =
+            Schedule::compute_transitions_and_violation(&vehicle_ids_grouped_and_sorted, &tours);
 
         Ok(Schedule {
             vehicles,
             tours,
-            next_period_transition,
+            next_period_transitions,
             train_formations,
             depot_usage,
             dummy_tours,
             vehicle_ids_grouped_and_sorted,
             dummy_ids_sorted,
+            maintenance_violation,
             vehicle_counter: self.vehicle_counter + 1,
             network: self.network.clone(),
         })
@@ -175,6 +182,9 @@ impl Schedule {
 
     /// Add a path to the tour of a vehicle. If the path causes conflicts, the conflicting nodes of
     /// the old tour are removed.
+    /// # Errors
+    /// If some node on the path is not compatible with the vehicle type an error is returned.
+    /// If a train formation of some node on the path is full, an error is returned.
     pub fn add_path_to_vehicle_tour(
         &self,
         vehicle_id: VehicleId,
@@ -216,7 +226,7 @@ impl Schedule {
             None,
             Some(self.vehicles.get(&vehicle_id).cloned().unwrap()),
             path.iter(),
-        );
+        )?;
 
         let (new_tour, removed_path_opt) = tours.get(&vehicle_id).unwrap().insert_path(path);
 
@@ -227,24 +237,29 @@ impl Schedule {
                 Some(vehicle_id),
                 None,
                 removed_path.iter(),
-            );
+            )?;
         }
 
         tours.insert(vehicle_id, new_tour);
 
         self.update_depot_usage(&mut depot_usage, &self.vehicles, &tours, vehicle_id);
 
-        let next_period_transition = Transition::one_cluster_per_maintenance(&tours); // TODO TEMP
+        let (next_period_transitions, maintenance_violation) =
+            Schedule::compute_transitions_and_violation(
+                &self.vehicle_ids_grouped_and_sorted,
+                &tours,
+            );
 
         Ok(Schedule {
             vehicles: self.vehicles.clone(),
             tours,
-            next_period_transition,
+            next_period_transitions,
             train_formations,
             depot_usage,
             dummy_tours: self.dummy_tours.clone(),
             vehicle_ids_grouped_and_sorted: self.vehicle_ids_grouped_and_sorted.clone(),
             dummy_ids_sorted: self.dummy_ids_sorted.clone(),
+            maintenance_violation,
             vehicle_counter: self.vehicle_counter,
             network: self.network.clone(),
         })
@@ -252,7 +267,11 @@ impl Schedule {
 
     /// Tries to insert all nodes of provider's segment into receiver's tour.
     /// Nodes that causes conflcits are rejected and stay in provider's tour.
-    /// Nodes that do not cause a conflict are reassigned to the receiver.
+    /// Nodes that do not cause a conflict are removed from provider's tour and assigned to the receiver.
+    /// # Errors
+    /// If some node of the segment is not compatible with the receivers type an error is returned.
+    /// (So normally receiver and provider should have the same vehicle type. Otherwise the segment
+    /// should only contain depots and maintenance nodes.)
     pub fn fit_reassign(
         &self,
         segment: Segment,
@@ -305,19 +324,21 @@ impl Schedule {
             receiver,
             new_tour_receiver,
             moved_nodes.iter().copied(),
-        );
+        )?;
 
-        let next_period_transition = Transition::one_cluster_per_maintenance(&tours); // TODO TEMP
+        let (next_period_transitions, maintenance_violation) =
+            Schedule::compute_transitions_and_violation(&vehicle_ids_grouped_and_sorted, &tours);
 
         Ok(Schedule {
             vehicles,
             tours,
-            next_period_transition,
+            next_period_transitions,
             train_formations,
             depot_usage,
             dummy_tours,
             vehicle_ids_grouped_and_sorted,
             dummy_ids_sorted,
+            maintenance_violation,
             vehicle_counter: self.vehicle_counter,
             network: self.network.clone(),
         })
@@ -329,6 +350,10 @@ impl Schedule {
     /// Provider tour must be valid after removing the segment. In particular a segment including a
     /// depot can only be moved if all non-depot nodes are moved.
     /// If all non-depot of the provider are moved, the provider is deleted.
+    /// # Errors
+    /// If some node of the segment is not compatible with the receivers type an error is returned.
+    /// (So normally receiver and provider should have the same vehicle type. Otherwise the segment
+    /// should only contain depots and maintenance nodes.)
     pub fn override_reassign(
         &self,
         segment: Segment,
@@ -387,7 +412,7 @@ impl Schedule {
             receiver,
             new_tour_receiver,
             moved_nodes.iter().cloned(),
-        );
+        )?;
 
         let mut new_dummy_opt = None; // for return value
 
@@ -404,24 +429,26 @@ impl Schedule {
                     Some(receiver),
                     None,
                     new_path.iter(),
-                );
+                )?;
             }
 
             self.add_dummy_tour(&mut dummy_tours, &mut dummy_ids_sorted, new_dummy, new_path);
             vehicle_counter += 1;
         }
-        let next_period_transition = Transition::one_cluster_per_maintenance(&tours); // TODO TEMP
+        let (next_period_transitions, maintenance_violation) =
+            Schedule::compute_transitions_and_violation(&vehicle_ids_grouped_and_sorted, &tours);
 
         Ok((
             Schedule {
                 vehicles,
                 tours,
-                next_period_transition,
+                next_period_transitions,
                 train_formations,
                 depot_usage,
                 dummy_tours,
                 vehicle_ids_grouped_and_sorted,
                 dummy_ids_sorted,
+                maintenance_violation,
                 vehicle_counter,
                 network: self.network.clone(),
             },
@@ -449,18 +476,23 @@ impl Schedule {
             self.update_depot_usage(&mut depot_usage, &self.vehicles, &tours, *vehicle_id);
         }
 
-        let next_period_transition = Transition::one_cluster_per_maintenance(&tours); // TODO TEMP
+        let (next_period_transitions, maintenance_violation) =
+            Schedule::compute_transitions_and_violation(
+                &self.vehicle_ids_grouped_and_sorted,
+                &tours,
+            );
 
         Schedule {
             vehicles: self.vehicles.clone(),
             tours,
-            next_period_transition,
+            next_period_transitions,
             train_formations: self.train_formations.clone(),
             depot_usage,
             dummy_tours: self.dummy_tours.clone(),
             vehicle_ids_grouped_and_sorted: self.vehicle_ids_grouped_and_sorted.clone(),
             dummy_ids_sorted: self.dummy_ids_sorted.clone(),
             vehicle_counter: self.vehicle_counter,
+            maintenance_violation,
             network: self.network.clone(),
         }
     }
@@ -489,17 +521,22 @@ impl Schedule {
             self.update_depot_usage(&mut depot_usage, &self.vehicles, &tours, vehicle_id);
         }
 
-        let next_period_transition = Transition::one_cluster_per_maintenance(&tours); // TODO TEMP
+        let (next_period_transitions, maintenance_violation) =
+            Schedule::compute_transitions_and_violation(
+                &self.vehicle_ids_grouped_and_sorted,
+                &tours,
+            );
 
         Ok(Schedule {
             vehicles: self.vehicles.clone(),
             tours,
-            next_period_transition,
+            next_period_transitions,
             train_formations: self.train_formations.clone(),
             depot_usage,
             dummy_tours: self.dummy_tours.clone(),
             vehicle_ids_grouped_and_sorted: self.vehicle_ids_grouped_and_sorted.clone(),
             dummy_ids_sorted: self.dummy_ids_sorted.clone(),
+            maintenance_violation,
             vehicle_counter: self.vehicle_counter + 1,
             network: self.network.clone(),
         })
@@ -525,12 +562,13 @@ impl Schedule {
         Ok(Schedule {
             vehicles: self.vehicles.clone(),
             tours: self.tours.clone(),
-            next_period_transition: self.next_period_transition.clone(),
+            next_period_transitions: self.next_period_transitions.clone(),
             train_formations: self.train_formations.clone(),
             depot_usage: self.depot_usage.clone(),
             dummy_tours,
             vehicle_ids_grouped_and_sorted: self.vehicle_ids_grouped_and_sorted.clone(),
             dummy_ids_sorted,
+            maintenance_violation: self.maintenance_violation,
             vehicle_counter: self.vehicle_counter,
             network: self.network.clone(),
         })
@@ -555,7 +593,7 @@ impl Schedule {
         receiver: VehicleId,
         new_tour_receiver: Tour,
         moved_nodes: impl Iterator<Item = NodeId>,
-    ) {
+    ) -> Result<(), String> {
         if let Some(provider_id) = provider {
             // update tour of the provider
             match new_tour_provider {
@@ -589,7 +627,8 @@ impl Schedule {
 
         // update train_formations
         let receiver_vehicle = self.vehicles.get(&receiver).cloned();
-        self.update_train_formation(train_formations, provider, receiver_vehicle, moved_nodes);
+        self.update_train_formation(train_formations, provider, receiver_vehicle, moved_nodes)?;
+        Ok(())
     }
 
     fn update_tour(
@@ -612,7 +651,7 @@ impl Schedule {
         provider: Option<VehicleId>,       // None: only add receiver
         receiver_vehicle: Option<Vehicle>, // None: only delete provider
         moved_nodes: impl Iterator<Item = NodeId>,
-    ) {
+    ) -> Result<(), String> {
         for node in moved_nodes {
             if self.network.node(node).is_depot() {
                 continue;
@@ -624,10 +663,10 @@ impl Schedule {
                     provider,
                     receiver_vehicle.clone(),
                     node,
-                )
-                .unwrap(),
+                )?,
             );
         }
+        Ok(())
     }
 
     /// Replace a vehicle in the train formation of a node.
@@ -651,6 +690,15 @@ impl Schedule {
                         old_formation.replace(prov, receiver_vh)
                     }
                     _ => {
+                        if let Some(max_length) = receiver_vh.maximal_formation_count() {
+                            if old_formation.vehicle_count() >= max_length {
+                                return Err(format!(
+                                    "Cannot add vehicle {} to node {}. Formation is full.",
+                                    receiver_vh.id(),
+                                    node
+                                ));
+                            }
+                        }
                         // provider is None or dummy
                         Ok(old_formation.add_at_tail(receiver_vh))
                     }

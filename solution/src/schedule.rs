@@ -41,8 +41,9 @@ pub struct Schedule {
 
     // A schedule is thought to be repeated each period but vehicles may take a different tour on
     // the next period. The information which vehicles of the first execution of the schedule
-    // becomes which vehicle in the next period is stored in the next_period_transition.
-    next_period_transition: Transition, // TODO: we need one transition per vehicle type
+    // becomes which vehicle in the next period is stored in the next_period_transition (grouped by
+    // type).
+    next_period_transitions: HashMap<VehicleTypeId, Transition>,
 
     // for each node (except for depots) we store the train formation that covers it.
     // If a node is not covered yet, there is still an entry with an empty train formation.
@@ -65,6 +66,7 @@ pub struct Schedule {
     // redundant information for faster access
     vehicle_ids_grouped_and_sorted: HashMap<VehicleTypeId, Vec<VehicleId>>,
     dummy_ids_sorted: Vec<VehicleId>,
+    maintenance_violation: MaintenanceCounter,
 
     network: Arc<Network>,
 }
@@ -132,7 +134,7 @@ impl Schedule {
     }
 
     pub fn maintenance_violation(&self) -> MaintenanceCounter {
-        self.next_period_transition.maintenance_violation()
+        self.maintenance_violation
     }
 
     pub fn train_formation_of(&self, node: NodeId) -> &TrainFormation {
@@ -443,7 +445,20 @@ impl Schedule {
         }
 
         // check next_period_transition
-        self.next_period_transition.verify_consistency(&self.tours);
+        self.next_period_transitions
+            .values()
+            .for_each(|transition| {
+                transition.verify_consistency(&self.tours);
+            });
+
+        // check maintenance violation
+        assert_eq!(
+            self.maintenance_violation,
+            self.next_period_transitions
+                .values()
+                .map(|transition| transition.maintenance_violation())
+                .sum::<MaintenanceCounter>()
+        );
 
         // check that all tours are in the depot_usage
         for (depot, vehicle_type) in self.depot_usage.keys() {
@@ -578,7 +593,9 @@ impl Schedule {
             train_formations.insert(node, TrainFormation::empty());
         }
 
-        let next_period_transition = Transition::one_cluster_per_maintenance(&HashMap::new());
+        let next_period_transition =
+            Schedule::compute_transitions(&HashMap::new(), &HashMap::new());
+
         let vehicle_ids_grouped_and_sorted = network
             .vehicle_types()
             .iter()
@@ -588,15 +605,50 @@ impl Schedule {
         Schedule {
             vehicles: HashMap::new(),
             tours: HashMap::new(),
-            next_period_transition,
+            next_period_transitions: next_period_transition,
             train_formations,
             depot_usage: HashMap::new(),
             dummy_tours: HashMap::new(),
             vehicle_ids_grouped_and_sorted,
             dummy_ids_sorted: Vec::new(),
+            maintenance_violation: 0,
             vehicle_counter: 0,
             network,
         }
+    }
+
+    fn compute_transitions_and_violation(
+        vehicle_ids_grouped_by_type: &HashMap<VehicleTypeId, Vec<VehicleId>>,
+        tours: &HashMap<VehicleId, Tour>,
+    ) -> (HashMap<VehicleTypeId, Transition>, MaintenanceCounter) {
+        let transitions = Schedule::compute_transitions(vehicle_ids_grouped_by_type, tours);
+        let maintenance_violation = Schedule::compute_maintenance_violation(&transitions);
+        (transitions, maintenance_violation)
+    }
+
+    fn compute_transitions(
+        vehicle_ids_grouped_by_type: &HashMap<VehicleTypeId, Vec<VehicleId>>,
+        tours: &HashMap<VehicleId, Tour>,
+    ) -> HashMap<VehicleTypeId, Transition> {
+        vehicle_ids_grouped_by_type
+            .keys()
+            .map(|vt| {
+                let vehicle_ids = vehicle_ids_grouped_by_type.get(vt).unwrap();
+                (
+                    *vt,
+                    Transition::one_cluster_per_maintenance(vehicle_ids, tours),
+                )
+            })
+            .collect()
+    }
+
+    fn compute_maintenance_violation(
+        transitions: &HashMap<VehicleTypeId, Transition>,
+    ) -> MaintenanceCounter {
+        transitions
+            .values()
+            .map(|transition| transition.maintenance_violation())
+            .sum()
     }
 
     /// initializing a schedule with a given list of tours (in Vec<NodeId> form) for each vehicle
