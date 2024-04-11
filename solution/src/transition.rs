@@ -109,6 +109,8 @@ impl Transition {
         self.total_maintenance_violation
     }
 
+    /// Verifies that the transition is consistent with the tours.
+    /// Note that the tours must be the tours of this vehicle type group.
     pub fn verify_consistency(&self, tours: &HashMap<VehicleId, Tour>) {
         // each vehicle is present in exactly one cycle
         let cycles: Vec<VehicleId> = self

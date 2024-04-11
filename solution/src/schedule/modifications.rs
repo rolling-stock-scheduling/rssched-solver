@@ -230,6 +230,7 @@ impl Schedule {
                     new_start_depot,
                     self.vehicle_type_of(vehicle_id)
                         .expect("Vehicle must be real, as it starts with a depot"),
+                    &self.depot_usage,
                 )
             {
                 return Err(format!(
@@ -568,16 +569,57 @@ impl Schedule {
         let mut depot_usage = self.depot_usage.clone();
         let mut maintenance_violation = self.maintenance_violation;
 
-        for vehicle_id in vehicles
-            .unwrap_or_else(|| self.vehicles_iter_all().collect())
-            .iter()
-        {
-            let tour = self.tour_of(*vehicle_id).unwrap();
-            let vehicle_type_id = self.vehicle_type_of(*vehicle_id);
-            let new_tour = self.improve_depots_of_tour(tour, vehicle_type_id.unwrap());
-            tours.insert(*vehicle_id, new_tour);
+        let vehicle_ids = vehicles.unwrap_or_else(|| self.vehicles_iter_all().collect());
 
-            self.update_depot_usage(&mut depot_usage, &self.vehicles, &tours, *vehicle_id);
+        // first remove all considered vehicles from depots, so that there is space for reoptimization
+        for vehicle_id in vehicle_ids.iter() {
+            let vehicle_type_id = self.vehicle_type_of(*vehicle_id).unwrap();
+            let old_tour = self.tour_of(*vehicle_id).unwrap();
+            depot_usage
+                .get_mut(&(
+                    self.network.get_depot_id(old_tour.start_depot().unwrap()),
+                    vehicle_type_id,
+                ))
+                .unwrap()
+                .0
+                .remove(vehicle_id)
+                .unwrap();
+            depot_usage
+                .get_mut(&(
+                    self.network.get_depot_id(old_tour.end_depot().unwrap()),
+                    vehicle_type_id,
+                ))
+                .unwrap()
+                .1
+                .remove(vehicle_id)
+                .unwrap();
+        }
+
+        for vehicle_id in vehicle_ids.iter() {
+            let tour = self.tour_of(*vehicle_id).unwrap();
+            let vehicle_type_id = self.vehicle_type_of(*vehicle_id).unwrap();
+            let new_tour = self.improve_depots_of_tour(tour, vehicle_type_id, &depot_usage);
+
+            // add vehicle to depot_usage
+            depot_usage
+                .entry((
+                    self.network.get_depot_id(new_tour.start_depot().unwrap()),
+                    vehicle_type_id,
+                ))
+                .or_insert((HashSet::new(), HashSet::new()))
+                .0
+                .insert(*vehicle_id);
+            depot_usage
+                .entry((
+                    self.network.get_depot_id(new_tour.end_depot().unwrap()),
+                    vehicle_type_id,
+                ))
+                .or_insert((HashSet::new(), HashSet::new()))
+                .1
+                .insert(*vehicle_id);
+
+            // add tour
+            tours.insert(*vehicle_id, new_tour);
         }
         self.update_transitions_and_violation_fast(
             &mut next_period_transitions,
@@ -830,6 +872,16 @@ impl Schedule {
                         old_formation.replace(prov, receiver_vh)
                     }
                     _ => {
+                        // provider is None or dummy
+                        if self.network.node(node).is_maintenance()
+                            && old_formation.vehicle_count() > 0
+                        {
+                            return Err(format!(
+                                "Cannot add vehicle {} to maintenance node {}. Maintenance slot is already occupied.",
+                                receiver_vh.id(),
+                                node
+                            ));
+                        }
                         if let Some(max_length) = receiver_vh.maximal_formation_count() {
                             if old_formation.vehicle_count() >= max_length {
                                 return Err(format!(
@@ -839,7 +891,6 @@ impl Schedule {
                                 ));
                             }
                         }
-                        // provider is None or dummy
                         Ok(old_formation.add_at_tail(receiver_vh))
                     }
                 }
@@ -862,7 +913,7 @@ impl Schedule {
 
     /// Updates the provided depot_usage data structure.
     /// The vehicle is removed from the old depots (if it was a real vehicle in self).
-    /// The vehicle is added to the new depots if vehicle is real new schedule (given by vehicles) and new_tour is Some.
+    /// The vehicle is added to the new depots if vehicle is real in new schedule (given by vehicles) and new_tour is Some.
     fn update_depot_usage(
         &self,
         depot_usage: &mut DepotUsage,
@@ -1088,14 +1139,15 @@ impl Schedule {
         (new_tour_provider, new_tour_receiver, moved_nodes)
     }
 
-    fn improve_depots_of_tour(&self, tour: &Tour, vehicle_type_id: VehicleTypeId) -> Tour {
+    fn improve_depots_of_tour(
+        &self,
+        tour: &Tour,
+        vehicle_type_id: VehicleTypeId,
+        depot_usage: &DepotUsage,
+    ) -> Tour {
         let first_non_depot = tour.first_non_depot().unwrap();
         let new_start_depot = self
-            .find_best_start_depot_for_spawning(
-                vehicle_type_id,
-                first_non_depot,
-                Some(tour.start_depot().unwrap()),
-            )
+            .find_best_start_depot_for_spawning(vehicle_type_id, first_non_depot, depot_usage)
             .unwrap();
         let intermediate_tour = if new_start_depot != tour.start_depot().unwrap() {
             tour.replace_start_depot(new_start_depot).unwrap()
@@ -1124,7 +1176,7 @@ impl Schedule {
 
         // check if depot is available
         if self.network.node(first_node).is_depot()
-            && !self.can_depot_spawn_vehicle(first_node, vehicle_type_id)
+            && !self.can_depot_spawn_vehicle(first_node, vehicle_type_id, &self.depot_usage)
         {
             return Err(format!(
                 "Cannot spawn vehicle of type {} for tour {:?} at start_depot {}. No capacities available.",
@@ -1135,7 +1187,11 @@ impl Schedule {
 
         // if path does not start with a depot, insert the nearest available start_depot
         if !self.network.node(first_node).is_depot() {
-            match self.find_best_start_depot_for_spawning(vehicle_type_id, first_node, None) {
+            match self.find_best_start_depot_for_spawning(
+                vehicle_type_id,
+                first_node,
+                &self.depot_usage,
+            ) {
                 Ok(depot) => nodes.insert(0, depot),
                 Err(e) => return Err(e),
             };
@@ -1156,7 +1212,7 @@ impl Schedule {
         &self,
         vehicle_type_id: VehicleTypeId,
         first_node: NodeId,
-        old_start_depot: Option<NodeId>, // depot can be used even if full
+        depot_usage: &DepotUsage,
     ) -> Result<NodeId, String> {
         let start_location = self.network.node(first_node).start_location();
         let start_depot = self
@@ -1164,10 +1220,7 @@ impl Schedule {
             .start_depots_sorted_by_distance_to(start_location)
             .iter()
             .copied()
-            .find(|depot| {
-                self.can_depot_spawn_vehicle(*depot, vehicle_type_id)
-                    || Some(*depot) == old_start_depot // old depot can be used even if full
-            });
+            .find(|depot| self.can_depot_spawn_vehicle(*depot, vehicle_type_id, depot_usage));
         match start_depot {
             Some(depot) => Ok(depot),
             None => Err(format!(

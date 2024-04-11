@@ -65,6 +65,7 @@ impl<S> LocalSearchSolver<S> {
     }
 }
 
+// TODO: allow function computation between step
 impl<S> LocalSearchSolver<S> {
     pub fn solve(&self, initial_solution: S) -> EvaluatedSolution<S> {
         let start_time = stdtime::Instant::now();

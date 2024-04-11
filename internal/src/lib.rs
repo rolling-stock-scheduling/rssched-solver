@@ -21,22 +21,27 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
 
     let objective = Arc::new(objective::build());
 
-    // use min_cost_flow_solver as start solution
     println!("Solve with MinCostFlowSolver:");
     let min_cost_flow_solver = MinCostFlowSolver::initialize(network.clone());
     let start_schedule = min_cost_flow_solver.solve();
     println!(
-        "MinCostFlowSolver computed start schedule (elapsed time: {:0.2}sec)",
+        "MinCostFlowSolver computed schedule (elapsed time: {:0.2}sec)",
         start_time.elapsed().as_secs_f32()
     );
 
-    println!("\nStarting local search:\n");
-    println!("Initial objective value:");
-    objective.print_objective_value(objective.evaluate(start_schedule.clone()).objective_value());
-    println!();
-    // initialize local search
-    let local_search_solver = solver::local_search::build_local_search_solver(network.clone());
-    let final_solution = local_search_solver.solve(start_schedule);
+    let final_solution = if network.maintenance_considered() {
+        println!("\nStarting local search:\n");
+        println!("Initial objective value:");
+        objective
+            .print_objective_value(objective.evaluate(start_schedule.clone()).objective_value());
+
+        let local_search_solver = solver::local_search::build_local_search_solver(network.clone());
+
+        local_search_solver.solve(start_schedule)
+    } else {
+        println!("\nMaintenance is not considered, returning MinCostFlowSolver solution as final solution");
+        objective.evaluate(start_schedule.clone())
+    };
 
     let end_time = stdtime::Instant::now();
     let runtime_duration = end_time.duration_since(start_time);
@@ -44,12 +49,12 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
     // println!("\nfinal schedule (long version):");
     // final_solution.solution().print_tours_long();
 
-    println!("Final schedule:");
+    println!("\nFinal schedule:");
     final_solution.solution().print_tours();
 
     // println!("\n\nFinal train formations:");
     // final_solution.solution().print_train_formations();
-    println!("Objective value:");
+    println!("\nObjective value:");
     objective.print_objective_value(final_solution.objective_value());
 
     // final_solution.solution().print_depot_balances();

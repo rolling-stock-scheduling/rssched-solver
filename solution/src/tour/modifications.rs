@@ -197,8 +197,8 @@ impl Tour {
             }
         }
 
-        let visits_maintenance =
-            self.visits_maintenance || path.iter().any(|n| self.network.node(n).is_maintenance());
+        let new_path_contains_maintenace =
+            path.iter().any(|n| self.network.node(n).is_maintenance());
 
         let new_nodes = path.consume();
 
@@ -236,6 +236,21 @@ impl Tour {
         let removed_nodes: Vec<NodeId> = new_tour_nodes
             .splice(start_pos..end_pos, new_nodes)
             .collect();
+
+        // 1) if new path contains maintenance then the new tour has a maintenance node. Otherwise:
+        // 2) if the old tour had no maintenance node than the new tour has no maintenance node either.
+        // 3) if the old tour had a maintenance node and the removed segment had no maintenance than the
+        //    new tour has a maintenance node.
+        // 4) if the old tour had a maintenance node and the removed segment had also a maintenance node
+        //    than the new tour might have a second mateinance node, so we need to check all remaining nodes.
+        let visits_maintenance = new_path_contains_maintenace
+            || (self.visits_maintenance
+                && (!removed_nodes
+                    .iter()
+                    .any(|n| self.network.node(*n).is_maintenance())
+                    || new_tour_nodes
+                        .iter()
+                        .any(|n| self.network.node(*n).is_maintenance())));
 
         (
             Tour::new_precomputed(

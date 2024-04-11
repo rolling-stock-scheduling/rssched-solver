@@ -49,9 +49,9 @@ impl Neighborhood<Schedule> for SpawnForMaintenanceAndPathExchange {
         schedule: &'a Schedule,
         // start_provider: Option<VehicleId>,
     ) -> Box<dyn Iterator<Item = Schedule> + Send + Sync + 'a> {
-        //////////////////////////////////////////
-        // first spawn vehicles for maintenance //
-        //////////////////////////////////////////
+        ///////////////////////////////////////////
+        // first: spawn vehicles for maintenance //
+        ///////////////////////////////////////////
 
         // TODO: next neighborhood start with a different maintenance node (for speedup)
         let spawning_iterator = self
@@ -66,9 +66,9 @@ impl Neighborhood<Schedule> for SpawnForMaintenanceAndPathExchange {
                 })
             });
 
-        //////////////////////////////
-        // second exchange segments //
-        //////////////////////////////
+        ///////////////////////////////
+        // second: exchange segments //
+        ///////////////////////////////
 
         let providers: Vec<VehicleId> = if self.only_dummy_provider {
             schedule.dummy_iter().collect()

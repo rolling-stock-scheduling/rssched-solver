@@ -147,23 +147,15 @@ impl Schedule {
         depot: DepotId,
         vehicle_type: VehicleTypeId,
     ) -> VehicleCount {
-        self.depot_usage
-            .get(&(depot, vehicle_type))
-            .map(|(spawned, _)| spawned.len())
-            .unwrap_or(0) as VehicleCount
+        self.number_of_vehicles_of_same_type_spawned_at_custom_usage(
+            depot,
+            vehicle_type,
+            &self.depot_usage,
+        )
     }
 
     pub fn number_of_vehicles_spawned_at(&self, depot: DepotId) -> VehicleCount {
-        self.network
-            .vehicle_types()
-            .iter()
-            .map(|vt| {
-                self.depot_usage
-                    .get(&(depot, vt))
-                    .map(|(spawned, _)| spawned.len() as VehicleCount)
-                    .unwrap_or(0)
-            })
-            .sum()
+        self.number_of_vehicles_spawned_at_custom_usage(depot, &self.depot_usage)
     }
 
     /// Returns the number of vehicles of the given type that are spawned at the given depot - the
@@ -189,6 +181,7 @@ impl Schedule {
         &self,
         start_depot: NodeId,
         vehicle_type: VehicleTypeId,
+        depot_usage: &DepotUsage,
     ) -> bool {
         let depot = self.network.get_depot_id(start_depot);
         let capacity_for_type = self.network.capacity_of(depot, vehicle_type);
@@ -197,12 +190,18 @@ impl Schedule {
             return false;
         }
 
-        if self.number_of_vehicles_of_same_type_spawned_at(depot, vehicle_type) >= capacity_for_type
+        if self.number_of_vehicles_of_same_type_spawned_at_custom_usage(
+            depot,
+            vehicle_type,
+            depot_usage,
+        ) >= capacity_for_type
         {
             return false;
         }
 
-        if self.number_of_vehicles_spawned_at(depot) >= self.network.total_capacity_of(depot) {
+        if self.number_of_vehicles_spawned_at_custom_usage(depot, depot_usage)
+            >= self.network.total_capacity_of(depot)
+        {
             return false;
         }
 
@@ -426,7 +425,7 @@ impl Schedule {
                 };
                 let train_formation = self.train_formations.get(&node).unwrap();
                 if let Some(maximal_formation_count) = maximal_formation_count_opt {
-                    assert!(train_formation.vehicle_count() <= maximal_formation_count);
+                    assert!(train_formation.vehicle_count() <= maximal_formation_count,);
                 }
             }
 
@@ -446,9 +445,13 @@ impl Schedule {
 
         // check next_period_transition
         self.next_period_transitions
-            .values()
-            .for_each(|transition| {
-                transition.verify_consistency(&self.tours);
+            .iter()
+            .for_each(|(vt, transition)| {
+                let tours_of_type = self
+                    .vehicles_iter(*vt)
+                    .map(|vehicle| (vehicle, self.tour_of(vehicle).unwrap().clone()))
+                    .collect();
+                transition.verify_consistency(&tours_of_type);
             });
 
         // check maintenance violation
@@ -639,4 +642,36 @@ impl Schedule {
     }
 }
 
+impl Schedule {
+    // private methods
+
+    fn number_of_vehicles_of_same_type_spawned_at_custom_usage(
+        &self,
+        depot: DepotId,
+        vehicle_type: VehicleTypeId,
+        depot_usage: &DepotUsage,
+    ) -> VehicleCount {
+        depot_usage
+            .get(&(depot, vehicle_type))
+            .map(|(spawned, _)| spawned.len())
+            .unwrap_or(0) as VehicleCount
+    }
+
+    fn number_of_vehicles_spawned_at_custom_usage(
+        &self,
+        depot: DepotId,
+        depot_usage: &DepotUsage,
+    ) -> VehicleCount {
+        self.network
+            .vehicle_types()
+            .iter()
+            .map(|vt| {
+                depot_usage
+                    .get(&(depot, vt))
+                    .map(|(spawned, _)| spawned.len() as VehicleCount)
+                    .unwrap_or(0)
+            })
+            .sum()
+    }
+}
 // modifying methods are located in schedule_modifications.rs

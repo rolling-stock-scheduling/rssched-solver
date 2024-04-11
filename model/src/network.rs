@@ -83,6 +83,10 @@ impl Network {
         self.maintenance_nodes.iter().copied()
     }
 
+    pub fn maintenance_considered(&self) -> bool {
+        !self.maintenance_nodes.is_empty()
+    }
+
     pub fn start_depot_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
         self.start_depot_nodes.iter().copied()
     }

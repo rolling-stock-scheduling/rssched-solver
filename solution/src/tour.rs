@@ -599,7 +599,7 @@ impl Tour {
         let service_distance = Tour::compute_service_distance_of_nodes(&nodes, &network);
         let dead_head_distance = Tour::compute_dead_head_distance_of_nodes(&nodes, &network);
         let costs = Tour::compute_costs_of_nodes(&nodes, &network);
-        let visits_maintenance = nodes.iter().any(|&n| network.node(n).is_maintenance());
+        let visits_maintenance = Tour::compute_visits_maintenance(&nodes, &network);
 
         Tour::new_precomputed(
             nodes,
@@ -657,6 +657,10 @@ impl Tour {
                         + network.idle_time_between(*a, *b).in_sec() * network.config().costs.idle
                 })
                 .sum::<Cost>()
+    }
+
+    fn compute_visits_maintenance(nodes: &[NodeId], network: &Network) -> bool {
+        nodes.iter().any(|&n| network.node(n).is_maintenance())
     }
 
     /// Creates a new tour from a vector of NodeIds. Trusts that the vector leads to a valid Tour.

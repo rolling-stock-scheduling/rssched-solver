@@ -3,8 +3,9 @@ use std::io::Read;
 use std::path::Path;
 
 fn main() {
-    let path = "model/resources/small_test_input.json";
-    // let path = "model/resources/small_test_input_with_null_values.json";
+    // let path = "model/resources/small_test_input.json";
+    let path = "model/resources/small_test_input_with_null_values.json";
+    // let path = "model/resources/small_test_input_without_maintenance.json";
     // let path = "instances/phase1/ic_1_3_5_M332017.7.scheduler_request.json";
     // let path = "instances/phase1/ic_all_M332017.7.scheduler_request.json";
     // let path = "instances/phase1/bc_201.scheduler_request.json";
