@@ -181,31 +181,8 @@ impl Schedule {
         &self,
         start_depot: NodeId,
         vehicle_type: VehicleTypeId,
-        depot_usage: &DepotUsage,
     ) -> bool {
-        let depot = self.network.get_depot_id(start_depot);
-        let capacity_for_type = self.network.capacity_of(depot, vehicle_type);
-
-        if capacity_for_type == 0 {
-            return false;
-        }
-
-        if self.number_of_vehicles_of_same_type_spawned_at_custom_usage(
-            depot,
-            vehicle_type,
-            depot_usage,
-        ) >= capacity_for_type
-        {
-            return false;
-        }
-
-        if self.number_of_vehicles_spawned_at_custom_usage(depot, depot_usage)
-            >= self.network.total_capacity_of(depot)
-        {
-            return false;
-        }
-
-        true
+        self.can_depot_spawn_vehicle_custom_usage(start_depot, vehicle_type, &self.depot_usage)
     }
 
     pub fn reduces_spawning_at_depot_violation(
@@ -642,8 +619,38 @@ impl Schedule {
     }
 }
 
+// private methods
 impl Schedule {
-    // private methods
+    fn can_depot_spawn_vehicle_custom_usage(
+        &self,
+        start_depot: NodeId,
+        vehicle_type: VehicleTypeId,
+        depot_usage: &DepotUsage,
+    ) -> bool {
+        let depot = self.network.get_depot_id(start_depot);
+        let capacity_for_type = self.network.capacity_of(depot, vehicle_type);
+
+        if capacity_for_type == 0 {
+            return false;
+        }
+
+        if self.number_of_vehicles_of_same_type_spawned_at_custom_usage(
+            depot,
+            vehicle_type,
+            depot_usage,
+        ) >= capacity_for_type
+        {
+            return false;
+        }
+
+        if self.number_of_vehicles_spawned_at_custom_usage(depot, depot_usage)
+            >= self.network.total_capacity_of(depot)
+        {
+            return false;
+        }
+
+        true
+    }
 
     fn number_of_vehicles_of_same_type_spawned_at_custom_usage(
         &self,

@@ -230,7 +230,6 @@ impl Schedule {
                     new_start_depot,
                     self.vehicle_type_of(vehicle_id)
                         .expect("Vehicle must be real, as it starts with a depot"),
-                    &self.depot_usage,
                 )
             {
                 return Err(format!(
@@ -1176,7 +1175,7 @@ impl Schedule {
 
         // check if depot is available
         if self.network.node(first_node).is_depot()
-            && !self.can_depot_spawn_vehicle(first_node, vehicle_type_id, &self.depot_usage)
+            && !self.can_depot_spawn_vehicle(first_node, vehicle_type_id)
         {
             return Err(format!(
                 "Cannot spawn vehicle of type {} for tour {:?} at start_depot {}. No capacities available.",
@@ -1220,7 +1219,9 @@ impl Schedule {
             .start_depots_sorted_by_distance_to(start_location)
             .iter()
             .copied()
-            .find(|depot| self.can_depot_spawn_vehicle(*depot, vehicle_type_id, depot_usage));
+            .find(|depot| {
+                self.can_depot_spawn_vehicle_custom_usage(*depot, vehicle_type_id, depot_usage)
+            });
         match start_depot {
             Some(depot) => Ok(depot),
             None => Err(format!(
