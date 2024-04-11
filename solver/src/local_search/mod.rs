@@ -7,7 +7,7 @@ use heuristic_framework::local_search::LocalSearchSolver;
 use model::network::Network;
 use solution::Schedule;
 
-use neighborhood::LimitedExchanges;
+use neighborhood::SpawnForMaintenanceAndPathExchange;
 // use time::Duration;
 
 pub fn build_local_search_solver(network: Arc<Network>) -> LocalSearchSolver<Schedule> {
@@ -16,7 +16,7 @@ pub fn build_local_search_solver(network: Arc<Network>) -> LocalSearchSolver<Sch
     // let segment_limit = Duration::new("3:00:00");
     // let overhead_threshold = Duration::new("0:05:00"); // tours of real-vehicle-providers are not splitted at nodes under these duration
 
-    let neighborhood = Arc::new(LimitedExchanges::new(
+    let neighborhood = Arc::new(SpawnForMaintenanceAndPathExchange::new(
         // Some(segment_limit),
         // Some(overhead_threshold),
         None, None, false, network,

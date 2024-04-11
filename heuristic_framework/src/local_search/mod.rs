@@ -93,8 +93,10 @@ impl<S> LocalSearchSolver<S> {
         start_time: Option<stdtime::Instant>,
     ) -> SearchResult<S> {
         let mut result = NoImprovement(start_solution);
+        let mut iteration_counter = 1;
         while let Some(new_solution) = local_improver.improve(result.as_ref()) {
             if verbose {
+                println!("Iteration {}:", iteration_counter);
                 self.objective.print_objective_value_with_comparison(
                     new_solution.objective_value(),
                     result.as_ref().objective_value(),
@@ -110,6 +112,7 @@ impl<S> LocalSearchSolver<S> {
                 println!();
             }
             result = Improvement(new_solution);
+            iteration_counter += 1;
         }
         result
     }

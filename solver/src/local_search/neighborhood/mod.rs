@@ -8,7 +8,7 @@ use time::Duration;
 
 use std::iter;
 
-use self::swaps::{PathExchange, Swap};
+use self::swaps::{PathExchange, SpawnVehicleForMaintenance, Swap};
 
 ///////////////////////////////////////////////////////////
 ////////////////// LimitedExchanges ///////////////////////
@@ -20,21 +20,21 @@ use self::swaps::{PathExchange, Swap};
 /// The length of a segment is measured from the start_time of the first node to the end_time of
 /// the last node.
 #[derive(Clone)]
-pub struct LimitedExchanges {
+pub struct SpawnForMaintenanceAndPathExchange {
     segment_length_limit: Option<Duration>,
     overhead_threshold: Option<Duration>,
     only_dummy_provider: bool,
     network: Arc<Network>,
 }
 
-impl LimitedExchanges {
+impl SpawnForMaintenanceAndPathExchange {
     pub(crate) fn new(
         segment_length_limit: Option<Duration>,
         overhead_threshold: Option<Duration>,
         only_dummy_provider: bool,
         network: Arc<Network>,
-    ) -> LimitedExchanges {
-        LimitedExchanges {
+    ) -> SpawnForMaintenanceAndPathExchange {
+        SpawnForMaintenanceAndPathExchange {
             segment_length_limit,
             overhead_threshold,
             only_dummy_provider,
@@ -43,18 +43,40 @@ impl LimitedExchanges {
     }
 }
 
-impl Neighborhood<Schedule> for LimitedExchanges {
+impl Neighborhood<Schedule> for SpawnForMaintenanceAndPathExchange {
     fn neighbors_of<'a>(
         &'a self,
         schedule: &'a Schedule,
         // start_provider: Option<VehicleId>,
     ) -> Box<dyn Iterator<Item = Schedule> + Send + Sync + 'a> {
+        //////////////////////////////////////////
+        // first spawn vehicles for maintenance //
+        //////////////////////////////////////////
+
+        // TODO: next neighborhood start with a different maintenance node (for speedup)
+        let spawning_iterator = self
+            .network
+            .maintenance_nodes()
+            .flat_map(move |maintenance| {
+                let vehicle_types: Vec<_> = self.network.vehicle_types().iter().collect();
+                vehicle_types.into_iter().filter_map(move |vehicle_type| {
+                    SpawnVehicleForMaintenance::new(maintenance, vehicle_type)
+                        .apply(schedule)
+                        .ok()
+                })
+            });
+
+        //////////////////////////////
+        // second exchange segments //
+        //////////////////////////////
+
         let providers: Vec<VehicleId> = if self.only_dummy_provider {
             schedule.dummy_iter().collect()
         } else {
             self.dummy_and_real_vehicles(schedule).collect()
         };
 
+        // TODO: next neighborhood start with different provider (for speedup)
         // rotate providers such that start_provider is the first provider
         // e.g. start_provider = v5
         // so v0, v1, v2, v3, v4, v5, v6, v7, v8, v9
@@ -63,7 +85,7 @@ impl Neighborhood<Schedule> for LimitedExchanges {
         // providers.rotate_left(position);
         // }
 
-        Box::new(
+        let segment_exchange_iterator =
             // as provider first take dummies then real Vehicles:
             providers.into_iter().flat_map(move |provider|
                 // create segment of provider's tour
@@ -77,12 +99,13 @@ impl Neighborhood<Schedule> for LimitedExchanges {
                     .filter_map(move |receiver|{
                         PathExchange::new(seg, provider, receiver).apply(schedule).ok()
                     })
-                )),
-        )
+                ));
+
+        Box::new(spawning_iterator.chain(segment_exchange_iterator))
     }
 }
 
-impl LimitedExchanges {
+impl SpawnForMaintenanceAndPathExchange {
     fn segments<'a>(
         &'a self,
         provider: VehicleId,

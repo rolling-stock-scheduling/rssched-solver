@@ -29,9 +29,11 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
         "MinCostFlowSolver computed start schedule (elapsed time: {:0.2}sec)",
         start_time.elapsed().as_secs_f32()
     );
-    objective.print_objective_value(objective.evaluate(start_schedule.clone()).objective_value());
 
-    println!("\nStarting local search:");
+    println!("\nStarting local search:\n");
+    println!("Initial objective value:");
+    objective.print_objective_value(objective.evaluate(start_schedule.clone()).objective_value());
+    println!();
     // initialize local search
     let local_search_solver = solver::local_search::build_local_search_solver(network.clone());
     let final_solution = local_search_solver.solve(start_schedule);
