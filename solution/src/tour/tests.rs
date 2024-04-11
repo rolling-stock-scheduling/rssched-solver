@@ -41,9 +41,11 @@ fn basic_methods_test() {
     // ACT
     let tour = default_tour(&d);
     let path = default_path(&d);
-    let dummy_tour = Tour::new_dummy(path, d.network.clone());
+    let dummy_tour_result = Tour::new_dummy(path, d.network.clone());
 
     // ASSERT
+    assert!(dummy_tour_result.is_ok());
+    let dummy_tour = dummy_tour_result.unwrap();
     assert!(!tour.is_dummy());
     assert_eq!(tour.nodes.len(), 7);
     assert_eq!(tour.all_non_depot_nodes_iter().count(), 5);
@@ -654,7 +656,7 @@ fn insert_path_with_depot_to_dummy_tour() {
     )
     .unwrap()
     .unwrap();
-    let dummy_tour = Tour::new_dummy(path, d.network.clone());
+    let dummy_tour = Tour::new_dummy(path, d.network.clone()).unwrap();
 
     let path = Path::new(
         vec![d.start_depot1, d.trip31, d.trip14, d.end_depot2],

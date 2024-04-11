@@ -581,17 +581,14 @@ impl Tour {
         }
     }
 
-    pub(super) fn new_dummy(path: Path, network: Arc<Network>) -> Tour {
+    pub(super) fn new_dummy(path: Path, network: Arc<Network>) -> Result<Tour, String> {
         let mut nodes = path.consume();
-        // remove start and end depot
-        if network.node(*nodes.first().unwrap()).is_depot() {
-            nodes.remove(0);
-        };
-        if network.node(*nodes.last().unwrap()).is_depot() {
-            nodes.pop();
-        };
-        assert!(!nodes.is_empty());
-        Tour::new_computing(nodes, true, network)
+        // remove non-service nodes
+        nodes.retain(|&n| network.node(n).is_service());
+        if nodes.is_empty() {
+            return Err("Dummy tour needs to have at least one service nodes.".to_string());
+        }
+        Ok(Tour::new_computing(nodes, true, network))
     }
 
     fn new_computing(nodes: Vec<NodeId>, is_dummy: bool, network: Arc<Network>) -> Tour {

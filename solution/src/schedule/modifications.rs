@@ -146,6 +146,7 @@ impl Schedule {
         let mut dummy_tours = self.dummy_tours.clone();
         let mut dummy_ids_sorted = self.dummy_ids_sorted.clone();
         let mut maintenance_violation = self.maintenance_violation;
+        let mut vehicle_counter = self.vehicle_counter;
 
         vehicles.remove(&vehicle_id);
 
@@ -167,12 +168,18 @@ impl Schedule {
 
         let tour = self.tour_of(vehicle_id).unwrap();
 
-        self.add_dummy_tour(
-            &mut dummy_tours,
-            &mut dummy_ids_sorted,
-            VehicleId::dummy_from(self.vehicle_counter as Id),
+        if let Ok(dummy_tour) = Tour::new_dummy(
             tour.sub_path(Segment::new(tour.first_node(), tour.last_node()))?,
-        );
+            self.network.clone(),
+        ) {
+            self.add_dummy_tour(
+                &mut dummy_tours,
+                &mut dummy_ids_sorted,
+                VehicleId::dummy_from(self.vehicle_counter as Id),
+                dummy_tour,
+            );
+            vehicle_counter += 1;
+        }
 
         self.update_transitions_and_violation_fast(
             &mut next_period_transitions,
@@ -192,7 +199,7 @@ impl Schedule {
             vehicle_ids_grouped_and_sorted,
             dummy_ids_sorted,
             maintenance_violation,
-            vehicle_counter: self.vehicle_counter + 1,
+            vehicle_counter,
             network: self.network.clone(),
         })
     }
@@ -320,13 +327,13 @@ impl Schedule {
         let vehicle_ids_grouped_and_sorted = self.vehicle_ids_grouped_and_sorted.clone();
         let mut dummy_ids_sorted = self.dummy_ids_sorted.clone();
         let mut maintenance_violation = self.maintenance_violation;
+        let mut vehicle_counter = self.vehicle_counter;
 
         let tour = self.tour_of(vehicle_id).unwrap();
         let (shrinked_tour, removed_path) = tour.remove(segment)?;
 
         match shrinked_tour {
-            None => self.replace_vehicle_by_dummy(vehicle_id), // segment was the whole tour
-            // (except for depots)
+            None => self.replace_vehicle_by_dummy(vehicle_id), // segment was the whole tour (except for depots)
             Some(new_tour) => {
                 self.update_train_formation(
                     &mut train_formations,
@@ -339,12 +346,15 @@ impl Schedule {
 
                 self.update_depot_usage(&mut depot_usage, &vehicles, &tours, vehicle_id);
 
-                self.add_dummy_tour(
-                    &mut dummy_tours,
-                    &mut dummy_ids_sorted,
-                    VehicleId::dummy_from(self.vehicle_counter as Id),
-                    removed_path,
-                );
+                if let Ok(new_dummy_tour) = Tour::new_dummy(removed_path, self.network.clone()) {
+                    self.add_dummy_tour(
+                        &mut dummy_tours,
+                        &mut dummy_ids_sorted,
+                        VehicleId::dummy_from(self.vehicle_counter as Id),
+                        new_dummy_tour,
+                    );
+                    vehicle_counter += 1;
+                }
 
                 self.update_transitions_and_violation_fast(
                     &mut next_period_transitions,
@@ -364,7 +374,7 @@ impl Schedule {
                     vehicle_ids_grouped_and_sorted,
                     dummy_ids_sorted,
                     maintenance_violation,
-                    vehicle_counter: self.vehicle_counter + 1,
+                    vehicle_counter,
                     network: self.network.clone(),
                 })
             }
@@ -509,11 +519,7 @@ impl Schedule {
 
         let mut new_dummy_opt = None; // for return value
 
-        // insert new dummy tour consisting of conflicting nodes removed from receiver's tour
         if let Some(new_path) = replaced_path {
-            let new_dummy = VehicleId::dummy_from(vehicle_counter as Id);
-            new_dummy_opt = Some(new_dummy);
-
             if self.is_vehicle(receiver) {
                 // in this case receiver needs to be removed from the train formations of the
                 // removed nodes
@@ -525,8 +531,20 @@ impl Schedule {
                 )?;
             }
 
-            self.add_dummy_tour(&mut dummy_tours, &mut dummy_ids_sorted, new_dummy, new_path);
-            vehicle_counter += 1;
+            if let Ok(new_dummy_tour) = Tour::new_dummy(new_path, self.network.clone()) {
+                // removed nodes contain service trips, so add a dummy tour
+
+                let new_dummy = VehicleId::dummy_from(vehicle_counter as Id);
+                new_dummy_opt = Some(new_dummy);
+                vehicle_counter += 1;
+
+                self.add_dummy_tour(
+                    &mut dummy_tours,
+                    &mut dummy_ids_sorted,
+                    new_dummy,
+                    new_dummy_tour,
+                );
+            }
         }
         self.update_transitions_and_violation_fast(
             &mut next_period_transitions,
@@ -1040,16 +1058,15 @@ impl Schedule {
         &self,
         dummy_tours: &mut HashMap<VehicleId, Tour>,
         dummy_ids_sorted: &mut Vec<VehicleId>,
-        dummy_id: VehicleId,
-        path: Path,
+        new_dummy_id: VehicleId,
+        new_dummy_tour: Tour,
     ) {
-        let dummy_tour = Tour::new_dummy(path, self.network.clone());
-        dummy_tours.insert(dummy_id, dummy_tour);
+        dummy_tours.insert(new_dummy_id, new_dummy_tour);
         dummy_ids_sorted.insert(
             dummy_ids_sorted
-                .binary_search(&dummy_id)
+                .binary_search(&new_dummy_id)
                 .unwrap_or_else(|e| e),
-            dummy_id,
+            new_dummy_id,
         );
     }
 
