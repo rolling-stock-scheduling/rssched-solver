@@ -12,7 +12,11 @@ pub struct Transition {
 }
 
 impl Transition {
-    pub fn one_cylce_per_vehicle(
+    pub fn new_fast(vehicles: &[VehicleId], tours: &HashMap<VehicleId, Tour>) -> Transition {
+        Transition::one_cluster_per_maintenance(vehicles, tours)
+    }
+
+    /* pub fn one_cylce_per_vehicle(
         vehicles: &[VehicleId],
         tours: &HashMap<VehicleId, Tour>,
     ) -> Transition {
@@ -31,13 +35,13 @@ impl Transition {
             cycles,
             total_maintenance_violation,
         }
-    }
+    } */
 
     /// Assigns each vehicle greedily to a cluster with the goal of minimizing the total maintenance violation.
     /// It is assumed that all vehicles are of the same type.
     /// It is assumed that each vehicle has a tour.
     /// tours might contain tours of vehicle of other types.
-    pub fn one_cluster_per_maintenance(
+    fn one_cluster_per_maintenance(
         vehicles: &[VehicleId],
         tours: &HashMap<VehicleId, Tour>,
     ) -> Transition {
