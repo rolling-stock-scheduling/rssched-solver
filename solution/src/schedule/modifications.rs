@@ -117,6 +117,8 @@ impl Schedule {
     }
 
     /// Delete vehicle (and its tour) from schedule.
+    /// # Errors
+    /// If the vehicle is not a real vehicle an error is returned.
     pub fn replace_vehicle_by_dummy(&self, vehicle_id: VehicleId) -> Result<Schedule, String> {
         if !self.is_vehicle(vehicle_id) {
             return Err(format!(
@@ -125,7 +127,7 @@ impl Schedule {
             ));
         }
 
-        let vehicle_type_id = self.vehicle_type_of(vehicle_id);
+        let vehicle_type_id = self.vehicle_type_of(vehicle_id)?;
 
         let mut vehicles = self.vehicles.clone();
         let mut tours = self.tours.clone();
@@ -183,23 +185,24 @@ impl Schedule {
     /// Add a path to the tour of a vehicle. If the path causes conflicts, the conflicting nodes of
     /// the old tour are removed.
     /// # Errors
-    /// If some node on the path is not compatible with the vehicle type an error is returned.
+    /// If some node on the path is not compatible with the vehicle type (if real vehicle) an error is returned.
     /// If a train formation of some node on the path is full, an error is returned.
     pub fn add_path_to_vehicle_tour(
         &self,
         vehicle_id: VehicleId,
         path: Path,
     ) -> Result<Schedule, String> {
-        let vehicle_type_id = self.vehicle_type_of(vehicle_id);
-        if path.iter().any(|n| {
-            !self
-                .network
-                .compatible_with_vehicle_type(n, vehicle_type_id)
-        }) {
-            return Err(format!(
+        if let Ok(vehicle_type_id) = self.vehicle_type_of(vehicle_id) {
+            if path.iter().any(|n| {
+                !self
+                    .network
+                    .compatible_with_vehicle_type(n, vehicle_type_id)
+            }) {
+                return Err(format!(
                 "Cannot add path {} to vehicle tour {}. Nodes are not compatible with vehicle type {}.",
                 path, vehicle_id, vehicle_type_id,
             ));
+            }
         }
         if self.network.node(path.first()).is_depot() {
             // path starts with a depot, so we need to ensure that the new depot has capacities
@@ -208,7 +211,11 @@ impl Schedule {
             let old_start_depot = self.tour_of(vehicle_id).unwrap().start_depot().unwrap();
 
             if new_start_depot != old_start_depot
-                && !self.can_depot_spawn_vehicle(new_start_depot, self.vehicle_type_of(vehicle_id))
+                && !self.can_depot_spawn_vehicle(
+                    new_start_depot,
+                    self.vehicle_type_of(vehicle_id)
+                        .expect("Vehicle must be real, as it starts with a depot"),
+                )
             {
                 return Err(format!(
                     "Cannot add path {} to vehicle tour {}. New start depot has no capacity available.",
@@ -265,6 +272,79 @@ impl Schedule {
         })
     }
 
+    /// Remove segment from tour of vehicle.
+    /// All service trips are added to a new dummy tour.
+    /// If the segment contains all non-depot nodes of the tour, the vehicle is replaced by a dummy.
+    /// # Errors
+    /// If the vehicle is not a real vehicle an error is returned.
+    pub fn remove_segment(
+        // TODO write test for this
+        &self,
+        segment: Segment,
+        vehicle_id: VehicleId,
+    ) -> Result<Schedule, String> {
+        if !self.is_vehicle(vehicle_id) {
+            return Err(format!(
+                "Cannot remove segment {} from vehicle {}. Vehicle is not a real vehicle.",
+                segment, vehicle_id,
+            ));
+        }
+        let vehicles = self.vehicles.clone();
+        let mut tours = self.tours.clone();
+        let mut train_formations = self.train_formations.clone();
+        let mut depot_usage = self.depot_usage.clone();
+        let mut dummy_tours = self.dummy_tours.clone();
+        let vehicle_ids_grouped_and_sorted = self.vehicle_ids_grouped_and_sorted.clone();
+        let mut dummy_ids_sorted = self.dummy_ids_sorted.clone();
+
+        let tour = self.tour_of(vehicle_id).unwrap();
+        let (shrinked_tour, removed_path) = tour.remove(segment)?;
+
+        match shrinked_tour {
+            None => self.replace_vehicle_by_dummy(vehicle_id), // segment was the whole tour
+            // (except for depots)
+            Some(new_tour) => {
+                self.update_train_formation(
+                    &mut train_formations,
+                    Some(vehicle_id),
+                    None,
+                    removed_path.iter(),
+                )?;
+
+                self.update_tour(&mut tours, &mut dummy_tours, vehicle_id, new_tour);
+
+                self.update_depot_usage(&mut depot_usage, &vehicles, &tours, vehicle_id);
+
+                self.add_dummy_tour(
+                    &mut dummy_tours,
+                    &mut dummy_ids_sorted,
+                    VehicleId::dummy_from(self.vehicle_counter as Id),
+                    removed_path,
+                );
+
+                let (next_period_transitions, maintenance_violation) =
+                    Schedule::compute_transitions_and_violation(
+                        &vehicle_ids_grouped_and_sorted,
+                        &tours,
+                    );
+
+                Ok(Schedule {
+                    vehicles,
+                    tours,
+                    next_period_transitions,
+                    train_formations,
+                    depot_usage,
+                    dummy_tours,
+                    vehicle_ids_grouped_and_sorted,
+                    dummy_ids_sorted,
+                    maintenance_violation,
+                    vehicle_counter: self.vehicle_counter + 1,
+                    network: self.network.clone(),
+                })
+            }
+        }
+    }
+
     /// Tries to insert all nodes of provider's segment into receiver's tour.
     /// Nodes that causes conflcits are rejected and stay in provider's tour.
     /// Nodes that do not cause a conflict are removed from provider's tour and assigned to the receiver.
@@ -278,24 +358,11 @@ impl Schedule {
         provider: VehicleId,
         receiver: VehicleId,
     ) -> Result<Schedule, String> {
-        if self.vehicle_type_of(provider) != self.vehicle_type_of(receiver) {
-            // vehicle types do not match, check if there are any service trip in the segment
-            if self
-                .tour_of(provider)
-                .unwrap()
-                .sub_path(segment)?
-                .iter()
-                .any(|n| {
-                    !self
-                        .network
-                        .compatible_with_vehicle_type(n, self.vehicle_type_of(receiver))
-                })
-            {
-                return Err(format!(
+        if !self.check_receiver_type_compatibility(provider, receiver, segment) {
+            return Err(format!(
                 "Cannot fit_reassign segment {} from vehicle {} to vehicle {}. Vehicle types do not match and segment contains service trip.",
                 segment, provider, receiver,
             ));
-            }
         }
         let mut vehicles = self.vehicles.clone();
         let mut tours = self.tours.clone();
@@ -360,24 +427,11 @@ impl Schedule {
         provider: VehicleId,
         receiver: VehicleId,
     ) -> Result<(Schedule, Option<VehicleId>), String> {
-        if self.vehicle_type_of(provider) != self.vehicle_type_of(receiver) {
-            // vehicle types do not match, check if there are any service trip in the segment
-            if self
-                .tour_of(provider)
-                .unwrap()
-                .sub_path(segment)?
-                .iter()
-                .any(|n| {
-                    !self
-                        .network
-                        .compatible_with_vehicle_type(n, self.vehicle_type_of(receiver))
-                })
-            {
-                return Err(format!(
+        if !self.check_receiver_type_compatibility(provider, receiver, segment) {
+            return Err(format!(
                 "Cannot override_reassign segment {} from vehicle {} to vehicle {}. Vehicle types do not match and segment contains service trip.",
                 segment, provider, receiver,
             ));
-            }
         }
         let mut vehicles = self.vehicles.clone();
         let mut tours = self.tours.clone();
@@ -470,7 +524,7 @@ impl Schedule {
         {
             let tour = self.tour_of(*vehicle_id).unwrap();
             let vehicle_type_id = self.vehicle_type_of(*vehicle_id);
-            let new_tour = self.improve_depots_of_tour(tour, vehicle_type_id);
+            let new_tour = self.improve_depots_of_tour(tour, vehicle_type_id.unwrap());
             tours.insert(*vehicle_id, new_tour);
 
             self.update_depot_usage(&mut depot_usage, &self.vehicles, &tours, *vehicle_id);
@@ -574,6 +628,37 @@ impl Schedule {
         })
     }
 
+    fn check_receiver_type_compatibility(
+        &self,
+        provider: VehicleId,
+        receiver: VehicleId,
+        segment: Segment,
+    ) -> bool {
+        if let Ok(vehicle_type_of_receiver) = self.vehicle_type_of(receiver) {
+            let vehicle_type_of_provider_result = self.vehicle_type_of(provider);
+            if vehicle_type_of_provider_result.is_err()
+                || vehicle_type_of_provider_result.unwrap() != vehicle_type_of_receiver
+            {
+                // vehicle types do not match, check if there are any service trip in the segment
+                if self
+                    .tour_of(provider)
+                    .unwrap()
+                    .sub_path(segment)
+                    .unwrap()
+                    .iter()
+                    .any(|n| {
+                        !self
+                            .network
+                            .compatible_with_vehicle_type(n, vehicle_type_of_receiver)
+                    })
+                {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+
     /// Reassign vehicles to the new tours.
     /// The depots of the tours are improved.
     /// Updates all relevant data structures.
@@ -607,7 +692,7 @@ impl Schedule {
                         dummy_ids_sorted
                             .remove(dummy_ids_sorted.binary_search(&provider_id).unwrap());
                     } else if self.is_vehicle(provider_id) {
-                        let provider_vehicle_type = self.vehicle_type_of(provider_id);
+                        let provider_vehicle_type = self.vehicle_type_of(provider_id).unwrap();
                         vehicles.remove(&provider_id);
                         tours.remove(&provider_id); // old_tour is completely removed
 

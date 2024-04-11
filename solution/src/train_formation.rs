@@ -71,23 +71,23 @@ impl TrainFormation {
         }
     }
 
-    pub(crate) fn ids(&self) -> Vec<VehicleId> {
+    pub fn ids(&self) -> Vec<VehicleId> {
         self.formation.iter().map(|v| v.id()).collect()
     }
 
-    pub(crate) fn iter(&self) -> impl Iterator<Item = &Vehicle> {
+    pub fn iter(&self) -> impl Iterator<Item = &Vehicle> {
         self.formation.iter()
     }
 
-    pub(crate) fn capacity(&self) -> PassengerCount {
+    pub fn capacity(&self) -> PassengerCount {
         self.formation.iter().map(|v| v.capacity()).sum()
     }
 
-    pub(crate) fn seats(&self) -> PassengerCount {
+    pub fn seats(&self) -> PassengerCount {
         self.formation.iter().map(|v| v.seats()).sum()
     }
 
-    pub(crate) fn vehicle_count(&self) -> VehicleCount {
+    pub fn vehicle_count(&self) -> VehicleCount {
         self.formation.len() as VehicleCount
     }
 }

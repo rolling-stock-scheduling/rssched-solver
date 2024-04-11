@@ -110,7 +110,9 @@ fn tours_to_json(schedule: &Schedule) -> Vec<JsonTour> {
 
 fn tour_to_json(schedule: &Schedule, vehicle_id: VehicleId) -> JsonTour {
     let network = schedule.get_network();
-    let vehicle_type_id = schedule.vehicle_type_of(vehicle_id);
+    let vehicle_type_id = schedule
+        .vehicle_type_of(vehicle_id)
+        .expect("vehicle not found");
     let start_depot = schedule.tour_of(vehicle_id).unwrap().first_node();
     let end_depot = schedule.tour_of(vehicle_id).unwrap().last_node();
     let mut tour = Vec::new();

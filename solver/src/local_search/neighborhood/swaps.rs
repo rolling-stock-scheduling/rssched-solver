@@ -27,9 +27,22 @@ impl SpawnVehicleForMaintenance {
 
 impl Swap for SpawnVehicleForMaintenance {
     fn apply(&self, schedule: &Schedule) -> Result<Schedule, String> {
-        schedule
-            .spawn_vehicle_for_path(self.vehicle_type, vec![self.maintenance_slot])
-            .map(|(s, _)| s)
+        match schedule
+            .train_formation_of(self.maintenance_slot)
+            .ids()
+            .first()
+        {
+            Some(&occupant) => Ok(schedule
+                .remove_segment(
+                    Segment::new(self.maintenance_slot, self.maintenance_slot),
+                    occupant,
+                )?
+                .spawn_vehicle_for_path(self.vehicle_type, vec![self.maintenance_slot])?
+                .0),
+            None => Ok(schedule
+                .spawn_vehicle_for_path(self.vehicle_type, vec![self.maintenance_slot])?
+                .0),
+        }
     }
 }
 
@@ -60,9 +73,6 @@ impl PathExchange {
             receiver,
         }
     }
-    pub(crate) fn provider(&self) -> VehicleId {
-        self.provider
-    }
 }
 
 impl Swap for PathExchange {
@@ -90,7 +100,7 @@ impl Swap for PathExchange {
                 let (new_schedule, new_vehicle) = first_schedule
                     .spawn_vehicle_to_replace_dummy_tour(
                         new_dummy,
-                        schedule.vehicle_type_of(self.provider),
+                        schedule.vehicle_type_of(self.provider).unwrap(),
                     )?;
                 changed_tours.push(new_vehicle);
                 new_schedule

@@ -103,8 +103,8 @@ impl Schedule {
             .ok_or_else(|| format!("{} is not an vehicle.", vehicle))
     }
 
-    pub fn vehicle_type_of(&self, vehicle: VehicleId) -> VehicleTypeId {
-        self.get_vehicle(vehicle).unwrap().type_id()
+    pub fn vehicle_type_of(&self, vehicle: VehicleId) -> Result<VehicleTypeId, String> {
+        Ok(self.get_vehicle(vehicle)?.type_id())
     }
 
     pub fn is_dummy(&self, vehicle: VehicleId) -> bool {
@@ -337,7 +337,7 @@ impl Schedule {
         // check vehicles
         for (id, vehicle) in self.vehicles.iter() {
             assert_eq!(*id, vehicle.id());
-            assert_eq!(self.vehicle_type_of(*id), vehicle.type_id());
+            assert_eq!(self.vehicle_type_of(*id).unwrap(), vehicle.type_id());
         }
 
         // check vehicles id sets are equal
@@ -394,7 +394,7 @@ impl Schedule {
             for node in tour.all_non_depot_nodes_iter() {
                 if self.network.node(node).is_service() {
                     assert_eq!(
-                        self.vehicle_type_of(*vehicle),
+                        self.vehicle_type_of(*vehicle).unwrap(),
                         self.network.vehicle_type_for(node)
                     );
                 }
@@ -431,7 +431,7 @@ impl Schedule {
             }
 
             // check depots usage
-            let vehicle_type = self.vehicle_type_of(*vehicle);
+            let vehicle_type = self.vehicle_type_of(*vehicle).unwrap();
 
             let start_depot = self.network.get_depot_id(tour.start_depot().unwrap());
             let (spawned, _) = self.depot_usage.get(&(start_depot, vehicle_type)).unwrap();
@@ -465,7 +465,7 @@ impl Schedule {
             let (spawned, despawned) = self.depot_usage.get(&(*depot, *vehicle_type)).unwrap();
             for vehicle in spawned.iter() {
                 assert!(self.vehicles.contains_key(vehicle));
-                assert_eq!(self.vehicle_type_of(*vehicle), *vehicle_type);
+                assert_eq!(self.vehicle_type_of(*vehicle).unwrap(), *vehicle_type);
                 assert_eq!(
                     self.network
                         .get_depot_id(self.tour_of(*vehicle).unwrap().start_depot().unwrap()),
@@ -474,7 +474,7 @@ impl Schedule {
             }
             for vehicle in despawned.iter() {
                 assert!(self.vehicles.contains_key(vehicle));
-                assert_eq!(self.vehicle_type_of(*vehicle), *vehicle_type);
+                assert_eq!(self.vehicle_type_of(*vehicle).unwrap(), *vehicle_type);
                 assert_eq!(
                     self.network
                         .get_depot_id(self.tour_of(*vehicle).unwrap().end_depot().unwrap()),
