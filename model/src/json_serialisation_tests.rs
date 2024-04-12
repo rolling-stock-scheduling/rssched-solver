@@ -53,9 +53,9 @@ fn test_load_from_json(path: &str) {
     assert_eq!(loc2, Location::of(LocationId::from(2)));
     assert_eq!(loc3, Location::of(LocationId::from(3)));
 
-    assert_eq!(locations.get_location_name(loc0).unwrap(), "Location 0");
-    assert_eq!(locations.get_location_name(loc2).unwrap(), "Location 2");
-    assert_eq!(locations.get_location_name(loc3).unwrap(), "Location 3");
+    assert_eq!(locations.get_external_id_of_location(loc0).unwrap(), "Location 0");
+    assert_eq!(locations.get_external_id_of_location(loc2).unwrap(), "Location 2");
+    assert_eq!(locations.get_external_id_of_location(loc3).unwrap(), "Location 3");
 
     assert_eq!(network.all_nodes().count(), 10);
 

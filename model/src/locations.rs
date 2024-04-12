@@ -20,7 +20,7 @@ use crate::base_types::{Distance, Location, LocationId};
 /// A DeadHeadMetrics instance can only be created together with the Vec<Distance> of wrapped
 /// stations. Use loactions::create_locations for that. Hence, the indices should always be consistent.
 pub struct Locations {
-    stations: HashMap<LocationId, (String, Option<VehicleCount>)>, // values: (name, daylimit)
+    stations: HashMap<LocationId, (String, Option<VehicleCount>)>, // values: (external_id, daylimit)
     dead_head_trips: HashMap<LocationId, HashMap<LocationId, DeadHeadTrip>>,
 }
 
@@ -64,14 +64,14 @@ impl Locations {
         }
     }
 
-    pub fn get_location_name(&self, location: Location) -> Result<String, &'static str> {
+    pub fn get_external_id_of_location(&self, location: Location) -> Result<String, &'static str> {
         match self.stations.get(&location.id()) {
             Some((name, _)) => Ok(name.clone()),
             None => Err("Location Id is invalid."),
         }
     }
 
-    pub fn get_location_daylimit(
+    pub fn get_daylimit_of_location(
         &self,
         location: Location,
     ) -> Result<Option<VehicleCount>, &'static str> {

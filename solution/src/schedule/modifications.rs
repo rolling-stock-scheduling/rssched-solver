@@ -1,6 +1,6 @@
 use im::{HashMap, HashSet};
 use itertools::Itertools;
-use model::base_types::{Id, MaintenanceCounter, NodeId, VehicleId, VehicleTypeId};
+use model::base_types::{Idx, MaintenanceCounter, NodeId, VehicleId, VehicleTypeId};
 
 use crate::{
     path::Path, segment::Segment, tour::Tour, train_formation::TrainFormation,
@@ -76,7 +76,7 @@ impl Schedule {
         let mut vehicle_ids_grouped_and_sorted = self.vehicle_ids_grouped_and_sorted.clone();
         let mut maintenance_violation = self.maintenance_violation;
 
-        let vehicle_id = VehicleId::vehicle_from(self.vehicle_counter as Id);
+        let vehicle_id = VehicleId::vehicle_from(self.vehicle_counter as Idx);
         let tour = Tour::new(nodes, self.network.clone())?;
         let vehicle = Vehicle::new(vehicle_id, vehicle_type_id, self.network.vehicle_types());
 
@@ -175,7 +175,7 @@ impl Schedule {
             self.add_dummy_tour(
                 &mut dummy_tours,
                 &mut dummy_ids_sorted,
-                VehicleId::dummy_from(self.vehicle_counter as Id),
+                VehicleId::dummy_from(self.vehicle_counter as Idx),
                 dummy_tour,
             );
             vehicle_counter += 1;
@@ -350,7 +350,7 @@ impl Schedule {
                     self.add_dummy_tour(
                         &mut dummy_tours,
                         &mut dummy_ids_sorted,
-                        VehicleId::dummy_from(self.vehicle_counter as Id),
+                        VehicleId::dummy_from(self.vehicle_counter as Idx),
                         new_dummy_tour,
                     );
                     vehicle_counter += 1;
@@ -534,7 +534,7 @@ impl Schedule {
             if let Ok(new_dummy_tour) = Tour::new_dummy(new_path, self.network.clone()) {
                 // removed nodes contain service trips, so add a dummy tour
 
-                let new_dummy = VehicleId::dummy_from(vehicle_counter as Id);
+                let new_dummy = VehicleId::dummy_from(vehicle_counter as Idx);
                 new_dummy_opt = Some(new_dummy);
                 vehicle_counter += 1;
 
