@@ -34,6 +34,7 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
         println!("Initial objective value:");
         objective
             .print_objective_value(objective.evaluate(start_schedule.clone()).objective_value());
+        println!();
 
         let local_search_solver = solver::local_search::build_local_search_solver(network.clone());
 
