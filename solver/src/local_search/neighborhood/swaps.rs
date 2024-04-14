@@ -1,4 +1,4 @@
-use model::base_types::{NodeIdx, VehicleIdx, VehicleTypeIdx};
+use model::base_types::{NodeIdx, VehicleCount, VehicleIdx, VehicleTypeIdx};
 use solution::{segment::Segment, Schedule};
 
 use std::fmt;
@@ -27,21 +27,28 @@ impl SpawnVehicleForMaintenance {
 
 impl Swap for SpawnVehicleForMaintenance {
     fn apply(&self, schedule: &Schedule) -> Result<Schedule, String> {
-        match schedule
-            .train_formation_of(self.maintenance_slot)
-            .ids()
-            .first()
+        let occupants = schedule.train_formation_of(self.maintenance_slot).ids();
+
+        if occupants.len() as VehicleCount
+            >= schedule
+                .get_network()
+                .tracks_of_maintenance_slot(self.maintenance_slot)
         {
-            Some(&occupant) => Ok(schedule
+            // maintenance slot is already fully occupied
+            // remove the last occupant and spawn a new vehicle
+
+            let last_occupant = *occupants.last().unwrap();
+            Ok(schedule
                 .remove_segment(
                     Segment::new(self.maintenance_slot, self.maintenance_slot),
-                    occupant,
+                    last_occupant,
                 )?
                 .spawn_vehicle_for_path(self.vehicle_type, vec![self.maintenance_slot])?
-                .0),
-            None => Ok(schedule
+                .0)
+        } else {
+            Ok(schedule
                 .spawn_vehicle_for_path(self.vehicle_type, vec![self.maintenance_slot])?
-                .0),
+                .0)
         }
     }
 }
@@ -66,7 +73,11 @@ pub struct PathExchange {
 }
 
 impl PathExchange {
-    pub(crate) fn new(segment: Segment, provider: VehicleIdx, receiver: VehicleIdx) -> PathExchange {
+    pub(crate) fn new(
+        segment: Segment,
+        provider: VehicleIdx,
+        receiver: VehicleIdx,
+    ) -> PathExchange {
         PathExchange {
             segment,
             provider,
