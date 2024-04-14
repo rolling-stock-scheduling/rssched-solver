@@ -3,7 +3,9 @@ mod modifications;
 mod tests;
 use crate::path::Path;
 use crate::segment::Segment;
-use model::base_types::{Cost, Distance, MaintenanceCounter, NodeId};
+use model::base_types::{
+    Cost, Distance, MaintenanceCounter, NodeId, COST_FOR_INF_DURATION, MAINT_COUNTER_FOR_INF_DIST,
+};
 use model::network::nodes::Node;
 use model::network::Network;
 use std::cmp::Ordering;
@@ -93,15 +95,20 @@ impl Tour {
     /// maximal distance allowed if the tour visits a maintenance node.
     pub fn maintenance_counter(&self) -> MaintenanceCounter {
         if self.visits_maintenance {
-            self.total_distance().in_meter() as MaintenanceCounter
+            self.total_distance()
+                .in_meter()
+                .unwrap_or(MAINT_COUNTER_FOR_INF_DIST) as MaintenanceCounter
                 - self
                     .network
                     .config()
                     .maintenance
                     .maximal_distance
-                    .in_meter() as MaintenanceCounter
+                    .in_meter()
+                    .unwrap_or(MAINT_COUNTER_FOR_INF_DIST) as MaintenanceCounter
         } else {
-            self.total_distance().in_meter() as MaintenanceCounter
+            self.total_distance()
+                .in_meter()
+                .unwrap_or(MAINT_COUNTER_FOR_INF_DIST) as MaintenanceCounter
         }
     }
 
@@ -641,7 +648,7 @@ impl Tour {
                     .node(*n)
                     .duration()
                     .in_sec()
-                    .expect("Infinity duration in tour")
+                    .unwrap_or(COST_FOR_INF_DURATION)
                     * match network.node(*n) {
                         Node::Service(_) => network.config().costs.service_trip,
                         Node::Maintenance(_) => network.config().costs.maintenance,
@@ -656,12 +663,12 @@ impl Tour {
                     network
                         .dead_head_time_between(*a, *b)
                         .in_sec()
-                        .expect("Infinity dead head time in tour")
+                        .unwrap_or(COST_FOR_INF_DURATION)
                         * network.config().costs.dead_head_trip
                         + network
                             .idle_time_between(*a, *b)
                             .in_sec()
-                            .expect("Infinity idle time in tour")
+                            .unwrap_or(COST_FOR_INF_DURATION)
                             * network.config().costs.idle
                 })
                 .sum::<Cost>()

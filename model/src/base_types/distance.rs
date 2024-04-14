@@ -10,12 +10,10 @@ pub enum Distance {
 
 // methods:
 impl Distance {
-    pub fn in_meter(&self) -> Meter {
+    pub fn in_meter(&self) -> Result<Meter, &str> {
         match self {
-            Distance::Distance(d) => *d,
-            Distance::Infinity => {
-                panic!("Distance is infinity")
-            }
+            Distance::Distance(d) => Ok(*d),
+            Distance::Infinity => Err("Distance is infinity"),
         }
     }
 

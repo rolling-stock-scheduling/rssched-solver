@@ -25,6 +25,7 @@ type SortedNodes = BTreeMap<(DateTime, NodeId), NodeId>;
 pub struct Network {
     nodes: HashMap<NodeId, Node>,
     depots: HashMap<DepotId, (Depot, NodeId, NodeId)>, // depot, start_node, end_node
+    overflow_depot_ids: (DepotId, NodeId, NodeId),
 
     // nodes are by default sorted by start_time (ties are broken by end_time then id)
     service_nodes: HashMap<VehicleTypeId, Vec<NodeId>>,
@@ -97,6 +98,11 @@ impl Network {
 
     pub fn depots_iter(&self) -> impl Iterator<Item = DepotId> + '_ {
         self.depots.keys().copied()
+    }
+
+    /// returns the depot_ids of the overflow depot and its start and end node
+    pub fn overflow_depot_ids(&self) -> (DepotId, NodeId, NodeId) {
+        self.overflow_depot_ids
     }
 
     /// service and maintenance_nodes
@@ -207,6 +213,12 @@ impl Network {
             // start depots cannot be reached
             // end depots cannot reach anything
             return false;
+        }
+
+        if n1.is_start_depot() || n2.is_end_depot() {
+            // start depots can reach anything
+            // end depots can be reached
+            return true;
         }
 
         n1.end_time() + self.minimal_duration_between_nodes_as_ref(n1, n2) <= n2.start_time()
@@ -350,8 +362,9 @@ impl Network {
 
         // add overflow depot (infinity capacity for all types, but located Nowhere -> Distance is
         // Infinity)
+        let overflow_depot_id = DepotId::from(depots.len() as Idx);
         let overflow_depot = Depot::new(
-            DepotId::from(depots.len() as Idx),
+            overflow_depot_id,
             String::from("OVERFLOW_DEPOT"),
             Location::Nowhere,
             VehicleCount::MAX,
@@ -475,9 +488,16 @@ impl Network {
 
         let number_of_service_nodes = service_nodes.values().map(|v| v.len()).sum();
 
+        let overflow_depot_ids = (
+            overflow_depot_id,
+            depots_lookup[&overflow_depot_id].1,
+            depots_lookup[&overflow_depot_id].2,
+        );
+
         Network {
             nodes,
             depots: depots_lookup,
+            overflow_depot_ids,
             service_nodes,
             maintenance_nodes,
             start_depot_nodes,

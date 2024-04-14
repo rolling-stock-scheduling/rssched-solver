@@ -1,4 +1,4 @@
-use model::base_types::{Distance, COST_FOR_INF_DURATION};
+use model::base_types::{Distance, COST_FOR_INF_DURATION, MAINT_COUNTER_FOR_INF_DIST};
 use objective_framework::{BaseValue, Coefficient, Indicator, Level, Objective};
 use solution::Schedule;
 use time::Duration;
@@ -40,7 +40,8 @@ impl Indicator<Schedule> for DummyDistanceIndicator {
                 .dummy_iter()
                 .map(|d| schedule.tour_of(d).unwrap().total_distance())
                 .sum::<Distance>()
-                .in_meter() as i64,
+                .in_meter()
+                .unwrap_or(MAINT_COUNTER_FOR_INF_DIST) as i64,
         )
     }
 

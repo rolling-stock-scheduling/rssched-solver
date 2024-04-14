@@ -601,17 +601,35 @@ impl Schedule {
     }
 
     /// initializing a schedule with a given list of tours (in Vec<NodeId> form) for each vehicle
-    /// type
+    /// type.
+    /// If a tour violates the depot constraints an message is printed and another depot is used
+    /// instead.
     pub fn from_tours(
         tours: StdHashMap<VehicleTypeId, Vec<Vec<NodeId>>>,
         network: Arc<Network>,
     ) -> Result<Schedule, String> {
+        let overflow_depot_ids = network.overflow_depot_ids();
         let mut schedule = Schedule::empty(network);
 
         for (vehicle_type, tours) in tours {
-            for tour in tours {
-                let result = schedule.spawn_vehicle_for_path(vehicle_type, tour)?;
-                schedule = result.0;
+            for mut tour in tours {
+                let first_result = schedule.spawn_vehicle_for_path(vehicle_type, tour.clone());
+                let second_result = match first_result {
+                    Err(msg) => {
+                        println!("Warning: {}", msg);
+                        let old_start_depot = std::mem::replace(&mut tour[0], overflow_depot_ids.1);
+                        let tour_len = tour.len();
+                        let _ = std::mem::replace(&mut tour[tour_len - 1], overflow_depot_ids.2);
+                        println!(
+                            "Warning: Tour for {} violates depot constraints at {}. Using overflow depot instead.",
+                            vehicle_type, old_start_depot
+                        );
+                        schedule.spawn_vehicle_for_path(vehicle_type, tour)
+                    }
+                    Ok(result) => Ok(result),
+                };
+
+                schedule = second_result.unwrap().0;
             }
         }
 
