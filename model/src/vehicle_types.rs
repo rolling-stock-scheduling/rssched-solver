@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, fmt, sync::Arc};
 
 use crate::base_types::{PassengerCount, VehicleCount, VehicleTypeIdx};
 
@@ -93,5 +93,11 @@ impl VehicleType {
 
     pub fn maximal_formation_count(&self) -> Option<VehicleCount> {
         self.maximal_formation_count
+    }
+}
+
+impl fmt::Display for VehicleType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.id)
     }
 }

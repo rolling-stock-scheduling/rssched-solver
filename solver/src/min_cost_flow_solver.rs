@@ -62,7 +62,10 @@ impl MinCostFlowSolver {
         // split into vehicle types
         let mut tours: HashMap<VehicleTypeIdx, Vec<Vec<NodeIdx>>> = HashMap::new();
         for vehicle_type in self.vehicle_types.iter() {
-            println!(" solving sub-instance for vehicle type {}", vehicle_type);
+            println!(
+                " solving sub-instance for vehicle type {}",
+                self.network.vehicle_types().get(vehicle_type).unwrap()
+            );
             tours.insert(vehicle_type, self.solve_for_vehicle_type(vehicle_type));
         }
 

@@ -1204,7 +1204,7 @@ impl Schedule {
 
             println!(
                 "\x1b[93mwarning:\x1b[0m Tour for {} violates depot constraints at {}. Using overflow depot instead.", 
-                self.network.vehicle_types().get(vehicle_type_id).unwrap().id(), 
+                self.network.vehicle_types().get(vehicle_type_id).unwrap(), 
                 self.network.node(old_start_depot)
             );
 
