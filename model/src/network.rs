@@ -65,7 +65,10 @@ impl Network {
         self.nodes.len()
     }
 
-    pub fn service_nodes(&self, vehicle_type: VehicleTypeIdx) -> impl Iterator<Item = NodeIdx> + '_ {
+    pub fn service_nodes(
+        &self,
+        vehicle_type: VehicleTypeIdx,
+    ) -> impl Iterator<Item = NodeIdx> + '_ {
         self.service_nodes[&vehicle_type].iter().copied()
     }
 
@@ -119,7 +122,11 @@ impl Network {
         &self.locations
     }
 
-    pub fn capacity_of(&self, depot_id: DepotIdx, vehicle_type_id: VehicleTypeIdx) -> PassengerCount {
+    pub fn capacity_of(
+        &self,
+        depot_id: DepotIdx,
+        vehicle_type_id: VehicleTypeIdx,
+    ) -> PassengerCount {
         self.depots[&depot_id].0.capacity_for(vehicle_type_id)
     }
 
@@ -131,7 +138,11 @@ impl Network {
         self.node(service_trip).as_service_trip().vehicle_type()
     }
 
-    pub fn compatible_with_vehicle_type(&self, node: NodeIdx, vehicle_type: VehicleTypeIdx) -> bool {
+    pub fn compatible_with_vehicle_type(
+        &self,
+        node: NodeIdx,
+        vehicle_type: VehicleTypeIdx,
+    ) -> bool {
         if self.node(node).is_service() {
             self.vehicle_type_for(node) == vehicle_type
         } else {
@@ -365,8 +376,9 @@ impl Network {
         let mut start_depot_nodes = Vec::new();
         let mut end_depot_nodes = Vec::new();
 
-        // add overflow depot (infinity capacity for all types, but located Nowhere -> Distance is
-        // Infinity)
+        // add overflow depot:
+        // its has infinity capacity for all types
+        // but it is located Nowhere, i.e. Distance is Infinity to all other locations
         let overflow_depot_id = DepotIdx::from(depots.len() as Idx);
         let overflow_depot = Depot::new(
             overflow_depot_id,
@@ -377,27 +389,28 @@ impl Network {
         );
         depots.push(overflow_depot);
 
-        let mut idx_counter = service_trips.values().flatten().count() + maintenance_slots.len();
+        let mut idx_counter: Idx =
+            (service_trips.values().flatten().count() + maintenance_slots.len()) as Idx;
         for depot in depots {
             let depot_idx = depot.idx();
 
-            let start_node_idx = NodeIdx::start_depot_from(idx_counter as Idx);
             let start_node_id = format!("s_{}", depot.id());
             let start_node = Node::create_start_depot_node(
-                start_node_idx,
+                idx_counter,
                 start_node_id,
                 depot_idx,
                 depot.location(),
             );
-            nodes.insert(start_node_idx, start_node);
+            let start_node_idx = start_node.idx();
+            nodes.insert(start_node_idx, start_node); // TODO replace by Vec check that idx is correct
             start_depot_nodes.push(start_node_idx);
             idx_counter += 1;
 
-            let end_node_idx = NodeIdx::end_depot_from(idx_counter as Idx);
             let end_node_id = format!("e_{}", depot.id());
             let end_node =
-                Node::create_end_depot_node(end_node_idx, end_node_id, depot_idx, depot.location());
-            nodes.insert(end_node_idx, end_node);
+                Node::create_end_depot_node(idx_counter, end_node_id, depot_idx, depot.location());
+            let end_node_idx = end_node.idx();
+            nodes.insert(end_node_idx, end_node); // TODO replace by Vec check that idx is correct
             end_depot_nodes.push(end_node_idx);
             idx_counter += 1;
 
@@ -421,11 +434,12 @@ impl Network {
         for (vehicle_type, service_trips_of_type) in service_trips.into_iter() {
             let mut trips = Vec::new();
             for service_trip in service_trips_of_type.into_iter() {
-                let id = service_trip.idx();
-                let node = Node::create_service_trip_node(service_trip);
-                nodes.insert(id, node);
-                trips.push(id);
+                let service_trip_node = Node::create_service_trip_node(idx_counter, service_trip);
+                trips.push(service_trip_node.idx());
+                nodes.insert(service_trip_node.idx(), service_trip_node);
+                idx_counter += 1;
             }
+            // TODO should sort first and then give an index
             trips.sort_by(|&n1, &n2| {
                 nodes
                     .get(&n1)
@@ -436,12 +450,13 @@ impl Network {
         }
 
         for maintenance_slot in maintenance_slots.into_iter() {
-            let id = maintenance_slot.idx();
-            let node = Node::create_maintenance_node(maintenance_slot);
-            nodes.insert(id, node);
-            maintenance_nodes.push(id);
+            let maintenance_node = Node::create_maintenance_node(idx_counter, maintenance_slot);
+            maintenance_nodes.push(maintenance_node.idx());
+            nodes.insert(maintenance_node.idx(), maintenance_node);
+            idx_counter += 1;
         }
 
+        // TODO should sort first and then give an index
         maintenance_nodes.sort_by(|&n1, &n2| {
             nodes
                 .get(&n1)
@@ -457,22 +472,23 @@ impl Network {
             })
             .collect();
 
-        let vehicle_type_nodes_sorted_by_start: HashMap<VehicleTypeIdx, SortedNodes> = vehicle_types
-            .iter()
-            .map(|vt| {
-                let nodes = service_nodes[&vt]
-                    .iter()
-                    .chain(maintenance_nodes.iter())
-                    .chain(start_depot_nodes.iter())
-                    .chain(end_depot_nodes.iter())
-                    .map(|&n| {
-                        let node = nodes.get(&n).unwrap();
-                        ((node.start_time(), n), n)
-                    })
-                    .collect();
-                (vt, nodes)
-            })
-            .collect();
+        let vehicle_type_nodes_sorted_by_start: HashMap<VehicleTypeIdx, SortedNodes> =
+            vehicle_types
+                .iter()
+                .map(|vt| {
+                    let nodes = service_nodes[&vt]
+                        .iter()
+                        .chain(maintenance_nodes.iter())
+                        .chain(start_depot_nodes.iter())
+                        .chain(end_depot_nodes.iter())
+                        .map(|&n| {
+                            let node = nodes.get(&n).unwrap();
+                            ((node.start_time(), n), n)
+                        })
+                        .collect();
+                    (vt, nodes)
+                })
+                .collect();
 
         let vehicle_type_nodes_sorted_by_end: HashMap<VehicleTypeIdx, SortedNodes> = vehicle_types
             .iter()

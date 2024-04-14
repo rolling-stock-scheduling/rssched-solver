@@ -8,8 +8,7 @@ use std::sync::Arc;
 use time::{DateTime, Duration};
 
 use crate::base_types::{
-    DepotIdx, Distance, Idx, LocationIdx, Meter, NodeIdx, PassengerCount, VehicleCount,
-    VehicleTypeIdx,
+    DepotIdx, Distance, Idx, LocationIdx, Meter, PassengerCount, VehicleCount, VehicleTypeIdx,
 };
 use crate::config::Config;
 use crate::locations::{DeadHeadTrip, Locations};
@@ -281,12 +280,7 @@ fn create_network(
         &location_lookup,
         &vehicle_type_lookup,
     );
-    let maintenance_slots = create_maintenance_slots(
-        json_input,
-        &locations,
-        service_trips.len(),
-        &location_lookup,
-    );
+    let maintenance_slots = create_maintenance_slots(json_input, &locations, &location_lookup);
     Network::new(
         depots,
         service_trips,
@@ -341,8 +335,6 @@ fn create_service_trips(
         service_trips.insert(vehicle_type, Vec::new());
     }
 
-    let mut idx_counter = 0;
-
     for departure in json_input.departures.iter() {
         let route = json_input
             .routes
@@ -371,7 +363,6 @@ fn create_service_trips(
             let id = departure_segment.id.clone();
 
             let service_trip = Node::create_service_trip(
-                NodeIdx::service_from(idx_counter as Idx),
                 id,
                 vehicle_type,
                 origin,
@@ -382,8 +373,6 @@ fn create_service_trips(
                 passengers,
                 seated,
             );
-            idx_counter += 1;
-
             service_trips
                 .get_mut(&vehicle_type)
                 .unwrap()
@@ -396,10 +385,8 @@ fn create_service_trips(
 fn create_maintenance_slots(
     json_input: &JsonInput,
     locations: &Locations,
-    start_idx: usize,
     location_lookup: &HashMap<IdType, LocationIdx>,
 ) -> Vec<ModelMaintenanceSlot> {
-    let mut idx_counter = start_idx;
     json_input
         .maintenance_slots
         .iter()
@@ -411,16 +398,13 @@ fn create_maintenance_slots(
             let end = DateTime::new(&maintenance_slot.end);
             let id = maintenance_slot.id.clone();
 
-            let maintenance_node = Node::create_maintenance(
-                NodeIdx::maintenance_from(idx_counter as Idx),
+            Node::create_maintenance(
                 id,
                 location,
                 start,
                 end,
                 maintenance_slot.tracks as VehicleCount,
-            );
-            idx_counter += 1;
-            maintenance_node
+            )
         })
         .collect()
 }
