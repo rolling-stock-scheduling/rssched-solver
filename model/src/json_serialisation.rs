@@ -113,7 +113,7 @@ struct MaintenanceSlots {
     location: IdType,
     start: DateTimeString,
     end: DateTimeString,
-    tracks: Integer,
+    track_count: Integer,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -403,7 +403,7 @@ fn create_maintenance_slots(
                 location,
                 start,
                 end,
-                maintenance_slot.tracks as VehicleCount,
+                maintenance_slot.track_count as VehicleCount,
             )
         })
         .collect()

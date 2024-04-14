@@ -32,11 +32,10 @@ impl Swap for SpawnVehicleForMaintenance {
         if occupants.len() as VehicleCount
             >= schedule
                 .get_network()
-                .tracks_of_maintenance_slot(self.maintenance_slot)
+                .track_count_of_maintenance_slot(self.maintenance_slot)
         {
             // maintenance slot is already fully occupied
             // remove the last occupant and spawn a new vehicle
-
             let last_occupant = *occupants.last().unwrap();
             Ok(schedule
                 .remove_segment(

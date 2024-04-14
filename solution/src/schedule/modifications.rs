@@ -788,7 +788,7 @@ impl Schedule {
         dummy_tours: &mut HashMap<VehicleIdx, Tour>,
         vehicle_ids_grouped_and_sorted: &mut HashMap<VehicleTypeIdx, Vec<VehicleIdx>>,
         dummy_ids_sorted: &mut Vec<VehicleIdx>,
-        provider: Option<VehicleIdx>,     // None: there is no provider
+        provider: Option<VehicleIdx>,    // None: there is no provider
         new_tour_provider: Option<Tour>, // None: provider is deleted
         receiver: VehicleIdx,
         new_tour_receiver: Tour,
@@ -848,7 +848,7 @@ impl Schedule {
     fn update_train_formation(
         &self,
         train_formations: &mut HashMap<NodeIdx, TrainFormation>,
-        provider: Option<VehicleIdx>,       // None: only add receiver
+        provider: Option<VehicleIdx>,      // None: only add receiver
         receiver_vehicle: Option<Vehicle>, // None: only delete provider
         moved_nodes: impl Iterator<Item = NodeIdx>,
     ) -> Result<(), String> {
@@ -893,7 +893,7 @@ impl Schedule {
                         // provider is None or dummy
                         if self.network.node(node).is_maintenance()
                             && old_formation.vehicle_count()
-                                >= self.network.tracks_of_maintenance_slot(node)
+                                >= self.network.track_count_of_maintenance_slot(node)
                         {
                             return Err(format!(
                                 "Cannot add vehicle {} to maintenance node {}. Maintenance slot is already full.",

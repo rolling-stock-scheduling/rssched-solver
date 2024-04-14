@@ -86,8 +86,7 @@
           "origin": "BN",
           "destination": "LU",
           "distance": 2000,
-          "duration": 7200,
-          "maximalFormationCount": 5
+          "duration": 7200
         }
       ]
     }
@@ -146,14 +145,14 @@
       "location": "ZH",
       "start": "2023-07-24T6:00:00",
       "end": "2023-07-24T12:00:00",
-      "tracks": 2
+      "trackCount": 2
     },
     {
       "id": "maintenance_slot_1",
       "location": "BN",
       "start": "2023-07-24T12:00:00",
       "end": "2023-07-24T18:00:00",
-      "tracks": 1
+      "trackCount": 1
     }
   ],
   "deadHeadTrips": {

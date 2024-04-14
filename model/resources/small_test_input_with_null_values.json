@@ -1,149 +1,223 @@
 {
-  "vehicleTypes" : [ {
-    "id" : 0,
-    "name" : "IC",
-    "capacity" : 100,
-    "seats" : 50,
-    "maximalFormationCount" : 4
-  }, {
-    "id" : 1,
-    "name" : null,
-    "capacity" : 80,
-    "seats" : 40
-  } ],
-  "locations" : [ {
-    "id" : 0,
-    "name" : "Location 0"
-  }, {
-    "id" : 2,
-    "name" : "Location 2"
-  }, {
-    "id" : 3,
-    "name" : null
-  } ],
-  "depots" : [ {
-    "id" : 1,
-    "location" : 0,
-    "capacity" : 5,
-    "allowedTypes" : [ {
-      "vehicleType" : 0,
-      "upperBound" : 7
-    }, {
-      "vehicleType" : 1,
-      "upperBound" : 5
-    } ]
-  }, {
-    "id" : 2,
-    "location" : 2,
-    "capacity" : 500,
-    "allowedTypes" : [ {
-      "vehicleType" : 1,
-      "upperBound" : null
-    } ]
-  } ],
-  "routes" : [ {
-    "id" : 0,
-    "line" : "Line 0",
-    "vehicleType" : 1,
-    "segments": [ {
-      "order" : 0,
-      "origin" : 0,
-      "destination" : 3,
-      "distance" : 600,
-      "duration" : 1800,
-      "maximalFormationCount" : 1
-    }, {
-      "order" : 1,
-      "origin" : 3,
-      "destination" : 2,
-      "distance" : 400,
-      "duration" : 1800,
-      "maximalFormationCount" : 3
-    } ]
-  }, {
-    "id" : 1,
-    "line" : null,
-    "vehicleType" : 0,
-    "segments": [ {
-      "order" : 0,
-      "origin" : 2,
-      "destination" : 3,
-      "distance" : 2000,
-      "duration" : 7200,
-      "maximalFormationCount" : 5
-    } ]
-  } ],
-  "departures" : [ {
-    "id" : 0,
-    "route" : 0,
-    "name" : "Trip 0",
-    "segments": [ {
-      "order" : 0,
-      "departure" : "2023-07-24T12:00:00",
-      "passengers" : 50,
-      "seated" : 40
-    }, {
-      "order" : 1,
-      "departure" : "2023-7-24T12:40:00",
-      "passengers" : 100,
-      "seated" : 90
-    } ]
-  }, {
-    "id" : 1,
-    "route" : 1,
-    "name" : null,
-    "segments" : [ {
-      "order" : 0,
-      "departure" : "2023-07-24T12:00:00",
-      "passengers" : 80,
-      "seated" : 80
-    } ]
-  }, {
-    "id" : 2,
-    "route" : 1,
-    "name" : null,
-    "segments" : [ {
-      "order" : 0,
-      "departure" : "2023-07-24T14:00:00",
-      "passengers" : 0,
-      "seated" : 0
-    } ]
-  } ],
-    "maintenanceSlots" : [ {
-    "id": 0,
-    "name": "Maintenance Slot 0",
-    "location" : 0,
-    "start" : "2023-07-24T6:00:00",
-    "end" :  "2023-07-24T12:00:00"
-  }, {
-    "id": 1,
-    "name": null,
-    "location" : 0,
-    "start" : "2023-07-24T12:00:00",
-    "end" :  "2023-07-24T18:00:00"
-  } ],
-  "deadHeadTrips" : {
-    "indices" : [ 0, 2, 3 ],
-    "durations" : [ [ 0, 600, 300 ], [ 6000, 0, 400 ], [ 3000, 4000, 0 ] ],
-    "distances" : [ [ 0, 1000, 500 ], [ 10000, 0, 700 ], [ 5000, 7000, 0 ] ]
+  "vehicleTypes": [
+    {
+      "id": "IC",
+      "capacity": 100,
+      "seats": 50,
+      "maximalFormationCount": 4
+    },
+    {
+      "id": "IR",
+      "capacity": 80,
+      "seats": 40,
+      "maximalFormationCount": null
+    }
+  ],
+  "locations": [
+    {
+      "id": "ZH",
+      "dayLimit": null
+    },
+    {
+      "id": "BN",
+      "dayLimit": null
+    },
+    {
+      "id": "LU",
+      "dayLimit": 5
+    }
+  ],
+  "depots": [
+    {
+      "id": "depot_ZH",
+      "location": "ZH",
+      "capacity": 5,
+      "allowedTypes": [
+        {
+          "vehicleType": "IC",
+          "upperBound": 7
+        },
+        {
+          "vehicleType": "IR",
+          "upperBound": 5
+        }
+      ]
+    },
+    {
+      "id": "depot_BN",
+      "location": "BN",
+      "capacity": 500,
+      "allowedTypes": [
+        {
+          "vehicleType": "IC",
+          "upperBound": null
+        }
+      ]
+    }
+  ],
+  "routes": [
+    {
+      "id": "route_0",
+      "vehicleType": "IR",
+      "segments": [
+        {
+          "id": "route_0_seg_0",
+          "order": 0,
+          "origin": "ZH",
+          "destination": "LU",
+          "distance": 600,
+          "duration": 1800,
+          "maximalFormationCount": 1
+        },
+        {
+          "id": "route_0_seg_1",
+          "order": 1,
+          "origin": "LU",
+          "destination": "BN",
+          "distance": 400,
+          "duration": 1800,
+          "maximalFormationCount": 3
+        }
+      ]
+    },
+    {
+      "id": "route_1",
+      "vehicleType": "IC",
+      "segments": [
+        {
+          "id": "route_1_seg_0",
+          "order": 0,
+          "origin": "BN",
+          "destination": "LU",
+          "distance": 2000,
+          "duration": 7200,
+          "maximalFormationCount": null
+        }
+      ]
+    }
+  ],
+  "departures": [
+    {
+      "id": "trip_0",
+      "route": "route_0",
+      "segments": [
+        {
+          "id": "trip_0_seg_0",
+          "routeSegment": "route_0_seg_0",
+          "departure": "2023-07-24T12:00:00",
+          "passengers": 50,
+          "seated": 40
+        },
+        {
+          "id": "trip_0_seg_1",
+          "routeSegment": "route_0_seg_1",
+          "departure": "2023-7-24T12:40:00",
+          "passengers": 100,
+          "seated": 90
+        }
+      ]
+    },
+    {
+      "id": "trip_1a",
+      "route": "route_1",
+      "segments": [
+        {
+          "id": "trip_1_seg_0",
+          "routeSegment": "route_1_seg_0",
+          "departure": "2023-07-24T12:00:00",
+          "passengers": 80,
+          "seated": 80
+        }
+      ]
+    },
+    {
+      "id": "trip_1b",
+      "route": "route_1",
+      "segments": [
+        {
+          "id": "trip_1_seg_0",
+          "routeSegment": "route_1_seg_0",
+          "departure": "2023-07-24T14:00:00",
+          "passengers": 0,
+          "seated": 0
+        }
+      ]
+    }
+  ],
+  "maintenanceSlots": [
+    {
+      "id": "maintenance_slot_0",
+      "location": "ZH",
+      "start": "2023-07-24T6:00:00",
+      "end": "2023-07-24T12:00:00",
+      "trackCount": 2
+    },
+    {
+      "id": "maintenance_slot_1",
+      "location": "BN",
+      "start": "2023-07-24T12:00:00",
+      "end": "2023-07-24T18:00:00",
+      "trackCount": 1
+    }
+  ],
+  "deadHeadTrips": {
+    "indices": [
+      "ZH",
+      "BN",
+      "LU"
+    ],
+    "durations": [
+      [
+        0,
+        600,
+        300
+      ],
+      [
+        6000,
+        0,
+        400
+      ],
+      [
+        3000,
+        4000,
+        0
+      ]
+    ],
+    "distances": [
+      [
+        0,
+        1000,
+        500
+      ],
+      [
+        10000,
+        0,
+        700
+      ],
+      [
+        5000,
+        7000,
+        0
+      ]
+    ]
   },
-  "parameters" : {
-    "forbidDeadHeadTrips" : null,
-    "dayLimitThreshold" : 300,
-    "shunting" : {
-      "minimalDuration" : 120,
-      "deadHeadTripDuration" : 300,
+  "parameters": {
+    "forbidDeadHeadTrips": null,
+    "dayLimitThreshold": 300,
+    "shunting": {
+      "minimalDuration": 120,
+      "deadHeadTripDuration": 300,
       "couplingDuration": 600
     },
-    "maintenance" : {
-      "maximalDistance" : 30000000
+    "maintenance": {
+      "maximalDistance": 30000000
     },
-    "costs" : {
-      "staff" : 100,
-      "serviceTrip" : 50,
-      "maintenance" : 0,
-      "deadHeadTrip" : 500,
-      "idle" : 20
+    "costs": {
+      "staff": 100,
+      "serviceTrip": 50,
+      "maintenance": 0,
+      "deadHeadTrip": 500,
+      "idle": 20
     }
   }
 }

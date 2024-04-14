@@ -62,12 +62,12 @@ pub struct MaintenanceSlot {
     location: Location,
     start: DateTime,
     end: DateTime,
-    tracks: VehicleCount,
+    track_count: VehicleCount,
 }
 
 impl MaintenanceSlot {
-    pub fn tracks(&self) -> VehicleCount {
-        self.tracks
+    pub fn track_count(&self) -> VehicleCount {
+        self.track_count
     }
 }
 
@@ -219,7 +219,7 @@ impl Node {
                 self.start_location(),
                 self.start_time(),
                 self.end_time(),
-                m.tracks()
+                m.track_count()
             ),
             Node::StartDepot(_) => println!("{} at {}", self.id(), self.start_location()),
             Node::EndDepot(_) => println!("{} at {}", self.id(), self.start_location()),
@@ -263,14 +263,14 @@ impl Node {
         location: Location,
         start: DateTime,
         end: DateTime,
-        tracks: VehicleCount,
+        track_count: VehicleCount,
     ) -> MaintenanceSlot {
         MaintenanceSlot {
             id,
             location,
             start,
             end,
-            tracks,
+            track_count,
         }
     }
 
