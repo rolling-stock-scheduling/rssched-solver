@@ -44,10 +44,11 @@ impl Schedule {
     /// (from the start location of the first trip).
     /// Similarly, if path does not end with a depot the vehicle is spawned to the nearest depot
     /// (from the end location of the last trip).
+    /// If the depot given in the path is not available, spawn vehicle from overflow depot instead.
     ///
     /// # Errors
-    /// If no depot is available, an error is returned.
-    /// If the depot given in the path in not available, an error is returned.
+    /// If no depot is available, an error is returned (should not be possible as there is always
+    /// the overflow depot).
     /// If some node on the path is not compatible with the vehicle type an error is returned.
     /// If a train formation of some node on the path is full, an error is returned.
     pub fn spawn_vehicle_for_path(
@@ -891,10 +892,11 @@ impl Schedule {
                     _ => {
                         // provider is None or dummy
                         if self.network.node(node).is_maintenance()
-                            && old_formation.vehicle_count() > 0
+                            && old_formation.vehicle_count()
+                                >= self.network.tracks_of_maintenance_slot(node)
                         {
                             return Err(format!(
-                                "Cannot add vehicle {} to maintenance node {}. Maintenance slot is already occupied.",
+                                "Cannot add vehicle {} to maintenance node {}. Maintenance slot is already full.",
                                 receiver_vh.id(),
                                 node
                             ));
@@ -1194,11 +1196,15 @@ impl Schedule {
         if self.network.node(first_node).is_depot()
             && !self.can_depot_spawn_vehicle(first_node, vehicle_type_id)
         {
-            return Err(format!(
-                "Cannot spawn vehicle of type {} for tour {:?} at start_depot {}. No capacities available.",
-                vehicle_type_id,
-                nodes, first_node,
-            ));
+            // if given depot is not available, use overflow depot
+            let overflow_depot_ids = self.network.overflow_depot_ids();
+            let old_start_depot = std::mem::replace(&mut nodes[0], overflow_depot_ids.1);
+            let tour_len = nodes.len();
+            let _ = std::mem::replace(&mut nodes[tour_len - 1], overflow_depot_ids.2);
+
+            println!("\x1b[93mwarning:\x1b[0m Tour for {} violates depot constraints at {}. Using overflow depot instead.", self.network.vehicle_types().get(vehicle_type_id).unwrap().id(), old_start_depot);
+
+            return Ok(nodes);
         }
 
         // if path does not start with a depot, insert the nearest available start_depot

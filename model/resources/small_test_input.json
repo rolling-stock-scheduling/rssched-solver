@@ -146,14 +146,14 @@
       "location": "ZH",
       "start": "2023-07-24T6:00:00",
       "end": "2023-07-24T12:00:00",
-      "capacity": 2
+      "tracks": 2
     },
     {
       "id": "maintenance_slot_1",
       "location": "BN",
       "start": "2023-07-24T12:00:00",
       "end": "2023-07-24T18:00:00",
-      "capacity": 1
+      "tracks": 1
     }
   ],
   "deadHeadTrips": {

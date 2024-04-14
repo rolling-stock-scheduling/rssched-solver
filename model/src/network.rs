@@ -84,6 +84,11 @@ impl Network {
         self.maintenance_nodes.iter().copied()
     }
 
+    pub fn tracks_of_maintenance_slot(&self, maintenance_node: NodeId) -> VehicleCount {
+        let maintenance_node = self.node(maintenance_node).as_maintenance();
+        maintenance_node.tracks()
+    }
+
     pub fn maintenance_considered(&self) -> bool {
         !self.maintenance_nodes.is_empty()
     }

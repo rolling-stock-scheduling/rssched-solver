@@ -615,17 +615,7 @@ impl Schedule {
             for mut tour in tours {
                 let first_result = schedule.spawn_vehicle_for_path(vehicle_type, tour.clone());
                 let second_result = match first_result {
-                    Err(msg) => {
-                        println!("Warning: {}", msg);
-                        let old_start_depot = std::mem::replace(&mut tour[0], overflow_depot_ids.1);
-                        let tour_len = tour.len();
-                        let _ = std::mem::replace(&mut tour[tour_len - 1], overflow_depot_ids.2);
-                        println!(
-                            "Warning: Tour for {} violates depot constraints at {}. Using overflow depot instead.",
-                            vehicle_type, old_start_depot
-                        );
-                        schedule.spawn_vehicle_for_path(vehicle_type, tour)
-                    }
+                    Err(msg) => schedule.spawn_vehicle_for_path(vehicle_type, tour),
                     Ok(result) => Ok(result),
                 };
 

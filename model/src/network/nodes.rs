@@ -1,6 +1,8 @@
 use time::{DateTime, Duration};
 
-use crate::base_types::{DepotId, Distance, Location, NodeId, PassengerCount, VehicleTypeId};
+use crate::base_types::{
+    DepotId, Distance, Location, NodeId, PassengerCount, VehicleCount, VehicleTypeId,
+};
 
 use core::cmp::Ordering;
 
@@ -67,12 +69,17 @@ pub struct MaintenanceSlot {
     id: String,
     location: Location,
     start: DateTime,
-    end: DateTime, // TODO add capacity, should be used for TraiFormation check
+    end: DateTime,
+    tracks: VehicleCount,
 }
 
 impl MaintenanceSlot {
     pub fn idx(&self) -> NodeId {
         self.idx
+    }
+
+    pub fn tracks(&self) -> VehicleCount {
+        self.tracks
     }
 }
 
@@ -165,6 +172,13 @@ impl Node {
         }
     }
 
+    pub(crate) fn as_maintenance(&self) -> &MaintenanceSlot {
+        match self {
+            Node::Maintenance(m) => m,
+            _ => panic!("Node is not a maintenance slot"),
+        }
+    }
+
     pub(crate) fn as_depot(&self) -> &DepotNode {
         match self {
             Node::StartDepot(d) => d,
@@ -201,7 +215,7 @@ impl Node {
     pub fn print(&self) {
         match self {
             Node::Service(_) => println!(
-                "{} (id: {}) from {} ({}) to {} ({}), {}",
+                "{} (idx: {}) from {} ({}) to {} ({}), {}",
                 self.id(),
                 self.idx(),
                 self.start_location(),
@@ -210,13 +224,14 @@ impl Node {
                 self.end_time(),
                 self.travel_distance()
             ),
-            Node::Maintenance(_) => println!(
-                "{} (id: {}) at {} (from {} to {})",
+            Node::Maintenance(maintenance_slot) => println!(
+                "{} (idx: {}) at {} (from {} to {} with {} tracks)",
                 self.id(),
                 self.idx(),
                 self.start_location(),
                 self.start_time(),
-                self.end_time()
+                self.end_time(),
+                maintenance_slot.tracks()
             ),
             Node::StartDepot(_) => println!("{} at {}", self.id(), self.start_location()),
             Node::EndDepot(_) => println!("{} at {}", self.id(), self.start_location()),
@@ -263,6 +278,7 @@ impl Node {
         location: Location,
         start: DateTime,
         end: DateTime,
+        tracks: VehicleCount,
     ) -> MaintenanceSlot {
         MaintenanceSlot {
             idx,
@@ -270,6 +286,7 @@ impl Node {
             location,
             start,
             end,
+            tracks,
         }
     }
 

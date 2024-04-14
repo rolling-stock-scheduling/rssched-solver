@@ -11,7 +11,7 @@ impl VehicleTypes {
     pub fn new(vehicle_types_vec: Vec<VehicleType>) -> VehicleTypes {
         let vehicle_types: HashMap<_, _> = vehicle_types_vec
             .into_iter()
-            .map(|vt| (vt.id, Arc::new(vt)))
+            .map(|vt| (vt.idx, Arc::new(vt)))
             .collect();
 
         /* let mut ids_sorted_by_seat_count: Vec<_> = vehicle_types.keys().cloned().collect();
@@ -51,8 +51,8 @@ impl VehicleTypes {
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct VehicleType {
-    id: VehicleTypeId,
-    name: String,
+    idx: VehicleTypeId,
+    id: String,
     seats: PassengerCount,
     capacity: PassengerCount,
     maximal_formation_count: Option<VehicleCount>,
@@ -60,27 +60,27 @@ pub struct VehicleType {
 
 impl VehicleType {
     pub fn new(
-        id: VehicleTypeId,
-        name: String,
+        idx: VehicleTypeId,
+        id: String,
         capacity_of_passengers: PassengerCount,
         number_of_seats: PassengerCount,
         maximal_formation_count: Option<VehicleCount>,
     ) -> VehicleType {
         VehicleType {
+            idx,
             id,
-            name,
             seats: number_of_seats,
             capacity: capacity_of_passengers,
             maximal_formation_count,
         }
     }
 
-    pub fn id(&self) -> VehicleTypeId {
-        self.id
+    pub fn idx(&self) -> VehicleTypeId {
+        self.idx
     }
 
-    pub fn name(&self) -> &String {
-        &self.name
+    pub fn id(&self) -> &String {
+        &self.id
     }
 
     pub fn seats(&self) -> PassengerCount {

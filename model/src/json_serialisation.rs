@@ -113,7 +113,7 @@ struct MaintenanceSlots {
     location: IdType,
     start: DateTimeString,
     end: DateTimeString,
-    capacity: Integer,
+    tracks: Integer,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -416,6 +416,7 @@ fn create_maintenance_slots(
                 location,
                 start,
                 end,
+                maintenance_slot.tracks as VehicleCount,
             );
             idx_counter += 1;
             maintenance_node
