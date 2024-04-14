@@ -1202,7 +1202,11 @@ impl Schedule {
             let tour_len = nodes.len();
             let _ = std::mem::replace(&mut nodes[tour_len - 1], overflow_depot_ids.2);
 
-            println!("\x1b[93mwarning:\x1b[0m Tour for {} violates depot constraints at {}. Using overflow depot instead.", self.network.vehicle_types().get(vehicle_type_id).unwrap().id(), old_start_depot);
+            println!(
+                "\x1b[93mwarning:\x1b[0m Tour for {} violates depot constraints at {}. Using overflow depot instead.", 
+                self.network.vehicle_types().get(vehicle_type_id).unwrap().id(), 
+                self.network.node(old_start_depot)
+            );
 
             return Ok(nodes);
         }

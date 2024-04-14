@@ -6,6 +6,7 @@ use model::config::Config;
 use model::network::nodes::Node;
 use model::network::Network;
 use model::vehicle_types::VehicleTypes;
+use rs_graph::traits::FiniteGraph;
 use solution::Schedule;
 
 use rs_graph::linkedlistgraph::Edge as RsEdge;
@@ -61,6 +62,7 @@ impl MinCostFlowSolver {
         // split into vehicle types
         let mut tours: HashMap<VehicleTypeIdx, Vec<Vec<NodeIdx>>> = HashMap::new();
         for vehicle_type in self.vehicle_types.iter() {
+            println!(" solving sub-instance for vehicle type {}", vehicle_type);
             tours.insert(vehicle_type, self.solve_for_vehicle_type(vehicle_type));
         }
 
@@ -221,7 +223,11 @@ impl MinCostFlowSolver {
         let graph = builder.into_graph();
 
         let start_time_computing_min_cost_flow = time::Instant::now();
-        print!("  2) computing min-cost-flow");
+        print!(
+            "  2) computing min-cost-flow in network with {} nodes and {} edges",
+            graph.num_nodes(),
+            graph.num_edges()
+        );
         io::stdout().flush().unwrap();
 
         let (_, flow) = network_simplex(
@@ -234,7 +240,9 @@ impl MinCostFlowSolver {
         .unwrap();
 
         println!(
-            "\r  2) computing min-cost-flow - \x1b[32mdone ({:0.2}sec)\x1b[0m",
+            "\r  2) computing min-cost-flow in network with {} nodes and {} edges - \x1b[32mdone ({:0.2}sec)\x1b[0m",
+            graph.num_nodes(),
+            graph.num_edges(),
             start_time_computing_min_cost_flow.elapsed().as_secs_f32()
         );
 
