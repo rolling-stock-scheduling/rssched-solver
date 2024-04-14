@@ -7,7 +7,7 @@ use nodes::{MaintenanceSlot, ServiceTrip};
 use time::{DateTime, Duration};
 
 use crate::base_types::{
-    DepotId, Distance, Location, NodeId, PassengerCount, VehicleCount, VehicleTypeId,
+    DepotId, Distance, Idx, Location, NodeId, PassengerCount, VehicleCount, VehicleTypeId,
 };
 use crate::config::Config;
 use crate::locations::Locations;
@@ -151,7 +151,7 @@ impl Network {
     }
 
     pub fn get_depot_id(&self, node_id: NodeId) -> DepotId {
-        self.node(node_id).as_depot().depot_id()
+        self.node(node_id).as_depot().depot_idx()
     }
 
     pub fn get_depot(&self, depot_id: DepotId) -> &Depot {
@@ -330,13 +330,16 @@ impl Network {
 }
 
 impl Network {
+    /// create a new network from the given data.
+    /// The nodes idx must be in such a way that service_trips flattened and then maintenance
+    /// nodes as vec gives the index within the vector.
     pub fn new(
-        depots: Vec<Depot>,
+        mut depots: Vec<Depot>,
         service_trips: HashMap<VehicleTypeId, Vec<ServiceTrip>>,
         maintenance_slots: Vec<MaintenanceSlot>,
-        config: Arc<Config>,
-        locations: Arc<Locations>,
-        vehicle_types: Arc<VehicleTypes>,
+        config: Config,
+        locations: Locations,
+        vehicle_types: VehicleTypes,
     ) -> Network {
         let mut nodes = HashMap::new();
         let mut depots_lookup = HashMap::new();
@@ -345,27 +348,42 @@ impl Network {
         let mut start_depot_nodes = Vec::new();
         let mut end_depot_nodes = Vec::new();
 
+        // add overflow depot (infinity capacity for all types, but located Nowhere -> Distance is
+        // Infinity)
+        let overflow_depot = Depot::new(
+            DepotId::from(depots.len() as Idx),
+            String::from("OVERFLOW_DEPOT"),
+            Location::Nowhere,
+            VehicleCount::MAX,
+            vehicle_types.iter().map(|vt| (vt, None)).collect(),
+        );
+        depots.push(overflow_depot);
+
+        let mut idx_counter = service_trips.values().flatten().count() + maintenance_slots.len();
         for depot in depots {
-            let depot_id = depot.depot_id();
+            let depot_idx = depot.idx();
 
-            let start_node_id = NodeId::start_depot_from(depot_id.0);
-            let start_node_name = format!("Start Depot {} (at {})", depot_id, depot.location());
+            let start_node_idx = NodeId::start_depot_from(idx_counter as Idx);
+            let start_node_id = format!("s_{}", depot.id());
             let start_node = Node::create_start_depot_node(
+                start_node_idx,
                 start_node_id,
-                depot_id,
+                depot_idx,
                 depot.location(),
-                start_node_name,
             );
-            nodes.insert(start_node_id, start_node);
-            start_depot_nodes.push(start_node_id);
+            nodes.insert(start_node_idx, start_node);
+            start_depot_nodes.push(start_node_idx);
+            idx_counter += 1;
 
-            let end_node_id = NodeId::end_depot_from(depot_id.0);
-            let end_node_name = format!("End Depot {} (at {})", depot_id, depot.location());
+            let end_node_idx = NodeId::end_depot_from(idx_counter as Idx);
+            let end_node_id = format!("e_{}", depot.id());
             let end_node =
-                Node::create_end_depot_node(end_node_id, depot_id, depot.location(), end_node_name);
-            nodes.insert(end_node_id, end_node);
-            end_depot_nodes.push(end_node_id);
-            depots_lookup.insert(depot_id, (depot, start_node_id, end_node_id));
+                Node::create_end_depot_node(end_node_idx, end_node_id, depot_idx, depot.location());
+            nodes.insert(end_node_idx, end_node);
+            end_depot_nodes.push(end_node_idx);
+            idx_counter += 1;
+
+            depots_lookup.insert(depot_idx, (depot, start_node_idx, end_node_idx));
         }
 
         start_depot_nodes.sort_by(|&n1, &n2| {
@@ -385,7 +403,7 @@ impl Network {
         for (vehicle_type, service_trips_of_type) in service_trips.into_iter() {
             let mut trips = Vec::new();
             for service_trip in service_trips_of_type.into_iter() {
-                let id = service_trip.id();
+                let id = service_trip.idx();
                 let node = Node::create_service_trip_node(service_trip);
                 nodes.insert(id, node);
                 trips.push(id);
@@ -400,7 +418,7 @@ impl Network {
         }
 
         for maintenance_slot in maintenance_slots.into_iter() {
-            let id = maintenance_slot.id();
+            let id = maintenance_slot.idx();
             let node = Node::create_maintenance_node(maintenance_slot);
             nodes.insert(id, node);
             maintenance_nodes.push(id);
@@ -467,9 +485,9 @@ impl Network {
             nodes_sorted_by_start,
             vehicle_type_nodes_sorted_by_start,
             vehicle_type_nodes_sorted_by_end,
-            config,
-            locations,
-            vehicle_types,
+            config: Arc::new(config),
+            locations: Arc::new(locations),
+            vehicle_types: Arc::new(vehicle_types),
             number_of_service_nodes,
         }
     }

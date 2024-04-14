@@ -161,16 +161,19 @@ struct Costs {
 pub fn load_rolling_stock_problem_instance_from_json(
     input_data: serde_json::Value,
 ) -> Arc<Network> {
-    let json_input = serde_json::from_value(input_data).unwrap();
+    let json_input = serde_json::from_value(input_data).expect(
+        "Could not parse input data. Please check if the input data is in the correct format",
+    );
     let (locations, location_lookup) = create_locations(&json_input);
-    let locations_arc = Arc::new(locations);
-    let vehicle_types = Arc::new(create_vehicle_types(&json_input));
-    let config = Arc::new(create_config(&json_input));
+    let (vehicle_types, vehicle_type_lookup) = create_vehicle_types(&json_input);
+    let config = create_config(&json_input);
     Arc::new(create_network(
         &json_input,
-        locations_arc,
+        locations,
         vehicle_types,
         config,
+        location_lookup,
+        vehicle_type_lookup,
     ))
 }
 
@@ -183,15 +186,15 @@ fn create_locations(json_input: &JsonInput) -> (Locations, HashMap<IdType, Locat
 
     // add stations
     for (idx, location_json) in json_input.locations.iter().enumerate() {
-        let location_id = LocationId::from(idx as Idx);
+        let location_idx = LocationId::from(idx as Idx);
         stations.insert(
-            location_id,
+            location_idx,
             (
                 location_json.id.clone(),
                 location_json.day_limit.map(|x| x as VehicleCount),
             ),
         );
-        location_lookup.insert(location_json.id, location_id);
+        location_lookup.insert(location_json.id.clone(), location_idx);
     }
 
     // add dead head trips
@@ -213,17 +216,18 @@ fn create_locations(json_input: &JsonInput) -> (Locations, HashMap<IdType, Locat
     (Locations::new(stations, dead_head_trips), location_lookup)
 }
 
-fn create_vehicle_types(json_input: &JsonInput) -> VehicleTypes {
+fn create_vehicle_types(json_input: &JsonInput) -> (VehicleTypes, HashMap<IdType, VehicleTypeId>) {
+    let mut vehicle_type_lookup: HashMap<IdType, VehicleTypeId> = HashMap::new();
     let vehicle_types: Vec<ModelVehicleType> = json_input
         .vehicle_types
         .iter()
-        .map(|vehicle_type| {
+        .enumerate()
+        .map(|(idx, vehicle_type)| {
+            let vehicle_type_idx = VehicleTypeId::from(idx as Idx);
+            vehicle_type_lookup.insert(vehicle_type.id.clone(), vehicle_type_idx);
             ModelVehicleType::new(
-                VehicleTypeId::from(vehicle_type.id as Idx),
-                vehicle_type
-                    .name
-                    .clone()
-                    .unwrap_or_else(|| format!("Vehicle Type {}", vehicle_type.id)),
+                vehicle_type_idx,
+                vehicle_type.id.clone(),
                 vehicle_type.capacity as PassengerCount,
                 vehicle_type.seats as PassengerCount,
                 vehicle_type
@@ -233,7 +237,7 @@ fn create_vehicle_types(json_input: &JsonInput) -> VehicleTypes {
         })
         .collect();
 
-    VehicleTypes::new(vehicle_types)
+    (VehicleTypes::new(vehicle_types), vehicle_type_lookup)
 }
 
 fn create_config(json_input: &JsonInput) -> Config {
@@ -257,13 +261,31 @@ fn create_config(json_input: &JsonInput) -> Config {
 
 fn create_network(
     json_input: &JsonInput,
-    locations: Arc<Locations>,
-    vehicle_types: Arc<VehicleTypes>,
-    config: Arc<Config>,
+    locations: Locations,
+    vehicle_types: VehicleTypes,
+    config: Config,
+    location_lookup: HashMap<IdType, LocationId>,
+    vehicle_type_lookup: HashMap<IdType, VehicleTypeId>,
 ) -> Network {
-    let depots = create_depots(json_input, &locations);
-    let service_trips = create_service_trips(json_input, &locations, &vehicle_types);
-    let maintenance_slots = create_maintenance_slots(json_input, &locations);
+    let depots = create_depots(
+        json_input,
+        &locations,
+        &location_lookup,
+        &vehicle_type_lookup,
+    );
+    let service_trips = create_service_trips(
+        json_input,
+        &locations,
+        &vehicle_types,
+        &location_lookup,
+        &vehicle_type_lookup,
+    );
+    let maintenance_slots = create_maintenance_slots(
+        json_input,
+        &locations,
+        service_trips.len(),
+        &location_lookup,
+    );
     Network::new(
         depots,
         service_trips,
@@ -274,24 +296,34 @@ fn create_network(
     )
 }
 
-fn create_depots(json_input: &JsonInput, loc: &Locations) -> Vec<ModelDepot> {
+fn create_depots(
+    json_input: &JsonInput,
+    loc: &Locations,
+    location_lookup: &HashMap<IdType, LocationId>,
+    vehicle_type_lookup: &HashMap<IdType, VehicleTypeId>,
+) -> Vec<ModelDepot> {
     json_input
         .depots
         .iter()
-        .map(|depot| {
-            let id = DepotId::from(depot.id as Idx);
-            let location = loc
-                .get_location(LocationId::from(depot.location as Idx))
-                .unwrap();
+        .enumerate()
+        .map(|(idx, depot)| {
+            let idx = DepotId::from(idx as Idx);
+            let location = loc.get_location(location_lookup[&depot.location]).unwrap();
             let capacity: VehicleCount = depot.capacity as VehicleCount;
             let mut allowed_types: HashMap<VehicleTypeId, Option<VehicleCount>> = HashMap::new();
             for allowed_type in &depot.allowed_types {
                 allowed_types.insert(
-                    VehicleTypeId::from(allowed_type.vehicle_type as Idx),
+                    vehicle_type_lookup[&allowed_type.vehicle_type],
                     allowed_type.capacity.map(|x| x as VehicleCount),
                 );
             }
-            ModelDepot::new(id, location, capacity, allowed_types.clone())
+            ModelDepot::new(
+                idx,
+                depot.id.clone(),
+                location,
+                capacity,
+                allowed_types.clone(),
+            )
         })
         .collect()
 }
@@ -300,11 +332,15 @@ fn create_service_trips(
     json_input: &JsonInput,
     locations: &Locations,
     vehicle_types: &VehicleTypes,
+    location_lookup: &HashMap<IdType, LocationId>,
+    vehicle_type_lookup: &HashMap<IdType, VehicleTypeId>,
 ) -> HashMap<VehicleTypeId, Vec<ModelServiceTrip>> {
     let mut service_trips: HashMap<VehicleTypeId, Vec<ModelServiceTrip>> = HashMap::new();
     for vehicle_type in vehicle_types.iter() {
         service_trips.insert(vehicle_type, Vec::new());
     }
+
+    let mut idx_counter = 0;
 
     for departure in json_input.departures.iter() {
         let route = json_input
@@ -312,44 +348,30 @@ fn create_service_trips(
             .iter()
             .find(|route| route.id == departure.route)
             .unwrap();
-        let vehicle_type = VehicleTypeId::from(route.vehicle_type as Idx);
-        let name = departure
-            .name
-            .clone()
-            .unwrap_or_else(|| format!("Service Trip {}", departure.id));
+        let vehicle_type = vehicle_type_lookup[&route.vehicle_type];
 
-        let segment_count = departure.segments.len() as IdType;
-
-        for order in 0..segment_count {
+        for departure_segment in departure.segments.iter() {
             let route_segment = &route
                 .segments
                 .iter()
-                .find(|segment| segment.order == order)
-                .unwrap();
-            let departure_segment = &departure
-                .segments
-                .iter()
-                .find(|segment| segment.order == order)
+                .find(|segment| segment.id == departure_segment.route_segment)
                 .unwrap();
             let origin = locations
-                .get_location(LocationId::from(route_segment.origin as Idx))
+                .get_location(location_lookup[&route_segment.origin])
                 .unwrap();
             let destination = locations
-                .get_location(LocationId::from(route_segment.destination as Idx))
+                .get_location(location_lookup[&route_segment.destination])
                 .unwrap();
             let distance = Distance::from_meter(route_segment.distance as Meter);
             let departure_time = DateTime::new(&departure_segment.departure);
             let arrival_time = departure_time + Duration::from_seconds(route_segment.duration);
             let passengers = departure_segment.passengers as PassengerCount;
             let seated = departure_segment.seated as PassengerCount;
-            let name = if segment_count == 1 {
-                name.clone()
-            } else {
-                format!("{}-{}", name, order)
-            };
+            let id = departure_segment.id.clone();
 
             let service_trip = Node::create_service_trip(
-                NodeId::service_from(departure.id as Idx, order as u8),
+                NodeId::service_from(idx_counter as Idx, 0), // TODO change to index only
+                id,
                 vehicle_type,
                 origin,
                 destination,
@@ -358,8 +380,8 @@ fn create_service_trips(
                 distance,
                 passengers,
                 seated,
-                name,
             );
+            idx_counter += 1;
 
             service_trips
                 .get_mut(&vehicle_type)
@@ -373,28 +395,30 @@ fn create_service_trips(
 fn create_maintenance_slots(
     json_input: &JsonInput,
     locations: &Locations,
+    start_idx: usize,
+    location_lookup: &HashMap<IdType, LocationId>,
 ) -> Vec<ModelMaintenanceSlot> {
+    let mut idx_counter = start_idx;
     json_input
         .maintenance_slots
         .iter()
         .map(|maintenance_slot| {
             let location = locations
-                .get_location(LocationId::from(maintenance_slot.location as Idx))
+                .get_location(location_lookup[&maintenance_slot.location])
                 .unwrap();
             let start = DateTime::new(&maintenance_slot.start);
             let end = DateTime::new(&maintenance_slot.end);
-            let name = maintenance_slot
-                .name
-                .clone()
-                .unwrap_or_else(|| format!("Maintenance {}", maintenance_slot.id));
+            let id = maintenance_slot.id.clone();
 
-            Node::create_maintenance(
-                NodeId::maintenance_from(maintenance_slot.id as Idx),
+            let maintenance_node = Node::create_maintenance(
+                NodeId::maintenance_from(idx_counter as Idx),
+                id,
                 location,
                 start,
                 end,
-                name,
-            )
+            );
+            idx_counter += 1;
+            maintenance_node
         })
         .collect()
 }

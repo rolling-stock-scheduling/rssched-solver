@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use crate::base_types::{DepotId, Location, VehicleCount, VehicleTypeId};
 
 pub struct Depot {
-    depot_id: DepotId,
+    idx: DepotId,
+    id: String,
     location: Location,
     total_capacity: VehicleCount,
     allowed_types: HashMap<VehicleTypeId, Option<VehicleCount>>, // number of vehicles that can be
@@ -12,8 +13,12 @@ pub struct Depot {
 
 // methods
 impl Depot {
-    pub fn depot_id(&self) -> DepotId {
-        self.depot_id
+    pub fn idx(&self) -> DepotId {
+        self.idx
+    }
+
+    pub fn id(&self) -> &str {
+        &self.id
     }
 
     pub fn location(&self) -> Location {
@@ -38,12 +43,14 @@ impl Depot {
 impl Depot {
     pub fn new(
         depot_id: DepotId,
+        name: String,
         location: Location,
         total_capacity: VehicleCount,
         allowed_types: HashMap<VehicleTypeId, Option<VehicleCount>>,
     ) -> Self {
         Self {
-            depot_id,
+            idx: depot_id,
+            id: name,
             location,
             total_capacity,
             allowed_types,

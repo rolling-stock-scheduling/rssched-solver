@@ -32,7 +32,7 @@ impl Duration {
     }
     pub fn in_sec(&self) -> u64 {
         match self {
-            Duration::Infinity => panic!("Cannot get minutes of Duration::Infinity."),
+            Duration::Infinity => panic!("Cannot get seconds of Duration::Infinity."),
             Duration::Length(l) => l.seconds,
         }
     }

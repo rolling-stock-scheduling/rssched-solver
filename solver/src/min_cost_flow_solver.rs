@@ -139,7 +139,7 @@ impl MinCostFlowSolver {
             for pred in self.network.predecessors(vehicle_type, node_id) {
                 let pred_node = match self.network.node(pred) {
                     Node::Service(_) => TripNode::Service(pred),
-                    Node::StartDepot(d) => TripNode::Depot(d.depot_id()),
+                    Node::StartDepot(d) => TripNode::Depot(d.depot_idx()),
                     _ => continue,
                 };
                 let pred_right_rsnode = node_to_rsnode[&pred_node].1;
@@ -244,7 +244,7 @@ impl MinCostFlowSolver {
 
             let trip_node = match self.network.node(node) {
                 Node::Service(_) => TripNode::Service(node),
-                Node::EndDepot(d) => TripNode::Depot(d.depot_id()),
+                Node::EndDepot(d) => TripNode::Depot(d.depot_idx()),
                 _ => continue,
             };
             let left_rsnode = node_to_rsnode[&trip_node].0;

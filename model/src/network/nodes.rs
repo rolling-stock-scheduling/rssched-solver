@@ -8,6 +8,7 @@ use std::fmt;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Node {
+    // TODO store them as tuple (idx, DepotNode) etc.
     StartDepot(DepotNode),
     Service(ServiceTrip),
     Maintenance(MaintenanceSlot),
@@ -16,21 +17,22 @@ pub enum Node {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct DepotNode {
-    id: NodeId,
-    depot_id: DepotId,
+    idx: NodeId,
+    depot_idx: DepotId,
     location: Location,
-    name: String,
+    id: String,
 }
 
 impl DepotNode {
-    pub fn depot_id(&self) -> DepotId {
-        self.depot_id
+    pub fn depot_idx(&self) -> DepotId {
+        self.depot_idx
     }
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ServiceTrip {
-    id: NodeId,
+    idx: NodeId,
+    id: String,
     vehicle_type: VehicleTypeId,
     origin: Location,
     destination: Location,
@@ -39,12 +41,11 @@ pub struct ServiceTrip {
     distance: Distance,
     passengers: PassengerCount,
     seated: PassengerCount,
-    name: String,
 }
 
 impl ServiceTrip {
-    pub fn id(&self) -> NodeId {
-        self.id
+    pub fn idx(&self) -> NodeId {
+        self.idx
     }
 
     pub fn vehicle_type(&self) -> VehicleTypeId {
@@ -62,16 +63,16 @@ impl ServiceTrip {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct MaintenanceSlot {
-    id: NodeId,
+    idx: NodeId,
+    id: String,
     location: Location,
     start: DateTime,
-    end: DateTime,
-    name: String,
+    end: DateTime, // TODO add capacity, should be used for TraiFormation check
 }
 
 impl MaintenanceSlot {
-    pub fn id(&self) -> NodeId {
-        self.id
+    pub fn idx(&self) -> NodeId {
+        self.idx
     }
 }
 
@@ -97,12 +98,12 @@ impl Node {
         matches!(self, Node::EndDepot(_))
     }
 
-    pub fn id(&self) -> NodeId {
+    pub fn idx(&self) -> NodeId {
         match self {
-            Node::Service(s) => s.id,
-            Node::Maintenance(m) => m.id,
-            Node::StartDepot(d) => d.id,
-            Node::EndDepot(d) => d.id,
+            Node::Service(s) => s.idx,
+            Node::Maintenance(m) => m.idx,
+            Node::StartDepot(d) => d.idx,
+            Node::EndDepot(d) => d.idx,
         }
     }
 
@@ -172,12 +173,12 @@ impl Node {
         }
     }
 
-    pub fn name(&self) -> &str {
+    pub fn id(&self) -> &str {
         match self {
-            Node::Service(s) => &s.name,
-            Node::Maintenance(m) => &m.name,
-            Node::StartDepot(d) => &d.name,
-            Node::EndDepot(d) => &d.name,
+            Node::Service(s) => &s.id,
+            Node::Maintenance(m) => &m.id,
+            Node::StartDepot(d) => &d.id,
+            Node::EndDepot(d) => &d.id,
         }
     }
 
@@ -186,7 +187,7 @@ impl Node {
         self.start_time()
             .cmp(&other.start_time())
             .then(self.end_time().cmp(&other.end_time()))
-            .then(self.id().cmp(&other.id()))
+            .then(self.idx().cmp(&other.idx()))
     }
 
     /// compare to nodes according to the end_time (ties are broken by start_time and then id)
@@ -194,15 +195,15 @@ impl Node {
         self.end_time()
             .cmp(&other.end_time())
             .then(self.start_time().cmp(&other.start_time()))
-            .then(self.id().cmp(&other.id()))
+            .then(self.idx().cmp(&other.idx()))
     }
 
     pub fn print(&self) {
         match self {
             Node::Service(_) => println!(
                 "{} (id: {}) from {} ({}) to {} ({}), {}",
-                self.name(),
                 self.id(),
+                self.idx(),
                 self.start_location(),
                 self.start_time(),
                 self.end_location(),
@@ -211,14 +212,14 @@ impl Node {
             ),
             Node::Maintenance(_) => println!(
                 "{} (id: {}) at {} (from {} to {})",
-                self.name(),
                 self.id(),
+                self.idx(),
                 self.start_location(),
                 self.start_time(),
                 self.end_time()
             ),
-            Node::StartDepot(_) => println!("{} at {}", self.name(), self.start_location()),
-            Node::EndDepot(_) => println!("{} at {}", self.name(), self.start_location()),
+            Node::StartDepot(_) => println!("{} at {}", self.id(), self.start_location()),
+            Node::EndDepot(_) => println!("{} at {}", self.id(), self.start_location()),
         }
     }
 }
@@ -227,7 +228,8 @@ impl Node {
 impl Node {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn create_service_trip(
-        id: NodeId,
+        idx: NodeId,
+        id: String,
         vehicle_type: VehicleTypeId,
         origin: Location,
         destination: Location,
@@ -236,9 +238,9 @@ impl Node {
         distance: Distance,
         passengers: PassengerCount,
         seated: PassengerCount,
-        name: String,
     ) -> ServiceTrip {
         ServiceTrip {
+            idx,
             id,
             vehicle_type,
             origin,
@@ -248,7 +250,6 @@ impl Node {
             distance,
             passengers,
             seated,
-            name,
         }
     }
 
@@ -257,18 +258,18 @@ impl Node {
     }
 
     pub(crate) fn create_maintenance(
-        id: NodeId,
+        idx: NodeId,
+        id: String,
         location: Location,
         start: DateTime,
         end: DateTime,
-        name: String,
     ) -> MaintenanceSlot {
         MaintenanceSlot {
+            idx,
             id,
             location,
             start,
             end,
-            name,
         }
     }
 
@@ -277,36 +278,36 @@ impl Node {
     }
 
     pub(crate) fn create_start_depot_node(
-        id: NodeId,
-        depot_id: DepotId,
+        idx: NodeId,
+        id: String,
+        depot_idx: DepotId,
         location: Location,
-        name: String,
     ) -> Node {
         Node::StartDepot(DepotNode {
+            idx,
             id,
-            depot_id,
+            depot_idx,
             location,
-            name,
         })
     }
 
     pub(crate) fn create_end_depot_node(
-        id: NodeId,
-        depot_id: DepotId,
+        idx: NodeId,
+        id: String,
+        depot_idx: DepotId,
         location: Location,
-        name: String,
     ) -> Node {
         Node::EndDepot(DepotNode {
+            idx,
             id,
-            depot_id,
+            depot_idx,
             location,
-            name,
         })
     }
 }
 
 impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.name())
+        write!(f, "{}", self.id())
     }
 }

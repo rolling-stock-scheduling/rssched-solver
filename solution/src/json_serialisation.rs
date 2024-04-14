@@ -137,7 +137,7 @@ fn tour_to_json(schedule: &Schedule, vehicle_id: VehicleId) -> JsonTour {
         match node2 {
             Node::Service(_) => {
                 let service_trip = JsonTourStop::ServiceTrip {
-                    id: node2.id().to_string(),
+                    id: node2.idx().to_string(),
                     origin: node2.start_location().to_string(),
                     destination: node2.end_location().to_string(),
                     departure_time: node2.start_time().as_iso(),
@@ -147,7 +147,7 @@ fn tour_to_json(schedule: &Schedule, vehicle_id: VehicleId) -> JsonTour {
             }
             Node::Maintenance(_) => {
                 let maintenance_trip = JsonTourStop::Maintenance {
-                    id: node2.id().to_string(),
+                    id: node2.idx().to_string(),
                     location: node2.start_location().to_string(),
                     start_time: node2.start_time().as_iso(),
                     end_time: node2.end_time().as_iso(),

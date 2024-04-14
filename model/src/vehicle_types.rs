@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use crate::base_types::{PassengerCount, VehicleCount, VehicleTypeId};
 
 pub struct VehicleTypes {
-    vehicle_types: HashMap<VehicleTypeId, Arc<VehicleType>>,
+    vehicle_types: HashMap<VehicleTypeId, Arc<VehicleType>>, // TODO use only Vec
     ids_sorted: Vec<VehicleTypeId>, // sorted by seat count, then capacity, then length, then id
 }
 
