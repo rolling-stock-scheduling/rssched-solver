@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use model::{
-    base_types::{Cost, Distance, NodeId},
+    base_types::{Cost, Distance, NodeId, COST_FOR_INF_DURATION},
     network::nodes::Node,
 };
 
@@ -33,11 +33,13 @@ impl Tour {
                 .network
                 .dead_head_time_between(self.first_node(), first_non_depot)
                 .in_sec()
+                .unwrap_or(COST_FOR_INF_DURATION)
                 * self.network.config().costs.dead_head_trip
             + self
                 .network
                 .dead_head_time_between(new_start_depot, first_non_depot)
                 .in_sec()
+                .unwrap_or(COST_FOR_INF_DURATION)
                 * self.network.config().costs.dead_head_trip;
         // there is no idle time.
 
@@ -77,11 +79,13 @@ impl Tour {
                 .network
                 .dead_head_time_between(last_non_depot, self.last_node())
                 .in_sec()
+                .unwrap_or(COST_FOR_INF_DURATION)
                 * self.network.config().costs.dead_head_trip
             + self
                 .network
                 .dead_head_time_between(last_non_depot, new_end_depot)
                 .in_sec()
+                .unwrap_or(COST_FOR_INF_DURATION)
                 * self.network.config().costs.dead_head_trip;
         // there is no idle time.
 
@@ -424,20 +428,29 @@ impl Tour {
         self.network
             .dead_head_time_between(self.nodes[pos], self.nodes[pos + 1])
             .in_sec()
+            .unwrap_or(COST_FOR_INF_DURATION)
             * self.network.config().costs.dead_head_trip
             + self
                 .network
                 .idle_time_between(self.nodes[pos], self.nodes[pos + 1])
                 .in_sec()
+                .unwrap_or(COST_FOR_INF_DURATION)
                 * self.network.config().costs.idle
     }
 
     /// Returns the costs for the dead head trip and the idle time between the two nodes assuming
     /// no intermediate stops.
     fn dead_head_and_idle_costs_between_two_nodes(&self, node1: NodeId, node2: NodeId) -> Cost {
-        self.network.dead_head_time_between(node1, node2).in_sec()
+        self.network
+            .dead_head_time_between(node1, node2)
+            .in_sec()
+            .unwrap_or(COST_FOR_INF_DURATION)
             * self.network.config().costs.dead_head_trip
-            + self.network.idle_time_between(node1, node2).in_sec()
+            + self
+                .network
+                .idle_time_between(node1, node2)
+                .in_sec()
+                .unwrap_or(COST_FOR_INF_DURATION)
                 * self.network.config().costs.idle
     }
 
@@ -446,7 +459,11 @@ impl Tour {
     }
 
     fn service_and_maintenance_costs_by_id(&self, node: NodeId) -> Cost {
-        self.network.node(node).duration().in_sec()
+        self.network
+            .node(node)
+            .duration()
+            .in_sec()
+            .unwrap_or(COST_FOR_INF_DURATION)
             * match self.network.node(node) {
                 Node::Service(_) => self.network.config().costs.service_trip,
                 Node::Maintenance(_) => self.network.config().costs.maintenance,

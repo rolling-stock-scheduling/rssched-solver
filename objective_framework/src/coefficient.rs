@@ -27,18 +27,20 @@ impl Mul<BaseValue> for Coefficient {
             Coefficient::Integer(c) => match other {
                 BaseValue::Integer(b) => BaseValue::Integer(c as i64 * b),
                 BaseValue::Float(b) => BaseValue::Float(c as f64 * b),
-                BaseValue::Duration(b) => {
-                    BaseValue::Duration(Duration::from_seconds(c as u64 * b.in_sec()))
-                }
+                BaseValue::Duration(b) => match b.in_sec() {
+                    Ok(sec) => BaseValue::Duration(Duration::from_seconds(c as u64 * sec)),
+                    Err(_) => BaseValue::Duration(Duration::Infinity),
+                },
                 BaseValue::Maximum => BaseValue::Maximum,
                 BaseValue::Zero => BaseValue::Zero,
             },
             Coefficient::Float(c) => match other {
                 BaseValue::Integer(b) => BaseValue::Integer((c * b as f32) as i64),
                 BaseValue::Float(b) => BaseValue::Float(c as f64 * b),
-                BaseValue::Duration(b) => {
-                    BaseValue::Duration(Duration::from_seconds((c * b.in_sec() as f32) as u64))
-                }
+                BaseValue::Duration(b) => match b.in_sec() {
+                    Ok(sec) => BaseValue::Duration(Duration::from_seconds((c * sec as f32) as u64)),
+                    Err(_) => BaseValue::Duration(Duration::Infinity),
+                },
                 BaseValue::Maximum => BaseValue::Maximum,
                 BaseValue::Zero => BaseValue::Zero,
             },

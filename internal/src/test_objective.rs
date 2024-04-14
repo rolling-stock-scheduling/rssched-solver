@@ -1,4 +1,4 @@
-use model::base_types::Distance;
+use model::base_types::{Distance, COST_FOR_INF_DURATION};
 use objective_framework::{BaseValue, Coefficient, Indicator, Level, Objective};
 use solution::Schedule;
 use time::Duration;
@@ -123,7 +123,8 @@ impl Indicator<Schedule> for ServiceTimeSquaredIndicator {
                         .tour_of(v)
                         .unwrap()
                         .useful_duration()
-                        .in_min()
+                        .in_sec()
+                        .unwrap_or(COST_FOR_INF_DURATION)
                         .pow(2) as i64
                 })
                 .sum(),

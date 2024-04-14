@@ -1,6 +1,7 @@
 use model::base_types::DepotId;
 use model::base_types::NodeId;
 use model::base_types::VehicleTypeId;
+use model::base_types::COST_FOR_INF_DURATION;
 use model::config::Config;
 use model::network::nodes::Node;
 use model::network::Network;
@@ -108,7 +109,12 @@ impl MinCostFlowSolver {
                 .number_of_vehicles_required_to_serve(vehicle_type, service_trip)
                 as LowerBound;
 
-            let cost = self.network.node(service_trip).duration().in_sec() as Cost
+            let cost = self
+                .network
+                .node(service_trip)
+                .duration()
+                .in_sec()
+                .unwrap_or(COST_FOR_INF_DURATION) as Cost
                 * self.config.costs.service_trip as Cost;
             edges.insert(
                 builder.add_edge(left_rsnode, right_rsnode),
@@ -149,12 +155,18 @@ impl MinCostFlowSolver {
                 {
                     0
                 } else {
-                    self.network.idle_time_between(pred, node_id).in_sec() as Cost
+                    self.network
+                        .idle_time_between(pred, node_id)
+                        .in_sec()
+                        .unwrap_or(COST_FOR_INF_DURATION) as Cost
                         * self.config.costs.idle as Cost
                 };
 
-                let cost: Cost = self.network.dead_head_time_between(pred, node_id).in_sec()
-                    as Cost
+                let cost: Cost = self
+                    .network
+                    .dead_head_time_between(pred, node_id)
+                    .in_sec()
+                    .unwrap_or(COST_FOR_INF_DURATION) as Cost
                     * self.config.costs.dead_head_trip as Cost
                     + idle_time_cost;
                 max_cost = max_cost.max(cost);

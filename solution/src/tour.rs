@@ -637,7 +637,11 @@ impl Tour {
         nodes
             .iter()
             .map(|n| {
-                network.node(*n).duration().in_sec()
+                network
+                    .node(*n)
+                    .duration()
+                    .in_sec()
+                    .expect("Infinity duration in tour")
                     * match network.node(*n) {
                         Node::Service(_) => network.config().costs.service_trip,
                         Node::Maintenance(_) => network.config().costs.maintenance,
@@ -649,9 +653,16 @@ impl Tour {
                 .iter()
                 .tuple_windows()
                 .map(|(a, b)| {
-                    network.dead_head_time_between(*a, *b).in_sec()
+                    network
+                        .dead_head_time_between(*a, *b)
+                        .in_sec()
+                        .expect("Infinity dead head time in tour")
                         * network.config().costs.dead_head_trip
-                        + network.idle_time_between(*a, *b).in_sec() * network.config().costs.idle
+                        + network
+                            .idle_time_between(*a, *b)
+                            .in_sec()
+                            .expect("Infinity idle time in tour")
+                            * network.config().costs.idle
                 })
                 .sum::<Cost>()
     }
