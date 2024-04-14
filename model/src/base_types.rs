@@ -17,9 +17,9 @@ pub struct VehicleTypeIdx(pub Idx);
 
 #[derive(Display, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum VehicleIdx {
-    #[display(fmt = "veh{}", _0)]
+    #[display(fmt = "veh_{}", _0)]
     Vehicle(Idx),
-    #[display(fmt = "dummy{}", _0)]
+    #[display(fmt = "dummy_{}", _0)]
     Dummy(Idx),
 }
 
@@ -39,8 +39,8 @@ pub struct DepotIdx(pub Idx);
 pub enum NodeIdx {
     #[display(fmt = "sdep_{}", _0)]
     StartDepot(Idx),
-    #[display(fmt = "serv_{}_{}", departure_idx, order)]
-    Service { departure_idx: Idx, order: u8 },
+    #[display(fmt = "serv_{}", _0)]
+    Service(Idx),
     #[display(fmt = "main_{}", _0)]
     Maintenance(Idx),
     #[display(fmt = "edep_{}", _0)]
@@ -54,11 +54,8 @@ impl NodeIdx {
     pub fn end_depot_from(idx: Idx) -> NodeIdx {
         NodeIdx::EndDepot(idx)
     }
-    pub fn service_from(departure_idx: Idx, order: u8) -> NodeIdx {
-        NodeIdx::Service {
-            departure_idx,
-            order,
-        }
+    pub fn service_from(idx: Idx) -> NodeIdx {
+        NodeIdx::Service(idx)
     }
     pub fn maintenance_from(idx: Idx) -> NodeIdx {
         NodeIdx::Maintenance(idx)

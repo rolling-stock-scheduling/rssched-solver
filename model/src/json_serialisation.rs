@@ -8,7 +8,8 @@ use std::sync::Arc;
 use time::{DateTime, Duration};
 
 use crate::base_types::{
-    DepotIdx, Distance, Idx, LocationIdx, Meter, NodeIdx, PassengerCount, VehicleCount, VehicleTypeIdx,
+    DepotIdx, Distance, Idx, LocationIdx, Meter, NodeIdx, PassengerCount, VehicleCount,
+    VehicleTypeIdx,
 };
 use crate::config::Config;
 use crate::locations::{DeadHeadTrip, Locations};
@@ -370,7 +371,7 @@ fn create_service_trips(
             let id = departure_segment.id.clone();
 
             let service_trip = Node::create_service_trip(
-                NodeIdx::service_from(idx_counter as Idx, 0), // TODO change to index only
+                NodeIdx::service_from(idx_counter as Idx),
                 id,
                 vehicle_type,
                 origin,
