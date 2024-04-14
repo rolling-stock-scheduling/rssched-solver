@@ -3,7 +3,7 @@ use std::{fs::File, io::Read};
 use time::{DateTime, Duration};
 
 use crate::{
-    base_types::{DepotId, Distance, Location, LocationId, NodeId, VehicleTypeId},
+    base_types::{DepotIdx, Distance, Location, LocationIdx, NodeIdx, VehicleTypeIdx},
     json_serialisation::load_rolling_stock_problem_instance_from_json,
     locations::Locations,
     network::nodes::Node,
@@ -33,12 +33,12 @@ fn test_load_from_json(path: &str) {
 
     // ASSERT
     let locations = network.locations();
-    let loc0 = locations.get_location(LocationId::from(0)).unwrap();
-    let loc2 = locations.get_location(LocationId::from(2)).unwrap();
-    let loc3 = locations.get_location(LocationId::from(3)).unwrap();
+    let loc0 = locations.get_location(LocationIdx::from(0)).unwrap();
+    let loc2 = locations.get_location(LocationIdx::from(2)).unwrap();
+    let loc3 = locations.get_location(LocationIdx::from(3)).unwrap();
 
-    let vt0 = VehicleTypeId::from(0);
-    let vt1 = VehicleTypeId::from(1);
+    let vt0 = VehicleTypeIdx::from(0);
+    let vt1 = VehicleTypeIdx::from(1);
 
     assert_eq!(
         *vehicle_types.get(vt0).unwrap(),
@@ -49,9 +49,9 @@ fn test_load_from_json(path: &str) {
         VehicleType::new(vt1, String::from("Vehicle Type 1"), 80, 40, None,)
     );
 
-    assert_eq!(loc0, Location::of(LocationId::from(0)));
-    assert_eq!(loc2, Location::of(LocationId::from(2)));
-    assert_eq!(loc3, Location::of(LocationId::from(3)));
+    assert_eq!(loc0, Location::of(LocationIdx::from(0)));
+    assert_eq!(loc2, Location::of(LocationIdx::from(2)));
+    assert_eq!(loc3, Location::of(LocationIdx::from(3)));
 
     assert_eq!(locations.get_external_id_of_location(loc0).unwrap(), "Location 0");
     assert_eq!(locations.get_external_id_of_location(loc2).unwrap(), "Location 2");
@@ -60,64 +60,64 @@ fn test_load_from_json(path: &str) {
     assert_eq!(network.all_nodes().count(), 10);
 
     assert_eq!(
-        *network.node(NodeId::start_depot_from(1)),
+        *network.node(NodeIdx::start_depot_from(1)),
         Node::create_start_depot_node(
-            NodeId::start_depot_from(1),
-            DepotId::from(1),
+            NodeIdx::start_depot_from(1),
+            DepotIdx::from(1),
             loc0,
             String::from("Start Depot 1 (at 0)"),
         )
     );
     assert_eq!(
-        *network.node(NodeId::end_depot_from(1)),
+        *network.node(NodeIdx::end_depot_from(1)),
         Node::create_end_depot_node(
-            NodeId::end_depot_from(1),
-            DepotId::from(1),
+            NodeIdx::end_depot_from(1),
+            DepotIdx::from(1),
             loc0,
             String::from("End Depot 1 (at 0)"),
         )
     );
     assert_eq!(
-        network.capacity_of(DepotId::from(1), VehicleTypeId::from(0)),
+        network.capacity_of(DepotIdx::from(1), VehicleTypeIdx::from(0)),
         5
     );
 
     assert_eq!(
-        network.capacity_of(DepotId::from(1), VehicleTypeId::from(1)),
+        network.capacity_of(DepotIdx::from(1), VehicleTypeIdx::from(1)),
         5
     );
 
     assert_eq!(
-        *network.node(NodeId::start_depot_from(2)),
+        *network.node(NodeIdx::start_depot_from(2)),
         Node::create_start_depot_node(
-            NodeId::start_depot_from(2),
-            DepotId::from(2),
+            NodeIdx::start_depot_from(2),
+            DepotIdx::from(2),
             loc2,
             String::from("Start Depot 2 (at 2)"),
         )
     );
     assert_eq!(
-        *network.node(NodeId::end_depot_from(2)),
+        *network.node(NodeIdx::end_depot_from(2)),
         Node::create_end_depot_node(
-            NodeId::end_depot_from(2),
-            DepotId::from(2),
+            NodeIdx::end_depot_from(2),
+            DepotIdx::from(2),
             loc2,
             String::from("End Depot 2 (at 2)"),
         )
     );
     assert_eq!(
-        network.capacity_of(DepotId::from(2), VehicleTypeId::from(0)),
+        network.capacity_of(DepotIdx::from(2), VehicleTypeIdx::from(0)),
         0
     );
     assert_eq!(
-        network.capacity_of(DepotId::from(2), VehicleTypeId::from(1)),
+        network.capacity_of(DepotIdx::from(2), VehicleTypeIdx::from(1)),
         500
     );
 
     assert_eq!(
-        *network.node(NodeId::service_from(0, 0)),
+        *network.node(NodeIdx::service_from(0, 0)),
         Node::create_service_trip_node(Node::create_service_trip(
-            NodeId::service_from(0, 0),
+            NodeIdx::service_from(0, 0),
             vt1,
             loc0,
             loc3,
@@ -131,9 +131,9 @@ fn test_load_from_json(path: &str) {
     );
 
     assert_eq!(
-        *network.node(NodeId::service_from(0, 1)),
+        *network.node(NodeIdx::service_from(0, 1)),
         Node::create_service_trip_node(Node::create_service_trip(
-            NodeId::service_from(0, 1),
+            NodeIdx::service_from(0, 1),
             vt1,
             loc3,
             loc2,
@@ -147,9 +147,9 @@ fn test_load_from_json(path: &str) {
     );
 
     assert_eq!(
-        *network.node(NodeId::service_from(2, 0)),
+        *network.node(NodeIdx::service_from(2, 0)),
         Node::create_service_trip_node(Node::create_service_trip(
-            NodeId::service_from(2, 0),
+            NodeIdx::service_from(2, 0),
             vt0,
             loc2,
             loc3,
@@ -163,9 +163,9 @@ fn test_load_from_json(path: &str) {
     );
 
     assert_eq!(
-        *network.node(NodeId::maintenance_from(0)),
+        *network.node(NodeIdx::maintenance_from(0)),
         Node::create_maintenance_node(Node::create_maintenance(
-            NodeId::maintenance_from(0),
+            NodeIdx::maintenance_from(0),
             loc0,
             DateTime::new("2023-07-24T6:00:00"),
             DateTime::new("2023-07-24T12:00:00"),
@@ -174,9 +174,9 @@ fn test_load_from_json(path: &str) {
     );
 
     assert_eq!(
-        *network.node(NodeId::maintenance_from(1)),
+        *network.node(NodeIdx::maintenance_from(1)),
         Node::create_maintenance_node(Node::create_maintenance(
-            NodeId::maintenance_from(1),
+            NodeIdx::maintenance_from(1),
             loc0,
             DateTime::new("2023-07-24T12:00:00"),
             DateTime::new("2023-07-24T18:00:00"),

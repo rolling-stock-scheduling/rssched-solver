@@ -4,14 +4,14 @@ mod tests;
 
 use itertools::Itertools;
 use model::base_types::Cost;
-use model::base_types::DepotId;
+use model::base_types::DepotIdx;
 use model::base_types::Distance;
 use model::base_types::MaintenanceCounter;
-use model::base_types::NodeId;
+use model::base_types::NodeIdx;
 use model::base_types::PassengerCount;
 use model::base_types::VehicleCount;
-use model::base_types::VehicleId;
-use model::base_types::VehicleTypeId;
+use model::base_types::VehicleIdx;
+use model::base_types::VehicleTypeIdx;
 use model::network::Network;
 use model::vehicle_types::VehicleTypes;
 
@@ -26,7 +26,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap as StdHashMap;
 use std::sync::Arc;
 
-type DepotUsage = HashMap<(DepotId, VehicleTypeId), (HashSet<VehicleId>, HashSet<VehicleId>)>;
+type DepotUsage = HashMap<(DepotIdx, VehicleTypeIdx), (HashSet<VehicleIdx>, HashSet<VehicleIdx>)>;
 
 // this represents a solution to the rolling stock problem.
 // It should be an immutable object. So whenever a modification is applied a copy of the
@@ -34,21 +34,21 @@ type DepotUsage = HashMap<(DepotId, VehicleTypeId), (HashSet<VehicleId>, HashSet
 #[derive(Clone)]
 pub struct Schedule {
     // all vehicles (non-dummy) that are used in the schedule
-    vehicles: HashMap<VehicleId, Vehicle>,
+    vehicles: HashMap<VehicleIdx, Vehicle>,
 
     // the tours assigned to vehicles
-    tours: HashMap<VehicleId, Tour>,
+    tours: HashMap<VehicleIdx, Tour>,
 
     // A schedule is thought to be repeated each period but vehicles may take a different tour on
     // the next period. The information which vehicles of the first execution of the schedule
     // becomes which vehicle in the next period is stored in the next_period_transition (grouped by
     // type).
-    next_period_transitions: HashMap<VehicleTypeId, Transition>,
+    next_period_transitions: HashMap<VehicleTypeIdx, Transition>,
 
     // for each node (except for depots) we store the train formation that covers it.
     // If a node is not covered yet, there is still an entry with an empty train formation.
     // So each non-depot node is covered by exactly one train formation.
-    train_formations: HashMap<NodeId, TrainFormation>,
+    train_formations: HashMap<NodeIdx, TrainFormation>,
 
     // for each depot-vehicle_type-pair we store the vehicles of that type that are spawned at this depot and the vehicles that
     // despawn at this depot.
@@ -58,14 +58,14 @@ pub struct Schedule {
     // not fully covered nodes can be organized to tours, so they can be assigned to vehicles as
     // segments; dummies are never part of a train_formation, they don't have a type and they never
     // include service trips that are fully covered.
-    dummy_tours: HashMap<VehicleId, Tour>,
+    dummy_tours: HashMap<VehicleIdx, Tour>,
 
     // counter for vehicle or dummy ids
     vehicle_counter: usize,
 
     // redundant information for faster access
-    vehicle_ids_grouped_and_sorted: HashMap<VehicleTypeId, Vec<VehicleId>>,
-    dummy_ids_sorted: Vec<VehicleId>,
+    vehicle_ids_grouped_and_sorted: HashMap<VehicleTypeIdx, Vec<VehicleIdx>>,
+    dummy_ids_sorted: Vec<VehicleIdx>,
     maintenance_violation: MaintenanceCounter,
 
     network: Arc<Network>,
@@ -79,39 +79,39 @@ impl Schedule {
 
     pub fn vehicles_iter(
         &self,
-        vehicle_type: VehicleTypeId,
-    ) -> impl Iterator<Item = VehicleId> + '_ {
+        vehicle_type: VehicleTypeIdx,
+    ) -> impl Iterator<Item = VehicleIdx> + '_ {
         self.vehicle_ids_grouped_and_sorted[&vehicle_type]
             .iter()
             .copied()
     }
 
-    pub fn vehicles_iter_all(&self) -> impl Iterator<Item = VehicleId> + '_ {
+    pub fn vehicles_iter_all(&self) -> impl Iterator<Item = VehicleIdx> + '_ {
         let vehicle_types: Vec<_> = self.network.vehicle_types().iter().collect();
         vehicle_types
             .into_iter()
             .flat_map(|vt| self.vehicles_iter(vt))
     }
 
-    pub fn is_vehicle(&self, vehicle: VehicleId) -> bool {
+    pub fn is_vehicle(&self, vehicle: VehicleIdx) -> bool {
         self.vehicles.contains_key(&vehicle)
     }
 
-    pub fn get_vehicle(&self, vehicle: VehicleId) -> Result<&Vehicle, String> {
+    pub fn get_vehicle(&self, vehicle: VehicleIdx) -> Result<&Vehicle, String> {
         self.vehicles
             .get(&vehicle)
             .ok_or_else(|| format!("{} is not an vehicle.", vehicle))
     }
 
-    pub fn vehicle_type_of(&self, vehicle: VehicleId) -> Result<VehicleTypeId, String> {
+    pub fn vehicle_type_of(&self, vehicle: VehicleIdx) -> Result<VehicleTypeIdx, String> {
         Ok(self.get_vehicle(vehicle)?.type_id())
     }
 
-    pub fn is_dummy(&self, vehicle: VehicleId) -> bool {
+    pub fn is_dummy(&self, vehicle: VehicleIdx) -> bool {
         self.dummy_tours.contains_key(&vehicle)
     }
 
-    pub fn is_vehicle_or_dummy(&self, vehicle: VehicleId) -> bool {
+    pub fn is_vehicle_or_dummy(&self, vehicle: VehicleIdx) -> bool {
         self.is_vehicle(vehicle) || self.is_dummy(vehicle)
     }
 
@@ -119,11 +119,11 @@ impl Schedule {
         self.dummy_tours.len()
     }
 
-    pub fn dummy_iter(&self) -> impl Iterator<Item = VehicleId> + '_ {
+    pub fn dummy_iter(&self) -> impl Iterator<Item = VehicleIdx> + '_ {
         self.dummy_ids_sorted.iter().copied()
     }
 
-    pub fn tour_of(&self, vehicle: VehicleId) -> Result<&Tour, String> {
+    pub fn tour_of(&self, vehicle: VehicleIdx) -> Result<&Tour, String> {
         match self.tours.get(&vehicle) {
             Some(tour) => Ok(tour),
             None => self.dummy_tours.get(&vehicle).ok_or(format!(
@@ -137,15 +137,15 @@ impl Schedule {
         self.maintenance_violation
     }
 
-    pub fn train_formation_of(&self, node: NodeId) -> &TrainFormation {
+    pub fn train_formation_of(&self, node: NodeIdx) -> &TrainFormation {
         self.train_formations.get(&node).unwrap()
     }
 
     /// Returns the number of vehicles of the given type that are spawned at the given depot
     pub fn number_of_vehicles_of_same_type_spawned_at(
         &self,
-        depot: DepotId,
-        vehicle_type: VehicleTypeId,
+        depot: DepotIdx,
+        vehicle_type: VehicleTypeIdx,
     ) -> VehicleCount {
         self.number_of_vehicles_of_same_type_spawned_at_custom_usage(
             depot,
@@ -154,14 +154,14 @@ impl Schedule {
         )
     }
 
-    pub fn number_of_vehicles_spawned_at(&self, depot: DepotId) -> VehicleCount {
+    pub fn number_of_vehicles_spawned_at(&self, depot: DepotIdx) -> VehicleCount {
         self.number_of_vehicles_spawned_at_custom_usage(depot, &self.depot_usage)
     }
 
     /// Returns the number of vehicles of the given type that are spawned at the given depot - the
     /// number of vehicles of the given type that despawn at the given depot.
     /// Hence, negative values mean that there are more vehicles despawning than spawning.
-    pub fn depot_balance(&self, depot: DepotId, vehicle_type: VehicleTypeId) -> i32 {
+    pub fn depot_balance(&self, depot: DepotIdx, vehicle_type: VehicleTypeIdx) -> i32 {
         self.depot_usage
             .get(&(depot, vehicle_type))
             .map(|(spawned, despawned)| (spawned.len() as i32 - despawned.len() as i32))
@@ -179,31 +179,31 @@ impl Schedule {
 
     pub fn can_depot_spawn_vehicle(
         &self,
-        start_depot: NodeId,
-        vehicle_type: VehicleTypeId,
+        start_depot: NodeIdx,
+        vehicle_type: VehicleTypeIdx,
     ) -> bool {
         self.can_depot_spawn_vehicle_custom_usage(start_depot, vehicle_type, &self.depot_usage)
     }
 
     pub fn reduces_spawning_at_depot_violation(
         &self,
-        vehicle_type: VehicleTypeId,
-        depot: DepotId,
+        vehicle_type: VehicleTypeIdx,
+        depot: DepotIdx,
     ) -> bool {
         self.depot_balance(depot, vehicle_type) < 0
     }
 
     pub fn reduces_despawning_at_depot_violation(
         &self,
-        vehicle_type: VehicleTypeId,
-        depot: DepotId,
+        vehicle_type: VehicleTypeIdx,
+        depot: DepotIdx,
     ) -> bool {
         self.depot_balance(depot, vehicle_type) > 0
     }
 
     /// Returns the number of passengers that do not fit (first entry) or seated passenger that
     /// cannot sit (second entry) at the given node.
-    pub fn unserved_passengers_at(&self, node: NodeId) -> (PassengerCount, PassengerCount) {
+    pub fn unserved_passengers_at(&self, node: NodeIdx) -> (PassengerCount, PassengerCount) {
         let demand = self.network.passengers_of(node);
         let capacity = self.train_formation_of(node).capacity();
 
@@ -233,7 +233,7 @@ impl Schedule {
             )
     }
 
-    pub fn is_fully_covered(&self, service_trip: NodeId) -> bool {
+    pub fn is_fully_covered(&self, service_trip: NodeIdx) -> bool {
         self.unserved_passengers_at(service_trip) == (0, 0)
     }
 
@@ -317,20 +317,20 @@ impl Schedule {
         }
 
         // check vehicles id sets are equal
-        let vehicles: HashSet<VehicleId> = self.vehicles.keys().cloned().collect();
-        let vehicles_from_tours: HashSet<VehicleId> = self.tours.keys().cloned().collect();
-        let vehicles_from_train_formations: HashSet<VehicleId> = self
+        let vehicles: HashSet<VehicleIdx> = self.vehicles.keys().cloned().collect();
+        let vehicles_from_tours: HashSet<VehicleIdx> = self.tours.keys().cloned().collect();
+        let vehicles_from_train_formations: HashSet<VehicleIdx> = self
             .train_formations
             .values()
             .flat_map(|train_formation| train_formation.ids())
             .collect();
-        let vehicles_from_depot_usage: HashSet<VehicleId> = self
+        let vehicles_from_depot_usage: HashSet<VehicleIdx> = self
             .depot_usage
             .values()
             .flat_map(|(spawned, despawned)| spawned.iter().chain(despawned.iter()))
             .cloned()
             .collect();
-        let vehicles_from_sorted: HashSet<VehicleId> = self.vehicles_iter_all().collect();
+        let vehicles_from_sorted: HashSet<VehicleIdx> = self.vehicles_iter_all().collect();
 
         assert_eq!(vehicles, vehicles_from_tours);
         assert_eq!(vehicles, vehicles_from_sorted);
@@ -350,8 +350,8 @@ impl Schedule {
         }
 
         // check dummy tours
-        let dummy_vehicles: HashSet<VehicleId> = self.dummy_tours.keys().cloned().collect();
-        let dummy_vehicles_from_sorted: HashSet<VehicleId> =
+        let dummy_vehicles: HashSet<VehicleIdx> = self.dummy_tours.keys().cloned().collect();
+        let dummy_vehicles_from_sorted: HashSet<VehicleIdx> =
             self.dummy_ids_sorted.iter().cloned().collect();
 
         assert_eq!(dummy_vehicles, dummy_vehicles_from_sorted);
@@ -480,7 +480,7 @@ impl Schedule {
             }
 
             // check that no vehicle appears twice in a train_formation
-            let vehicle_ids_as_set: HashSet<VehicleId> = HashSet::from(train_formation.ids());
+            let vehicle_ids_as_set: HashSet<VehicleIdx> = HashSet::from(train_formation.ids());
             assert_eq!(vehicle_ids_as_set.len(), train_formation.ids().len());
         }
 
@@ -605,21 +605,16 @@ impl Schedule {
     /// If a tour violates the depot constraints an message is printed and another depot is used
     /// instead.
     pub fn from_tours(
-        tours: StdHashMap<VehicleTypeId, Vec<Vec<NodeId>>>,
+        tours: StdHashMap<VehicleTypeIdx, Vec<Vec<NodeIdx>>>,
         network: Arc<Network>,
     ) -> Result<Schedule, String> {
-        let overflow_depot_ids = network.overflow_depot_ids();
         let mut schedule = Schedule::empty(network);
 
         for (vehicle_type, tours) in tours {
-            for mut tour in tours {
-                let first_result = schedule.spawn_vehicle_for_path(vehicle_type, tour.clone());
-                let second_result = match first_result {
-                    Err(msg) => schedule.spawn_vehicle_for_path(vehicle_type, tour),
-                    Ok(result) => Ok(result),
-                };
+            for tour in tours {
+                let result = schedule.spawn_vehicle_for_path(vehicle_type, tour);
 
-                schedule = second_result.unwrap().0;
+                schedule = result.unwrap().0;
             }
         }
 
@@ -631,8 +626,8 @@ impl Schedule {
 impl Schedule {
     fn can_depot_spawn_vehicle_custom_usage(
         &self,
-        start_depot: NodeId,
-        vehicle_type: VehicleTypeId,
+        start_depot: NodeIdx,
+        vehicle_type: VehicleTypeIdx,
         depot_usage: &DepotUsage,
     ) -> bool {
         let depot = self.network.get_depot_id(start_depot);
@@ -662,8 +657,8 @@ impl Schedule {
 
     fn number_of_vehicles_of_same_type_spawned_at_custom_usage(
         &self,
-        depot: DepotId,
-        vehicle_type: VehicleTypeId,
+        depot: DepotIdx,
+        vehicle_type: VehicleTypeIdx,
         depot_usage: &DepotUsage,
     ) -> VehicleCount {
         depot_usage
@@ -674,7 +669,7 @@ impl Schedule {
 
     fn number_of_vehicles_spawned_at_custom_usage(
         &self,
-        depot: DepotId,
+        depot: DepotIdx,
         depot_usage: &DepotUsage,
     ) -> VehicleCount {
         self.network

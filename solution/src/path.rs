@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use model::base_types::NodeId;
+use model::base_types::NodeIdx;
 use model::network::Network;
 use std::fmt;
 
@@ -16,7 +16,7 @@ use std::iter::Iterator;
 /// It is mainly used for sequence of uncovered nodes.
 #[derive(Clone)]
 pub struct Path {
-    node_sequence: Vec<NodeId>,
+    node_sequence: Vec<NodeIdx>,
 
     network: Arc<Network>,
 }
@@ -27,7 +27,7 @@ impl Path {
     /// it is a path in the network,
     /// it has no intermediate depots,
     /// it has at least one non-depot nodes.
-    pub fn new(node_sequence: Vec<NodeId>, nw: Arc<Network>) -> Result<Option<Path>, String> {
+    pub fn new(node_sequence: Vec<NodeIdx>, nw: Arc<Network>) -> Result<Option<Path>, String> {
         for (&a, &b) in node_sequence.iter().tuple_windows() {
             if !nw.can_reach(a, b) {
                 return Err(format!("Not a valid Path: {} cannot reach {}.", a, b));
@@ -38,7 +38,7 @@ impl Path {
 
     /// crates a new Path but does NOT assert if it is a feasible path in the network.
     /// If node_sequence does not contain any non-depot nodes, None is returned.
-    pub(crate) fn new_trusted(node_sequence: Vec<NodeId>, nw: Arc<Network>) -> Option<Path> {
+    pub(crate) fn new_trusted(node_sequence: Vec<NodeIdx>, nw: Arc<Network>) -> Option<Path> {
         if node_sequence.iter().all(|&node| nw.node(node).is_depot()) {
             None
         } else {
@@ -49,7 +49,7 @@ impl Path {
         }
     }
 
-    pub fn new_from_single_node(node: NodeId, network: Arc<Network>) -> Path {
+    pub fn new_from_single_node(node: NodeIdx, network: Arc<Network>) -> Path {
         assert!(!network.node(node).is_depot());
         Path {
             node_sequence: vec![node],
@@ -60,7 +60,7 @@ impl Path {
 
 // methods
 impl Path {
-    pub(crate) fn iter(&self) -> impl Iterator<Item = NodeId> + '_ {
+    pub(crate) fn iter(&self) -> impl Iterator<Item = NodeIdx> + '_ {
         self.node_sequence.iter().copied()
     }
 
@@ -68,15 +68,15 @@ impl Path {
         self.node_sequence.len()
     }
 
-    pub(crate) fn first(&self) -> NodeId {
+    pub(crate) fn first(&self) -> NodeIdx {
         self.node_sequence[0]
     }
 
-    pub(crate) fn last(&self) -> NodeId {
+    pub(crate) fn last(&self) -> NodeIdx {
         self.node_sequence[self.node_sequence.len() - 1]
     }
 
-    pub(crate) fn consume(self) -> Vec<NodeId> {
+    pub(crate) fn consume(self) -> Vec<NodeIdx> {
         self.node_sequence
     }
 

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use time::Duration;
 
 use crate::base_types::VehicleCount;
-use crate::base_types::{Distance, Location, LocationId};
+use crate::base_types::{Distance, Location, LocationIdx};
 
 /// a type for storing the pair-wise distances and travel times between all stations.
 /// Distances are stored as a Vec<Vec<Distance>>-matrix.
@@ -20,8 +20,8 @@ use crate::base_types::{Distance, Location, LocationId};
 /// A DeadHeadMetrics instance can only be created together with the Vec<Distance> of wrapped
 /// stations. Use loactions::create_locations for that. Hence, the indices should always be consistent.
 pub struct Locations {
-    stations: HashMap<LocationId, (String, Option<VehicleCount>)>, // values: (external_id, daylimit)
-    dead_head_trips: HashMap<LocationId, HashMap<LocationId, DeadHeadTrip>>,
+    stations: HashMap<LocationIdx, (String, Option<VehicleCount>)>, // values: (external_id, daylimit)
+    dead_head_trips: HashMap<LocationIdx, HashMap<LocationIdx, DeadHeadTrip>>,
 }
 
 pub struct DeadHeadTrip {
@@ -45,8 +45,8 @@ impl DeadHeadTrip {
 // static functions
 impl Locations {
     pub fn new(
-        stations: HashMap<LocationId, (String, Option<VehicleCount>)>,
-        dead_head_trips: HashMap<LocationId, HashMap<LocationId, DeadHeadTrip>>,
+        stations: HashMap<LocationIdx, (String, Option<VehicleCount>)>,
+        dead_head_trips: HashMap<LocationIdx, HashMap<LocationIdx, DeadHeadTrip>>,
     ) -> Locations {
         Locations {
             stations,
@@ -57,7 +57,7 @@ impl Locations {
 
 // methods
 impl Locations {
-    pub fn get_location(&self, location_id: LocationId) -> Result<Location, &'static str> {
+    pub fn get_location(&self, location_id: LocationIdx) -> Result<Location, &'static str> {
         match self.stations.get(&location_id) {
             Some(_) => Ok(Location::Station(location_id)),
             None => Err("Location Id is invalid."),

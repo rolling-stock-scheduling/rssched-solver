@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use im::HashMap;
-use model::base_types::{MaintenanceCounter, VehicleId};
+use model::base_types::{MaintenanceCounter, VehicleIdx};
 
 use crate::tour::Tour;
 
@@ -12,7 +12,7 @@ pub struct Transition {
 }
 
 impl Transition {
-    pub fn new_fast(vehicles: &[VehicleId], tours: &HashMap<VehicleId, Tour>) -> Transition {
+    pub fn new_fast(vehicles: &[VehicleIdx], tours: &HashMap<VehicleIdx, Tour>) -> Transition {
         Transition::one_cluster_per_maintenance(vehicles, tours)
     }
 
@@ -42,11 +42,11 @@ impl Transition {
     /// It is assumed that each vehicle has a tour.
     /// tours might contain tours of vehicle of other types.
     fn one_cluster_per_maintenance(
-        vehicles: &[VehicleId],
-        tours: &HashMap<VehicleId, Tour>,
+        vehicles: &[VehicleIdx],
+        tours: &HashMap<VehicleIdx, Tour>,
     ) -> Transition {
-        let mut sorted_clusters: Vec<(Vec<VehicleId>, MaintenanceCounter)> = Vec::new(); // TODO Use BTreeMap
-        let mut sorted_unassigned_vehicles: Vec<VehicleId> = Vec::new(); // all none maintenance
+        let mut sorted_clusters: Vec<(Vec<VehicleIdx>, MaintenanceCounter)> = Vec::new(); // TODO Use BTreeMap
+        let mut sorted_unassigned_vehicles: Vec<VehicleIdx> = Vec::new(); // all none maintenance
                                                                          // vehicles sorted by
                                                                          // maintenance counter in descending order
 
@@ -111,16 +111,16 @@ impl Transition {
 
     /// Verifies that the transition is consistent with the tours.
     /// Note that the tours must be the tours of this vehicle type group.
-    pub fn verify_consistency(&self, tours: &HashMap<VehicleId, Tour>) {
+    pub fn verify_consistency(&self, tours: &HashMap<VehicleIdx, Tour>) {
         // each vehicle is present in exactly one cycle
-        let cycles: Vec<VehicleId> = self
+        let cycles: Vec<VehicleIdx> = self
             .cycles
             .iter()
             .flat_map(|transition_cycle| transition_cycle.cycle.iter().cloned())
             .collect();
         assert_eq!(cycles.len(), tours.len());
-        let vehicles_from_tours: HashSet<VehicleId> = tours.keys().cloned().collect();
-        let vehicles_from_cycles: HashSet<VehicleId> = cycles.iter().cloned().collect();
+        let vehicles_from_tours: HashSet<VehicleIdx> = tours.keys().cloned().collect();
+        let vehicles_from_cycles: HashSet<VehicleIdx> = cycles.iter().cloned().collect();
         assert_eq!(vehicles_from_tours, vehicles_from_cycles);
 
         // verify maintenance violations
@@ -147,13 +147,13 @@ impl Transition {
 
 #[derive(Debug, Clone)]
 pub struct TransitionCycle {
-    cycle: Vec<VehicleId>,
+    cycle: Vec<VehicleIdx>,
     maintenance_violation: MaintenanceCounter,
 }
 
 impl TransitionCycle {
     pub fn new(
-        cycle: Vec<VehicleId>,
+        cycle: Vec<VehicleIdx>,
         maintenance_violation: MaintenanceCounter,
     ) -> TransitionCycle {
         TransitionCycle {

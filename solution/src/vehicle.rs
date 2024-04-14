@@ -1,20 +1,20 @@
 use std::{fmt, sync::Arc};
 
 use model::{
-    base_types::{PassengerCount, VehicleCount, VehicleId, VehicleTypeId},
+    base_types::{PassengerCount, VehicleCount, VehicleIdx, VehicleTypeIdx},
     vehicle_types::{VehicleType, VehicleTypes},
 };
 
 #[derive(Clone, Debug)]
 pub struct Vehicle {
-    id: VehicleId,
+    id: VehicleIdx,
     vehicle_type: Arc<VehicleType>,
 }
 
 impl Vehicle {
     pub(super) fn new(
-        id: VehicleId,
-        type_id: VehicleTypeId,
+        id: VehicleIdx,
+        type_id: VehicleTypeIdx,
         vehicle_types: Arc<VehicleTypes>,
     ) -> Vehicle {
         Vehicle {
@@ -23,11 +23,11 @@ impl Vehicle {
         }
     }
 
-    pub fn id(&self) -> VehicleId {
+    pub fn id(&self) -> VehicleIdx {
         self.id
     }
 
-    pub fn type_id(&self) -> VehicleTypeId {
+    pub fn type_id(&self) -> VehicleTypeIdx {
         self.vehicle_type.idx()
     }
 

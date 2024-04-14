@@ -1,6 +1,6 @@
 use std::fmt;
 
-use model::base_types::{PassengerCount, VehicleCount, VehicleId};
+use model::base_types::{PassengerCount, VehicleCount, VehicleIdx};
 
 use crate::vehicle::Vehicle;
 use std::iter::Iterator;
@@ -21,7 +21,7 @@ impl TrainFormation {
 
 // methods
 impl TrainFormation {
-    pub(crate) fn replace(&self, old: VehicleId, new: Vehicle) -> Result<TrainFormation, String> {
+    pub(crate) fn replace(&self, old: VehicleIdx, new: Vehicle) -> Result<TrainFormation, String> {
         let mut new_formation = self.formation.clone();
         let pos = new_formation
             .iter()
@@ -42,7 +42,7 @@ impl TrainFormation {
         })
     }
 
-    pub(crate) fn remove(&self, vehicle: VehicleId) -> Result<TrainFormation, String> {
+    pub(crate) fn remove(&self, vehicle: VehicleIdx) -> Result<TrainFormation, String> {
         let mut new_formation = self.formation.clone();
         let pos = new_formation
             .iter()
@@ -71,7 +71,7 @@ impl TrainFormation {
         }
     }
 
-    pub fn ids(&self) -> Vec<VehicleId> {
+    pub fn ids(&self) -> Vec<VehicleIdx> {
         self.formation.iter().map(|v| v.id()).collect()
     }
 

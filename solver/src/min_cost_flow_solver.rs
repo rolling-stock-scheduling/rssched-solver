@@ -1,6 +1,6 @@
-use model::base_types::DepotId;
-use model::base_types::NodeId;
-use model::base_types::VehicleTypeId;
+use model::base_types::DepotIdx;
+use model::base_types::NodeIdx;
+use model::base_types::VehicleTypeIdx;
 use model::base_types::COST_FOR_INF_DURATION;
 use model::config::Config;
 use model::network::nodes::Node;
@@ -26,8 +26,8 @@ use std::time;
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug, Copy)]
 enum TripNode {
-    Service(NodeId),
-    Depot(DepotId),
+    Service(NodeIdx),
+    Depot(DepotIdx),
 }
 
 type NetworkNumberType = i64;
@@ -59,7 +59,7 @@ impl MinCostFlowSolver {
 
     pub fn solve(&self) -> Schedule {
         // split into vehicle types
-        let mut tours: HashMap<VehicleTypeId, Vec<Vec<NodeId>>> = HashMap::new();
+        let mut tours: HashMap<VehicleTypeIdx, Vec<Vec<NodeIdx>>> = HashMap::new();
         for vehicle_type in self.vehicle_types.iter() {
             tours.insert(vehicle_type, self.solve_for_vehicle_type(vehicle_type));
         }
@@ -69,7 +69,7 @@ impl MinCostFlowSolver {
 }
 
 impl MinCostFlowSolver {
-    fn solve_for_vehicle_type(&self, vehicle_type: VehicleTypeId) -> Vec<Vec<NodeId>> {
+    fn solve_for_vehicle_type(&self, vehicle_type: VehicleTypeIdx) -> Vec<Vec<NodeIdx>> {
         let start_time_creating_network = time::Instant::now();
 
         print!("  1) creating min-cost-flow network - \x1b[93m 0%\x1b[0m");
@@ -242,9 +242,9 @@ impl MinCostFlowSolver {
         print!("  3) building schedule");
         io::stdout().flush().unwrap();
 
-        let mut tours: Vec<Vec<NodeId>> = Vec::new();
+        let mut tours: Vec<Vec<NodeIdx>> = Vec::new();
 
-        let mut last_trip_to_tour: HashMap<NodeId, Vec<usize>> = HashMap::new();
+        let mut last_trip_to_tour: HashMap<NodeIdx, Vec<usize>> = HashMap::new();
         // for each service trip store the tours (as index of tours) that are currently ending there
 
         for node in self

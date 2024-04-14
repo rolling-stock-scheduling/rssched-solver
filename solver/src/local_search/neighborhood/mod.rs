@@ -1,6 +1,6 @@
 mod swaps;
 use heuristic_framework::local_search::Neighborhood;
-use model::base_types::VehicleId;
+use model::base_types::VehicleIdx;
 use model::network::Network;
 use solution::{segment::Segment, Schedule};
 use std::sync::Arc;
@@ -70,7 +70,7 @@ impl Neighborhood<Schedule> for SpawnForMaintenanceAndPathExchange {
         // second: exchange segments //
         ///////////////////////////////
 
-        let providers: Vec<VehicleId> = if self.only_dummy_provider {
+        let providers: Vec<VehicleIdx> = if self.only_dummy_provider {
             schedule.dummy_iter().collect()
         } else {
             self.dummy_and_real_vehicles(schedule).collect()
@@ -108,7 +108,7 @@ impl Neighborhood<Schedule> for SpawnForMaintenanceAndPathExchange {
 impl SpawnForMaintenanceAndPathExchange {
     fn segments<'a>(
         &'a self,
-        provider: VehicleId,
+        provider: VehicleIdx,
         schedule: &'a Schedule,
     ) -> impl Iterator<Item = Segment> + 'a {
         let threshold = match self.overhead_threshold {
@@ -144,14 +144,14 @@ impl SpawnForMaintenanceAndPathExchange {
     fn dummy_and_real_vehicles<'a>(
         &'a self,
         schedule: &'a Schedule,
-    ) -> impl Iterator<Item = VehicleId> + 'a {
+    ) -> impl Iterator<Item = VehicleIdx> + 'a {
         schedule.dummy_iter().chain(schedule.vehicles_iter_all())
     }
 
     fn real_and_dummy_vehicles<'a>(
         &'a self,
         schedule: &'a Schedule,
-    ) -> impl Iterator<Item = VehicleId> + 'a {
+    ) -> impl Iterator<Item = VehicleIdx> + 'a {
         schedule.vehicles_iter_all().chain(schedule.dummy_iter())
     }
 }

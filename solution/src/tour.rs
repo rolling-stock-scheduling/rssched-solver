@@ -4,7 +4,7 @@ mod tests;
 use crate::path::Path;
 use crate::segment::Segment;
 use model::base_types::{
-    Cost, Distance, MaintenanceCounter, NodeId, COST_FOR_INF_DURATION, MAINT_COUNTER_FOR_INF_DIST,
+    Cost, Distance, MaintenanceCounter, NodeIdx, COST_FOR_INF_DURATION, MAINT_COUNTER_FOR_INF_DIST,
 };
 use model::network::nodes::Node;
 use model::network::Network;
@@ -32,7 +32,7 @@ type Position = usize; // the position within the tour from 0 to nodes.len()-1
 /// is created.
 #[derive(Clone)]
 pub struct Tour {
-    nodes: Vec<NodeId>, // nodes will always be sorted by start_time; for non-dummy exactly first
+    nodes: Vec<NodeIdx>, // nodes will always be sorted by start_time; for non-dummy exactly first
     // and last node is a depot
     is_dummy: bool, // true if this is a dummy tour
 
@@ -58,12 +58,12 @@ impl Tour {
         self.nodes.len()
     }
 
-    pub fn all_nodes_iter(&self) -> impl Iterator<Item = NodeId> + '_ {
+    pub fn all_nodes_iter(&self) -> impl Iterator<Item = NodeIdx> + '_ {
         self.nodes.iter().copied()
     }
 
     /// return an iterator over all nodes (by start time) skipping the depot at the start and end
-    pub fn all_non_depot_nodes_iter(&self) -> impl Iterator<Item = NodeId> + '_ {
+    pub fn all_non_depot_nodes_iter(&self) -> impl Iterator<Item = NodeIdx> + '_ {
         if self.is_dummy {
             self.nodes.iter().copied()
         } else {
@@ -119,7 +119,7 @@ impl Tour {
     /// the overhead time (dead_head + idle) between the predecessor and the node itself
     /// for the first non-depot node, as well as a depot, the overhead time is set to be infinity.
     /// (this is to allow for splitting before the first non-depot node in all cases)
-    pub fn preceding_overhead(&self, node: NodeId) -> Result<Duration, String> {
+    pub fn preceding_overhead(&self, node: NodeIdx) -> Result<Duration, String> {
         if node == self.first_node() {
             Ok(Duration::Infinity)
         } else {
@@ -131,7 +131,7 @@ impl Tour {
     /// the overhead time (dead_head + idle) between the node itself and its successor
     /// for the last non-depot node, as well as a depot, the overhead time is set to be infinity.
     /// (this is to allow for splitting the tour after the last non-depot node in all cases)
-    pub fn subsequent_overhead(&self, node: NodeId) -> Result<Duration, String> {
+    pub fn subsequent_overhead(&self, node: NodeIdx) -> Result<Duration, String> {
         if node == self.last_node() {
             Ok(Duration::Infinity)
         } else {
@@ -146,25 +146,25 @@ impl Tour {
         self.end_time() - self.start_time() - self.useful_duration()
     }
 
-    pub fn first_node(&self) -> NodeId {
+    pub fn first_node(&self) -> NodeIdx {
         *self.nodes.first().unwrap()
     }
 
-    pub fn last_node(&self) -> NodeId {
+    pub fn last_node(&self) -> NodeIdx {
         *self.nodes.last().unwrap()
     }
 
-    pub fn nth_node(&self, pos: Position) -> Option<NodeId> {
+    pub fn nth_node(&self, pos: Position) -> Option<NodeIdx> {
         self.nodes.get(pos).copied()
     }
 
-    pub fn first_non_depot(&self) -> Option<NodeId> {
+    pub fn first_non_depot(&self) -> Option<NodeIdx> {
         self.all_non_depot_nodes_iter().next()
     }
 
     /// returns the last non-depot (service node or maintenance node) of the tour, ignoring depot.
     /// If the tour does only contain depots None is returned.
-    pub fn last_non_depot(&self) -> Option<NodeId> {
+    pub fn last_non_depot(&self) -> Option<NodeIdx> {
         self.nodes
             .iter()
             .rev()
@@ -172,7 +172,7 @@ impl Tour {
             .copied()
     }
 
-    pub fn start_depot(&self) -> Result<NodeId, String> {
+    pub fn start_depot(&self) -> Result<NodeIdx, String> {
         if self.network.node(self.first_node()).is_start_depot() {
             Ok(self.first_node())
         } else {
@@ -180,7 +180,7 @@ impl Tour {
         }
     }
 
-    pub fn end_depot(&self) -> Result<NodeId, String> {
+    pub fn end_depot(&self) -> Result<NodeIdx, String> {
         if self.network.node(self.last_node()).is_end_depot() {
             Ok(self.last_node())
         } else {
@@ -225,7 +225,7 @@ impl Tour {
     /// return the position of the node in the tour that is the latest one that cannot reach the
     /// provided node.
     /// If all nodes can reach the provided node, None is returned.
-    pub fn latest_not_reaching_node(&self, node: NodeId) -> Option<Position> {
+    pub fn latest_not_reaching_node(&self, node: NodeIdx) -> Option<Position> {
         if self.network.can_reach(*self.nodes.last().unwrap(), node) {
             return None; // all tour-nodes can reach node, even the last
         }
@@ -324,7 +324,7 @@ impl Tour {
 
 // private methods
 impl Tour {
-    fn position_of(&self, node: NodeId) -> Result<Position, String> {
+    fn position_of(&self, node: NodeIdx) -> Result<Position, String> {
         let pos = self
             .nodes
             .binary_search_by(|other| {
@@ -397,7 +397,7 @@ impl Tour {
 
     /// computes the position of the latest tour-node that is not reached by node.
     /// if node can reach all tour-nodes, None is returned.
-    fn latest_not_reached_by_node(&self, node: NodeId) -> Option<Position> {
+    fn latest_not_reached_by_node(&self, node: NodeIdx) -> Option<Position> {
         if self.network.can_reach(node, *self.nodes.first().unwrap()) {
             return None; // node can reach all nodes, even the first
         }
@@ -532,7 +532,7 @@ impl Tour {
     /// * only Service or MaintenanceNodes in the middle
     /// * each node can reach its successor
     /// If one of the checks fails an error message is returned.
-    pub(super) fn new(nodes: Vec<NodeId>, network: Arc<Network>) -> Result<Tour, String> {
+    pub(super) fn new(nodes: Vec<NodeIdx>, network: Arc<Network>) -> Result<Tour, String> {
         Tour::new_allow_invalid(nodes, network).map_err(|(_, error_msg)| error_msg)
     }
 
@@ -544,7 +544,7 @@ impl Tour {
     /// If one of the checks fails an error is returned containing the error message but also the
     /// invalid tour.
     pub(super) fn new_allow_invalid(
-        nodes: Vec<NodeId>,
+        nodes: Vec<NodeIdx>,
         network: Arc<Network>,
     ) -> Result<Tour, (Tour, String)> {
         let mut error_msg = String::new();
@@ -598,7 +598,7 @@ impl Tour {
         Ok(Tour::new_computing(nodes, true, network))
     }
 
-    fn new_computing(nodes: Vec<NodeId>, is_dummy: bool, network: Arc<Network>) -> Tour {
+    fn new_computing(nodes: Vec<NodeIdx>, is_dummy: bool, network: Arc<Network>) -> Tour {
         let useful_duration = Tour::compute_useful_duration_of_nodes(&nodes, &network);
         let service_distance = Tour::compute_service_distance_of_nodes(&nodes, &network);
         let dead_head_distance = Tour::compute_dead_head_distance_of_nodes(&nodes, &network);
@@ -617,14 +617,14 @@ impl Tour {
         )
     }
 
-    fn compute_service_distance_of_nodes(nodes: &[NodeId], network: &Network) -> Distance {
+    fn compute_service_distance_of_nodes(nodes: &[NodeIdx], network: &Network) -> Distance {
         nodes
             .iter()
             .map(|n| network.node(*n).travel_distance())
             .sum()
     }
 
-    fn compute_dead_head_distance_of_nodes(nodes: &[NodeId], network: &Network) -> Distance {
+    fn compute_dead_head_distance_of_nodes(nodes: &[NodeIdx], network: &Network) -> Distance {
         if nodes.len() == 1 {
             Distance::ZERO
         } else {
@@ -636,11 +636,11 @@ impl Tour {
         }
     }
 
-    fn compute_useful_duration_of_nodes(nodes: &[NodeId], network: &Network) -> Duration {
+    fn compute_useful_duration_of_nodes(nodes: &[NodeIdx], network: &Network) -> Duration {
         nodes.iter().map(|n| network.node(*n).duration()).sum()
     }
 
-    fn compute_costs_of_nodes(nodes: &[NodeId], network: &Network) -> Cost {
+    fn compute_costs_of_nodes(nodes: &[NodeIdx], network: &Network) -> Cost {
         nodes
             .iter()
             .map(|n| {
@@ -674,14 +674,14 @@ impl Tour {
                 .sum::<Cost>()
     }
 
-    fn compute_visits_maintenance(nodes: &[NodeId], network: &Network) -> bool {
+    fn compute_visits_maintenance(nodes: &[NodeIdx], network: &Network) -> bool {
         nodes.iter().any(|&n| network.node(n).is_maintenance())
     }
 
     /// Creates a new tour from a vector of NodeIds. Trusts that the vector leads to a valid Tour.
     #[allow(clippy::too_many_arguments)]
     fn new_precomputed(
-        nodes: Vec<NodeId>,
+        nodes: Vec<NodeIdx>,
         is_dummy: bool,
         visits_maintenance: bool,
         useful_duration: Duration,

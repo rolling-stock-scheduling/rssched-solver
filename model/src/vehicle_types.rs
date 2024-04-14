@@ -1,10 +1,10 @@
 use std::{collections::HashMap, sync::Arc};
 
-use crate::base_types::{PassengerCount, VehicleCount, VehicleTypeId};
+use crate::base_types::{PassengerCount, VehicleCount, VehicleTypeIdx};
 
 pub struct VehicleTypes {
-    vehicle_types: HashMap<VehicleTypeId, Arc<VehicleType>>, // TODO use only Vec
-    ids_sorted: Vec<VehicleTypeId>, // sorted by seat count, then capacity, then length, then id
+    vehicle_types: HashMap<VehicleTypeIdx, Arc<VehicleType>>, // TODO use only Vec
+    ids_sorted: Vec<VehicleTypeIdx>, // sorted by seat count, then capacity, then length, then id
 }
 
 impl VehicleTypes {
@@ -28,19 +28,19 @@ impl VehicleTypes {
         }
     }
 
-    pub fn get(&self, id: VehicleTypeId) -> Option<Arc<VehicleType>> {
+    pub fn get(&self, id: VehicleTypeIdx) -> Option<Arc<VehicleType>> {
         self.vehicle_types.get(&id).cloned()
     }
 
     /// Returns an iterator over all vehicle types, sorted by seat count.
-    pub fn iter(&self) -> impl Iterator<Item = VehicleTypeId> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = VehicleTypeIdx> + '_ {
         self.ids_sorted.iter().cloned()
     }
 
     /// Returns best vehicle_type for demand.
     /// Take vehicle_type with the least number of seats such that all passengers are covered.
     /// if no vehicle_type can cover the demand take biggest vehicle (last in sorted list).
-    pub fn best_for(&self, demand: PassengerCount) -> VehicleTypeId {
+    pub fn best_for(&self, demand: PassengerCount) -> VehicleTypeIdx {
         *self
             .ids_sorted
             .iter()
@@ -51,7 +51,7 @@ impl VehicleTypes {
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct VehicleType {
-    idx: VehicleTypeId,
+    idx: VehicleTypeIdx,
     id: String,
     seats: PassengerCount,
     capacity: PassengerCount,
@@ -60,7 +60,7 @@ pub struct VehicleType {
 
 impl VehicleType {
     pub fn new(
-        idx: VehicleTypeId,
+        idx: VehicleTypeIdx,
         id: String,
         capacity_of_passengers: PassengerCount,
         number_of_seats: PassengerCount,
@@ -75,7 +75,7 @@ impl VehicleType {
         }
     }
 
-    pub fn idx(&self) -> VehicleTypeId {
+    pub fn idx(&self) -> VehicleTypeIdx {
         self.idx
     }
 

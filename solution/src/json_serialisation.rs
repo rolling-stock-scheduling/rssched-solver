@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use model::{
-    base_types::{DepotId, NodeId, VehicleId},
+    base_types::{DepotIdx, NodeIdx, VehicleIdx},
     network::{nodes::Node, Network},
 };
 use serde::{Deserialize, Serialize};
@@ -84,7 +84,7 @@ fn depots_usage_to_json(schedule: &Schedule) -> Vec<DepotLoad> {
     depot_loads
 }
 
-fn depot_usage_to_json(schedule: &Schedule, depot_id: DepotId) -> Vec<Load> {
+fn depot_usage_to_json(schedule: &Schedule, depot_id: DepotIdx) -> Vec<Load> {
     let mut loads = vec![];
     for vehicle_type_id in schedule.get_vehicle_types().iter() {
         let spawn_count =
@@ -108,7 +108,7 @@ fn tours_to_json(schedule: &Schedule) -> Vec<JsonTour> {
     tours
 }
 
-fn tour_to_json(schedule: &Schedule, vehicle_id: VehicleId) -> JsonTour {
+fn tour_to_json(schedule: &Schedule, vehicle_id: VehicleIdx) -> JsonTour {
     let network = schedule.get_network();
     let vehicle_type_id = schedule
         .vehicle_type_of(vehicle_id)
@@ -167,8 +167,8 @@ fn tour_to_json(schedule: &Schedule, vehicle_id: VehicleId) -> JsonTour {
 }
 
 fn schedule_dead_head_trip(
-    node1_id: NodeId,
-    node2_id: NodeId,
+    node1_id: NodeIdx,
+    node2_id: NodeIdx,
     nw: &Network,
 ) -> (DateTime, DateTime) {
     let node1 = nw.node(node1_id);

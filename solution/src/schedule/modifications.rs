@@ -1,6 +1,6 @@
 use im::{HashMap, HashSet};
 use itertools::Itertools;
-use model::base_types::{Idx, MaintenanceCounter, NodeId, VehicleId, VehicleTypeId};
+use model::base_types::{Idx, MaintenanceCounter, NodeIdx, VehicleIdx, VehicleTypeIdx};
 
 use crate::{
     path::Path, segment::Segment, tour::Tour, train_formation::TrainFormation,
@@ -12,10 +12,10 @@ use super::DepotUsage;
 impl Schedule {
     pub fn spawn_vehicle_to_replace_dummy_tour(
         &self,
-        dummy_id: VehicleId,
-        vehicle_type_id: VehicleTypeId,
-    ) -> Result<(Schedule, VehicleId), String> {
-        let nodes: Vec<NodeId> = self
+        dummy_id: VehicleIdx,
+        vehicle_type_id: VehicleTypeIdx,
+    ) -> Result<(Schedule, VehicleIdx), String> {
+        let nodes: Vec<NodeIdx> = self
             .dummy_tours
             .get(&dummy_id)
             .ok_or(format!(
@@ -53,9 +53,9 @@ impl Schedule {
     /// If a train formation of some node on the path is full, an error is returned.
     pub fn spawn_vehicle_for_path(
         &self,
-        vehicle_type_id: VehicleTypeId,
-        path_as_vec: Vec<NodeId>,
-    ) -> Result<(Schedule, VehicleId), String> {
+        vehicle_type_id: VehicleTypeIdx,
+        path_as_vec: Vec<NodeIdx>,
+    ) -> Result<(Schedule, VehicleIdx), String> {
         if path_as_vec.iter().any(|n| {
             !self
                 .network
@@ -77,7 +77,7 @@ impl Schedule {
         let mut vehicle_ids_grouped_and_sorted = self.vehicle_ids_grouped_and_sorted.clone();
         let mut maintenance_violation = self.maintenance_violation;
 
-        let vehicle_id = VehicleId::vehicle_from(self.vehicle_counter as Idx);
+        let vehicle_id = VehicleIdx::vehicle_from(self.vehicle_counter as Idx);
         let tour = Tour::new(nodes, self.network.clone())?;
         let vehicle = Vehicle::new(vehicle_id, vehicle_type_id, self.network.vehicle_types());
 
@@ -128,7 +128,7 @@ impl Schedule {
     /// Delete vehicle (and its tour) from schedule.
     /// # Errors
     /// If the vehicle is not a real vehicle an error is returned.
-    pub fn replace_vehicle_by_dummy(&self, vehicle_id: VehicleId) -> Result<Schedule, String> {
+    pub fn replace_vehicle_by_dummy(&self, vehicle_id: VehicleIdx) -> Result<Schedule, String> {
         if !self.is_vehicle(vehicle_id) {
             return Err(format!(
                 "Cannot delete vehicle {} from schedule.",
@@ -176,7 +176,7 @@ impl Schedule {
             self.add_dummy_tour(
                 &mut dummy_tours,
                 &mut dummy_ids_sorted,
-                VehicleId::dummy_from(self.vehicle_counter as Idx),
+                VehicleIdx::dummy_from(self.vehicle_counter as Idx),
                 dummy_tour,
             );
             vehicle_counter += 1;
@@ -212,7 +212,7 @@ impl Schedule {
     /// If a train formation of some node on the path is full, an error is returned.
     pub fn add_path_to_vehicle_tour(
         &self,
-        vehicle_id: VehicleId,
+        vehicle_id: VehicleIdx,
         path: Path,
     ) -> Result<Schedule, String> {
         if let Ok(vehicle_type_id) = self.vehicle_type_of(vehicle_id) {
@@ -311,7 +311,7 @@ impl Schedule {
         // TODO write test for this
         &self,
         segment: Segment,
-        vehicle_id: VehicleId,
+        vehicle_id: VehicleIdx,
     ) -> Result<Schedule, String> {
         if !self.is_vehicle(vehicle_id) {
             return Err(format!(
@@ -351,7 +351,7 @@ impl Schedule {
                     self.add_dummy_tour(
                         &mut dummy_tours,
                         &mut dummy_ids_sorted,
-                        VehicleId::dummy_from(self.vehicle_counter as Idx),
+                        VehicleIdx::dummy_from(self.vehicle_counter as Idx),
                         new_dummy_tour,
                     );
                     vehicle_counter += 1;
@@ -392,8 +392,8 @@ impl Schedule {
     pub fn fit_reassign(
         &self,
         segment: Segment,
-        provider: VehicleId,
-        receiver: VehicleId,
+        provider: VehicleIdx,
+        receiver: VehicleIdx,
     ) -> Result<Schedule, String> {
         if !self.check_receiver_type_compatibility(provider, receiver, segment) {
             return Err(format!(
@@ -472,9 +472,9 @@ impl Schedule {
     pub fn override_reassign(
         &self,
         segment: Segment,
-        provider: VehicleId,
-        receiver: VehicleId,
-    ) -> Result<(Schedule, Option<VehicleId>), String> {
+        provider: VehicleIdx,
+        receiver: VehicleIdx,
+    ) -> Result<(Schedule, Option<VehicleIdx>), String> {
         if !self.check_receiver_type_compatibility(provider, receiver, segment) {
             return Err(format!(
                 "Cannot override_reassign segment {} from vehicle {} to vehicle {}. Vehicle types do not match and segment contains service trip.",
@@ -498,7 +498,7 @@ impl Schedule {
         // remove segment for provider
         let (shrinked_tour_provider, path) = tour_provider.remove(segment)?;
 
-        let moved_nodes: Vec<NodeId> = path.iter().collect();
+        let moved_nodes: Vec<NodeIdx> = path.iter().collect();
 
         // insert path into tour
         let (new_tour_receiver, replaced_path) = tour_receiver.insert_path(path);
@@ -535,7 +535,7 @@ impl Schedule {
             if let Ok(new_dummy_tour) = Tour::new_dummy(new_path, self.network.clone()) {
                 // removed nodes contain service trips, so add a dummy tour
 
-                let new_dummy = VehicleId::dummy_from(vehicle_counter as Idx);
+                let new_dummy = VehicleIdx::dummy_from(vehicle_counter as Idx);
                 new_dummy_opt = Some(new_dummy);
                 vehicle_counter += 1;
 
@@ -581,7 +581,7 @@ impl Schedule {
     /// If None the depots of all vehicles are improved.
     /// Assumes that vehicle are real vehicle in schedule.
     /// Panics if a vehicle is not a real vehicle.
-    pub fn improve_depots(&self, vehicles: Option<Vec<VehicleId>>) -> Schedule {
+    pub fn improve_depots(&self, vehicles: Option<Vec<VehicleIdx>>) -> Schedule {
         let mut tours = self.tours.clone();
         let mut next_period_transitions = self.next_period_transitions.clone();
         let mut depot_usage = self.depot_usage.clone();
@@ -715,7 +715,7 @@ impl Schedule {
 // private methods
 impl Schedule {
     /// Delete dummy vehicle (and its tour) from schedule.
-    fn delete_dummy(&self, dummy: VehicleId) -> Result<Schedule, String> {
+    fn delete_dummy(&self, dummy: VehicleIdx) -> Result<Schedule, String> {
         if !self.is_dummy(dummy) {
             return Err(format!(
                 "Cannot delete vehicle {} from schedule. It is not a dummy vehicle.",
@@ -745,8 +745,8 @@ impl Schedule {
 
     fn check_receiver_type_compatibility(
         &self,
-        provider: VehicleId,
-        receiver: VehicleId,
+        provider: VehicleIdx,
+        receiver: VehicleIdx,
         segment: Segment,
     ) -> bool {
         if let Ok(vehicle_type_of_receiver) = self.vehicle_type_of(receiver) {
@@ -781,18 +781,18 @@ impl Schedule {
     #[allow(clippy::too_many_arguments)]
     fn update_tours(
         &self,
-        vehicles: &mut HashMap<VehicleId, Vehicle>,
-        tours: &mut HashMap<VehicleId, Tour>,
-        train_formations: &mut HashMap<NodeId, TrainFormation>,
+        vehicles: &mut HashMap<VehicleIdx, Vehicle>,
+        tours: &mut HashMap<VehicleIdx, Tour>,
+        train_formations: &mut HashMap<NodeIdx, TrainFormation>,
         depot_usage: &mut DepotUsage,
-        dummy_tours: &mut HashMap<VehicleId, Tour>,
-        vehicle_ids_grouped_and_sorted: &mut HashMap<VehicleTypeId, Vec<VehicleId>>,
-        dummy_ids_sorted: &mut Vec<VehicleId>,
-        provider: Option<VehicleId>,     // None: there is no provider
+        dummy_tours: &mut HashMap<VehicleIdx, Tour>,
+        vehicle_ids_grouped_and_sorted: &mut HashMap<VehicleTypeIdx, Vec<VehicleIdx>>,
+        dummy_ids_sorted: &mut Vec<VehicleIdx>,
+        provider: Option<VehicleIdx>,     // None: there is no provider
         new_tour_provider: Option<Tour>, // None: provider is deleted
-        receiver: VehicleId,
+        receiver: VehicleIdx,
         new_tour_receiver: Tour,
-        moved_nodes: impl Iterator<Item = NodeId>,
+        moved_nodes: impl Iterator<Item = NodeIdx>,
     ) -> Result<(), String> {
         if let Some(provider_id) = provider {
             // update tour of the provider
@@ -833,9 +833,9 @@ impl Schedule {
 
     fn update_tour(
         &self,
-        tours: &mut HashMap<VehicleId, Tour>,
-        dummy_tours: &mut HashMap<VehicleId, Tour>,
-        vehicle: VehicleId,
+        tours: &mut HashMap<VehicleIdx, Tour>,
+        dummy_tours: &mut HashMap<VehicleIdx, Tour>,
+        vehicle: VehicleIdx,
         new_tour: Tour,
     ) {
         if self.is_dummy(vehicle) {
@@ -847,10 +847,10 @@ impl Schedule {
 
     fn update_train_formation(
         &self,
-        train_formations: &mut HashMap<NodeId, TrainFormation>,
-        provider: Option<VehicleId>,       // None: only add receiver
+        train_formations: &mut HashMap<NodeIdx, TrainFormation>,
+        provider: Option<VehicleIdx>,       // None: only add receiver
         receiver_vehicle: Option<Vehicle>, // None: only delete provider
-        moved_nodes: impl Iterator<Item = NodeId>,
+        moved_nodes: impl Iterator<Item = NodeIdx>,
     ) -> Result<(), String> {
         for node in moved_nodes {
             if self.network.node(node).is_depot() {
@@ -873,10 +873,10 @@ impl Schedule {
     /// Provider or receiver can be a dummy vehicle.
     fn vehicle_replacement_in_train_formation(
         &self,
-        train_formations: &HashMap<NodeId, TrainFormation>,
-        provider: Option<VehicleId>,
+        train_formations: &HashMap<NodeIdx, TrainFormation>,
+        provider: Option<VehicleIdx>,
         receiver_vehicle: Option<Vehicle>,
-        node: NodeId,
+        node: NodeIdx,
     ) -> Result<TrainFormation, String> {
         let old_formation = train_formations
             .get(&node)
@@ -936,9 +936,9 @@ impl Schedule {
     fn update_depot_usage(
         &self,
         depot_usage: &mut DepotUsage,
-        vehicles: &HashMap<VehicleId, Vehicle>,
-        tours: &HashMap<VehicleId, Tour>,
-        vehicle_id: VehicleId,
+        vehicles: &HashMap<VehicleIdx, Vehicle>,
+        tours: &HashMap<VehicleIdx, Tour>,
+        vehicle_id: VehicleIdx,
     ) {
         match vehicles.get(&vehicle_id) {
             Some(vehicle) => self.update_depot_usage_assuming_no_dummies(
@@ -979,7 +979,7 @@ impl Schedule {
         &self,
         depot_usage: &mut DepotUsage,
         vehicle: Vehicle,
-        new_start_depot_node: Option<NodeId>, // if None, the vehicle is deleted
+        new_start_depot_node: Option<NodeIdx>, // if None, the vehicle is deleted
     ) {
         let vehicle_type = vehicle.type_id();
         let vehicle_id = vehicle.id();
@@ -1010,7 +1010,7 @@ impl Schedule {
         &self,
         depot_usage: &mut DepotUsage,
         vehicle: Vehicle,
-        new_end_depot_node: Option<NodeId>, // if None, the vehicle is deleted
+        new_end_depot_node: Option<NodeIdx>, // if None, the vehicle is deleted
     ) {
         let vehicle_type = vehicle.type_id();
         let vehicle_id = vehicle.id();
@@ -1039,11 +1039,11 @@ impl Schedule {
 
     fn update_transitions_and_violation_fast(
         &self,
-        transitions: &mut HashMap<VehicleTypeId, Transition>,
+        transitions: &mut HashMap<VehicleTypeIdx, Transition>,
         maintenance_violation: &mut MaintenanceCounter,
-        vehicle_ids_grouped_by_type: &HashMap<VehicleTypeId, Vec<VehicleId>>,
-        tours: &HashMap<VehicleId, Tour>,
-        changed_vehicle_types: Vec<VehicleTypeId>,
+        vehicle_ids_grouped_by_type: &HashMap<VehicleTypeIdx, Vec<VehicleIdx>>,
+        tours: &HashMap<VehicleIdx, Tour>,
+        changed_vehicle_types: Vec<VehicleTypeIdx>,
     ) {
         for vt in changed_vehicle_types.iter() {
             let vehicle_ids = vehicle_ids_grouped_by_type.get(vt).unwrap();
@@ -1058,9 +1058,9 @@ impl Schedule {
 
     fn add_dummy_tour(
         &self,
-        dummy_tours: &mut HashMap<VehicleId, Tour>,
-        dummy_ids_sorted: &mut Vec<VehicleId>,
-        new_dummy_id: VehicleId,
+        dummy_tours: &mut HashMap<VehicleIdx, Tour>,
+        dummy_ids_sorted: &mut Vec<VehicleIdx>,
+        new_dummy_id: VehicleIdx,
         new_dummy_tour: Tour,
     ) {
         dummy_tours.insert(new_dummy_id, new_dummy_tour);
@@ -1087,9 +1087,9 @@ impl Schedule {
     fn fit_path_into_tour(
         &self,
         path: Path,
-        provider: VehicleId,
-        receiver: VehicleId,
-    ) -> (Option<Tour>, Tour, Vec<NodeId>) {
+        provider: VehicleIdx,
+        receiver: VehicleIdx,
+    ) -> (Option<Tour>, Tour, Vec<NodeIdx>) {
         let mut new_tour_provider = Some(self.tour_of(provider).unwrap().clone());
         let mut new_tour_receiver = self.tour_of(receiver).unwrap().clone();
         let mut remaining_path = Some(path);
@@ -1160,7 +1160,7 @@ impl Schedule {
     fn improve_depots_of_tour(
         &self,
         tour: &Tour,
-        vehicle_type_id: VehicleTypeId,
+        vehicle_type_id: VehicleTypeIdx,
         depot_usage: &DepotUsage,
     ) -> Tour {
         let first_non_depot = tour.first_non_depot().unwrap();
@@ -1186,9 +1186,9 @@ impl Schedule {
 
     fn add_suitable_start_and_end_depot_to_path(
         &self,
-        vehicle_type_id: VehicleTypeId,
-        mut nodes: Vec<NodeId>,
-    ) -> Result<Vec<NodeId>, String> {
+        vehicle_type_id: VehicleTypeIdx,
+        mut nodes: Vec<NodeIdx>,
+    ) -> Result<Vec<NodeIdx>, String> {
         let first_node = *nodes.first().unwrap();
         let last_node = *nodes.last().unwrap();
 
@@ -1232,10 +1232,10 @@ impl Schedule {
 
     fn find_best_start_depot_for_spawning(
         &self,
-        vehicle_type_id: VehicleTypeId,
-        first_node: NodeId,
+        vehicle_type_id: VehicleTypeIdx,
+        first_node: NodeIdx,
         depot_usage: &DepotUsage,
-    ) -> Result<NodeId, String> {
+    ) -> Result<NodeIdx, String> {
         let start_location = self.network.node(first_node).start_location();
         let start_depot = self
             .network
@@ -1256,9 +1256,9 @@ impl Schedule {
 
     fn find_best_end_depot_for_despawning(
         &self,
-        vehicle_type_id: VehicleTypeId,
-        last_node: NodeId,
-    ) -> Result<NodeId, String> {
+        vehicle_type_id: VehicleTypeIdx,
+        last_node: NodeIdx,
+    ) -> Result<NodeIdx, String> {
         let end_location = self.network.node(last_node).end_location();
         let end_depot = self
             .network

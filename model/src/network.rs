@@ -7,7 +7,7 @@ use nodes::{MaintenanceSlot, ServiceTrip};
 use time::{DateTime, Duration};
 
 use crate::base_types::{
-    DepotId, Distance, Idx, Location, NodeId, PassengerCount, VehicleCount, VehicleTypeId,
+    DepotIdx, Distance, Idx, Location, NodeIdx, PassengerCount, VehicleCount, VehicleTypeIdx,
 };
 use crate::config::Config;
 use crate::locations::Locations;
@@ -20,23 +20,23 @@ use std::iter::Iterator;
 
 use std::sync::Arc;
 
-type SortedNodes = BTreeMap<(DateTime, NodeId), NodeId>;
+type SortedNodes = BTreeMap<(DateTime, NodeIdx), NodeIdx>;
 
 pub struct Network {
-    nodes: HashMap<NodeId, Node>,
-    depots: HashMap<DepotId, (Depot, NodeId, NodeId)>, // depot, start_node, end_node
-    overflow_depot_ids: (DepotId, NodeId, NodeId),
+    nodes: HashMap<NodeIdx, Node>,
+    depots: HashMap<DepotIdx, (Depot, NodeIdx, NodeIdx)>, // depot, start_node, end_node
+    overflow_depot_ids: (DepotIdx, NodeIdx, NodeIdx),
 
     // nodes are by default sorted by start_time (ties are broken by end_time then id)
-    service_nodes: HashMap<VehicleTypeId, Vec<NodeId>>,
-    maintenance_nodes: Vec<NodeId>,
-    start_depot_nodes: Vec<NodeId>,
-    end_depot_nodes: Vec<NodeId>,
+    service_nodes: HashMap<VehicleTypeIdx, Vec<NodeIdx>>,
+    maintenance_nodes: Vec<NodeIdx>,
+    start_depot_nodes: Vec<NodeIdx>,
+    end_depot_nodes: Vec<NodeIdx>,
 
     nodes_sorted_by_start: SortedNodes,
 
-    vehicle_type_nodes_sorted_by_start: HashMap<VehicleTypeId, SortedNodes>,
-    vehicle_type_nodes_sorted_by_end: HashMap<VehicleTypeId, SortedNodes>,
+    vehicle_type_nodes_sorted_by_start: HashMap<VehicleTypeIdx, SortedNodes>,
+    vehicle_type_nodes_sorted_by_end: HashMap<VehicleTypeIdx, SortedNodes>,
 
     config: Arc<Config>,
     locations: Arc<Locations>,
@@ -56,7 +56,7 @@ impl Network {
         self.config.clone()
     }
 
-    pub fn node(&self, id: NodeId) -> &Node {
+    pub fn node(&self, id: NodeIdx) -> &Node {
         self.nodes.get(&id).unwrap()
     }
 
@@ -65,11 +65,11 @@ impl Network {
         self.nodes.len()
     }
 
-    pub fn service_nodes(&self, vehicle_type: VehicleTypeId) -> impl Iterator<Item = NodeId> + '_ {
+    pub fn service_nodes(&self, vehicle_type: VehicleTypeIdx) -> impl Iterator<Item = NodeIdx> + '_ {
         self.service_nodes[&vehicle_type].iter().copied()
     }
 
-    pub fn all_service_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
+    pub fn all_service_nodes(&self) -> impl Iterator<Item = NodeIdx> + '_ {
         self.nodes_sorted_by_start
             .values()
             .filter(move |&n| self.node(*n).is_service())
@@ -80,11 +80,11 @@ impl Network {
         self.number_of_service_nodes
     }
 
-    pub fn maintenance_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
+    pub fn maintenance_nodes(&self) -> impl Iterator<Item = NodeIdx> + '_ {
         self.maintenance_nodes.iter().copied()
     }
 
-    pub fn tracks_of_maintenance_slot(&self, maintenance_node: NodeId) -> VehicleCount {
+    pub fn tracks_of_maintenance_slot(&self, maintenance_node: NodeIdx) -> VehicleCount {
         let maintenance_node = self.node(maintenance_node).as_maintenance();
         maintenance_node.tracks()
     }
@@ -93,25 +93,25 @@ impl Network {
         !self.maintenance_nodes.is_empty()
     }
 
-    pub fn start_depot_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
+    pub fn start_depot_nodes(&self) -> impl Iterator<Item = NodeIdx> + '_ {
         self.start_depot_nodes.iter().copied()
     }
 
-    pub fn end_depot_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
+    pub fn end_depot_nodes(&self) -> impl Iterator<Item = NodeIdx> + '_ {
         self.end_depot_nodes.iter().copied()
     }
 
-    pub fn depots_iter(&self) -> impl Iterator<Item = DepotId> + '_ {
+    pub fn depots_iter(&self) -> impl Iterator<Item = DepotIdx> + '_ {
         self.depots.keys().copied()
     }
 
     /// returns the depot_ids of the overflow depot and its start and end node
-    pub fn overflow_depot_ids(&self) -> (DepotId, NodeId, NodeId) {
+    pub fn overflow_depot_ids(&self) -> (DepotIdx, NodeIdx, NodeIdx) {
         self.overflow_depot_ids
     }
 
     /// service and maintenance_nodes
-    pub fn coverable_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
+    pub fn coverable_nodes(&self) -> impl Iterator<Item = NodeIdx> + '_ {
         self.all_service_nodes().chain(self.maintenance_nodes())
     }
 
@@ -119,19 +119,19 @@ impl Network {
         &self.locations
     }
 
-    pub fn capacity_of(&self, depot_id: DepotId, vehicle_type_id: VehicleTypeId) -> PassengerCount {
+    pub fn capacity_of(&self, depot_id: DepotIdx, vehicle_type_id: VehicleTypeIdx) -> PassengerCount {
         self.depots[&depot_id].0.capacity_for(vehicle_type_id)
     }
 
-    pub fn total_capacity_of(&self, depot_id: DepotId) -> PassengerCount {
+    pub fn total_capacity_of(&self, depot_id: DepotIdx) -> PassengerCount {
         self.depots[&depot_id].0.total_capacity()
     }
 
-    pub fn vehicle_type_for(&self, service_trip: NodeId) -> VehicleTypeId {
+    pub fn vehicle_type_for(&self, service_trip: NodeIdx) -> VehicleTypeIdx {
         self.node(service_trip).as_service_trip().vehicle_type()
     }
 
-    pub fn compatible_with_vehicle_type(&self, node: NodeId, vehicle_type: VehicleTypeId) -> bool {
+    pub fn compatible_with_vehicle_type(&self, node: NodeIdx, vehicle_type: VehicleTypeIdx) -> bool {
         if self.node(node).is_service() {
             self.vehicle_type_for(node) == vehicle_type
         } else {
@@ -139,18 +139,18 @@ impl Network {
         }
     }
 
-    pub fn passengers_of(&self, service_trip: NodeId) -> PassengerCount {
+    pub fn passengers_of(&self, service_trip: NodeIdx) -> PassengerCount {
         self.node(service_trip).as_service_trip().passengers()
     }
 
-    pub fn seated_passengers_of(&self, service_trip: NodeId) -> PassengerCount {
+    pub fn seated_passengers_of(&self, service_trip: NodeIdx) -> PassengerCount {
         self.node(service_trip).as_service_trip().seated()
     }
 
     pub fn number_of_vehicles_required_to_serve(
         &self,
-        vehicle_type: VehicleTypeId,
-        service_trip: NodeId,
+        vehicle_type: VehicleTypeIdx,
+        service_trip: NodeIdx,
     ) -> VehicleCount {
         let service_trip = self.node(service_trip).as_service_trip();
         let vehicle_type = self.vehicle_types.get(vehicle_type).unwrap();
@@ -161,23 +161,23 @@ impl Network {
             .max(1) // one vehicle is always required
     }
 
-    pub fn get_depot_id(&self, node_id: NodeId) -> DepotId {
+    pub fn get_depot_id(&self, node_id: NodeIdx) -> DepotIdx {
         self.node(node_id).as_depot().depot_idx()
     }
 
-    pub fn get_depot(&self, depot_id: DepotId) -> &Depot {
+    pub fn get_depot(&self, depot_id: DepotIdx) -> &Depot {
         &self.depots.get(&depot_id).unwrap().0
     }
 
-    pub fn get_start_depot_node(&self, depot_id: DepotId) -> NodeId {
+    pub fn get_start_depot_node(&self, depot_id: DepotIdx) -> NodeIdx {
         self.depots.get(&depot_id).unwrap().1
     }
 
-    pub fn get_end_depot_node(&self, depot_id: DepotId) -> NodeId {
+    pub fn get_end_depot_node(&self, depot_id: DepotIdx) -> NodeIdx {
         self.depots.get(&depot_id).unwrap().2
     }
 
-    pub fn idle_time_between(&self, node1: NodeId, node2: NodeId) -> Duration {
+    pub fn idle_time_between(&self, node1: NodeIdx, node2: NodeIdx) -> Duration {
         if self.node(node1).is_start_depot() || self.node(node2).is_end_depot() {
             return Duration::ZERO;
         }
@@ -191,14 +191,14 @@ impl Network {
         }
     }
 
-    pub fn dead_head_time_between(&self, node1: NodeId, node2: NodeId) -> Duration {
+    pub fn dead_head_time_between(&self, node1: NodeIdx, node2: NodeIdx) -> Duration {
         self.locations.travel_time(
             self.node(node1).end_location(),
             self.node(node2).start_location(),
         )
     }
 
-    pub fn dead_head_distance_between(&self, node1: NodeId, node2: NodeId) -> Distance {
+    pub fn dead_head_distance_between(&self, node1: NodeIdx, node2: NodeIdx) -> Distance {
         self.locations.distance(
             self.node(node1).end_location(),
             self.node(node2).start_location(),
@@ -210,7 +210,7 @@ impl Network {
 
     /// returns True iff node1 can reach node2
     /// but alswats False from start depot to start depot and end depot to end depot
-    pub fn can_reach(&self, node1: NodeId, node2: NodeId) -> bool {
+    pub fn can_reach(&self, node1: NodeIdx, node2: NodeIdx) -> bool {
         let n1 = self.nodes.get(&node1).unwrap();
         let n2 = self.nodes.get(&node2).unwrap();
 
@@ -232,11 +232,11 @@ impl Network {
     /// provides all nodes of the given vehicle_type that are can be reached by node
     pub fn successors(
         &self,
-        vehicle_type: VehicleTypeId,
-        node: NodeId,
-    ) -> impl Iterator<Item = NodeId> + '_ {
+        vehicle_type: VehicleTypeIdx,
+        node: NodeIdx,
+    ) -> impl Iterator<Item = NodeIdx> + '_ {
         self.vehicle_type_nodes_sorted_by_start[&vehicle_type]
-            .range((self.node(node).end_time(), NodeId::smallest())..)
+            .range((self.node(node).end_time(), NodeIdx::smallest())..)
             .filter_map(move |(_, &n)| {
                 if self.can_reach(node, n) {
                     Some(n)
@@ -249,11 +249,11 @@ impl Network {
     /// provides all nodes of the given vehicle_type that are can reach node
     pub fn predecessors(
         &self,
-        vehicle_type: VehicleTypeId,
-        node: NodeId,
-    ) -> impl Iterator<Item = NodeId> + '_ {
+        vehicle_type: VehicleTypeIdx,
+        node: NodeIdx,
+    ) -> impl Iterator<Item = NodeIdx> + '_ {
         self.vehicle_type_nodes_sorted_by_end[&vehicle_type]
-            .range(..(self.node(node).start_time(), NodeId::smallest()))
+            .range(..(self.node(node).start_time(), NodeIdx::smallest()))
             .filter_map(move |(_, &n)| {
                 if self.can_reach(n, node) {
                     Some(n)
@@ -264,7 +264,7 @@ impl Network {
     }
 
     /// Assume that node1 can reach node2.
-    pub fn minimal_duration_between_nodes(&self, node1: NodeId, node2: NodeId) -> Duration {
+    pub fn minimal_duration_between_nodes(&self, node1: NodeIdx, node2: NodeIdx) -> Duration {
         let n1 = self.nodes.get(&node1).unwrap();
         let n2 = self.nodes.get(&node2).unwrap();
 
@@ -323,11 +323,11 @@ impl Network {
         previous + next
     }
 
-    pub fn all_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
+    pub fn all_nodes(&self) -> impl Iterator<Item = NodeIdx> + '_ {
         self.nodes_sorted_by_start.values().copied()
     }
 
-    pub fn start_depots_sorted_by_distance_to(&self, location: Location) -> Vec<NodeId> {
+    pub fn start_depots_sorted_by_distance_to(&self, location: Location) -> Vec<NodeIdx> {
         let mut depots = self.start_depot_nodes.clone();
         depots.sort_by_key(|&d| {
             self.locations
@@ -336,7 +336,7 @@ impl Network {
         depots
     }
 
-    pub fn end_depots_sorted_by_distance_from(&self, location: Location) -> Vec<NodeId> {
+    pub fn end_depots_sorted_by_distance_from(&self, location: Location) -> Vec<NodeIdx> {
         let mut depots = self.end_depot_nodes.clone();
         depots.sort_by_key(|&d| {
             self.locations
@@ -352,7 +352,7 @@ impl Network {
     /// nodes as vec gives the index within the vector.
     pub fn new(
         mut depots: Vec<Depot>,
-        service_trips: HashMap<VehicleTypeId, Vec<ServiceTrip>>,
+        service_trips: HashMap<VehicleTypeIdx, Vec<ServiceTrip>>,
         maintenance_slots: Vec<MaintenanceSlot>,
         config: Config,
         locations: Locations,
@@ -367,7 +367,7 @@ impl Network {
 
         // add overflow depot (infinity capacity for all types, but located Nowhere -> Distance is
         // Infinity)
-        let overflow_depot_id = DepotId::from(depots.len() as Idx);
+        let overflow_depot_id = DepotIdx::from(depots.len() as Idx);
         let overflow_depot = Depot::new(
             overflow_depot_id,
             String::from("OVERFLOW_DEPOT"),
@@ -381,7 +381,7 @@ impl Network {
         for depot in depots {
             let depot_idx = depot.idx();
 
-            let start_node_idx = NodeId::start_depot_from(idx_counter as Idx);
+            let start_node_idx = NodeIdx::start_depot_from(idx_counter as Idx);
             let start_node_id = format!("s_{}", depot.id());
             let start_node = Node::create_start_depot_node(
                 start_node_idx,
@@ -393,7 +393,7 @@ impl Network {
             start_depot_nodes.push(start_node_idx);
             idx_counter += 1;
 
-            let end_node_idx = NodeId::end_depot_from(idx_counter as Idx);
+            let end_node_idx = NodeIdx::end_depot_from(idx_counter as Idx);
             let end_node_id = format!("e_{}", depot.id());
             let end_node =
                 Node::create_end_depot_node(end_node_idx, end_node_id, depot_idx, depot.location());
@@ -457,7 +457,7 @@ impl Network {
             })
             .collect();
 
-        let vehicle_type_nodes_sorted_by_start: HashMap<VehicleTypeId, SortedNodes> = vehicle_types
+        let vehicle_type_nodes_sorted_by_start: HashMap<VehicleTypeIdx, SortedNodes> = vehicle_types
             .iter()
             .map(|vt| {
                 let nodes = service_nodes[&vt]
@@ -474,7 +474,7 @@ impl Network {
             })
             .collect();
 
-        let vehicle_type_nodes_sorted_by_end: HashMap<VehicleTypeId, SortedNodes> = vehicle_types
+        let vehicle_type_nodes_sorted_by_end: HashMap<VehicleTypeIdx, SortedNodes> = vehicle_types
             .iter()
             .map(|vt| {
                 let nodes = service_nodes[&vt]

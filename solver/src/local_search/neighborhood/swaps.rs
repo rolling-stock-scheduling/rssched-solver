@@ -1,4 +1,4 @@
-use model::base_types::{NodeId, VehicleId, VehicleTypeId};
+use model::base_types::{NodeIdx, VehicleIdx, VehicleTypeIdx};
 use solution::{segment::Segment, Schedule};
 
 use std::fmt;
@@ -9,14 +9,14 @@ pub trait Swap: fmt::Display + Send + Sync {
 }
 
 pub struct SpawnVehicleForMaintenance {
-    maintenance_slot: NodeId,
-    vehicle_type: VehicleTypeId,
+    maintenance_slot: NodeIdx,
+    vehicle_type: VehicleTypeIdx,
 }
 
 impl SpawnVehicleForMaintenance {
     pub(crate) fn new(
-        maintenance_slot: NodeId,
-        vehicle_type: VehicleTypeId,
+        maintenance_slot: NodeIdx,
+        vehicle_type: VehicleTypeIdx,
     ) -> SpawnVehicleForMaintenance {
         SpawnVehicleForMaintenance {
             maintenance_slot,
@@ -61,12 +61,12 @@ impl fmt::Display for SpawnVehicleForMaintenance {
 /// the provider's tour.
 pub struct PathExchange {
     segment: Segment,
-    provider: VehicleId,
-    receiver: VehicleId,
+    provider: VehicleIdx,
+    receiver: VehicleIdx,
 }
 
 impl PathExchange {
-    pub(crate) fn new(segment: Segment, provider: VehicleId, receiver: VehicleId) -> PathExchange {
+    pub(crate) fn new(segment: Segment, provider: VehicleIdx, receiver: VehicleIdx) -> PathExchange {
         PathExchange {
             segment,
             provider,

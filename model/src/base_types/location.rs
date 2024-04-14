@@ -1,21 +1,21 @@
-use super::LocationId;
+use super::LocationIdx;
 use std::fmt;
 
 #[derive(Hash, Eq, PartialEq, Copy, Clone, Debug)]
 pub enum Location {
-    Station(LocationId),
+    Station(LocationIdx),
     Nowhere, // distance to Nowhere is always infinity
 }
 
 impl Location {
-    pub fn id(&self) -> LocationId {
+    pub fn id(&self) -> LocationIdx {
         match self {
             Location::Station(s) => *s,
             Location::Nowhere => panic!("Location::Nowhere has no id."),
         }
     }
 
-    pub fn of(id: LocationId) -> Location {
+    pub fn of(id: LocationIdx) -> Location {
         Location::Station(id)
     }
 }

@@ -1,5 +1,5 @@
 use itertools::assert_equal;
-use model::base_types::{Distance, VehicleId, VehicleTypeId};
+use model::base_types::{Distance, VehicleIdx, VehicleTypeIdx};
 
 use crate::{
     path::Path,
@@ -53,11 +53,11 @@ fn default_schedule(d: &TestData) -> Schedule {
 fn basic_methods_test() {
     // ARRANGE
     let d = init_test_data();
-    let veh0 = VehicleId::vehicle_from(0);
-    let veh1 = VehicleId::vehicle_from(1);
-    let veh2 = VehicleId::vehicle_from(2);
-    let veh3 = VehicleId::vehicle_from(3);
-    let veh4 = VehicleId::vehicle_from(4);
+    let veh0 = VehicleIdx::vehicle_from(0);
+    let veh1 = VehicleIdx::vehicle_from(1);
+    let veh2 = VehicleIdx::vehicle_from(2);
+    let veh3 = VehicleIdx::vehicle_from(3);
+    let veh4 = VehicleIdx::vehicle_from(4);
 
     // ACT
     let schedule = default_schedule(&d);
@@ -148,7 +148,7 @@ fn basic_methods_test() {
     assert!(!schedule.can_depot_spawn_vehicle(d.start_depot2, d.vt2));
     assert!(!schedule.can_depot_spawn_vehicle(d.start_depot4, d.vt1));
     assert!(schedule.can_depot_spawn_vehicle(d.start_depot4, d.vt2));
-    assert!(!schedule.can_depot_spawn_vehicle(d.start_depot2, VehicleTypeId::from(3)));
+    assert!(!schedule.can_depot_spawn_vehicle(d.start_depot2, VehicleTypeIdx::from(3)));
 
     assert!(!schedule.reduces_spawning_at_depot_violation(d.vt1, d.depot1));
     assert!(!schedule.reduces_spawning_at_depot_violation(d.vt2, d.depot1));
@@ -182,8 +182,8 @@ fn basic_methods_test() {
 fn scheduling_ordering_test() {
     // ARRANGE
     let d = init_test_data();
-    let veh1 = VehicleId::vehicle_from(1);
-    let veh2 = VehicleId::vehicle_from(2);
+    let veh1 = VehicleIdx::vehicle_from(1);
+    let veh2 = VehicleIdx::vehicle_from(2);
     let schedule_default = default_schedule(&d);
     let schedule_four_vehicles = schedule_default
         .spawn_vehicle_for_path(d.vt2, vec![d.trip12, d.trip23, d.trip31])
@@ -216,10 +216,10 @@ fn scheduling_ordering_test() {
 fn spawn_vehicle_to_repalce_dummy_tour_test() {
     // ARRANGE
     let d = init_test_data();
-    let veh0 = VehicleId::vehicle_from(0);
-    let veh4 = VehicleId::vehicle_from(4);
+    let veh0 = VehicleIdx::vehicle_from(0);
+    let veh4 = VehicleIdx::vehicle_from(4);
     let schedule = default_schedule(&d).replace_vehicle_by_dummy(veh0).unwrap();
-    let dummy3 = VehicleId::dummy_from(3);
+    let dummy3 = VehicleIdx::dummy_from(3);
 
     // ACT
     let (new_schedule, new_vehicle) = schedule
@@ -253,7 +253,7 @@ fn spawn_vehicle_to_repalce_dummy_tour_test() {
 fn spawn_vehicle_to_repalce_dummy_tour_failure_test() {
     // ARRANGE
     let d = init_test_data();
-    let veh0 = VehicleId::vehicle_from(0);
+    let veh0 = VehicleIdx::vehicle_from(0);
     // create dummy by using override_reassign:
     let schedule = default_schedule(&d);
 
@@ -269,7 +269,7 @@ fn spawn_vehicle_for_path_without_depots_test() {
     // ARRANGE
     let d = init_test_data();
     let schedule = default_schedule(&d);
-    let veh3 = VehicleId::vehicle_from(3);
+    let veh3 = VehicleIdx::vehicle_from(3);
 
     // ACT
     let (new_schedule, new_vehicle) = schedule
@@ -333,9 +333,9 @@ fn replace_vehicle_by_dummy_success_test() {
     // ARRANGE
     let d = init_test_data();
     let schedule = default_schedule(&d);
-    let veh0 = VehicleId::vehicle_from(0);
-    let veh2 = VehicleId::vehicle_from(2);
-    let dummy3 = VehicleId::dummy_from(3);
+    let veh0 = VehicleIdx::vehicle_from(0);
+    let veh2 = VehicleIdx::vehicle_from(2);
+    let dummy3 = VehicleIdx::dummy_from(3);
 
     // ACT
     let new_schedule = schedule.replace_vehicle_by_dummy(veh0).unwrap();
@@ -384,7 +384,7 @@ fn replace_vehicle_by_dummy_failure_test() {
     // ARRANGE
     let d = init_test_data();
     let schedule = default_schedule(&d);
-    let veh3 = VehicleId::vehicle_from(3);
+    let veh3 = VehicleIdx::vehicle_from(3);
 
     // ACT
     let new_schedule = schedule.replace_vehicle_by_dummy(veh3);
@@ -398,7 +398,7 @@ fn add_path_to_vehicle_tour_with_conflict_test() {
     // ARRANGE
     let d = init_test_data();
     let schedule = default_schedule(&d);
-    let veh1 = VehicleId::vehicle_from(1);
+    let veh1 = VehicleIdx::vehicle_from(1);
 
     // ACT
     let new_schedule = schedule
@@ -431,7 +431,7 @@ fn add_path_to_vehicle_tour_with_same_start_depot_test() {
     // ARRANGE
     let d = init_test_data();
     let schedule = default_schedule(&d);
-    let veh1 = VehicleId::vehicle_from(1);
+    let veh1 = VehicleIdx::vehicle_from(1);
 
     // ACT
     let new_schedule = schedule
@@ -477,7 +477,7 @@ fn add_path_to_vehicle_tour_with_full_start_depot_test() {
     // ARRANGE
     let d = init_test_data();
     let schedule = default_schedule(&d);
-    let veh1 = VehicleId::vehicle_from(1);
+    let veh1 = VehicleIdx::vehicle_from(1);
 
     // ACT
     let new_schedule = schedule.add_path_to_vehicle_tour(
@@ -497,8 +497,8 @@ fn fit_reassign_test() {
     // ARRANGE
     let d = init_test_data();
     let schedule = default_schedule(&d);
-    let veh0 = VehicleId::vehicle_from(0);
-    let veh2 = VehicleId::vehicle_from(2);
+    let veh0 = VehicleIdx::vehicle_from(0);
+    let veh2 = VehicleIdx::vehicle_from(2);
     let segment = Segment::new(d.trip45, d.trip51);
 
     // ACT
@@ -543,8 +543,8 @@ fn fit_reassign_with_split_test() {
         .spawn_vehicle_for_path(d.vt2, vec![d.trip31])
         .unwrap()
         .0;
-    let veh0 = VehicleId::vehicle_from(0);
-    let veh3 = VehicleId::vehicle_from(3);
+    let veh0 = VehicleIdx::vehicle_from(0);
+    let veh3 = VehicleIdx::vehicle_from(3);
     let segment = Segment::new(d.trip12, d.trip51);
 
     // ACT
@@ -583,8 +583,8 @@ fn fit_reassign_move_full_tour_test() {
         .spawn_vehicle_for_path(d.vt2, vec![d.trip45_fast, d.trip51])
         .unwrap()
         .0;
-    let veh2 = VehicleId::vehicle_from(2);
-    let veh3 = VehicleId::vehicle_from(3);
+    let veh2 = VehicleIdx::vehicle_from(2);
+    let veh3 = VehicleIdx::vehicle_from(3);
 
     let segment = Segment::new(d.trip12, d.trip31);
 
@@ -623,8 +623,8 @@ fn fit_reassign_fits_but_cannot_be_removed_test() {
         .spawn_vehicle_for_path(d.vt2, vec![d.trip34, d.trip51])
         .unwrap()
         .0;
-    let veh3 = VehicleId::vehicle_from(3);
-    let veh4 = VehicleId::vehicle_from(4);
+    let veh3 = VehicleIdx::vehicle_from(3);
+    let veh4 = VehicleIdx::vehicle_from(4);
     let segment = Segment::new(d.trip45_fast, d.trip45_fast);
 
     // ACT
@@ -662,8 +662,8 @@ fn fit_reassign_move_start_depot_test() {
     // ARRANGE
     let d = init_test_data();
     let schedule = default_schedule(&d);
-    let veh1 = VehicleId::vehicle_from(1);
-    let veh2 = VehicleId::vehicle_from(2);
+    let veh1 = VehicleIdx::vehicle_from(1);
+    let veh2 = VehicleIdx::vehicle_from(2);
     let segment = Segment::new(d.start_depot1, d.trip31);
 
     // ACT
@@ -697,8 +697,8 @@ fn fit_reassign_move_end_depot_test() {
     // ARRANGE
     let d = init_test_data();
     let schedule = default_schedule(&d);
-    let veh1 = VehicleId::vehicle_from(1);
-    let veh2 = VehicleId::vehicle_from(2);
+    let veh1 = VehicleIdx::vehicle_from(1);
+    let veh2 = VehicleIdx::vehicle_from(2);
     let segment = Segment::new(d.trip31, d.end_depot1);
 
     // ACT
@@ -731,9 +731,9 @@ fn fit_reassign_move_end_depot_test() {
 fn fit_reassign_dummy_provider_test() {
     // ARRANGE
     let d = init_test_data();
-    let veh0 = VehicleId::vehicle_from(0);
-    let veh2 = VehicleId::vehicle_from(2);
-    let dummy3 = VehicleId::dummy_from(3);
+    let veh0 = VehicleIdx::vehicle_from(0);
+    let veh2 = VehicleIdx::vehicle_from(2);
+    let dummy3 = VehicleIdx::dummy_from(3);
     let schedule = default_schedule(&d).replace_vehicle_by_dummy(veh0).unwrap();
     let segment = Segment::new(d.trip45, d.trip51);
 
@@ -767,9 +767,9 @@ fn fit_reassign_dummy_provider_test() {
 fn fit_reassign_dummy_receiver_test() {
     // ARRANGE
     let d = init_test_data();
-    let veh0 = VehicleId::vehicle_from(0);
-    let veh2 = VehicleId::vehicle_from(2);
-    let dummy3 = VehicleId::dummy_from(3);
+    let veh0 = VehicleIdx::vehicle_from(0);
+    let veh2 = VehicleIdx::vehicle_from(2);
+    let dummy3 = VehicleIdx::dummy_from(3);
     let schedule = default_schedule(&d).replace_vehicle_by_dummy(veh2).unwrap();
     let segment = Segment::new(d.trip45, d.trip51);
 
@@ -803,10 +803,10 @@ fn fit_reassign_dummy_receiver_test() {
 fn fit_reassign_dummy_provider_and_receiver_test() {
     // ARRANGE
     let d = init_test_data();
-    let veh0 = VehicleId::vehicle_from(0);
-    let veh2 = VehicleId::vehicle_from(2);
-    let dummy3 = VehicleId::dummy_from(3);
-    let dummy4 = VehicleId::dummy_from(4);
+    let veh0 = VehicleIdx::vehicle_from(0);
+    let veh2 = VehicleIdx::vehicle_from(2);
+    let dummy3 = VehicleIdx::dummy_from(3);
+    let dummy4 = VehicleIdx::dummy_from(4);
     let schedule = default_schedule(&d)
         .replace_vehicle_by_dummy(veh0)
         .unwrap()
@@ -836,8 +836,8 @@ fn override_reassign_test() {
     // ARRANGE
     let d = init_test_data();
     let schedule = default_schedule(&d);
-    let veh0 = VehicleId::vehicle_from(0);
-    let veh2 = VehicleId::vehicle_from(2);
+    let veh0 = VehicleIdx::vehicle_from(0);
+    let veh2 = VehicleIdx::vehicle_from(2);
     let segment = Segment::new(d.trip45, d.trip51);
 
     // ACT
@@ -867,7 +867,7 @@ fn override_reassign_test() {
 
     assert!(dummy_opt.is_some());
     let dummy3 = dummy_opt.unwrap();
-    assert_eq!(dummy3, VehicleId::dummy_from(3));
+    assert_eq!(dummy3, VehicleIdx::dummy_from(3));
 
     assert_equal(
         new_schedule.tour_of(dummy3).unwrap().all_nodes_iter(),
@@ -884,8 +884,8 @@ fn override_reassign_move_full_tour_test() {
         .spawn_vehicle_for_path(d.vt2, vec![d.trip31])
         .unwrap()
         .0;
-    let veh0 = VehicleId::vehicle_from(0);
-    let veh3 = VehicleId::vehicle_from(3);
+    let veh0 = VehicleIdx::vehicle_from(0);
+    let veh3 = VehicleIdx::vehicle_from(3);
     let segment = Segment::new(d.trip12, d.trip51);
 
     // ACT
@@ -913,7 +913,7 @@ fn override_reassign_move_full_tour_test() {
 
     assert!(dummy_opt.is_some());
     let dummy4 = dummy_opt.unwrap();
-    assert_eq!(dummy4, VehicleId::dummy_from(4));
+    assert_eq!(dummy4, VehicleIdx::dummy_from(4));
 
     assert_equal(
         new_schedule.tour_of(dummy4).unwrap().all_nodes_iter(),
@@ -933,8 +933,8 @@ fn override_reassign_fits_but_cannot_be_removed_test() {
         .spawn_vehicle_for_path(d.vt2, vec![d.trip34, d.trip51])
         .unwrap()
         .0;
-    let veh3 = VehicleId::vehicle_from(3);
-    let veh4 = VehicleId::vehicle_from(4);
+    let veh3 = VehicleIdx::vehicle_from(3);
+    let veh4 = VehicleIdx::vehicle_from(4);
     let segment = Segment::new(d.trip45_fast, d.trip45_fast);
 
     // ACT
@@ -954,8 +954,8 @@ fn override_reassign_no_new_dummy_test() {
         .spawn_vehicle_for_path(d.vt2, vec![d.trip45_fast, d.trip51])
         .unwrap()
         .0;
-    let veh2 = VehicleId::vehicle_from(2);
-    let veh3 = VehicleId::vehicle_from(3);
+    let veh2 = VehicleIdx::vehicle_from(2);
+    let veh3 = VehicleIdx::vehicle_from(3);
     let segment = Segment::new(d.trip23, d.trip31);
 
     // ACT
@@ -990,8 +990,8 @@ fn override_reassign_move_all_non_depots() {
     // ARRANGE
     let d = init_test_data();
     let schedule = default_schedule(&d);
-    let veh1 = VehicleId::vehicle_from(1);
-    let veh2 = VehicleId::vehicle_from(2);
+    let veh1 = VehicleIdx::vehicle_from(1);
+    let veh2 = VehicleIdx::vehicle_from(2);
     let segment = Segment::new(d.trip12, d.trip31);
 
     // ACT
@@ -1033,8 +1033,8 @@ fn override_reassign_move_start_depot_with_remaining_trip_test() {
     // ARRANGE
     let d = init_test_data();
     let schedule = default_schedule(&d);
-    let veh1 = VehicleId::vehicle_from(1);
-    let veh2 = VehicleId::vehicle_from(2);
+    let veh1 = VehicleIdx::vehicle_from(1);
+    let veh2 = VehicleIdx::vehicle_from(2);
     let segment = Segment::new(d.start_depot1, d.trip23);
 
     // ACT
@@ -1049,8 +1049,8 @@ fn override_reassign_move_start_depot_no_remaining_trip_test() {
     // ARRANGE
     let d = init_test_data();
     let schedule = default_schedule(&d);
-    let veh1 = VehicleId::vehicle_from(1);
-    let veh2 = VehicleId::vehicle_from(2);
+    let veh1 = VehicleIdx::vehicle_from(1);
+    let veh2 = VehicleIdx::vehicle_from(2);
     let segment = Segment::new(d.start_depot1, d.trip31);
 
     // ACT
@@ -1092,8 +1092,8 @@ fn override_reassign_move_end_depot_with_remaining_trip_test() {
     // ARRANGE
     let d = init_test_data();
     let schedule = default_schedule(&d);
-    let veh1 = VehicleId::vehicle_from(1);
-    let veh2 = VehicleId::vehicle_from(2);
+    let veh1 = VehicleIdx::vehicle_from(1);
+    let veh2 = VehicleIdx::vehicle_from(2);
     let segment = Segment::new(d.trip14, d.end_depot1);
 
     // ACT
@@ -1108,8 +1108,8 @@ fn override_reassign_move_end_depot_no_remaining_trip_test() {
     // ARRANGE
     let d = init_test_data();
     let schedule = default_schedule(&d);
-    let veh1 = VehicleId::vehicle_from(1);
-    let veh2 = VehicleId::vehicle_from(2);
+    let veh1 = VehicleIdx::vehicle_from(1);
+    let veh2 = VehicleIdx::vehicle_from(2);
     let segment = Segment::new(d.trip31, d.end_depot1);
 
     // ACT
@@ -1151,9 +1151,9 @@ fn override_reassign_move_end_depot_no_remaining_trip_test() {
 fn override_reassign_dummy_provider_test() {
     // ARRANGE
     let d = init_test_data();
-    let veh0 = VehicleId::vehicle_from(0);
-    let veh2 = VehicleId::vehicle_from(2);
-    let dummy3 = VehicleId::dummy_from(3);
+    let veh0 = VehicleIdx::vehicle_from(0);
+    let veh2 = VehicleIdx::vehicle_from(2);
+    let dummy3 = VehicleIdx::dummy_from(3);
     let schedule = default_schedule(&d).replace_vehicle_by_dummy(veh0).unwrap();
     let segment = Segment::new(d.trip45, d.trip51);
 
@@ -1183,7 +1183,7 @@ fn override_reassign_dummy_provider_test() {
 
     assert!(dummy_opt.is_some());
     let dummy4 = dummy_opt.unwrap();
-    assert_eq!(dummy4, VehicleId::dummy_from(4));
+    assert_eq!(dummy4, VehicleIdx::dummy_from(4));
 
     assert_equal(
         new_schedule.tour_of(dummy4).unwrap().all_nodes_iter(),
@@ -1196,9 +1196,9 @@ fn override_reassign_dummy_provider_test() {
 fn override_reassign_dummy_receiver_test() {
     // ARRANGE
     let d = init_test_data();
-    let veh0 = VehicleId::vehicle_from(0);
-    let veh2 = VehicleId::vehicle_from(2);
-    let dummy3 = VehicleId::dummy_from(3);
+    let veh0 = VehicleIdx::vehicle_from(0);
+    let veh2 = VehicleIdx::vehicle_from(2);
+    let dummy3 = VehicleIdx::dummy_from(3);
     let schedule = default_schedule(&d).replace_vehicle_by_dummy(veh2).unwrap();
     let segment = Segment::new(d.trip45, d.trip51);
 
@@ -1221,7 +1221,7 @@ fn override_reassign_dummy_receiver_test() {
 
     assert!(dummy_opt.is_some());
     let dummy4 = dummy_opt.unwrap();
-    assert_eq!(dummy4, VehicleId::dummy_from(4));
+    assert_eq!(dummy4, VehicleIdx::dummy_from(4));
 
     assert_equal(
         new_schedule.tour_of(dummy4).unwrap().all_nodes_iter(),
@@ -1234,10 +1234,10 @@ fn override_reassign_dummy_receiver_test() {
 fn override_reassign_dummy_provider_and_receiver_test() {
     // ARRANGE
     let d = init_test_data();
-    let veh0 = VehicleId::vehicle_from(0);
-    let veh2 = VehicleId::vehicle_from(2);
-    let dummy3 = VehicleId::dummy_from(3);
-    let dummy4 = VehicleId::dummy_from(4);
+    let veh0 = VehicleIdx::vehicle_from(0);
+    let veh2 = VehicleIdx::vehicle_from(2);
+    let dummy3 = VehicleIdx::dummy_from(3);
+    let dummy4 = VehicleIdx::dummy_from(4);
     let schedule = default_schedule(&d)
         .replace_vehicle_by_dummy(veh0)
         .unwrap()
@@ -1262,7 +1262,7 @@ fn override_reassign_dummy_provider_and_receiver_test() {
 
     assert!(dummy_opt.is_some());
     let dummy5 = dummy_opt.unwrap();
-    assert_eq!(dummy5, VehicleId::dummy_from(5));
+    assert_eq!(dummy5, VehicleIdx::dummy_from(5));
 
     assert_equal(
         new_schedule.tour_of(dummy5).unwrap().all_nodes_iter(),
@@ -1288,8 +1288,8 @@ fn improve_depots_test() {
         )
         .unwrap()
         .0;
-    let veh0 = VehicleId::vehicle_from(0);
-    let veh1 = VehicleId::vehicle_from(1);
+    let veh0 = VehicleIdx::vehicle_from(0);
+    let veh1 = VehicleIdx::vehicle_from(1);
 
     // ACT
     let new_schedule = schedule.improve_depots(Some(vec![veh0]));
@@ -1345,8 +1345,8 @@ fn reassign_end_depots_greedily_test() {
         )
         .unwrap()
         .0;
-    let veh0 = VehicleId::vehicle_from(0);
-    let veh1 = VehicleId::vehicle_from(1);
+    let veh0 = VehicleIdx::vehicle_from(0);
+    let veh1 = VehicleIdx::vehicle_from(1);
 
     // ACT
     let new_schedule = schedule.reassign_end_depots_greedily().unwrap();

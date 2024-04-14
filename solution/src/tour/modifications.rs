@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use model::{
-    base_types::{Cost, Distance, NodeId, COST_FOR_INF_DURATION},
+    base_types::{Cost, Distance, NodeIdx, COST_FOR_INF_DURATION},
     network::nodes::Node,
 };
 
@@ -11,7 +11,7 @@ use super::{Position, Tour};
 // modification methods
 impl Tour {
     /// Return the tour where the start depot is replaced by the new_start_depot.
-    pub fn replace_start_depot(&self, new_start_depot: NodeId) -> Result<Tour, String> {
+    pub fn replace_start_depot(&self, new_start_depot: NodeIdx) -> Result<Tour, String> {
         if self.is_dummy {
             return Err("cannot replace start depot of dummy tour".to_string());
         }
@@ -56,7 +56,7 @@ impl Tour {
     }
 
     /// Return the tour where the end depot is replaced by the new_end_depot.
-    pub fn replace_end_depot(&self, new_end_depot: NodeId) -> Result<Tour, String> {
+    pub fn replace_end_depot(&self, new_end_depot: NodeIdx) -> Result<Tour, String> {
         if self.is_dummy {
             return Err("cannot replace end depot of dummy tour".to_string());
         }
@@ -139,9 +139,9 @@ impl Tour {
             };
 
         // remove the segment from the tour:
-        let mut tour_nodes: Vec<NodeId> = self.nodes[..pos_seg_start].to_vec();
+        let mut tour_nodes: Vec<NodeIdx> = self.nodes[..pos_seg_start].to_vec();
         tour_nodes.extend(self.nodes[pos_seg_end + 1..].iter().copied());
-        let removed_nodes: Vec<NodeId> = self.nodes[pos_seg_start..pos_seg_end + 1].to_vec();
+        let removed_nodes: Vec<NodeIdx> = self.nodes[pos_seg_start..pos_seg_end + 1].to_vec();
         if tour_nodes.is_empty() || (!self.is_dummy() && tour_nodes.len() <= 2) {
             return Ok((
                 None,
@@ -237,7 +237,7 @@ impl Tour {
         // remove all elements in start_pos..end_pos and replace them by
         // node_sequence.
         let mut new_tour_nodes = self.nodes.clone();
-        let removed_nodes: Vec<NodeId> = new_tour_nodes
+        let removed_nodes: Vec<NodeIdx> = new_tour_nodes
             .splice(start_pos..end_pos, new_nodes)
             .collect();
 
@@ -315,7 +315,7 @@ impl Tour {
     /// it is assumed that the nodes between start_pos and end_pos-1 (inclusive) are removed.
     fn dead_head_distance_of_new_nodes(
         &self,
-        new_nodes: &[NodeId],
+        new_nodes: &[NodeIdx],
         start_pos: Position,
         end_pos: Position,
     ) -> Distance {
@@ -369,7 +369,7 @@ impl Tour {
     /// it is assumed that the nodes between start_pos and end_pos-1 (inclusive) are removed.
     fn costs_of_new_nodes(
         &self,
-        new_nodes: &[NodeId],
+        new_nodes: &[NodeIdx],
         start_pos: Position,
         end_pos: Position,
     ) -> Cost {
@@ -440,7 +440,7 @@ impl Tour {
 
     /// Returns the costs for the dead head trip and the idle time between the two nodes assuming
     /// no intermediate stops.
-    fn dead_head_and_idle_costs_between_two_nodes(&self, node1: NodeId, node2: NodeId) -> Cost {
+    fn dead_head_and_idle_costs_between_two_nodes(&self, node1: NodeIdx, node2: NodeIdx) -> Cost {
         self.network
             .dead_head_time_between(node1, node2)
             .in_sec()
@@ -458,7 +458,7 @@ impl Tour {
         self.service_and_maintenance_costs_by_id(self.nodes[pos])
     }
 
-    fn service_and_maintenance_costs_by_id(&self, node: NodeId) -> Cost {
+    fn service_and_maintenance_costs_by_id(&self, node: NodeIdx) -> Cost {
         self.network
             .node(node)
             .duration()

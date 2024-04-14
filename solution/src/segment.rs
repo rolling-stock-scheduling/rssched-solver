@@ -1,30 +1,30 @@
 use std::fmt;
 
-use model::base_types::NodeId;
+use model::base_types::NodeIdx;
 
 #[derive(Debug, Clone, Copy)]
 
 /// A segment is a pair of non-depot node ids that represent a slice of a tour or path.
 /// Depot nodes can cause unexpected behavior.
 pub struct Segment {
-    start: NodeId,
-    end: NodeId,
+    start: NodeIdx,
+    end: NodeIdx,
 }
 
 // static functions
 impl Segment {
-    pub fn new(start: NodeId, end: NodeId) -> Segment {
+    pub fn new(start: NodeIdx, end: NodeIdx) -> Segment {
         Segment { start, end }
     }
 }
 
 // methods
 impl Segment {
-    pub fn start(&self) -> NodeId {
+    pub fn start(&self) -> NodeIdx {
         self.start
     }
 
-    pub fn end(&self) -> NodeId {
+    pub fn end(&self) -> NodeIdx {
         self.end
     }
 }

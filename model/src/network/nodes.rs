@@ -1,7 +1,7 @@
 use time::{DateTime, Duration};
 
 use crate::base_types::{
-    DepotId, Distance, Location, NodeId, PassengerCount, VehicleCount, VehicleTypeId,
+    DepotIdx, Distance, Location, NodeIdx, PassengerCount, VehicleCount, VehicleTypeIdx,
 };
 
 use core::cmp::Ordering;
@@ -19,23 +19,23 @@ pub enum Node {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct DepotNode {
-    idx: NodeId,
-    depot_idx: DepotId,
+    idx: NodeIdx,
+    depot_idx: DepotIdx,
     location: Location,
     id: String,
 }
 
 impl DepotNode {
-    pub fn depot_idx(&self) -> DepotId {
+    pub fn depot_idx(&self) -> DepotIdx {
         self.depot_idx
     }
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ServiceTrip {
-    idx: NodeId,
+    idx: NodeIdx,
     id: String,
-    vehicle_type: VehicleTypeId,
+    vehicle_type: VehicleTypeIdx,
     origin: Location,
     destination: Location,
     departure: DateTime,
@@ -46,11 +46,11 @@ pub struct ServiceTrip {
 }
 
 impl ServiceTrip {
-    pub fn idx(&self) -> NodeId {
+    pub fn idx(&self) -> NodeIdx {
         self.idx
     }
 
-    pub fn vehicle_type(&self) -> VehicleTypeId {
+    pub fn vehicle_type(&self) -> VehicleTypeIdx {
         self.vehicle_type
     }
 
@@ -65,7 +65,7 @@ impl ServiceTrip {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct MaintenanceSlot {
-    idx: NodeId,
+    idx: NodeIdx,
     id: String,
     location: Location,
     start: DateTime,
@@ -74,7 +74,7 @@ pub struct MaintenanceSlot {
 }
 
 impl MaintenanceSlot {
-    pub fn idx(&self) -> NodeId {
+    pub fn idx(&self) -> NodeIdx {
         self.idx
     }
 
@@ -105,7 +105,7 @@ impl Node {
         matches!(self, Node::EndDepot(_))
     }
 
-    pub fn idx(&self) -> NodeId {
+    pub fn idx(&self) -> NodeIdx {
         match self {
             Node::Service(s) => s.idx,
             Node::Maintenance(m) => m.idx,
@@ -243,9 +243,9 @@ impl Node {
 impl Node {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn create_service_trip(
-        idx: NodeId,
+        idx: NodeIdx,
         id: String,
-        vehicle_type: VehicleTypeId,
+        vehicle_type: VehicleTypeIdx,
         origin: Location,
         destination: Location,
         departure: DateTime,
@@ -273,7 +273,7 @@ impl Node {
     }
 
     pub(crate) fn create_maintenance(
-        idx: NodeId,
+        idx: NodeIdx,
         id: String,
         location: Location,
         start: DateTime,
@@ -295,9 +295,9 @@ impl Node {
     }
 
     pub(crate) fn create_start_depot_node(
-        idx: NodeId,
+        idx: NodeIdx,
         id: String,
-        depot_idx: DepotId,
+        depot_idx: DepotIdx,
         location: Location,
     ) -> Node {
         Node::StartDepot(DepotNode {
@@ -309,9 +309,9 @@ impl Node {
     }
 
     pub(crate) fn create_end_depot_node(
-        idx: NodeId,
+        idx: NodeIdx,
         id: String,
-        depot_idx: DepotId,
+        depot_idx: DepotIdx,
         location: Location,
     ) -> Node {
         Node::EndDepot(DepotNode {

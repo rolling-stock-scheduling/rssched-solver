@@ -9,63 +9,62 @@ pub use location::Location;
 
 pub type Idx = u16;
 
-// TODO rename xxxId to xxxIdx
 #[derive(Display, From, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct LocationId(pub Idx);
+pub struct LocationIdx(pub Idx);
 
 #[derive(Display, From, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct VehicleTypeId(pub Idx);
+pub struct VehicleTypeIdx(pub Idx);
 
 #[derive(Display, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum VehicleId {
+pub enum VehicleIdx {
     #[display(fmt = "veh{}", _0)]
     Vehicle(Idx),
     #[display(fmt = "dummy{}", _0)]
     Dummy(Idx),
 }
 
-impl VehicleId {
-    pub fn vehicle_from(id: Idx) -> VehicleId {
-        VehicleId::Vehicle(id)
+impl VehicleIdx {
+    pub fn vehicle_from(idx: Idx) -> VehicleIdx {
+        VehicleIdx::Vehicle(idx)
     }
-    pub fn dummy_from(id: Idx) -> VehicleId {
-        VehicleId::Dummy(id)
+    pub fn dummy_from(idx: Idx) -> VehicleIdx {
+        VehicleIdx::Dummy(idx)
     }
 }
 
 #[derive(Display, From, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct DepotId(pub Idx);
+pub struct DepotIdx(pub Idx);
 
 #[derive(Display, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum NodeId {
+pub enum NodeIdx {
     #[display(fmt = "sdep_{}", _0)]
     StartDepot(Idx),
-    #[display(fmt = "serv_{}_{}", departure_id, order)]
-    Service { departure_id: Idx, order: u8 },
+    #[display(fmt = "serv_{}_{}", departure_idx, order)]
+    Service { departure_idx: Idx, order: u8 },
     #[display(fmt = "main_{}", _0)]
     Maintenance(Idx),
     #[display(fmt = "edep_{}", _0)]
     EndDepot(Idx),
 }
 
-impl NodeId {
-    pub fn start_depot_from(id: Idx) -> NodeId {
-        NodeId::StartDepot(id)
+impl NodeIdx {
+    pub fn start_depot_from(idx: Idx) -> NodeIdx {
+        NodeIdx::StartDepot(idx)
     }
-    pub fn end_depot_from(id: Idx) -> NodeId {
-        NodeId::EndDepot(id)
+    pub fn end_depot_from(idx: Idx) -> NodeIdx {
+        NodeIdx::EndDepot(idx)
     }
-    pub fn service_from(departure_id: Idx, order: u8) -> NodeId {
-        NodeId::Service {
-            departure_id,
+    pub fn service_from(departure_idx: Idx, order: u8) -> NodeIdx {
+        NodeIdx::Service {
+            departure_idx,
             order,
         }
     }
-    pub fn maintenance_from(id: Idx) -> NodeId {
-        NodeId::Maintenance(id)
+    pub fn maintenance_from(idx: Idx) -> NodeIdx {
+        NodeIdx::Maintenance(idx)
     }
-    pub fn smallest() -> NodeId {
-        NodeId::StartDepot(0)
+    pub fn smallest() -> NodeIdx {
+        NodeIdx::StartDepot(0)
     }
 }
 
