@@ -206,7 +206,7 @@ fn create_locations(json_input: &JsonInput) -> (Locations, HashMap<IdType, Locat
         for (j, destination_json) in json_input.dead_head_trips.indices.iter().enumerate() {
             let mut duration = Duration::from_seconds(json_input.dead_head_trips.durations[i][j]);
             if duration > planning_days {
-                println!("\x1b[93mwarning:\x1b[0m Dead head trip duration exceeds planning duration of {} day(s). Takng planning duration instead.",
+                println!("\x1b[93mwarning:\x1b[0m Dead head trip duration exceeds planning duration of {} day(s). Taking planning duration instead.",
                 planning_days.in_min().unwrap() / 1440);
                 duration = planning_days;
             }

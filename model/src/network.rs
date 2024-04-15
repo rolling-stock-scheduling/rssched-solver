@@ -532,6 +532,13 @@ impl Network {
                 * 86400,
         );
 
+        if planning_days > Duration::from_iso("P7DT0H0M0S") {
+            println!(
+                "\x1b[93mwarning:\x1b[0m planning duration is very long: {} days. Optimization might take very long.",
+                planning_days.in_min().unwrap() / 1440
+            );
+        }
+
         let number_of_service_nodes = service_nodes.values().map(|v| v.len()).sum();
 
         let overflow_depot_ids = (
