@@ -30,6 +30,13 @@ impl VehicleIdx {
     pub fn dummy_from(idx: Idx) -> VehicleIdx {
         VehicleIdx::Dummy(idx)
     }
+
+    pub fn idx(&self) -> Idx {
+        match self {
+            VehicleIdx::Vehicle(idx) => *idx,
+            VehicleIdx::Dummy(idx) => *idx,
+        }
+    }
 }
 
 #[derive(Display, From, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -63,11 +70,19 @@ impl NodeIdx {
     pub fn smallest() -> NodeIdx {
         NodeIdx::StartDepot(0)
     }
+    pub fn idx(&self) -> Idx {
+        match self {
+            NodeIdx::StartDepot(idx) => *idx,
+            NodeIdx::Service(idx) => *idx,
+            NodeIdx::Maintenance(idx) => *idx,
+            NodeIdx::EndDepot(idx) => *idx,
+        }
+    }
 }
 
 pub type VehicleCount = u32;
 pub type PassengerCount = u32;
 pub type Meter = u64;
 pub type Cost = u64;
-pub const MAINT_COUNTER_FOR_INF_DIST: Cost = 1_000_000;
+pub const MAINT_COUNTER_FOR_INF_DIST: Meter = 1_000;
 pub type MaintenanceCounter = i64;

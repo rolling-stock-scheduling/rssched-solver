@@ -70,8 +70,8 @@ pub fn build() -> Objective<Schedule> {
     let costs = Level::new(vec![(Coefficient::Integer(1), Box::new(CostsIndicator))]);
 
     Objective::new(vec![
-        maintenance_violation,
         unserved_passengers,
+        maintenance_violation,
         vehicle_count,
         costs,
     ])

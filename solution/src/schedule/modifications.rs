@@ -901,13 +901,15 @@ impl Schedule {
                                 node
                             ));
                         }
-                        if let Some(max_length) = receiver_vh.maximal_formation_count() {
-                            if old_formation.vehicle_count() >= max_length {
-                                return Err(format!(
-                                    "Cannot add vehicle {} to node {}. Formation is full.",
-                                    receiver_vh.id(),
-                                    node
-                                ));
+                        if self.network.node(node).is_service() {
+                            if let Some(max_length) = receiver_vh.maximal_formation_count() {
+                                if old_formation.vehicle_count() >= max_length {
+                                    return Err(format!(
+                                        "Cannot add vehicle {} to node {}. Formation is full.",
+                                        receiver_vh.id(),
+                                        node
+                                    ));
+                                }
                             }
                         }
                         Ok(old_formation.add_at_tail(receiver_vh))
@@ -1203,8 +1205,8 @@ impl Schedule {
             let _ = std::mem::replace(&mut nodes[tour_len - 1], overflow_depot_ids.2);
 
             println!(
-                "\x1b[93mwarning:\x1b[0m Tour for {} violates depot constraints at {}. Using overflow depot instead.", 
-                self.network.vehicle_types().get(vehicle_type_id).unwrap(), 
+                "\x1b[93mwarning:\x1b[0m Tour for {} violates depot constraints at {}. Using overflow depot instead.",
+                self.network.vehicle_types().get(vehicle_type_id).unwrap(),
                 self.network.node(old_start_depot)
             );
 

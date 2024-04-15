@@ -168,6 +168,8 @@ pub fn load_rolling_stock_problem_instance_from_json(
     let (locations, location_lookup) = create_locations(&json_input);
     let (vehicle_types, vehicle_type_lookup) = create_vehicle_types(&json_input);
     let config = create_config(&json_input);
+
+    // TODO Warn if total maintenance slots * maintenance_max_distance > total distance of all routes (if there is at least one maintenance slot)
     Arc::new(create_network(
         &json_input,
         locations,

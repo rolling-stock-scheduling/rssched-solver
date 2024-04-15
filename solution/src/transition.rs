@@ -47,8 +47,8 @@ impl Transition {
     ) -> Transition {
         let mut sorted_clusters: Vec<(Vec<VehicleIdx>, MaintenanceCounter)> = Vec::new(); // TODO Use BTreeMap
         let mut sorted_unassigned_vehicles: Vec<VehicleIdx> = Vec::new(); // all none maintenance
-                                                                         // vehicles sorted by
-                                                                         // maintenance counter in descending order
+                                                                          // vehicles sorted by
+                                                                          // maintenance counter in descending order
 
         for vehicle_id in vehicles.iter() {
             let tour = tours.get(vehicle_id).unwrap();
@@ -59,13 +59,16 @@ impl Transition {
             }
         }
 
+        // sort vehicles by maintenance counter in descending order
         sorted_unassigned_vehicles
             .sort_by_key(|&vehicle| -tours.get(&vehicle).unwrap().maintenance_counter());
-        sorted_clusters.sort_by_key(|&(_, maintenance_counter)| maintenance_counter);
+        // sort clusters by maintenance counter in decending order
+        sorted_clusters.sort_by_key(|&(_, maintenance_counter)| -maintenance_counter);
 
         for vehicle in sorted_unassigned_vehicles {
             let maintenance_counter_of_tour = tours.get(&vehicle).unwrap().maintenance_counter();
 
+            // find the cluster with the biggest maintenance counter that can accommodate the vehicle
             let best_cluster_opt = sorted_clusters.iter_mut().find(|(_, maintenance_counter)| {
                 *maintenance_counter + maintenance_counter_of_tour <= 0
             });
@@ -75,6 +78,8 @@ impl Transition {
                     *maintenance_counter += maintenance_counter_of_tour;
                 }
                 None => {
+                    // if no cluster can accommodate the vehicle, put vehicle into the cluster with
+                    // the smallest maintenance counter
                     let last_cluster_opt = sorted_clusters.last_mut();
                     match last_cluster_opt {
                         Some((last_cluster, maintenance_counter)) => {
@@ -107,6 +112,17 @@ impl Transition {
 
     pub fn maintenance_violation(&self) -> MaintenanceCounter {
         self.total_maintenance_violation
+    }
+
+    pub fn print(&self) {
+        println!("Transition:");
+        for transition_cycle in self.cycles.iter() {
+            println!("{}", transition_cycle);
+        }
+        println!(
+            "Total maintenance violation: {}",
+            self.total_maintenance_violation
+        );
     }
 
     /// Verifies that the transition is consistent with the tours.
@@ -160,5 +176,20 @@ impl TransitionCycle {
             cycle,
             maintenance_violation,
         }
+    }
+}
+
+impl std::fmt::Display for TransitionCycle {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "Cycle: ({}), Maintenance violation: {}",
+            self.cycle
+                .iter()
+                .map(|&idx| format!("{}", idx.idx()))
+                .collect::<Vec<String>>()
+                .join(", "),
+            self.maintenance_violation
+        )
     }
 }

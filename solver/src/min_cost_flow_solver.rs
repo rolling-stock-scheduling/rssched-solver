@@ -58,6 +58,11 @@ impl MinCostFlowSolver {
     }
 
     pub fn solve(&self) -> Schedule {
+        // TODO: add maintance slots in a proportial way to each fleet. (For this take the total
+        // distance into account)
+        // take only as many maintenance slots as needed to cover the total distance of the fleet.
+        // force the usage of the maintenance slot.
+
         // split into vehicle types
         let mut tours: HashMap<VehicleTypeIdx, Vec<Vec<NodeIdx>>> = HashMap::new();
         for vehicle_type in self.vehicle_types.iter() {
