@@ -41,7 +41,7 @@ impl<S> LocalImprover<S> for Minimizer<S> {
                 }
             }
             None => {
-                println!("\x1b[31mWARNING: NO SWAP POSSIBLE.\x1b[0m");
+                println!("\x1b[31mwarning:\x1b[0m no swap possible.");
                 None
             }
         }

@@ -1,7 +1,6 @@
 use model::base_types::DepotIdx;
 use model::base_types::NodeIdx;
 use model::base_types::VehicleTypeIdx;
-use model::base_types::COST_FOR_INF_DURATION;
 use model::config::Config;
 use model::network::nodes::Node;
 use model::network::Network;
@@ -88,7 +87,9 @@ impl MinCostFlowSolver {
 
         let mut edges: HashMap<RsEdge, EdgeLabel> = HashMap::new();
 
-        let mut max_cost: Cost = 0;
+        let mut total_lower_bound: LowerBound = 0;
+        let mut cost_overflow_checker: Cost = 0; // computes the maximal cost for the worst
+                                                 // feasible flow
 
         let trip_node_count =
             self.network.service_nodes(vehicle_type).count() + self.network.depots_iter().count();
@@ -99,7 +100,7 @@ impl MinCostFlowSolver {
             .get(vehicle_type)
             .unwrap()
             .maximal_formation_count()
-            .map_or(UpperBound::MAX, |x| x as UpperBound);
+            .map_or(100, |x| x as UpperBound); // we don't allow more than 100 vehicles
 
         // create two nodes for each service trip and connect them with an edge
         for service_trip in self.network.service_nodes(vehicle_type) {
@@ -114,18 +115,22 @@ impl MinCostFlowSolver {
                 .number_of_vehicles_required_to_serve(vehicle_type, service_trip)
                 as LowerBound;
 
-            let cost = self
-                .network
-                .node(service_trip)
-                .duration()
-                .in_sec()
-                .unwrap_or(COST_FOR_INF_DURATION) as Cost
+            let lower_bound = number_of_vehicles_required.min(maximal_formation_count); // if more vehicles are required than maximal_formation_count, use maximal_formation_count
+
+            let cost = self.network.node(service_trip).duration().in_sec().unwrap() as Cost
                 * self.config.costs.service_trip as Cost;
+
+            total_lower_bound += lower_bound;
+
+            cost_overflow_checker = cost_overflow_checker
+                .checked_add(cost.checked_mul(maximal_formation_count).unwrap())
+                .expect("overflow in cost_overflow_checker");
+
             edges.insert(
                 builder.add_edge(left_rsnode, right_rsnode),
                 EdgeLabel {
-                    lower_bound: number_of_vehicles_required,
-                    upper_bound: number_of_vehicles_required,
+                    lower_bound,
+                    upper_bound: maximal_formation_count,
                     cost,
                 },
             );
@@ -163,7 +168,7 @@ impl MinCostFlowSolver {
                     self.network
                         .idle_time_between(pred, node_id)
                         .in_sec()
-                        .unwrap_or(COST_FOR_INF_DURATION) as Cost
+                        .unwrap() as Cost
                         * self.config.costs.idle as Cost
                 };
 
@@ -171,10 +176,15 @@ impl MinCostFlowSolver {
                     .network
                     .dead_head_time_between(pred, node_id)
                     .in_sec()
-                    .unwrap_or(COST_FOR_INF_DURATION) as Cost
+                    .unwrap_or(self.network.planning_days().in_sec().unwrap())
+                    as Cost
                     * self.config.costs.dead_head_trip as Cost
                     + idle_time_cost;
-                max_cost = max_cost.max(cost);
+
+                cost_overflow_checker = cost_overflow_checker
+                    .checked_add(cost.checked_mul(maximal_formation_count).unwrap())
+                    .expect("overflow in cost_overflow_checker");
+
                 edges.insert(
                     builder.add_edge(pred_right_rsnode, *left_rsnode),
                     EdgeLabel {
@@ -199,31 +209,63 @@ impl MinCostFlowSolver {
             start_time_creating_network.elapsed().as_secs_f32()
         );
 
-        let spawn_cost = max_cost
-            .checked_mul(trip_node_count as Cost)
-            .expect("overflow")
-            .checked_add(1)
-            .expect("overflow");
-        if spawn_cost.checked_mul(trip_node_count as Cost).is_none() {
-            // worst case one vehicle per trip would cause overflow
-            println!("\x1b[93mWARNING: overflow could happen");
-            println!("   spawn_cost: {}", spawn_cost);
-            println!("   trip_node_count: {}\x1b[0m", trip_node_count);
-        }
+        let max_cost_per_sec = [
+            self.config.costs.staff,
+            self.config.costs.service_trip,
+            self.config.costs.maintenance,
+            self.config.costs.dead_head_trip,
+            self.config.costs.idle,
+        ]
+        .into_iter()
+        .max()
+        .unwrap();
+
+        // spawning cost = costliest activity * (3 * planning days) * total_lower_bound.
+        // This suffices, as the total non-spawning costs for the trivial schedule, where each vehicle do exactly one
+        // service trip is smaller than that.
+        // To see this, note that activity duration of each vehicle in this trival schedule is
+        // bounded by the sum of:
+        // - Dead head trip from a depot to the start of the single service trips <= planning days
+        // - Service trip duration <= planning days
+        // - Dead head trip to the depot <= planning days
+        // Hence, each vehicle costs at most costliest activity * 3 * planning days.
+        let spawning_cost = (max_cost_per_sec as Cost)
+            .checked_mul(3)
+            .unwrap()
+            .checked_mul(self.network.planning_days().in_sec().unwrap() as Cost)
+            .unwrap()
+            .checked_mul(total_lower_bound)
+            .unwrap();
 
         for depot in self.network.depots_iter() {
             let (left_rsnode, right_rsnode) = node_to_rsnode[&TripNode::Depot(depot)];
             let capacity = self.network.get_depot(depot).capacity_for(vehicle_type) as UpperBound;
+
+            cost_overflow_checker = cost_overflow_checker
+                .checked_add(spawning_cost.checked_mul(capacity).unwrap())
+                .unwrap_or_else(|| {
+                    println!("\x1b[93mwarning:\x1b[0m overflow in min_cost_flow_solver possible. Increase Cost type to i128 in
+                        solver/src/min_cost_flow_solver.rs");
+                    0 as Cost
+                });
+
             edges.insert(
                 builder.add_edge(left_rsnode, right_rsnode),
                 EdgeLabel {
                     lower_bound: 0,
                     upper_bound: capacity,
-                    cost: spawn_cost,
+                    cost: spawning_cost,
                 },
             );
         }
         let graph = builder.into_graph();
+
+        /* println!(
+            "cost_overflow_checker: {} Cost::MAX: {} -> {:.4}%",
+            cost_overflow_checker,
+            Cost::MAX,
+            (cost_overflow_checker as f64 / Cost::MAX as f64) * 100.0
+        ); */
 
         let start_time_computing_min_cost_flow = time::Instant::now();
         print!(
@@ -241,6 +283,25 @@ impl MinCostFlowSolver {
             |e| edges[&e].cost,        // costs
         )
         .unwrap();
+
+        // for debugging:
+        /* let mut spx = NetworkSimplex::new(&graph);
+        spx.set_balances(|_| 0);
+        spx.set_lowers(|e| edges[&e].lower_bound);
+        spx.set_uppers(|e| edges[&e].upper_bound);
+        spx.set_costs(|e| edges[&e].cost);
+        let flow: Vec<(RsEdge, NetworkNumberType)> = match spx.solve() {
+            SolutionState::Optimal => graph.edges().map(|e| (e, spx.flow(e))).collect(),
+            SolutionState::Unbounded => {
+                panic!("Problem is unbounded");
+            }
+            SolutionState::Infeasible => {
+                panic!("Problem is infeasible");
+            }
+            _ => {
+                panic!("Unknown solution state");
+            }
+        }; */
 
         println!(
             "\r  2) computing min-cost-flow in network with {} nodes and {} edges - \x1b[32mdone ({:0.2}sec)\x1b[0m",
@@ -315,7 +376,7 @@ impl MinCostFlowSolver {
                             .push(tours.len() - 1);
                     }
                     (TripNode::Depot(_), TripNode::Depot(_)) => {
-                        println!("\x1b[93mWARNING: flow should not go from depot to depot\x1b[0m");
+                        println!("\x1b[93mwarning:\x1b[0m flow should not go from depot to depot");
                     }
                 }
             }

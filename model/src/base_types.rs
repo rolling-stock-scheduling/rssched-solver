@@ -69,6 +69,5 @@ pub type VehicleCount = u32;
 pub type PassengerCount = u32;
 pub type Meter = u64;
 pub type Cost = u64;
-pub const COST_FOR_INF_DURATION: Cost = 1_000_000;
 pub const MAINT_COUNTER_FOR_INF_DIST: Cost = 1_000_000;
 pub type MaintenanceCounter = i64;

@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use model::{
-    base_types::{Cost, Distance, NodeIdx, COST_FOR_INF_DURATION},
+    base_types::{Cost, Distance, NodeIdx},
     network::nodes::Node,
 };
 
@@ -33,13 +33,13 @@ impl Tour {
                 .network
                 .dead_head_time_between(self.first_node(), first_non_depot)
                 .in_sec()
-                .unwrap_or(COST_FOR_INF_DURATION)
+                .unwrap_or(self.network.planning_days().in_sec().unwrap())
                 * self.network.config().costs.dead_head_trip
             + self
                 .network
                 .dead_head_time_between(new_start_depot, first_non_depot)
                 .in_sec()
-                .unwrap_or(COST_FOR_INF_DURATION)
+                .unwrap_or(self.network.planning_days().in_sec().unwrap())
                 * self.network.config().costs.dead_head_trip;
         // there is no idle time.
 
@@ -79,13 +79,13 @@ impl Tour {
                 .network
                 .dead_head_time_between(last_non_depot, self.last_node())
                 .in_sec()
-                .unwrap_or(COST_FOR_INF_DURATION)
+                .unwrap_or(self.network.planning_days().in_sec().unwrap())
                 * self.network.config().costs.dead_head_trip
             + self
                 .network
                 .dead_head_time_between(last_non_depot, new_end_depot)
                 .in_sec()
-                .unwrap_or(COST_FOR_INF_DURATION)
+                .unwrap_or(self.network.planning_days().in_sec().unwrap())
                 * self.network.config().costs.dead_head_trip;
         // there is no idle time.
 
@@ -428,13 +428,13 @@ impl Tour {
         self.network
             .dead_head_time_between(self.nodes[pos], self.nodes[pos + 1])
             .in_sec()
-            .unwrap_or(COST_FOR_INF_DURATION)
+            .unwrap_or(self.network.planning_days().in_sec().unwrap())
             * self.network.config().costs.dead_head_trip
             + self
                 .network
                 .idle_time_between(self.nodes[pos], self.nodes[pos + 1])
                 .in_sec()
-                .unwrap_or(COST_FOR_INF_DURATION)
+                .unwrap_or(self.network.planning_days().in_sec().unwrap())
                 * self.network.config().costs.idle
     }
 
@@ -444,13 +444,13 @@ impl Tour {
         self.network
             .dead_head_time_between(node1, node2)
             .in_sec()
-            .unwrap_or(COST_FOR_INF_DURATION)
+            .unwrap_or(self.network.planning_days().in_sec().unwrap())
             * self.network.config().costs.dead_head_trip
             + self
                 .network
                 .idle_time_between(node1, node2)
                 .in_sec()
-                .unwrap_or(COST_FOR_INF_DURATION)
+                .unwrap_or(self.network.planning_days().in_sec().unwrap())
                 * self.network.config().costs.idle
     }
 
@@ -463,7 +463,7 @@ impl Tour {
             .node(node)
             .duration()
             .in_sec()
-            .unwrap_or(COST_FOR_INF_DURATION)
+            .unwrap_or(self.network.planning_days().in_sec().unwrap())
             * match self.network.node(node) {
                 Node::Service(_) => self.network.config().costs.service_trip,
                 Node::Maintenance(_) => self.network.config().costs.maintenance,

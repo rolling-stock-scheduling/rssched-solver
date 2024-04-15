@@ -44,6 +44,7 @@ pub struct Network {
 
     // redundant information
     number_of_service_nodes: usize,
+    planning_days: Duration, // planning duration as a multiple of days
 }
 
 // methods
@@ -63,6 +64,11 @@ impl Network {
     /// return the number of nodes in the network.
     pub fn size(&self) -> usize {
         self.nodes.len()
+    }
+
+    /// return the planning duration as a multiple of days.
+    pub fn planning_days(&self) -> Duration {
+        self.planning_days
     }
 
     pub fn service_nodes(
@@ -376,6 +382,9 @@ impl Network {
         let mut start_depot_nodes = Vec::new();
         let mut end_depot_nodes = Vec::new();
 
+        let mut earliest_datetime = DateTime::Latest;
+        let mut latest_datetime = DateTime::Earliest;
+
         // add overflow depot:
         // its has infinity capacity for all types
         // but it is located Nowhere, i.e. Distance is Infinity to all other locations
@@ -384,7 +393,7 @@ impl Network {
             overflow_depot_id,
             String::from("OVERFLOW_DEPOT"),
             Location::Nowhere,
-            VehicleCount::MAX,
+            service_trips.keys().count() as VehicleCount,
             vehicle_types.iter().map(|vt| (vt, None)).collect(),
         );
         depots.push(overflow_depot);
@@ -435,6 +444,10 @@ impl Network {
             let mut trips = Vec::new();
             for service_trip in service_trips_of_type.into_iter() {
                 let service_trip_node = Node::create_service_trip_node(idx_counter, service_trip);
+
+                earliest_datetime = earliest_datetime.min(service_trip_node.start_time());
+                latest_datetime = latest_datetime.max(service_trip_node.end_time());
+
                 trips.push(service_trip_node.idx());
                 nodes.insert(service_trip_node.idx(), service_trip_node);
                 idx_counter += 1;
@@ -451,6 +464,10 @@ impl Network {
 
         for maintenance_slot in maintenance_slots.into_iter() {
             let maintenance_node = Node::create_maintenance_node(idx_counter, maintenance_slot);
+
+            earliest_datetime = earliest_datetime.min(maintenance_node.start_time());
+            latest_datetime = latest_datetime.max(maintenance_node.end_time());
+
             maintenance_nodes.push(maintenance_node.idx());
             nodes.insert(maintenance_node.idx(), maintenance_node);
             idx_counter += 1;
@@ -507,6 +524,14 @@ impl Network {
             })
             .collect();
 
+        let planning_days = Duration::from_seconds(
+            (latest_datetime - earliest_datetime)
+                .in_sec()
+                .unwrap()
+                .div_ceil(86400)
+                * 86400,
+        );
+
         let number_of_service_nodes = service_nodes.values().map(|v| v.len()).sum();
 
         let overflow_depot_ids = (
@@ -530,6 +555,7 @@ impl Network {
             locations: Arc::new(locations),
             vehicle_types: Arc::new(vehicle_types),
             number_of_service_nodes,
+            planning_days,
         }
     }
 }

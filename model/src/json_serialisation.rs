@@ -164,6 +164,7 @@ pub fn load_rolling_stock_problem_instance_from_json(
     let json_input = serde_json::from_value(input_data).expect(
         "Could not parse input data. Please check if the input data is in the correct format",
     );
+
     let (locations, location_lookup) = create_locations(&json_input);
     let (vehicle_types, vehicle_type_lookup) = create_vehicle_types(&json_input);
     let config = create_config(&json_input);
@@ -178,6 +179,7 @@ pub fn load_rolling_stock_problem_instance_from_json(
 }
 
 fn create_locations(json_input: &JsonInput) -> (Locations, HashMap<IdType, LocationIdx>) {
+    let planning_days = determine_planning_days(json_input);
     let mut stations: HashMap<LocationIdx, (String, Option<VehicleCount>)> = HashMap::new(); // TODO: use vec instead
     let mut dead_head_trips: HashMap<LocationIdx, HashMap<LocationIdx, DeadHeadTrip>> =
         HashMap::new();
@@ -202,11 +204,17 @@ fn create_locations(json_input: &JsonInput) -> (Locations, HashMap<IdType, Locat
         let origin_station = location_lookup[origin_json];
         let mut destination_map: HashMap<LocationIdx, DeadHeadTrip> = HashMap::new();
         for (j, destination_json) in json_input.dead_head_trips.indices.iter().enumerate() {
+            let mut duration = Duration::from_seconds(json_input.dead_head_trips.durations[i][j]);
+            if duration > planning_days {
+                println!("\x1b[93mwarning:\x1b[0m Dead head trip duration exceeds planning duration of {} day(s). Takng planning duration instead.",
+                planning_days.in_min().unwrap() / 1440);
+                duration = planning_days;
+            }
             destination_map.insert(
                 location_lookup[destination_json],
                 DeadHeadTrip::new(
                     Distance::from_meter(json_input.dead_head_trips.distances[i][j]),
-                    Duration::from_seconds(json_input.dead_head_trips.durations[i][j]),
+                    duration,
                 ),
             );
         }
@@ -214,6 +222,45 @@ fn create_locations(json_input: &JsonInput) -> (Locations, HashMap<IdType, Locat
     }
 
     (Locations::new(stations, dead_head_trips), location_lookup)
+}
+
+fn determine_planning_days(json_input: &JsonInput) -> Duration {
+    let mut earliest_datetime = DateTime::Latest;
+    let mut latest_datetime = DateTime::Earliest;
+
+    for maintenance_slot in &json_input.maintenance_slots {
+        earliest_datetime = earliest_datetime.min(DateTime::new(&maintenance_slot.start));
+        latest_datetime = latest_datetime.max(DateTime::new(&maintenance_slot.end));
+    }
+
+    for departure in &json_input.departures {
+        for departure_segment in &departure.segments {
+            let departure_time = DateTime::new(&departure_segment.departure);
+            let arrival_time = departure_time
+                + Duration::from_seconds(
+                    json_input
+                        .routes
+                        .iter()
+                        .find(|route| route.id == departure.route)
+                        .unwrap()
+                        .segments
+                        .iter()
+                        .find(|segment| segment.id == departure_segment.route_segment)
+                        .unwrap()
+                        .duration,
+                );
+            earliest_datetime = earliest_datetime.min(departure_time);
+            latest_datetime = latest_datetime.max(arrival_time);
+        }
+    }
+    // round to multiple of day
+    Duration::from_seconds(
+        (latest_datetime - earliest_datetime)
+            .in_sec()
+            .unwrap()
+            .div_ceil(86400)
+            * 86400,
+    )
 }
 
 fn create_vehicle_types(json_input: &JsonInput) -> (VehicleTypes, HashMap<IdType, VehicleTypeIdx>) {

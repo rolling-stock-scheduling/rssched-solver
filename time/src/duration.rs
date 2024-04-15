@@ -26,14 +26,14 @@ impl Duration {
     /// Returns the duration in minutes (rounded down).
     pub fn in_min(&self) -> Result<u64, &str> {
         match self {
-            Duration::Infinity => Err("Cannot get minutes of Duration::Infinity."),
             Duration::Length(l) => Ok(l.seconds / 60),
+            Duration::Infinity => Err("Cannot get minutes of Duration::Infinity."),
         }
     }
     pub fn in_sec(&self) -> Result<u64, &str> {
         match self {
-            Duration::Infinity => Err("Cannot get seconds of Duration::Infinity."),
             Duration::Length(l) => Ok(l.seconds),
+            Duration::Infinity => Err("Cannot get seconds of Duration::Infinity."),
         }
     }
 }

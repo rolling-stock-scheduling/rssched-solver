@@ -3,9 +3,7 @@ mod modifications;
 mod tests;
 use crate::path::Path;
 use crate::segment::Segment;
-use model::base_types::{
-    Cost, Distance, MaintenanceCounter, NodeIdx, COST_FOR_INF_DURATION, MAINT_COUNTER_FOR_INF_DIST,
-};
+use model::base_types::{Cost, Distance, MaintenanceCounter, NodeIdx, MAINT_COUNTER_FOR_INF_DIST};
 use model::network::nodes::Node;
 use model::network::Network;
 use std::cmp::Ordering;
@@ -648,7 +646,7 @@ impl Tour {
                     .node(*n)
                     .duration()
                     .in_sec()
-                    .unwrap_or(COST_FOR_INF_DURATION)
+                    .unwrap_or(network.planning_days().in_sec().unwrap())
                     * match network.node(*n) {
                         Node::Service(_) => network.config().costs.service_trip,
                         Node::Maintenance(_) => network.config().costs.maintenance,
@@ -663,12 +661,12 @@ impl Tour {
                     network
                         .dead_head_time_between(*a, *b)
                         .in_sec()
-                        .unwrap_or(COST_FOR_INF_DURATION)
+                        .unwrap_or(network.planning_days().in_sec().unwrap())
                         * network.config().costs.dead_head_trip
                         + network
                             .idle_time_between(*a, *b)
                             .in_sec()
-                            .unwrap_or(COST_FOR_INF_DURATION)
+                            .unwrap_or(network.planning_days().in_sec().unwrap())
                             * network.config().costs.idle
                 })
                 .sum::<Cost>()
