@@ -32,7 +32,7 @@ struct JsonInput {
     depots: Vec<Depot>,
     routes: Vec<Route>,
     departures: Vec<Departures>,
-    maintenance_slots: Vec<MaintenanceSlots>,
+    maintenance_slots: Option<Vec<MaintenanceSlots>>,
     dead_head_trips: DeadHeadTrips,
     parameters: Parameters,
 }
@@ -169,7 +169,6 @@ pub fn load_rolling_stock_problem_instance_from_json(
     let (vehicle_types, vehicle_type_lookup) = create_vehicle_types(&json_input);
     let config = create_config(&json_input);
 
-    // TODO Warn if total maintenance slots * maintenance_max_distance > total distance of all routes (if there is at least one maintenance slot)
     Arc::new(create_network(
         &json_input,
         locations,
@@ -202,14 +201,21 @@ fn create_locations(json_input: &JsonInput) -> (Locations, HashMap<IdType, Locat
     }
 
     // add dead head trips
+    let mut warning_printed = false;
     for (i, origin_json) in json_input.dead_head_trips.indices.iter().enumerate() {
         let origin_station = location_lookup[origin_json];
         let mut destination_map: HashMap<LocationIdx, DeadHeadTrip> = HashMap::new();
         for (j, destination_json) in json_input.dead_head_trips.indices.iter().enumerate() {
             let mut duration = Duration::from_seconds(json_input.dead_head_trips.durations[i][j]);
             if duration > planning_days {
-                println!("\x1b[93mwarning:\x1b[0m Dead head trip duration exceeds planning duration of {} day(s). Taking planning duration instead.",
-                planning_days.in_min().unwrap() / 1440);
+                if !warning_printed {
+                    println!(
+                        "\x1b[93mwarning:\x1b[0m Some dead head trip durations exceed planning duration of {} day(s). \
+                        Taking planning duration instead.",
+                        planning_days.in_min().unwrap() / 1440
+                    );
+                    warning_printed = true;
+                }
                 duration = planning_days;
             }
             destination_map.insert(
@@ -230,9 +236,11 @@ fn determine_planning_days(json_input: &JsonInput) -> Duration {
     let mut earliest_datetime = DateTime::Latest;
     let mut latest_datetime = DateTime::Earliest;
 
-    for maintenance_slot in &json_input.maintenance_slots {
-        earliest_datetime = earliest_datetime.min(DateTime::new(&maintenance_slot.start));
-        latest_datetime = latest_datetime.max(DateTime::new(&maintenance_slot.end));
+    if let Some(maintenance_slots) = &json_input.maintenance_slots {
+        for maintenance_slot in maintenance_slots {
+            earliest_datetime = earliest_datetime.min(DateTime::new(&maintenance_slot.start));
+            latest_datetime = latest_datetime.max(DateTime::new(&maintenance_slot.end));
+        }
     }
 
     for departure in &json_input.departures {
@@ -436,24 +444,26 @@ fn create_maintenance_slots(
     locations: &Locations,
     location_lookup: &HashMap<IdType, LocationIdx>,
 ) -> Vec<ModelMaintenanceSlot> {
-    json_input
-        .maintenance_slots
-        .iter()
-        .map(|maintenance_slot| {
-            let location = locations
-                .get_location(location_lookup[&maintenance_slot.location])
-                .unwrap();
-            let start = DateTime::new(&maintenance_slot.start);
-            let end = DateTime::new(&maintenance_slot.end);
-            let id = maintenance_slot.id.clone();
+    match &json_input.maintenance_slots {
+        None => Vec::new(),
+        Some(maintenance_slots) => maintenance_slots
+            .iter()
+            .map(|maintenance_slot| {
+                let location = locations
+                    .get_location(location_lookup[&maintenance_slot.location])
+                    .unwrap();
+                let start = DateTime::new(&maintenance_slot.start);
+                let end = DateTime::new(&maintenance_slot.end);
+                let id = maintenance_slot.id.clone();
 
-            Node::create_maintenance(
-                id,
-                location,
-                start,
-                end,
-                maintenance_slot.track_count as VehicleCount,
-            )
-        })
-        .collect()
+                Node::create_maintenance(
+                    id,
+                    location,
+                    start,
+                    end,
+                    maintenance_slot.track_count as VehicleCount,
+                )
+            })
+            .collect(),
+    }
 }

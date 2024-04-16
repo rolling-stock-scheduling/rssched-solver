@@ -1,6 +1,5 @@
 use model::base_types::DepotIdx;
 use model::base_types::Distance;
-use model::base_types::Meter;
 use model::base_types::NodeIdx;
 use model::base_types::VehicleCount;
 use model::base_types::VehicleTypeIdx;
@@ -372,8 +371,7 @@ impl MinCostFlowSolver {
             cost_overflow_checker = cost_overflow_checker
                 .checked_add(spawning_cost.checked_mul(capacity).unwrap())
                 .unwrap_or_else(|| {
-                    println!("\x1b[93mwarning:\x1b[0m overflow in min_cost_flow_solver possible. Increase Cost type to i128 in
-                        solver/src/min_cost_flow_solver.rs");
+                    println!("\x1b[93mwarning:\x1b[0m overflow in min_cost_flow_solver possible. Increase Cost type to i128 in solver/src/min_cost_flow_solver.rs");
                     0 as Cost
                 });
 

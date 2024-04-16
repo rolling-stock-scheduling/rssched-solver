@@ -7,7 +7,7 @@ use nodes::{MaintenanceSlot, ServiceTrip};
 use time::{DateTime, Duration};
 
 use crate::base_types::{
-    DepotIdx, Distance, Idx, Location, NodeIdx, PassengerCount, VehicleCount, VehicleTypeIdx,
+    DepotIdx, Distance, Idx, Location, Meter, NodeIdx, PassengerCount, VehicleCount, VehicleTypeIdx,
 };
 use crate::config::Config;
 use crate::locations::Locations;
@@ -490,6 +490,26 @@ impl Network {
                 .cmp_start_time(nodes.get(&n2).unwrap())
         });
 
+        if !maintenance_nodes.is_empty() {
+            let maintenance_coverage = maintenance_nodes
+                .iter()
+                .map(|&n| nodes.get(&n).unwrap().as_maintenance().track_count())
+                .sum::<VehicleCount>() as Meter
+                * config.maintenance.maximal_distance.in_meter().unwrap();
+            let total_service_trip_distance = service_nodes
+                .values()
+                .flatten()
+                .map(|n| nodes.get(n).unwrap().travel_distance().in_meter().unwrap())
+                .sum::<Meter>();
+            if maintenance_coverage < total_service_trip_distance {
+                println!(
+                    "\x1b[93mwarning:\x1b[0m maintenance coverage is less than the total service trip distance: {}m < {}m ({} thousand km < {} thousand km).",
+                    maintenance_coverage, total_service_trip_distance,
+                    maintenance_coverage / 1_000_000, total_service_trip_distance / 1_000_000
+                );
+            }
+        }
+
         let nodes_sorted_by_start: SortedNodes = nodes
             .keys()
             .map(|&n| {
@@ -541,10 +561,16 @@ impl Network {
                 * 86400,
         );
 
-        if planning_days > Duration::from_iso("P7DT0H0M0S") {
+        let days = planning_days.in_min().unwrap() / 1440;
+        println!(
+            "Earliest datetime: {}, Latest datetime: {} -> Planning days: {}",
+            earliest_datetime, latest_datetime, days
+        );
+
+        if days > 7 {
             println!(
                 "\x1b[93mwarning:\x1b[0m planning duration is very long: {} days. Optimization might take very long.",
-                planning_days.in_min().unwrap() / 1440
+                days
             );
         }
 
