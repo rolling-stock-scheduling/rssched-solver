@@ -7,6 +7,7 @@ use heuristic_framework::local_search::local_improver::{
 };
 use heuristic_framework::local_search::LocalSearchSolver;
 use model::network::Network;
+use objective_framework::EvaluatedSolution;
 use solution::Schedule;
 
 use neighborhood::SpawnForMaintenanceAndPathExchange;
@@ -46,5 +47,16 @@ pub fn build_local_search_solver(network: Arc<Network>) -> LocalSearchSolver<Sch
         objective.clone(),
     ));
 
-    LocalSearchSolver::with_local_improver(neighborhood, objective, _take_any)
+    // TODO: implement function_between_steps, that prints the swap
+    let function_between_steps = Box::new(|_evaluated_solution: &EvaluatedSolution<Schedule>| {
+        println!("Hi");
+    });
+
+    LocalSearchSolver::with_local_improver_and_function(
+        neighborhood,
+        objective,
+        Some(_take_any),
+        None,
+        // Some(function_between_steps),
+    )
 }

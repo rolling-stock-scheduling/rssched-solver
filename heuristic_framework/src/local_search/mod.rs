@@ -20,6 +20,8 @@ use local_improver::TakeAnyParallelRecursion;
 use search_result::SearchResult;
 use search_result::SearchResult::{Improvement, NoImprovement};
 
+type FunctionBetweenSteps<S> = Box<dyn Fn(&EvaluatedSolution<S>)>;
+
 /// A local search neighborhood that provides for each solution a iterator over all neighbors.
 /// The provides solution, as well as the Neighborhood instance must live as long as the iterator.
 /// (Note that the iterator highly depends on the current_solution and that the Neighborhood may
@@ -36,6 +38,7 @@ pub struct LocalSearchSolver<S> {
     neighborhood: Arc<dyn Neighborhood<S>>,
     objective: Arc<Objective<S>>,
     local_improver: Option<Box<dyn LocalImprover<S>>>,
+    function_between_steps: Option<FunctionBetweenSteps<S>>,
 }
 
 impl<S> LocalSearchSolver<S> {
@@ -47,20 +50,23 @@ impl<S> LocalSearchSolver<S> {
             neighborhood,
             objective,
             local_improver: None,
+            function_between_steps: None,
         }
     }
 
     /// This method is used to set the local improver to be used in the local search.
     /// They can be found in the local_improver module.
-    pub fn with_local_improver(
+    pub fn with_local_improver_and_function(
         neighborhood: Arc<dyn Neighborhood<S>>,
         objective: Arc<Objective<S>>,
-        local_improver: Box<dyn LocalImprover<S>>,
+        local_improver: Option<Box<dyn LocalImprover<S>>>,
+        function_between_steps: Option<FunctionBetweenSteps<S>>,
     ) -> Self {
         Self {
             neighborhood,
             objective,
-            local_improver: Some(local_improver),
+            local_improver,
+            function_between_steps,
         }
     }
 }
@@ -80,7 +86,6 @@ impl<S> LocalSearchSolver<S> {
         self.find_local_optimum(
             init_solution,
             self.local_improver.as_ref().unwrap_or(&minimizer).as_ref(),
-            true,
             Some(start_time),
         )
         .unwrap()
@@ -90,27 +95,29 @@ impl<S> LocalSearchSolver<S> {
         &self,
         start_solution: EvaluatedSolution<S>,
         local_improver: &dyn LocalImprover<S>,
-        verbose: bool,
         start_time: Option<stdtime::Instant>,
     ) -> SearchResult<S> {
         let mut result = NoImprovement(start_solution);
         let mut iteration_counter = 1;
         while let Some(new_solution) = local_improver.improve(result.as_ref()) {
-            if verbose {
-                println!("Iteration {}:", iteration_counter);
-                self.objective.print_objective_value_with_comparison(
-                    new_solution.objective_value(),
-                    result.as_ref().objective_value(),
-                );
-                if let Some(start_time) = start_time {
-                    println!(
-                        "elapsed time for local search: {:0.2}sec",
-                        stdtime::Instant::now()
-                            .duration_since(start_time)
-                            .as_secs_f32()
+            match self.function_between_steps.as_ref() {
+                None => {
+                    println!("Iteration {}:", iteration_counter);
+                    self.objective.print_objective_value_with_comparison(
+                        new_solution.objective_value(),
+                        result.as_ref().objective_value(),
                     );
+                    if let Some(start_time) = start_time {
+                        println!(
+                            "elapsed time for local search: {:0.2}sec",
+                            stdtime::Instant::now()
+                                .duration_since(start_time)
+                                .as_secs_f32()
+                        );
+                    }
+                    println!();
                 }
-                println!();
+                Some(f) => f(&new_solution),
             }
             result = Improvement(new_solution);
             iteration_counter += 1;
