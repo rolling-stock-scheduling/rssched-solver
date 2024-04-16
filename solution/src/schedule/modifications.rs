@@ -1047,6 +1047,8 @@ impl Schedule {
         tours: &HashMap<VehicleIdx, Tour>,
         changed_vehicle_types: Vec<VehicleTypeIdx>,
     ) {
+        // TODO only update violation and add new vehicle to its own cycle, add new modification to
+        // recompute transitions
         for vt in changed_vehicle_types.iter() {
             let vehicle_ids = vehicle_ids_grouped_by_type.get(vt).unwrap();
             let new_transition = Transition::new_fast(vehicle_ids, tours); // TODO only recompute

@@ -10,18 +10,26 @@ use model::network::Network;
 use solution::Schedule;
 
 use neighborhood::SpawnForMaintenanceAndPathExchange;
-// use time::Duration;
+use time::Duration;
 
 pub fn build_local_search_solver(network: Arc<Network>) -> LocalSearchSolver<Schedule> {
+    // TODO: Caplse schedule into new struct ScheduleWithInfo that also contains additional infos:
+    // - last swap
+    // then use last provider to start the next neighborhood
+    // print swap between each step (function must be provided to the local search solver)
+
     let objective = Arc::new(objective::build());
 
-    // let segment_limit = Duration::new("3:00:00");
-    // let overhead_threshold = Duration::new("0:05:00"); // tours of real-vehicle-providers are not splitted at nodes under these duration
+    let segment_limit = Duration::new("3:00:00");
+    let overhead_threshold = Duration::new("0:10:00"); // tours of real-vehicle-providers are not splitted at nodes under these duration
 
     let neighborhood = Arc::new(SpawnForMaintenanceAndPathExchange::new(
-        // Some(segment_limit),
-        // Some(overhead_threshold),
-        None, None, false, network,
+        Some(segment_limit),
+        // None,
+        Some(overhead_threshold),
+        // None,
+        false,
+        network,
     ));
 
     let _take_first = Box::new(TakeFirstRecursion::new(
