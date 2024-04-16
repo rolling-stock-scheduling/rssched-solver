@@ -3,8 +3,8 @@ use std::io::Read;
 use std::path::Path;
 
 fn main() {
-    // let path = "model/resources/small_test_input.json";
-    let path = "instances/viv_212.scheduler_request.json";
+    let path = "model/resources/small_test_input.json";
+    // let path = "instances/viv_212.scheduler_request.json";
 
     let mut file = File::open(path).unwrap();
     let mut input_data = String::new();

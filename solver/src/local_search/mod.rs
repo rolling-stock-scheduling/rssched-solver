@@ -38,5 +38,5 @@ pub fn build_local_search_solver(network: Arc<Network>) -> LocalSearchSolver<Sch
         objective.clone(),
     ));
 
-    LocalSearchSolver::with_local_improver(neighborhood, objective, _take_first)
+    LocalSearchSolver::with_local_improver(neighborhood, objective, _take_any)
 }

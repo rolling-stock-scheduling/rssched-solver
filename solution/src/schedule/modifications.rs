@@ -1049,7 +1049,10 @@ impl Schedule {
     ) {
         for vt in changed_vehicle_types.iter() {
             let vehicle_ids = vehicle_ids_grouped_by_type.get(vt).unwrap();
-            let new_transition = Transition::new_fast(vehicle_ids, tours);
+            let new_transition = Transition::new_fast(vehicle_ids, tours); // TODO only recompute
+                                                                           // if violation is
+                                                                           // positive after the
+                                                                           // change
             *maintenance_violation += new_transition.maintenance_violation();
             let old_transition = transitions
                 .insert(*vt, new_transition)

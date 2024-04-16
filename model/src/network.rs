@@ -93,6 +93,15 @@ impl Network {
         self.maintenance_nodes.iter().copied()
     }
 
+    pub fn nodes_of_vehicle_type_sorted_by_start(
+        &self,
+        vehicle_type: VehicleTypeIdx,
+    ) -> impl Iterator<Item = NodeIdx> + '_ {
+        self.vehicle_type_nodes_sorted_by_start[&vehicle_type]
+            .values()
+            .copied()
+    }
+
     pub fn track_count_of_maintenance_slot(&self, maintenance_node: NodeIdx) -> VehicleCount {
         let maintenance_node = self.node(maintenance_node).as_maintenance();
         maintenance_node.track_count()

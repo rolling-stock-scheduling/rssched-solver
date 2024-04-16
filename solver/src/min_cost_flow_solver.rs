@@ -1,5 +1,8 @@
 use model::base_types::DepotIdx;
+use model::base_types::Distance;
+use model::base_types::Meter;
 use model::base_types::NodeIdx;
+use model::base_types::VehicleCount;
 use model::base_types::VehicleTypeIdx;
 use model::config::Config;
 use model::network::nodes::Node;
@@ -26,7 +29,7 @@ use std::time;
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug, Copy)]
 enum TripNode {
-    Service(NodeIdx),
+    ServiceOrMaintenance(NodeIdx),
     Depot(DepotIdx),
 }
 
@@ -58,10 +61,8 @@ impl MinCostFlowSolver {
     }
 
     pub fn solve(&self) -> Schedule {
-        // TODO: add maintance slots in a proportial way to each fleet. (For this take the total
-        // distance into account)
-        // take only as many maintenance slots as needed to cover the total distance of the fleet.
-        // force the usage of the maintenance slot.
+        // distribute maintenance slots proportional to the total distance of the fleet
+        let mut maintenance_slots = self.distribute_maintenance_slots();
 
         // split into vehicle types
         let mut tours: HashMap<VehicleTypeIdx, Vec<Vec<NodeIdx>>> = HashMap::new();
@@ -70,7 +71,13 @@ impl MinCostFlowSolver {
                 " solving sub-instance for vehicle type {}",
                 self.network.vehicle_types().get(vehicle_type).unwrap()
             );
-            tours.insert(vehicle_type, self.solve_for_vehicle_type(vehicle_type));
+            tours.insert(
+                vehicle_type,
+                self.solve_for_vehicle_type(
+                    vehicle_type,
+                    maintenance_slots.remove(&vehicle_type).unwrap(),
+                ),
+            );
         }
 
         Schedule::from_tours(tours, self.network.clone()).unwrap()
@@ -78,7 +85,88 @@ impl MinCostFlowSolver {
 }
 
 impl MinCostFlowSolver {
-    fn solve_for_vehicle_type(&self, vehicle_type: VehicleTypeIdx) -> Vec<Vec<NodeIdx>> {
+    fn distribute_maintenance_slots(
+        &self,
+    ) -> HashMap<VehicleTypeIdx, HashMap<NodeIdx, VehicleCount>> {
+        let mut maintenance_slots: HashMap<VehicleTypeIdx, HashMap<NodeIdx, VehicleCount>> =
+            HashMap::new();
+        let mut total_distances: HashMap<VehicleTypeIdx, Distance> = HashMap::new();
+
+        for vehicle_type in self.vehicle_types.iter() {
+            maintenance_slots.insert(vehicle_type, HashMap::new());
+
+            let dist = self
+                .network
+                .service_nodes(vehicle_type)
+                .map(|node| self.network.node(node).travel_distance())
+                .sum();
+
+            total_distances.insert(vehicle_type, dist);
+        }
+
+        let priority_increment: HashMap<VehicleTypeIdx, f32> = self
+            .vehicle_types
+            .iter()
+            .map(|vehicle_type| {
+                (
+                    vehicle_type,
+                    1.0 // x% of the maintenance limit is used
+                        * self.config.maintenance.maximal_distance.in_meter().unwrap() as f32
+                        / total_distances[&vehicle_type].in_meter().unwrap() as f32,
+                )
+            })
+            .collect();
+
+        // Priority counter starts at 0.0 and ends at >=1.0.
+        // 0.0 means that the vehicle type has no maintenance slot and 1.0 means that the vehicle
+        // type has enough maintenance slot.
+        // The next maintenance slot is assigned to the vehicle type with the smallest priority
+        // counter.
+        let mut priority_counter: Vec<(VehicleTypeIdx, f32)> = self
+            .vehicle_types
+            .iter()
+            .map(|vehicle_type| (vehicle_type, 0.0))
+            .collect();
+
+        for maintenance_node in self.network.maintenance_nodes() {
+            for _ in 0..self
+                .network
+                .track_count_of_maintenance_slot(maintenance_node)
+            {
+                let (vehicle_type, priority) = priority_counter
+                    .iter_mut()
+                    .min_by(|a, b| {
+                        a.1.partial_cmp(&b.1).unwrap().then(
+                            priority_increment[&a.0]
+                                .partial_cmp(&priority_increment[&b.0])
+                                .unwrap(),
+                        )
+                    })
+                    .unwrap();
+
+                let entry = maintenance_slots
+                    .get_mut(vehicle_type)
+                    .unwrap()
+                    .entry(maintenance_node)
+                    .or_insert(0);
+                *entry += 1;
+
+                *priority += priority_increment[&vehicle_type];
+
+                if priority_counter.iter().all(|(_, p)| *p >= 1.0) {
+                    break;
+                }
+            }
+        }
+
+        maintenance_slots
+    }
+
+    fn solve_for_vehicle_type(
+        &self,
+        vehicle_type: VehicleTypeIdx,
+        maintenance_slots: HashMap<NodeIdx, VehicleCount>,
+    ) -> Vec<Vec<NodeIdx>> {
         let start_time_creating_network = time::Instant::now();
 
         print!("  1) creating min-cost-flow network - \x1b[93m 0%\x1b[0m");
@@ -111,7 +199,7 @@ impl MinCostFlowSolver {
         for service_trip in self.network.service_nodes(vehicle_type) {
             let left_rsnode = builder.add_node();
             let right_rsnode = builder.add_node();
-            let trip_node = TripNode::Service(service_trip);
+            let trip_node = TripNode::ServiceOrMaintenance(service_trip);
             left_rsnode_to_node.insert(left_rsnode, trip_node);
             right_rsnode_to_node.insert(right_rsnode, trip_node);
             node_to_rsnode.insert(trip_node, (left_rsnode, right_rsnode));
@@ -141,6 +229,38 @@ impl MinCostFlowSolver {
             );
         }
 
+        for (maintenance_node, count) in maintenance_slots.iter() {
+            let lower_bound = *count as LowerBound;
+            let left_rsnode = builder.add_node();
+            let right_rsnode = builder.add_node();
+            let trip_node = TripNode::ServiceOrMaintenance(*maintenance_node);
+            left_rsnode_to_node.insert(left_rsnode, trip_node);
+            right_rsnode_to_node.insert(right_rsnode, trip_node);
+            node_to_rsnode.insert(trip_node, (left_rsnode, right_rsnode));
+            let cost = self
+                .network
+                .node(*maintenance_node)
+                .duration()
+                .in_sec()
+                .unwrap() as Cost
+                * self.config.costs.maintenance as Cost;
+
+            total_lower_bound += lower_bound;
+
+            cost_overflow_checker = cost_overflow_checker
+                .checked_add(cost.checked_mul(maximal_formation_count).unwrap())
+                .expect("overflow in cost_overflow_checker");
+
+            edges.insert(
+                builder.add_edge(left_rsnode, right_rsnode),
+                EdgeLabel {
+                    lower_bound,
+                    upper_bound: lower_bound,
+                    cost,
+                },
+            );
+        }
+
         for depot in self.network.depots_iter() {
             let left_rsnode = builder.add_node();
             let right_rsnode = builder.add_node();
@@ -154,13 +274,16 @@ impl MinCostFlowSolver {
         let mut time_since_last_print = time::Instant::now();
         for (counter, (trip_node, (left_rsnode, _))) in node_to_rsnode.iter().enumerate() {
             let node_id = match trip_node {
-                TripNode::Service(s) => *s,
+                TripNode::ServiceOrMaintenance(s) => *s,
                 TripNode::Depot(d) => self.network.get_end_depot_node(*d),
             };
             for pred in self.network.predecessors(vehicle_type, node_id) {
                 let pred_node = match self.network.node(pred) {
-                    Node::Service(_) => TripNode::Service(pred),
+                    Node::Service(_) => TripNode::ServiceOrMaintenance(pred),
                     Node::StartDepot((_, d)) => TripNode::Depot(d.depot_idx()),
+                    Node::Maintenance(_) if maintenance_slots.contains_key(&pred) => {
+                        TripNode::ServiceOrMaintenance(pred)
+                    }
                     _ => continue,
                 };
                 let pred_right_rsnode = node_to_rsnode[&pred_node].1;
@@ -322,18 +445,19 @@ impl MinCostFlowSolver {
         let mut tours: Vec<Vec<NodeIdx>> = Vec::new();
 
         let mut last_trip_to_tour: HashMap<NodeIdx, Vec<usize>> = HashMap::new();
-        // for each service trip store the tours (as index of tours) that are currently ending there
+        // for each service trip or maintenance slot store the tours (as index of tours) that are currently ending there
 
         for node in self
             .network
-            .service_nodes(vehicle_type)
-            .chain(self.network.end_depot_nodes())
+            .nodes_of_vehicle_type_sorted_by_start(vehicle_type)
         {
-            // for each service trip and each depot in chronological order
-
+            // for each service trip, mainteance slot and end depot in chronological order
             let trip_node = match self.network.node(node) {
-                Node::Service(_) => TripNode::Service(node),
+                Node::Service(_) => TripNode::ServiceOrMaintenance(node),
                 Node::EndDepot((_, d)) => TripNode::Depot(d.depot_idx()),
+                Node::Maintenance(_) if maintenance_slots.contains_key(&node) => {
+                    TripNode::ServiceOrMaintenance(node)
+                }
                 _ => continue,
             };
             let left_rsnode = node_to_rsnode[&trip_node].0;
@@ -354,7 +478,7 @@ impl MinCostFlowSolver {
                 .flatten()
             {
                 match (pred_trip_node, trip_node) {
-                    (TripNode::Service(pred_service_trip), _) => {
+                    (TripNode::ServiceOrMaintenance(pred_service_trip), _) => {
                         // Flow goes from service trip to service trip -> Use existing tour
                         let existing_tour_index = last_trip_to_tour
                             .get_mut(&pred_service_trip)
@@ -368,7 +492,7 @@ impl MinCostFlowSolver {
                             .or_default()
                             .push(existing_tour_index);
                     }
-                    (TripNode::Depot(pred_depot_id), TripNode::Service(_)) => {
+                    (TripNode::Depot(pred_depot_id), TripNode::ServiceOrMaintenance(_)) => {
                         // Flow goes from depot to service trip -> Create new tour
                         let start_depot_node = self.network.get_start_depot_node(pred_depot_id);
 
