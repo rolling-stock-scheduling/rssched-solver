@@ -1,6 +1,8 @@
 use im::{HashMap, HashSet};
 use itertools::Itertools;
-use model::base_types::{Idx, MaintenanceCounter, NodeIdx, VehicleIdx, VehicleTypeIdx};
+use model::base_types::{
+    Cost, Idx, MaintenanceCounter, NodeIdx, PassengerCount, VehicleIdx, VehicleTypeIdx,
+};
 
 use crate::{
     path::Path, segment::Segment, tour::Tour, train_formation::TrainFormation,
@@ -75,7 +77,9 @@ impl Schedule {
         let mut train_formations = self.train_formations.clone();
         let mut depot_usage = self.depot_usage.clone();
         let mut vehicle_ids_grouped_and_sorted = self.vehicle_ids_grouped_and_sorted.clone();
+        let mut unserved_passengers = self.unserved_passengers;
         let mut maintenance_violation = self.maintenance_violation;
+        let mut costs = self.costs;
 
         let vehicle_id = VehicleIdx::vehicle_from(self.vehicle_counter as Idx);
         let tour = Tour::new(nodes, self.network.clone())?;
@@ -90,10 +94,13 @@ impl Schedule {
 
         self.update_train_formation(
             &mut train_formations,
+            &mut unserved_passengers,
             None,
             Some(vehicle.clone()),
             tour.all_nodes_iter(),
         )?;
+
+        costs += tour.costs();
 
         tours.insert(vehicle_id, tour);
 
@@ -118,7 +125,9 @@ impl Schedule {
                 vehicle_ids_grouped_and_sorted,
                 dummy_ids_sorted: self.dummy_ids_sorted.clone(),
                 vehicle_counter: self.vehicle_counter + 1,
+                unserved_passengers,
                 maintenance_violation,
+                costs,
                 network: self.network.clone(),
             },
             vehicle_id,
@@ -146,7 +155,9 @@ impl Schedule {
         let mut vehicle_ids_grouped_and_sorted = self.vehicle_ids_grouped_and_sorted.clone();
         let mut dummy_tours = self.dummy_tours.clone();
         let mut dummy_ids_sorted = self.dummy_ids_sorted.clone();
+        let mut unserved_passengers = self.unserved_passengers;
         let mut maintenance_violation = self.maintenance_violation;
+        let mut costs = self.costs;
         let mut vehicle_counter = self.vehicle_counter;
 
         vehicles.remove(&vehicle_id);
@@ -158,16 +169,17 @@ impl Schedule {
 
         self.update_train_formation(
             &mut train_formations,
+            &mut unserved_passengers,
             Some(vehicle_id),
             None,
             tours.get(&vehicle_id).unwrap().all_nodes_iter(),
         )?;
 
-        tours.remove(&vehicle_id);
+        let tour = tours.remove(&vehicle_id).unwrap();
 
         self.update_depot_usage(&mut depot_usage, &vehicles, &tours, vehicle_id);
 
-        let tour = self.tour_of(vehicle_id).unwrap();
+        costs -= tour.costs();
 
         if let Ok(dummy_tour) = Tour::new_dummy(
             tour.sub_path(Segment::new(tour.first_node(), tour.last_node()))?,
@@ -199,7 +211,9 @@ impl Schedule {
             dummy_tours,
             vehicle_ids_grouped_and_sorted,
             dummy_ids_sorted,
+            unserved_passengers,
             maintenance_violation,
+            costs,
             vehicle_counter,
             network: self.network.clone(),
         })
@@ -250,11 +264,14 @@ impl Schedule {
         let mut next_period_transitions = self.next_period_transitions.clone();
         let mut train_formations = self.train_formations.clone();
         let mut depot_usage = self.depot_usage.clone();
+        let mut unserved_passengers = self.unserved_passengers;
         let mut maintenance_violation = self.maintenance_violation;
+        let mut costs = self.costs;
 
         // add vehicle to train_formations for nodes of new path
         self.update_train_formation(
             &mut train_formations,
+            &mut unserved_passengers,
             None,
             Some(self.vehicles.get(&vehicle_id).cloned().unwrap()),
             path.iter(),
@@ -266,11 +283,14 @@ impl Schedule {
         if let Some(removed_path) = removed_path_opt {
             self.update_train_formation(
                 &mut train_formations,
+                &mut unserved_passengers,
                 Some(vehicle_id),
                 None,
                 removed_path.iter(),
             )?;
         }
+
+        costs += new_tour.costs() - self.tours.get(&vehicle_id).unwrap().costs();
 
         tours.insert(vehicle_id, new_tour);
 
@@ -296,7 +316,9 @@ impl Schedule {
             dummy_tours: self.dummy_tours.clone(),
             vehicle_ids_grouped_and_sorted: self.vehicle_ids_grouped_and_sorted.clone(),
             dummy_ids_sorted: self.dummy_ids_sorted.clone(),
+            unserved_passengers,
             maintenance_violation,
+            costs,
             vehicle_counter: self.vehicle_counter,
             network: self.network.clone(),
         })
@@ -327,7 +349,9 @@ impl Schedule {
         let mut dummy_tours = self.dummy_tours.clone();
         let vehicle_ids_grouped_and_sorted = self.vehicle_ids_grouped_and_sorted.clone();
         let mut dummy_ids_sorted = self.dummy_ids_sorted.clone();
+        let mut unserved_passengers = self.unserved_passengers;
         let mut maintenance_violation = self.maintenance_violation;
+        let mut costs = self.costs;
         let mut vehicle_counter = self.vehicle_counter;
 
         let tour = self.tour_of(vehicle_id).unwrap();
@@ -338,10 +362,13 @@ impl Schedule {
             Some(new_tour) => {
                 self.update_train_formation(
                     &mut train_formations,
+                    &mut unserved_passengers,
                     Some(vehicle_id),
                     None,
                     removed_path.iter(),
                 )?;
+
+                costs += new_tour.costs() - tour.costs();
 
                 self.update_tour(&mut tours, &mut dummy_tours, vehicle_id, new_tour);
 
@@ -374,7 +401,9 @@ impl Schedule {
                     dummy_tours,
                     vehicle_ids_grouped_and_sorted,
                     dummy_ids_sorted,
+                    unserved_passengers,
                     maintenance_violation,
+                    costs,
                     vehicle_counter,
                     network: self.network.clone(),
                 })
@@ -408,7 +437,9 @@ impl Schedule {
         let mut depot_usage = self.depot_usage.clone();
         let mut dummy_tours = self.dummy_tours.clone();
         let mut vehicle_ids_grouped_and_sorted = self.vehicle_ids_grouped_and_sorted.clone();
+        let mut unserved_passengers = self.unserved_passengers;
         let mut maintenance_violation = self.maintenance_violation;
+        let mut costs = self.costs;
         let mut dummy_ids_sorted = self.dummy_ids_sorted.clone();
 
         let (new_tour_provider, new_tour_receiver, moved_nodes) = self.fit_path_into_tour(
@@ -425,6 +456,8 @@ impl Schedule {
             &mut dummy_tours,
             &mut vehicle_ids_grouped_and_sorted,
             &mut dummy_ids_sorted,
+            &mut unserved_passengers,
+            &mut costs,
             Some(provider),
             new_tour_provider,
             receiver,
@@ -453,7 +486,9 @@ impl Schedule {
             dummy_tours,
             vehicle_ids_grouped_and_sorted,
             dummy_ids_sorted,
+            unserved_passengers,
             maintenance_violation,
+            costs,
             vehicle_counter: self.vehicle_counter,
             network: self.network.clone(),
         })
@@ -788,6 +823,8 @@ impl Schedule {
         dummy_tours: &mut HashMap<VehicleIdx, Tour>,
         vehicle_ids_grouped_and_sorted: &mut HashMap<VehicleTypeIdx, Vec<VehicleIdx>>,
         dummy_ids_sorted: &mut Vec<VehicleIdx>,
+        unserved_passengers: &mut (PassengerCount, PassengerCount),
+        costs: &mut Cost,
         provider: Option<VehicleIdx>,    // None: there is no provider
         new_tour_provider: Option<Tour>, // None: provider is deleted
         receiver: VehicleIdx,
@@ -827,7 +864,16 @@ impl Schedule {
 
         // update train_formations
         let receiver_vehicle = self.vehicles.get(&receiver).cloned();
-        self.update_train_formation(train_formations, provider, receiver_vehicle, moved_nodes)?;
+        self.update_train_formation(
+            train_formations,
+            unserved_passengers,
+            provider,
+            receiver_vehicle,
+            moved_nodes,
+        )?;
+        *costs += tours.get(&receiver).unwrap().costs() - self.tour_of(receiver).unwrap().costs();
+        // TODO add costs of provider
+        // TODO check for dummies
         Ok(())
     }
 
@@ -848,6 +894,7 @@ impl Schedule {
     fn update_train_formation(
         &self,
         train_formations: &mut HashMap<NodeIdx, TrainFormation>,
+        unserved_passengers: &mut (PassengerCount, PassengerCount),
         provider: Option<VehicleIdx>,      // None: only add receiver
         receiver_vehicle: Option<Vehicle>, // None: only delete provider
         moved_nodes: impl Iterator<Item = NodeIdx>,
@@ -855,6 +902,15 @@ impl Schedule {
         for node in moved_nodes {
             if self.network.node(node).is_depot() {
                 continue;
+            }
+            if self.network.node(node).is_service() {
+                let unserved_passengers_before = Schedule::compute_unserved_passengers_at_node(
+                    &self.network,
+                    node,
+                    train_formations.get(&node).unwrap(),
+                );
+                unserved_passengers.0 -= unserved_passengers_before.0;
+                unserved_passengers.1 -= unserved_passengers_before.1;
             }
             train_formations.insert(
                 node,
@@ -865,6 +921,15 @@ impl Schedule {
                     node,
                 )?,
             );
+            if self.network.node(node).is_service() {
+                let unserved_passengers_after = Schedule::compute_unserved_passengers_at_node(
+                    &self.network,
+                    node,
+                    train_formations.get(&node).unwrap(),
+                );
+                unserved_passengers.0 += unserved_passengers_after.0;
+                unserved_passengers.1 += unserved_passengers_after.1;
+            }
         }
         Ok(())
     }

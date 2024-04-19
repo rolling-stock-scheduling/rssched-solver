@@ -68,6 +68,8 @@ pub struct Schedule {
     vehicle_ids_grouped_and_sorted: HashMap<VehicleTypeIdx, Vec<VehicleIdx>>,
     dummy_ids_sorted: Vec<VehicleIdx>,
     maintenance_violation: MaintenanceCounter,
+    unserved_passengers: (PassengerCount, PassengerCount),
+    costs: Cost,
 
     network: Arc<Network>,
 }
@@ -219,20 +221,7 @@ impl Schedule {
     /// Returns the number of passengers that do not fit (first entry) or seated passenger that
     /// cannot sit (second entry).
     pub fn unserved_passengers(&self) -> (PassengerCount, PassengerCount) {
-        //TODO store unserved_passengers and update
-        self.network
-            .all_service_nodes()
-            .map(|node| self.unserved_passengers_at(node))
-            .fold(
-                (0, 0),
-                |(unserved_demand, unserved_seated),
-                 (unserved_demand_at_node, unserved_seated_at_node)| {
-                    (
-                        unserved_demand + unserved_demand_at_node,
-                        unserved_seated + unserved_seated_at_node,
-                    )
-                },
-            )
+        self.unserved_passengers
     }
 
     pub fn is_fully_covered(&self, service_trip: NodeIdx) -> bool {
@@ -240,8 +229,7 @@ impl Schedule {
     }
 
     pub fn costs(&self) -> Cost {
-        self.tours.values().map(|tour| tour.costs()).sum::<Cost>()
-            + self.network.number_of_service_nodes() as Cost * self.network.config().costs.staff
+        self.costs
     }
 
     pub fn print_tours_long(&self) {
@@ -429,6 +417,20 @@ impl Schedule {
                 transition.verify_consistency(&tours_of_type);
             });
 
+        // check unserved passengers
+        assert_eq!(
+            self.unserved_passengers,
+            self.network
+                .all_service_nodes()
+                .map(|node| self.unserved_passengers_at(node))
+                .fold(
+                    (0, 0),
+                    |(unserved, seated), (unserved_node, seated_node)| {
+                        (unserved + unserved_node, seated + seated_node)
+                    }
+                )
+        );
+
         // check maintenance violation
         assert_eq!(
             self.maintenance_violation,
@@ -436,6 +438,14 @@ impl Schedule {
                 .values()
                 .map(|transition| transition.maintenance_violation())
                 .sum::<MaintenanceCounter>()
+        );
+
+        // check costs
+        assert_eq!(
+            self.costs,
+            self.tours.values().map(|tour| tour.costs()).sum::<Cost>()
+                + self.network.number_of_service_nodes() as Cost
+                    * self.network.config().costs.staff
         );
 
         // check that all tours are in the depot_usage
@@ -583,6 +593,11 @@ impl Schedule {
             .map(|vt| (vt, Vec::new()))
             .collect();
 
+        let costs = network.number_of_service_nodes() as Cost * network.config().costs.staff;
+
+        let unserved_passengers =
+            Schedule::compute_unserved_passengers(&network, &train_formations);
+
         Schedule {
             vehicles: HashMap::new(),
             tours: HashMap::new(),
@@ -592,7 +607,9 @@ impl Schedule {
             dummy_tours: HashMap::new(),
             vehicle_ids_grouped_and_sorted,
             dummy_ids_sorted: Vec::new(),
+            unserved_passengers,
             maintenance_violation: 0,
+            costs,
             vehicle_counter: 0,
             network,
         }
@@ -680,6 +697,43 @@ impl Schedule {
                     .unwrap_or(0)
             })
             .sum()
+    }
+
+    fn compute_unserved_passengers_at_node(
+        network: &Network,
+        node: NodeIdx,
+        train_formation: &TrainFormation,
+    ) -> (PassengerCount, PassengerCount) {
+        let demand = network.passengers_of(node);
+        let capacity = train_formation.capacity();
+
+        let seat_demand = network.seated_passengers_of(node);
+        let seat_capacity = train_formation.seats();
+        (
+            demand.saturating_sub(capacity), // return 0 if demand < capacity
+            seat_demand.saturating_sub(seat_capacity), // return 0 if seat_demand < seat_capacity
+        )
+    }
+
+    fn compute_unserved_passengers(
+        network: &Network,
+        train_formations: &HashMap<NodeIdx, TrainFormation>,
+    ) -> (PassengerCount, PassengerCount) {
+        network
+            .all_service_nodes()
+            .map(|node| {
+                Schedule::compute_unserved_passengers_at_node(
+                    network,
+                    node,
+                    train_formations.get(&node).unwrap(),
+                )
+            })
+            .fold(
+                (0, 0),
+                |(unserved, seated), (unserved_node, seated_node)| {
+                    (unserved + unserved_node, seated + seated_node)
+                },
+            )
     }
 }
 // modifying methods are located in schedule_modifications.rs
