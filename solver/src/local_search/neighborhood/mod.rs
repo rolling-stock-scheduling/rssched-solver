@@ -71,7 +71,7 @@ impl Neighborhood<ScheduleWithInfo> for SpawnForMaintenanceAndPathExchange {
                             None,
                             format!(
                                 "Spawned vehicle of type {} for maintenance slot {}",
-                                vehicle_type, maintenance
+                                self.network.vehicle_types().get(vehicle_type).unwrap(), maintenance
                             ),
                         )),
                         Err(_) => None,
@@ -112,13 +112,21 @@ impl Neighborhood<ScheduleWithInfo> for SpawnForMaintenanceAndPathExchange {
                     .filter_map(move |receiver|{
                         let swap = PathExchange::new(seg, provider, receiver);
                         match swap.apply(schedule) {
-                            Ok(schedule) => Some(ScheduleWithInfo::new(
-                                    schedule,
+                            Ok(new_schedule) => {
+                                Some(ScheduleWithInfo::new(
+                                    new_schedule,
                                     Some(provider), 
                                     format!(
-                                        "PathExchange from {} to {} of segment {}", 
-                                        provider, receiver, seg ))
-                                ),
+                                        "PathExchange from {}{} to {}{} of segment {}", 
+                                        provider, 
+                                        schedule.vehicle_type_of(provider).map(|vt| format!(" ({})", self.network.vehicle_types().get(vt).unwrap())).unwrap_or("".to_string()),
+                                        receiver, 
+                                        schedule.vehicle_type_of(receiver).map(|vt| format!(" ({})", self.network.vehicle_types().get(vt).unwrap())).unwrap_or("".to_string()),
+                                        seg 
+                                        )
+                                    )
+                                )
+                            }
                             Err(_) => None,
                         }
                     })

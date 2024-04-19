@@ -3,6 +3,7 @@ mod search_result;
 
 use std::sync::Arc;
 use std::time as stdtime;
+use std::time::Instant;
 
 use local_improver::LocalImprover;
 use objective_framework::EvaluatedSolution;
@@ -20,7 +21,21 @@ use local_improver::TakeAnyParallelRecursion;
 use search_result::SearchResult;
 use search_result::SearchResult::{Improvement, NoImprovement};
 
-type FunctionBetweenSteps<S> = Box<dyn Fn(&EvaluatedSolution<S>)>;
+// function between steps with the following signature:
+// * iteration counter
+// * current solution
+// * previous solution (Option)
+// * objective
+// * time that local search started (Option)
+type FunctionBetweenSteps<S> = Box<
+    dyn Fn(
+        u32,
+        &EvaluatedSolution<S>,
+        Option<&EvaluatedSolution<S>>,
+        Arc<Objective<S>>,
+        Option<Instant>,
+    ),
+>;
 
 /// A local search neighborhood that provides for each solution a iterator over all neighbors.
 /// The provides solution, as well as the Neighborhood instance must live as long as the iterator.
@@ -117,7 +132,13 @@ impl<S> LocalSearchSolver<S> {
                     }
                     println!();
                 }
-                Some(f) => f(&new_solution),
+                Some(f) => f(
+                    iteration_counter,
+                    &new_solution,
+                    Some(result.as_ref()),
+                    self.objective.clone(),
+                    start_time,
+                ),
             }
             result = Improvement(new_solution);
             iteration_counter += 1;

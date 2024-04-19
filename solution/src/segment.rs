@@ -31,6 +31,10 @@ impl Segment {
 
 impl fmt::Display for Segment {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "[{}..{}]", self.start, self.end)
+        if self.start == self.end {
+            write!(f, "[{}]", self.start)
+        } else {
+            write!(f, "[{}..{}]", self.start, self.end)
+        }
     }
 }
