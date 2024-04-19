@@ -1,23 +1,12 @@
+use crate::local_search::ScheduleWithInfo;
 use objective_framework::{BaseValue, Coefficient, Indicator, Level, Objective};
-use solution::Schedule;
-
-struct MaintenanceViolationIndicator;
-impl Indicator<Schedule> for MaintenanceViolationIndicator {
-    fn evaluate(&self, schedule: &Schedule) -> BaseValue {
-        BaseValue::Integer(schedule.maintenance_violation())
-    }
-
-    fn name(&self) -> String {
-        String::from("maintenanceViolation")
-    }
-}
 
 /// Sum over all service trips: max{0, passengers - capacity} + max{0, seated_passengers - seats}
 struct UnservedPassengersIndicator;
 
-impl Indicator<Schedule> for UnservedPassengersIndicator {
-    fn evaluate(&self, schedule: &Schedule) -> BaseValue {
-        let unserved_passengers = schedule.unserved_passengers();
+impl Indicator<ScheduleWithInfo> for UnservedPassengersIndicator {
+    fn evaluate(&self, schedule_with_info: &ScheduleWithInfo) -> BaseValue {
+        let unserved_passengers = schedule_with_info.get_schedule().unserved_passengers();
         BaseValue::Integer((unserved_passengers.0 + unserved_passengers.1) as i64)
     }
 
@@ -26,12 +15,26 @@ impl Indicator<Schedule> for UnservedPassengersIndicator {
     }
 }
 
+/// Each fleet is partitioned into rotation cycles, if total length exceeds the maintenance limit,
+/// the excess is counted as violation
+struct MaintenanceViolationIndicator;
+
+impl Indicator<ScheduleWithInfo> for MaintenanceViolationIndicator {
+    fn evaluate(&self, schedule_with_info: &ScheduleWithInfo) -> BaseValue {
+        BaseValue::Integer(schedule_with_info.get_schedule().maintenance_violation())
+    }
+
+    fn name(&self) -> String {
+        String::from("maintenanceViolation")
+    }
+}
+
 /// Number of vehicles (each type count as 1)
 struct VehicleCountIndicator;
 
-impl Indicator<Schedule> for VehicleCountIndicator {
-    fn evaluate(&self, schedule: &Schedule) -> BaseValue {
-        BaseValue::Integer(schedule.number_of_vehicles() as i64)
+impl Indicator<ScheduleWithInfo> for VehicleCountIndicator {
+    fn evaluate(&self, schedule_with_info: &ScheduleWithInfo) -> BaseValue {
+        BaseValue::Integer(schedule_with_info.get_schedule().number_of_vehicles() as i64)
     }
 
     fn name(&self) -> String {
@@ -41,9 +44,9 @@ impl Indicator<Schedule> for VehicleCountIndicator {
 
 struct CostsIndicator;
 
-impl Indicator<Schedule> for CostsIndicator {
-    fn evaluate(&self, schedule: &Schedule) -> BaseValue {
-        BaseValue::Integer(schedule.costs() as i64)
+impl Indicator<ScheduleWithInfo> for CostsIndicator {
+    fn evaluate(&self, schedule_with_info: &ScheduleWithInfo) -> BaseValue {
+        BaseValue::Integer(schedule_with_info.get_schedule().costs() as i64)
     }
 
     fn name(&self) -> String {
@@ -51,7 +54,7 @@ impl Indicator<Schedule> for CostsIndicator {
     }
 }
 
-pub fn build() -> Objective<Schedule> {
+pub fn build() -> Objective<ScheduleWithInfo> {
     let maintenance_violation = Level::new(vec![(
         Coefficient::Integer(1),
         Box::new(MaintenanceViolationIndicator),

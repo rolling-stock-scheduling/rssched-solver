@@ -1,4 +1,4 @@
-mod swaps;
+pub mod swaps;
 use heuristic_framework::local_search::Neighborhood;
 use model::base_types::VehicleIdx;
 use model::network::Network;
@@ -9,6 +9,8 @@ use time::Duration;
 use std::iter;
 
 use self::swaps::{PathExchange, SpawnVehicleForMaintenance, Swap};
+
+use super::ScheduleWithInfo;
 
 ///////////////////////////////////////////////////////////
 ////////////////// LimitedExchanges ///////////////////////
@@ -43,15 +45,17 @@ impl SpawnForMaintenanceAndPathExchange {
     }
 }
 
-impl Neighborhood<Schedule> for SpawnForMaintenanceAndPathExchange {
+impl Neighborhood<ScheduleWithInfo> for SpawnForMaintenanceAndPathExchange {
     fn neighbors_of<'a>(
         &'a self,
-        schedule: &'a Schedule,
+        schedule_with_info: &'a ScheduleWithInfo,
         // start_provider: Option<VehicleId>,
-    ) -> Box<dyn Iterator<Item = Schedule> + Send + Sync + 'a> {
+    ) -> Box<dyn Iterator<Item = ScheduleWithInfo> + Send + Sync + 'a> {
         ///////////////////////////////////////////
         // first: spawn vehicles for maintenance //
         ///////////////////////////////////////////
+
+        let schedule = schedule_with_info.get_schedule();
 
         // TODO: next neighborhood start with a different maintenance node (for speedup)
         let spawning_iterator = self
@@ -60,9 +64,18 @@ impl Neighborhood<Schedule> for SpawnForMaintenanceAndPathExchange {
             .flat_map(move |maintenance| {
                 let vehicle_types: Vec<_> = self.network.vehicle_types().iter().collect();
                 vehicle_types.into_iter().filter_map(move |vehicle_type| {
-                    SpawnVehicleForMaintenance::new(maintenance, vehicle_type)
-                        .apply(schedule)
-                        .ok()
+                    let swap = SpawnVehicleForMaintenance::new(maintenance, vehicle_type);
+                    match swap.apply(schedule) {
+                        Ok(schedule) => Some(ScheduleWithInfo::new(
+                            schedule,
+                            None,
+                            format!(
+                                "Spawned vehicle of type {} for maintenance slot {}",
+                                vehicle_type, maintenance
+                            ),
+                        )),
+                        Err(_) => None,
+                    }
                 })
             });
 
@@ -97,7 +110,17 @@ impl Neighborhood<Schedule> for SpawnForMaintenanceAndPathExchange {
                     .filter(move |&u| u != provider)
                     // create the swap
                     .filter_map(move |receiver|{
-                        PathExchange::new(seg, provider, receiver).apply(schedule).ok()
+                        let swap = PathExchange::new(seg, provider, receiver);
+                        match swap.apply(schedule) {
+                            Ok(schedule) => Some(ScheduleWithInfo::new(
+                                    schedule,
+                                    Some(provider), 
+                                    format!(
+                                        "PathExchange from {} to {} of segment {}", 
+                                        provider, receiver, seg ))
+                                ),
+                            Err(_) => None,
+                        }
                     })
                 ));
 

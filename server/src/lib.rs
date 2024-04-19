@@ -2,7 +2,7 @@ use model::json_serialisation::load_rolling_stock_problem_instance_from_json;
 use objective_framework::EvaluatedSolution;
 use objective_framework::Objective;
 use solution::json_serialisation::schedule_to_json;
-use solution::Schedule;
+use solver::local_search::ScheduleWithInfo;
 use solver::min_cost_flow_solver::MinCostFlowSolver;
 use solver::objective;
 use time::{DateTime, Duration};
@@ -25,7 +25,10 @@ pub fn solve_instance(input_data: serde_json::Value) -> serde_json::Value {
 
     let min_cost_flow_solver = MinCostFlowSolver::initialize(network.clone());
     println!("Solve with MinCostFlowSolver:");
-    let final_solution = objective.evaluate(min_cost_flow_solver.solve());
+    let schedule = min_cost_flow_solver.solve();
+    let schedule_with_info = ScheduleWithInfo::new(schedule, None, "MinCostFlowSolver".to_string());
+
+    let final_solution = objective.evaluate(schedule_with_info);
     println!(
         "MinCostFlowSolver computed optimal schedule (elapsed time: {:0.2}sec)",
         start_time.elapsed().as_secs_f32()
@@ -43,11 +46,11 @@ pub fn solve_instance(input_data: serde_json::Value) -> serde_json::Value {
 }
 
 pub fn create_output_json(
-    final_solution: &EvaluatedSolution<Schedule>,
-    objective: &Objective<Schedule>,
+    final_solution: &EvaluatedSolution<ScheduleWithInfo>,
+    objective: &Objective<ScheduleWithInfo>,
     runtime_duration: stdtime::Duration,
 ) -> serde_json::Value {
-    let json_output = schedule_to_json(final_solution.solution());
+    let json_output = schedule_to_json(final_solution.solution().get_schedule());
     let json_objective_value = objective.objective_value_to_json(final_solution.objective_value());
     let today = DateTime::new("1970-01-01T00:00:00")
         + Duration::from_seconds(

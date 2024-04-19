@@ -8,6 +8,7 @@ pub trait Swap: fmt::Display + Send + Sync {
     fn apply(&self, schedule: &Schedule) -> Result<Schedule, String>;
 }
 
+#[derive(Clone)]
 pub struct SpawnVehicleForMaintenance {
     maintenance_slot: NodeIdx,
     vehicle_type: VehicleTypeIdx,
@@ -65,6 +66,7 @@ impl fmt::Display for SpawnVehicleForMaintenance {
 /// Removes the path from the provider's tour and insert it into the receiver's tour.
 /// All removed nodes that are removed from receiver's tour (due to conflicts) are tried to insert conflict-free into
 /// the provider's tour.
+#[derive(Clone)]
 pub struct PathExchange {
     segment: Segment,
     provider: VehicleIdx,
