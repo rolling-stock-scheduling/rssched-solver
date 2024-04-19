@@ -71,7 +71,8 @@ impl Neighborhood<ScheduleWithInfo> for SpawnForMaintenanceAndPathExchange {
                             None,
                             format!(
                                 "Spawned vehicle of type {} for maintenance slot {}",
-                                self.network.vehicle_types().get(vehicle_type).unwrap(), maintenance
+                                self.network.vehicle_types().get(vehicle_type).unwrap(),
+                                maintenance
                             ),
                         )),
                         Err(_) => None,
@@ -83,20 +84,21 @@ impl Neighborhood<ScheduleWithInfo> for SpawnForMaintenanceAndPathExchange {
         // second: exchange segments //
         ///////////////////////////////
 
-        let providers: Vec<VehicleIdx> = if self.only_dummy_provider {
+        let mut providers: Vec<VehicleIdx> = if self.only_dummy_provider {
             schedule.dummy_iter().collect()
         } else {
             self.dummy_and_real_vehicles(schedule).collect()
         };
 
-        // TODO: next neighborhood start with different provider (for speedup)
         // rotate providers such that start_provider is the first provider
         // e.g. start_provider = v5
         // so v0, v1, v2, v3, v4, v5, v6, v7, v8, v9
         // becomes v5, v6, v7, v8, v9, v0, v1, v2, v3, v4
-        // if let Some(position) = providers.iter().position(|&v| Some(v) == start_provider) {
-        // providers.rotate_left(position);
-        // }
+        if let Some(last_provider) = schedule_with_info.get_last_provider() {
+            if let Some(position) = providers.iter().position(|&v| v == last_provider) {
+                providers.rotate_left(position);
+            }
+        }
 
         let segment_exchange_iterator =
             // as provider first take dummies then real Vehicles:
@@ -115,14 +117,14 @@ impl Neighborhood<ScheduleWithInfo> for SpawnForMaintenanceAndPathExchange {
                             Ok(new_schedule) => {
                                 Some(ScheduleWithInfo::new(
                                     new_schedule,
-                                    Some(provider), 
+                                    Some(provider),
                                     format!(
-                                        "PathExchange from {}{} to {}{} of segment {}", 
-                                        provider, 
+                                        "PathExchange from {}{} to {}{} of segment {}",
+                                        provider,
                                         schedule.vehicle_type_of(provider).map(|vt| format!(" ({})", self.network.vehicle_types().get(vt).unwrap())).unwrap_or("".to_string()),
-                                        receiver, 
+                                        receiver,
                                         schedule.vehicle_type_of(receiver).map(|vt| format!(" ({})", self.network.vehicle_types().get(vt).unwrap())).unwrap_or("".to_string()),
-                                        seg 
+                                        seg
                                         )
                                     )
                                 )

@@ -49,11 +49,6 @@ impl ScheduleWithInfo {
 }
 
 pub fn build_local_search_solver(network: Arc<Network>) -> LocalSearchSolver<ScheduleWithInfo> {
-    // TODO: Caplse schedule into new struct ScheduleWithInfo that also contains additional infos:
-    // - last swap
-    // then use last provider to start the next neighborhood
-    // print swap between each step (function must be provided to the local search solver)
-
     let objective = Arc::new(objective::build());
 
     let segment_limit = Duration::new("3:00:00");
