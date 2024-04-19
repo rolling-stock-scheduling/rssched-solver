@@ -187,6 +187,19 @@ impl Network {
             .max(1) // one vehicle is always required
     }
 
+    pub fn maximal_formation_count_for(&self, service_trip: NodeIdx) -> Option<VehicleCount> {
+        let limit_of_type = self
+            .vehicle_types()
+            .get(self.vehicle_type_for(service_trip))
+            .unwrap()
+            .maximal_formation_count();
+        let limit_of_node = self
+            .node(service_trip)
+            .as_service_trip()
+            .maximal_formation_count();
+        limit_of_type.map(|l| l.min(limit_of_node.unwrap_or(l)))
+    }
+
     pub fn get_depot_id(&self, node_id: NodeIdx) -> DepotIdx {
         self.node(node_id).as_depot().depot_idx()
     }

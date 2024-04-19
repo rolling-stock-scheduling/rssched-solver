@@ -298,6 +298,12 @@ fn create_vehicle_types(json_input: &JsonInput) -> (VehicleTypes, HashMap<IdType
 }
 
 fn create_config(json_input: &JsonInput) -> Config {
+    if json_input.parameters.costs.dead_head_trip
+        <= json_input.parameters.costs.service_trip + json_input.parameters.costs.staff
+    {
+        println!("\x1b[93mwarning:\x1b[0m Dead head trip costs are lower than service trip costs + staff costs. \
+            Vehicle will not hitch-hike on service trips.");
+    }
     Config::new(
         json_input
             .parameters
@@ -418,6 +424,9 @@ fn create_service_trips(
             let passengers = departure_segment.passengers as PassengerCount;
             let seated = departure_segment.seated as PassengerCount;
             let id = departure_segment.id.clone();
+            let maximal_formation_count = route_segment
+                .maximal_formation_count
+                .map(|x| x as VehicleCount);
 
             let service_trip = Node::create_service_trip(
                 id,
@@ -429,6 +438,7 @@ fn create_service_trips(
                 distance,
                 passengers,
                 seated,
+                maximal_formation_count,
             );
             service_trips
                 .get_mut(&vehicle_type)

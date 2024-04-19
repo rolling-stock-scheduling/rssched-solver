@@ -12,6 +12,7 @@ use model::base_types::PassengerCount;
 use model::base_types::VehicleCount;
 use model::base_types::VehicleIdx;
 use model::base_types::VehicleTypeIdx;
+use model::network::nodes::Node;
 use model::network::Network;
 use model::vehicle_types::VehicleTypes;
 
@@ -218,6 +219,7 @@ impl Schedule {
     /// Returns the number of passengers that do not fit (first entry) or seated passenger that
     /// cannot sit (second entry).
     pub fn unserved_passengers(&self) -> (PassengerCount, PassengerCount) {
+        //TODO store unserved_passengers and update
         self.network
             .all_service_nodes()
             .map(|node| self.unserved_passengers_at(node))
@@ -389,16 +391,12 @@ impl Schedule {
 
             // check that train_formations do not violate maximal formation count
             for node in tour.all_non_depot_nodes_iter() {
-                let maximal_formation_count_opt = if self.network.node(node).is_service() {
-                    self.network
-                        .vehicle_types()
-                        .get(self.network.vehicle_type_for(node))
-                        .unwrap()
-                        .maximal_formation_count()
-                } else if self.network.node(node).is_maintenance() {
-                    Some(1)
-                } else {
-                    None
+                let maximal_formation_count_opt = match self.network.node(node) {
+                    Node::Service(_) => self.network.maximal_formation_count_for(node),
+                    Node::Maintenance(_) => {
+                        Some(self.network.track_count_of_maintenance_slot(node))
+                    }
+                    _ => None,
                 };
                 let train_formation = self.train_formations.get(&node).unwrap();
                 if let Some(maximal_formation_count) = maximal_formation_count_opt {

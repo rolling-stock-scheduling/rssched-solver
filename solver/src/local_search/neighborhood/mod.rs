@@ -90,6 +90,9 @@ impl Neighborhood<ScheduleWithInfo> for SpawnForMaintenanceAndPathExchange {
             self.dummy_and_real_vehicles(schedule).collect()
         };
 
+        // let mut providers: Vec<VehicleIdx> = schedule.vehicles_iter_all().collect();
+        //TEMP
+
         // rotate providers such that start_provider is the first provider
         // e.g. start_provider = v5
         // so v0, v1, v2, v3, v4, v5, v6, v7, v8, v9
@@ -116,7 +119,7 @@ impl Neighborhood<ScheduleWithInfo> for SpawnForMaintenanceAndPathExchange {
                         match swap.apply(schedule) {
                             Ok(new_schedule) => {
                                 Some(ScheduleWithInfo::new(
-                                    new_schedule,
+                                    new_schedule.clone(), //TEMP remove clone
                                     Some(provider),
                                     format!(
                                         "PathExchange from {}{} to {}{} of segment {}",
@@ -125,7 +128,9 @@ impl Neighborhood<ScheduleWithInfo> for SpawnForMaintenanceAndPathExchange {
                                         receiver,
                                         schedule.vehicle_type_of(receiver).map(|vt| format!(" ({})", self.network.vehicle_types().get(vt).unwrap())).unwrap_or("".to_string()),
                                         seg
-                                        )
+                                        ) 
+                                    + "\nOLD TOUR: " + &schedule.tour_of(receiver).unwrap().to_string() //TEMP
+                                    + "\nNEW TOUR: " + &new_schedule.tour_of(receiver).unwrap().to_string()
                                     )
                                 )
                             }
@@ -133,6 +138,8 @@ impl Neighborhood<ScheduleWithInfo> for SpawnForMaintenanceAndPathExchange {
                         }
                     })
                 ));
+
+                // TODO: Add iterator that inserts a single trip to a vehicle (for hitch-hiking)
 
         Box::new(spawning_iterator.chain(segment_exchange_iterator))
     }

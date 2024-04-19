@@ -513,11 +513,8 @@ impl Eq for Tour {}
 
 impl fmt::Display for Tour {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut nodes_iter = self.nodes.iter();
-        write!(f, "{}", self.network.node(*nodes_iter.next().unwrap()))?;
-        for node in nodes_iter {
-            write!(f, " - {}", self.network.node(*node))?;
-        }
+        // write!(f, "{}", self.nodes.iter().map(|n| self.network.node(*n).to_string()).join(" - "))?;
+        write!(f, "{}", self.nodes.iter().join(" - "))?;
         Ok(())
     }
 }

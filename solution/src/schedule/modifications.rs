@@ -902,7 +902,8 @@ impl Schedule {
                             ));
                         }
                         if self.network.node(node).is_service() {
-                            if let Some(max_length) = receiver_vh.maximal_formation_count() {
+                            if let Some(max_length) = self.network.maximal_formation_count_for(node)
+                            {
                                 if old_formation.vehicle_count() >= max_length {
                                     return Err(format!(
                                         "Cannot add vehicle {} to node {}. Formation is full.",

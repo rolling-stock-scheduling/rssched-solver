@@ -65,6 +65,7 @@ impl MinCostFlowSolver {
 
         // split into vehicle types
         let mut tours: HashMap<VehicleTypeIdx, Vec<Vec<NodeIdx>>> = HashMap::new();
+        // TODO: parallelize this
         for vehicle_type in self.vehicle_types.iter() {
             println!(
                 " solving sub-instance for vehicle type {}",
@@ -183,19 +184,23 @@ impl MinCostFlowSolver {
         let mut cost_overflow_checker: Cost = 0; // computes the maximal cost for the worst
                                                  // feasible flow
 
-        let trip_node_count =
-            self.network.service_nodes(vehicle_type).count() + self.network.depots_iter().count();
-        // number of nodes in the flow network will be twice this number
-
-        let maximal_formation_count: UpperBound = self
+        let maximal_formation_count_for_vehicle_type = self
             .vehicle_types
             .get(vehicle_type)
             .unwrap()
             .maximal_formation_count()
-            .map_or(100, |x| x as UpperBound); // we don't allow more than 100 vehicles
+            .unwrap_or(100) as UpperBound;
+
+        let trip_node_count =
+            self.network.service_nodes(vehicle_type).count() + self.network.depots_iter().count();
+        // number of nodes in the flow network will be twice this number
 
         // create two nodes for each service trip and connect them with an edge
         for service_trip in self.network.service_nodes(vehicle_type) {
+            let maximal_formation_count = self
+                .network
+                .maximal_formation_count_for(service_trip)
+                .unwrap_or(100) as UpperBound;
             let left_rsnode = builder.add_node();
             let right_rsnode = builder.add_node();
             let trip_node = TripNode::ServiceOrMaintenance(service_trip);
@@ -247,7 +252,7 @@ impl MinCostFlowSolver {
             total_lower_bound += lower_bound;
 
             cost_overflow_checker = cost_overflow_checker
-                .checked_add(cost.checked_mul(maximal_formation_count).unwrap())
+                .checked_add(cost.checked_mul(lower_bound).unwrap())
                 .expect("overflow in cost_overflow_checker");
 
             edges.insert(
@@ -309,14 +314,17 @@ impl MinCostFlowSolver {
                     + idle_time_cost;
 
                 cost_overflow_checker = cost_overflow_checker
-                    .checked_add(cost.checked_mul(maximal_formation_count).unwrap())
+                    .checked_add(
+                        cost.checked_mul(maximal_formation_count_for_vehicle_type)
+                            .unwrap(),
+                    )
                     .expect("overflow in cost_overflow_checker");
 
                 edges.insert(
                     builder.add_edge(pred_right_rsnode, *left_rsnode),
                     EdgeLabel {
                         lower_bound: 0,
-                        upper_bound: maximal_formation_count,
+                        upper_bound: maximal_formation_count_for_vehicle_type,
                         cost,
                     },
                 );

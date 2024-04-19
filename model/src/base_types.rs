@@ -46,7 +46,7 @@ pub struct DepotIdx(pub Idx);
 pub enum NodeIdx {
     #[display(fmt = "sdep_{}", _0)]
     StartDepot(Idx),
-    #[display(fmt = "serv_{}", _0)]
+    #[display(fmt = "trip_{}", _0)]
     Service(Idx),
     #[display(fmt = "main_{}", _0)]
     Maintenance(Idx),

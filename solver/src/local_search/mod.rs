@@ -77,7 +77,6 @@ pub fn build_local_search_solver(network: Arc<Network>) -> LocalSearchSolver<Sch
         objective.clone(),
     ));
 
-    // TODO: implement function_between_steps, that prints the swap
     let function_between_steps = Box::new(
         |iteration_counter: u32,
          current_solution: &EvaluatedSolution<ScheduleWithInfo>,
@@ -117,7 +116,6 @@ pub fn build_local_search_solver(network: Arc<Network>) -> LocalSearchSolver<Sch
         neighborhood,
         objective,
         Some(_take_any),
-        // None,
         Some(function_between_steps),
     )
 }

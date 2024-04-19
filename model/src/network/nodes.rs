@@ -40,6 +40,7 @@ pub struct ServiceTrip {
     distance: Distance,
     passengers: PassengerCount,
     seated: PassengerCount,
+    maximal_formation_count: Option<VehicleCount>,
 }
 
 impl ServiceTrip {
@@ -53,6 +54,10 @@ impl ServiceTrip {
 
     pub fn seated(&self) -> PassengerCount {
         self.seated
+    }
+
+    pub fn maximal_formation_count(&self) -> Option<VehicleCount> {
+        self.maximal_formation_count
     }
 }
 
@@ -240,6 +245,7 @@ impl Node {
         distance: Distance,
         passengers: PassengerCount,
         seated: PassengerCount,
+        maximal_formation_count: Option<VehicleCount>,
     ) -> ServiceTrip {
         ServiceTrip {
             id,
@@ -251,6 +257,7 @@ impl Node {
             distance,
             passengers,
             seated,
+            maximal_formation_count,
         }
     }
 

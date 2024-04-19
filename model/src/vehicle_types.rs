@@ -14,11 +14,6 @@ impl VehicleTypes {
             .map(|vt| (vt.idx, Arc::new(vt)))
             .collect();
 
-        /* let mut ids_sorted_by_seat_count: Vec<_> = vehicle_types.keys().cloned().collect();
-        ids_sorted_by_seat_count.sort_by_key(|&id| {
-            let vt = vehicle_types.get(&id).unwrap();
-            (vt.seats(), vt.capacity(), vt.maximal_formation_count(), id)
-        }); */
         let mut ids_sorted_by_id: Vec<_> = vehicle_types.keys().cloned().collect();
         ids_sorted_by_id.sort();
 
