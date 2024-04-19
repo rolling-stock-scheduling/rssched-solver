@@ -9,33 +9,14 @@ use crate::tour::Tour;
 pub struct Transition {
     cycles: Vec<TransitionCycle>,
     total_maintenance_violation: MaintenanceCounter,
+
+    cycle_lookup: HashMap<VehicleIdx, usize>,
 }
 
 impl Transition {
     pub fn new_fast(vehicles: &[VehicleIdx], tours: &HashMap<VehicleIdx, Tour>) -> Transition {
         Transition::one_cluster_per_maintenance(vehicles, tours)
     }
-
-    /* pub fn one_cylce_per_vehicle(
-        vehicles: &[VehicleId],
-        tours: &HashMap<VehicleId, Tour>,
-    ) -> Transition {
-        let mut total_maintenance_violation = 0;
-        let cycles = vehicles
-            .iter()
-            .map(|&vehicle_id| {
-                let tour = tours.get(&vehicle_id).unwrap();
-                let maintenance_violation = tour.maintenance_counter().max(0);
-                total_maintenance_violation += maintenance_violation;
-                TransitionCycle::new(vec![vehicle_id], maintenance_violation)
-            })
-            .collect();
-
-        Transition {
-            cycles,
-            total_maintenance_violation,
-        }
-    } */
 
     /// Assigns each vehicle greedily to a cluster with the goal of minimizing the total maintenance violation.
     /// It is assumed that all vehicles are of the same type.
@@ -96,17 +77,109 @@ impl Transition {
         }
 
         let mut total_maintenance_violation = 0;
-        let cycles = sorted_clusters
+        let cycles: Vec<_> = sorted_clusters
             .into_iter()
             .map(|(vehicles, maintenance_counter)| {
-                let maintenance_violation = maintenance_counter.max(0);
-                total_maintenance_violation += maintenance_violation;
-                TransitionCycle::new(vehicles, maintenance_violation)
+                total_maintenance_violation += maintenance_counter.max(0);
+                TransitionCycle::new(vehicles, maintenance_counter)
             })
             .collect();
+
+        let cycle_lookup = cycles
+            .iter()
+            .enumerate()
+            .flat_map(|(idx, cycle)| cycle.cycle.iter().map(move |&vehicle| (vehicle, idx)))
+            .collect();
+
         Transition {
             cycles,
             total_maintenance_violation,
+            cycle_lookup,
+        }
+    }
+
+    pub fn update_vehicle(
+        &self,
+        vehicle: VehicleIdx,
+        old_maintenace_counter_of_tour: MaintenanceCounter,
+        new_maintenance_counter_of_tour: MaintenanceCounter,
+    ) -> Transition {
+        let mut cycles = self.cycles.clone();
+        let mut total_maintenance_violation = self.total_maintenance_violation;
+
+        let cycle_idx = self.cycle_lookup.get(&vehicle).unwrap();
+
+        let old_cycle = &mut cycles.get(*cycle_idx).unwrap();
+        let new_maintenance_counter = old_cycle.maintenance_counter
+            + new_maintenance_counter_of_tour
+            - old_maintenace_counter_of_tour;
+        let new_cycle = TransitionCycle::new(old_cycle.cycle.clone(), new_maintenance_counter);
+
+        total_maintenance_violation +=
+            new_maintenance_counter.max(0) - old_cycle.maintenance_counter.max(0);
+
+        cycles[*cycle_idx] = new_cycle;
+
+        Transition {
+            cycles,
+            total_maintenance_violation,
+            cycle_lookup: self.cycle_lookup.clone(),
+        }
+    }
+
+    pub fn add_vehicle_to_own_cycle(
+        &self,
+        vehicle: VehicleIdx,
+        maintenance_counter_of_tour: MaintenanceCounter,
+    ) -> Transition {
+        let mut cycles = self.cycles.clone();
+        let mut total_maintenance_violation = self.total_maintenance_violation;
+        let mut cycle_lookup = self.cycle_lookup.clone();
+
+        let new_cycle = TransitionCycle::new(vec![vehicle], maintenance_counter_of_tour);
+        total_maintenance_violation += maintenance_counter_of_tour.max(0);
+        cycles.push(new_cycle);
+        cycle_lookup.insert(vehicle, cycles.len() - 1);
+
+        Transition {
+            cycles,
+            total_maintenance_violation,
+            cycle_lookup,
+        }
+    }
+
+    pub fn remove_vehicle(
+        &self,
+        vehicle: VehicleIdx,
+        maintenance_counter_of_old_tour: MaintenanceCounter,
+    ) -> Transition {
+        let mut cycles = self.cycles.clone();
+        let mut total_maintenance_violation = self.total_maintenance_violation;
+        let mut cycle_lookup = self.cycle_lookup.clone();
+
+        let cycle_idx = cycle_lookup.get(&vehicle).unwrap();
+        let old_cycle = cycles.get(*cycle_idx).unwrap();
+        let new_cycle_vec = old_cycle
+            .cycle
+            .iter()
+            .filter(|&&v| v != vehicle)
+            .cloned()
+            .collect();
+        let new_maintenance_counter =
+            old_cycle.maintenance_counter - maintenance_counter_of_old_tour;
+        let new_cycle = TransitionCycle::new(new_cycle_vec, new_maintenance_counter);
+
+        total_maintenance_violation +=
+            new_maintenance_counter.max(0) - old_cycle.maintenance_counter.max(0);
+
+        cycles[*cycle_idx] = new_cycle;
+
+        cycle_lookup.remove(&vehicle);
+
+        Transition {
+            cycles,
+            total_maintenance_violation,
+            cycle_lookup,
         }
     }
 
@@ -142,17 +215,16 @@ impl Transition {
         // verify maintenance violations
         let mut computed_total_maintenance_violation = 0;
         for transition_cycle in self.cycles.iter() {
-            let maintenance_counter: MaintenanceCounter = transition_cycle
+            let computed_maintenance_counter: MaintenanceCounter = transition_cycle
                 .cycle
                 .iter()
                 .map(|&vehicle_id| tours.get(&vehicle_id).unwrap().maintenance_counter())
                 .sum();
-            let computed_maintenance_violation = maintenance_counter.max(0);
             assert_eq!(
-                computed_maintenance_violation,
-                transition_cycle.maintenance_violation
+                computed_maintenance_counter,
+                transition_cycle.maintenance_counter
             );
-            computed_total_maintenance_violation += computed_maintenance_violation;
+            computed_total_maintenance_violation += computed_maintenance_counter.max(0);
         }
         assert_eq!(
             computed_total_maintenance_violation,
@@ -164,17 +236,14 @@ impl Transition {
 #[derive(Debug, Clone)]
 pub struct TransitionCycle {
     cycle: Vec<VehicleIdx>,
-    maintenance_violation: MaintenanceCounter,
+    maintenance_counter: MaintenanceCounter,
 }
 
 impl TransitionCycle {
-    pub fn new(
-        cycle: Vec<VehicleIdx>,
-        maintenance_violation: MaintenanceCounter,
-    ) -> TransitionCycle {
+    pub fn new(cycle: Vec<VehicleIdx>, maintenance_counter: MaintenanceCounter) -> TransitionCycle {
         TransitionCycle {
             cycle,
-            maintenance_violation,
+            maintenance_counter,
         }
     }
 }
@@ -189,7 +258,7 @@ impl std::fmt::Display for TransitionCycle {
                 .map(|&idx| format!("{}", idx.idx()))
                 .collect::<Vec<String>>()
                 .join(", "),
-            self.maintenance_violation
+            self.maintenance_counter.max(0)
         )
     }
 }

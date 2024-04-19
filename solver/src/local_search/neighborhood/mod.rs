@@ -119,7 +119,7 @@ impl Neighborhood<ScheduleWithInfo> for SpawnForMaintenanceAndPathExchange {
                         match swap.apply(schedule) {
                             Ok(new_schedule) => {
                                 Some(ScheduleWithInfo::new(
-                                    new_schedule.clone(), //TEMP remove clone
+                                    new_schedule,
                                     Some(provider),
                                     format!(
                                         "PathExchange from {}{} to {}{} of segment {}",
@@ -128,11 +128,8 @@ impl Neighborhood<ScheduleWithInfo> for SpawnForMaintenanceAndPathExchange {
                                         receiver,
                                         schedule.vehicle_type_of(receiver).map(|vt| format!(" ({})", self.network.vehicle_types().get(vt).unwrap())).unwrap_or("".to_string()),
                                         seg
-                                        ) 
-                                    + "\nOLD TOUR: " + &schedule.tour_of(receiver).unwrap().to_string() //TEMP
-                                    + "\nNEW TOUR: " + &new_schedule.tour_of(receiver).unwrap().to_string()
-                                    )
-                                )
+                                    ) 
+                                ))
                             }
                             Err(_) => None,
                         }

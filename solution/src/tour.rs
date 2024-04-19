@@ -313,7 +313,7 @@ impl Tour {
         assert_eq!(self.compute_service_distance(), self.service_distance);
 
         // check dead_head_distance
-        assert_eq!(self.compute_dead_head_distance(), self.dead_head_distance);
+        assert_eq!(self.compute_dead_head_distance(), self.dead_head_distance,);
 
         // check costs
         assert_eq!(self.compute_costs(), self.costs);

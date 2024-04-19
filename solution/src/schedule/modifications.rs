@@ -109,9 +109,9 @@ impl Schedule {
         self.update_transitions_and_violation_fast(
             &mut next_period_transitions,
             &mut maintenance_violation,
-            &vehicle_ids_grouped_and_sorted,
+            vec![vehicle_id],
+            &vehicles,
             &tours,
-            vec![vehicle_type_id],
         );
 
         Ok((
@@ -197,9 +197,9 @@ impl Schedule {
         self.update_transitions_and_violation_fast(
             &mut next_period_transitions,
             &mut maintenance_violation,
-            &vehicle_ids_grouped_and_sorted,
+            vec![vehicle_id],
+            &vehicles,
             &tours,
-            vec![self.vehicle_type_of(vehicle_id).unwrap()],
         );
 
         Ok(Schedule {
@@ -299,12 +299,9 @@ impl Schedule {
         self.update_transitions_and_violation_fast(
             &mut next_period_transitions,
             &mut maintenance_violation,
-            &self.vehicle_ids_grouped_and_sorted,
+            vec![vehicle_id],
+            &self.vehicles,
             &tours,
-            [vehicle_id]
-                .iter()
-                .filter_map(|&v| self.vehicle_type_of(v).ok())
-                .collect(),
         );
 
         Ok(Schedule {
@@ -368,9 +365,13 @@ impl Schedule {
                     removed_path.iter(),
                 )?;
 
-                costs += new_tour.costs() - tour.costs();
-
-                self.update_tour(&mut tours, &mut dummy_tours, vehicle_id, new_tour);
+                self.update_tour_and_costs(
+                    &mut tours,
+                    &mut dummy_tours,
+                    &mut costs,
+                    vehicle_id,
+                    new_tour,
+                );
 
                 self.update_depot_usage(&mut depot_usage, &vehicles, &tours, vehicle_id);
 
@@ -387,9 +388,9 @@ impl Schedule {
                 self.update_transitions_and_violation_fast(
                     &mut next_period_transitions,
                     &mut maintenance_violation,
-                    &vehicle_ids_grouped_and_sorted,
+                    vec![vehicle_id],
+                    &vehicles,
                     &tours,
-                    vec![self.vehicle_type_of(vehicle_id).unwrap()],
                 );
 
                 Ok(Schedule {
@@ -468,13 +469,9 @@ impl Schedule {
         self.update_transitions_and_violation_fast(
             &mut next_period_transitions,
             &mut maintenance_violation,
-            &vehicle_ids_grouped_and_sorted,
+            vec![provider, receiver],
+            &vehicles,
             &tours,
-            [provider, receiver]
-                .iter()
-                .filter_map(|&v| self.vehicle_type_of(v).ok())
-                .dedup()
-                .collect(),
         );
 
         Ok(Schedule {
@@ -524,7 +521,9 @@ impl Schedule {
         let mut depot_usage = self.depot_usage.clone();
         let mut vehicle_ids_grouped_and_sorted = self.vehicle_ids_grouped_and_sorted.clone();
         let mut dummy_ids_sorted = self.dummy_ids_sorted.clone();
+        let mut unserved_passengers = self.unserved_passengers;
         let mut maintenance_violation = self.maintenance_violation;
+        let mut costs = self.costs;
         let mut vehicle_counter = self.vehicle_counter;
 
         let tour_provider = self.tour_of(provider).unwrap();
@@ -546,6 +545,8 @@ impl Schedule {
             &mut dummy_tours,
             &mut vehicle_ids_grouped_and_sorted,
             &mut dummy_ids_sorted,
+            &mut unserved_passengers,
+            &mut costs,
             Some(provider),
             shrinked_tour_provider,
             receiver,
@@ -561,6 +562,7 @@ impl Schedule {
                 // removed nodes
                 self.update_train_formation(
                     &mut train_formations,
+                    &mut unserved_passengers,
                     Some(receiver),
                     None,
                     new_path.iter(),
@@ -585,13 +587,9 @@ impl Schedule {
         self.update_transitions_and_violation_fast(
             &mut next_period_transitions,
             &mut maintenance_violation,
-            &vehicle_ids_grouped_and_sorted,
+            vec![provider, receiver],
+            &vehicles,
             &tours,
-            [provider, receiver]
-                .iter()
-                .filter_map(|&v| self.vehicle_type_of(v).ok())
-                .dedup()
-                .collect(),
         );
 
         Ok((
@@ -604,7 +602,9 @@ impl Schedule {
                 dummy_tours,
                 vehicle_ids_grouped_and_sorted,
                 dummy_ids_sorted,
+                unserved_passengers,
                 maintenance_violation,
+                costs,
                 vehicle_counter,
                 network: self.network.clone(),
             },
@@ -621,7 +621,9 @@ impl Schedule {
         let mut next_period_transitions = self.next_period_transitions.clone();
         let mut depot_usage = self.depot_usage.clone();
         let mut maintenance_violation = self.maintenance_violation;
+        let mut costs = self.costs;
 
+        let recompute_all = vehicles.is_none();
         let vehicle_ids = vehicles.unwrap_or_else(|| self.vehicles_iter_all().collect());
 
         // first remove all considered vehicles from depots, so that there is space for reoptimization
@@ -653,6 +655,8 @@ impl Schedule {
             let vehicle_type_id = self.vehicle_type_of(*vehicle_id).unwrap();
             let new_tour = self.improve_depots_of_tour(tour, vehicle_type_id, &depot_usage);
 
+            costs += new_tour.costs() - tour.costs();
+
             // add vehicle to depot_usage
             depot_usage
                 .entry((
@@ -674,13 +678,25 @@ impl Schedule {
             // add tour
             tours.insert(*vehicle_id, new_tour);
         }
-        self.update_transitions_and_violation_fast(
-            &mut next_period_transitions,
-            &mut maintenance_violation,
-            &self.vehicle_ids_grouped_and_sorted,
-            &tours,
-            self.network.vehicle_types().iter().collect(), // recompute transition for all vehicle types
-        );
+        if recompute_all {
+            // if all depots are improved, recompute transitions for all vehicle types
+            self.recompute_transitions_and_violation_fast(
+                &mut next_period_transitions,
+                &mut maintenance_violation,
+                &self.vehicle_ids_grouped_and_sorted,
+                &tours,
+                self.network.vehicle_types().iter().collect(), // recompute transition for all vehicle types
+            );
+        } else {
+            // otherwise only update the changed vehicles
+            self.update_transitions_and_violation_fast(
+                &mut next_period_transitions,
+                &mut maintenance_violation,
+                vehicle_ids,
+                &self.vehicles,
+                &tours,
+            );
+        }
 
         Schedule {
             vehicles: self.vehicles.clone(),
@@ -692,7 +708,9 @@ impl Schedule {
             vehicle_ids_grouped_and_sorted: self.vehicle_ids_grouped_and_sorted.clone(),
             dummy_ids_sorted: self.dummy_ids_sorted.clone(),
             vehicle_counter: self.vehicle_counter,
+            unserved_passengers: self.unserved_passengers,
             maintenance_violation,
+            costs,
             network: self.network.clone(),
         }
     }
@@ -703,6 +721,7 @@ impl Schedule {
         let mut next_period_transitions = self.next_period_transitions.clone();
         let mut depot_usage = self.depot_usage.clone();
         let mut maintenance_violation = self.maintenance_violation;
+        let mut costs = self.costs;
 
         for vehicle_id in self.vehicles_iter_all() {
             let tour = self.tour_of(vehicle_id).unwrap();
@@ -718,12 +737,15 @@ impl Schedule {
                 .ok_or(format!("Cannot find end depot for vehicle {}.", vehicle_id))?;
 
             let new_tour = tour.replace_end_depot(new_end_depot_node).unwrap();
+
+            costs += new_tour.costs() - tour.costs();
+
             tours.insert(vehicle_id, new_tour);
 
             self.update_depot_usage(&mut depot_usage, &self.vehicles, &tours, vehicle_id);
         }
 
-        self.update_transitions_and_violation_fast(
+        self.recompute_transitions_and_violation_fast(
             &mut next_period_transitions,
             &mut maintenance_violation,
             &self.vehicle_ids_grouped_and_sorted,
@@ -740,10 +762,45 @@ impl Schedule {
             dummy_tours: self.dummy_tours.clone(),
             vehicle_ids_grouped_and_sorted: self.vehicle_ids_grouped_and_sorted.clone(),
             dummy_ids_sorted: self.dummy_ids_sorted.clone(),
+            unserved_passengers: self.unserved_passengers,
             maintenance_violation,
+            costs,
             vehicle_counter: self.vehicle_counter + 1,
             network: self.network.clone(),
         })
+    }
+
+    // TODO write test for this
+    pub fn recompute_transitions_for(
+        &self,
+        vehicle_types: Option<Vec<VehicleTypeIdx>>,
+    ) -> Schedule {
+        let mut next_period_transitions = self.next_period_transitions.clone();
+        let mut maintenance_violation = self.maintenance_violation;
+
+        self.recompute_transitions_and_violation_fast(
+            &mut next_period_transitions,
+            &mut maintenance_violation,
+            &self.vehicle_ids_grouped_and_sorted,
+            &self.tours,
+            vehicle_types.unwrap_or_else(|| self.network.vehicle_types().iter().collect()),
+        );
+
+        Schedule {
+            vehicles: self.vehicles.clone(),
+            tours: self.tours.clone(),
+            next_period_transitions,
+            train_formations: self.train_formations.clone(),
+            depot_usage: self.depot_usage.clone(),
+            dummy_tours: self.dummy_tours.clone(),
+            vehicle_ids_grouped_and_sorted: self.vehicle_ids_grouped_and_sorted.clone(),
+            dummy_ids_sorted: self.dummy_ids_sorted.clone(),
+            unserved_passengers: self.unserved_passengers,
+            maintenance_violation,
+            costs: self.costs,
+            vehicle_counter: self.vehicle_counter,
+            network: self.network.clone(),
+        }
     }
 }
 
@@ -772,7 +829,9 @@ impl Schedule {
             dummy_tours,
             vehicle_ids_grouped_and_sorted: self.vehicle_ids_grouped_and_sorted.clone(),
             dummy_ids_sorted,
+            unserved_passengers: self.unserved_passengers,
             maintenance_violation: self.maintenance_violation,
+            costs: self.costs,
             vehicle_counter: self.vehicle_counter,
             network: self.network.clone(),
         })
@@ -835,10 +894,13 @@ impl Schedule {
             // update tour of the provider
             match new_tour_provider {
                 Some(new_tour) => {
-                    self.update_tour(tours, dummy_tours, provider_id, new_tour);
+                    self.update_tour_and_costs(tours, dummy_tours, costs, provider_id, new_tour);
                 }
                 None => {
                     // there is a provider but no tour -> delete provider
+                    if self.is_vehicle(provider_id) {
+                        *costs -= self.tour_of(provider_id).unwrap().costs();
+                    }
                     if self.is_dummy(provider_id) {
                         dummy_tours.remove(&provider_id); // old_dummy_tour is completely removed
                         dummy_ids_sorted
@@ -859,7 +921,7 @@ impl Schedule {
         }
 
         // update extended tour of the receiver
-        self.update_tour(tours, dummy_tours, receiver, new_tour_receiver);
+        self.update_tour_and_costs(tours, dummy_tours, costs, receiver, new_tour_receiver);
         self.update_depot_usage(depot_usage, vehicles, tours, receiver);
 
         // update train_formations
@@ -871,22 +933,21 @@ impl Schedule {
             receiver_vehicle,
             moved_nodes,
         )?;
-        *costs += tours.get(&receiver).unwrap().costs() - self.tour_of(receiver).unwrap().costs();
-        // TODO add costs of provider
-        // TODO check for dummies
         Ok(())
     }
 
-    fn update_tour(
+    fn update_tour_and_costs(
         &self,
         tours: &mut HashMap<VehicleIdx, Tour>,
         dummy_tours: &mut HashMap<VehicleIdx, Tour>,
+        costs: &mut Cost,
         vehicle: VehicleIdx,
         new_tour: Tour,
     ) {
         if self.is_dummy(vehicle) {
             dummy_tours.insert(vehicle, new_tour);
         } else {
+            *costs += new_tour.costs() - tours.get(&vehicle).unwrap().costs();
             tours.insert(vehicle, new_tour);
         }
     }
@@ -1105,27 +1166,75 @@ impl Schedule {
         }
     }
 
-    fn update_transitions_and_violation_fast(
+    fn recompute_transitions_and_violation_fast(
         &self,
         transitions: &mut HashMap<VehicleTypeIdx, Transition>,
         maintenance_violation: &mut MaintenanceCounter,
         vehicle_ids_grouped_by_type: &HashMap<VehicleTypeIdx, Vec<VehicleIdx>>,
         tours: &HashMap<VehicleIdx, Tour>,
-        changed_vehicle_types: Vec<VehicleTypeIdx>,
+        vehicle_types: Vec<VehicleTypeIdx>,
     ) {
-        // TODO only update violation and add new vehicle to its own cycle, add new modification to
-        // recompute transitions
-        for vt in changed_vehicle_types.iter() {
+        for vt in vehicle_types.iter() {
             let vehicle_ids = vehicle_ids_grouped_by_type.get(vt).unwrap();
-            let new_transition = Transition::new_fast(vehicle_ids, tours); // TODO only recompute
-                                                                           // if violation is
-                                                                           // positive after the
-                                                                           // change
+            let new_transition = Transition::new_fast(vehicle_ids, tours);
             *maintenance_violation += new_transition.maintenance_violation();
             let old_transition = transitions
                 .insert(*vt, new_transition)
                 .expect("Each vehicle type must be a key in transitions.");
             *maintenance_violation -= old_transition.maintenance_violation();
+        }
+    }
+
+    // if changed_vehicle was a vehicle in the old schedule, just update the maintenance counter in
+    // transition
+    // if changed_vehicle is a new vehicle put it in its own maintenance cycle
+    fn update_transitions_and_violation_fast(
+        &self,
+        transitions: &mut HashMap<VehicleTypeIdx, Transition>,
+        maintenance_violation: &mut MaintenanceCounter,
+        changed_vehicles: Vec<VehicleIdx>,
+        vehicles: &HashMap<VehicleIdx, Vehicle>,
+        tours: &HashMap<VehicleIdx, Tour>,
+    ) {
+        for vehicle in changed_vehicles.iter().filter(|v| v.is_real()) {
+            let vehicle_type = vehicles
+                .get(vehicle)
+                .unwrap_or_else(|| self.vehicles.get(vehicle).unwrap())
+                .type_id();
+            let new_maintenance_counter = tours
+                .get(vehicle)
+                .map(|t| t.maintenance_counter())
+                .unwrap_or(0);
+            let old_transition = transitions.get(&vehicle_type).unwrap();
+            let new_transition =
+                match (self.is_vehicle(*vehicle), vehicles.keys().contains(vehicle)) {
+                    (true, true) => {
+                        // vehicle was a vehicle in the old schedule and will be in the new one
+                        let old_maintenance_counter =
+                            self.tour_of(*vehicle).unwrap().maintenance_counter();
+                        old_transition.update_vehicle(
+                            *vehicle,
+                            old_maintenance_counter,
+                            new_maintenance_counter,
+                        )
+                    }
+                    (false, true) => {
+                        // vehicles was newly added
+                        old_transition.add_vehicle_to_own_cycle(*vehicle, new_maintenance_counter)
+                    }
+                    (true, false) => {
+                        old_transition.remove_vehicle(
+                            // vehicles is removed
+                            *vehicle,
+                            self.tour_of(*vehicle).unwrap().maintenance_counter(),
+                        )
+                    }
+                    _ => unreachable!(),
+                };
+
+            *maintenance_violation +=
+                new_transition.maintenance_violation() - old_transition.maintenance_violation();
+            transitions.insert(vehicle_type, new_transition);
         }
     }
 

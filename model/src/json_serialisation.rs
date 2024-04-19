@@ -298,11 +298,11 @@ fn create_vehicle_types(json_input: &JsonInput) -> (VehicleTypes, HashMap<IdType
 }
 
 fn create_config(json_input: &JsonInput) -> Config {
-    if json_input.parameters.costs.dead_head_trip
-        <= json_input.parameters.costs.service_trip + json_input.parameters.costs.staff
-    {
-        println!("\x1b[93mwarning:\x1b[0m Dead head trip costs are lower than service trip costs + staff costs. \
-            Vehicle will not hitch-hike on service trips.");
+    if json_input.parameters.costs.dead_head_trip <= json_input.parameters.costs.service_trip {
+        println!(
+            "\x1b[93mwarning:\x1b[0m Dead head trip costs are lower than service trip costs. \
+            Vehicle will not hitch-hike on service trips."
+        );
     }
     Config::new(
         json_input

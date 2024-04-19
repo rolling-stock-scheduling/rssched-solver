@@ -37,6 +37,14 @@ impl VehicleIdx {
             VehicleIdx::Dummy(idx) => *idx,
         }
     }
+
+    pub fn is_dummy(&self) -> bool {
+        matches!(self, VehicleIdx::Dummy(_))
+    }
+
+    pub fn is_real(&self) -> bool {
+        matches!(self, VehicleIdx::Vehicle(_))
+    }
 }
 
 #[derive(Display, From, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

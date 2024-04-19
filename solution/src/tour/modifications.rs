@@ -21,13 +21,17 @@ impl Tour {
         let mut nodes = self.nodes.clone();
         nodes[0] = new_start_depot;
         let first_non_depot = nodes[1];
-        let new_dead_head_distance = self.dead_head_distance
-            - self
-                .network
-                .dead_head_distance_between(self.first_node(), first_non_depot)
-            + self
-                .network
-                .dead_head_distance_between(new_start_depot, first_non_depot);
+        let new_dead_head_distance = if self.dead_head_distance == Distance::Infinity {
+            Tour::compute_dead_head_distance_of_nodes(&nodes, &self.network)
+        } else {
+            self.dead_head_distance
+                - self
+                    .network
+                    .dead_head_distance_between(self.first_node(), first_non_depot)
+                + self
+                    .network
+                    .dead_head_distance_between(new_start_depot, first_non_depot)
+        };
         let new_costs = self.costs
             - self
                 .network
@@ -67,13 +71,19 @@ impl Tour {
         let end_index = nodes.len() - 1;
         nodes[end_index] = new_end_depot;
         let last_non_depot = nodes[end_index - 1];
-        let new_dead_head_distance = self.dead_head_distance
-            - self
-                .network
-                .dead_head_distance_between(last_non_depot, self.last_node())
-            + self
-                .network
-                .dead_head_distance_between(last_non_depot, new_end_depot);
+
+        let new_dead_head_distance = if self.dead_head_distance == Distance::Infinity {
+            Tour::compute_dead_head_distance_of_nodes(&nodes, &self.network)
+        } else {
+            self.dead_head_distance
+                - self
+                    .network
+                    .dead_head_distance_between(last_non_depot, self.last_node())
+                + self
+                    .network
+                    .dead_head_distance_between(last_non_depot, new_end_depot)
+        };
+
         let new_costs = self.costs
             - self
                 .network
