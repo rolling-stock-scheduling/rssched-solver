@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use im::HashMap;
 use itertools::Itertools;
 use model::{
-    base_types::{MaintenanceCounter, NodeIdx, VehicleIdx, MAINT_COUNTER_FOR_INF_DIST},
+    base_types::{MaintenanceCounter, NodeIdx, VehicleIdx, MAX_DISTANCE},
     network::Network,
 };
 
@@ -122,7 +122,7 @@ impl Transition {
                             .unwrap(),
                     )
                     .in_meter()
-                    .unwrap_or(MAINT_COUNTER_FOR_INF_DIST)
+                    .unwrap_or(MAX_DISTANCE)
                     as MaintenanceCounter;
                 maintenance_counter += last_end_depot_to_first_start_depot;
 
@@ -167,7 +167,7 @@ impl Transition {
                         new_tour.start_depot().unwrap(),
                     )
                     .in_meter()
-                    .unwrap_or(MAINT_COUNTER_FOR_INF_DIST) as MaintenanceCounter
+                    .unwrap_or(MAX_DISTANCE) as MaintenanceCounter
         } else {
             let (end_depot_of_predecessor, start_depot_of_successor) =
                 self.end_depot_of_predecessor_and_start_depot_of_successor(vehicle, old_tours);
@@ -225,7 +225,7 @@ impl Transition {
                     new_tour.start_depot().unwrap(),
                 )
                 .in_meter()
-                .unwrap_or(MAINT_COUNTER_FOR_INF_DIST) as MaintenanceCounter;
+                .unwrap_or(MAX_DISTANCE) as MaintenanceCounter;
 
         let new_cycle = TransitionCycle::new(vec![vehicle], maintenance_counter_of_tour);
         total_maintenance_violation += maintenance_counter_of_tour.max(0);
@@ -286,7 +286,7 @@ impl Transition {
             let maintenance_counter_for_addition = network
                 .dead_head_distance_between(end_depot_of_predecessor, start_depot_of_successor)
                 .in_meter()
-                .unwrap_or(MAINT_COUNTER_FOR_INF_DIST)
+                .unwrap_or(MAX_DISTANCE)
                 as MaintenanceCounter;
 
             let new_maintenance_counter = old_cycle.maintenance_counter
@@ -361,7 +361,7 @@ impl Transition {
                             tour.start_depot().unwrap(),
                         )
                         .in_meter()
-                        .unwrap_or(MAINT_COUNTER_FOR_INF_DIST)
+                        .unwrap_or(MAX_DISTANCE)
                         as MaintenanceCounter
                 }
                 _ => transition_cycle
@@ -379,7 +379,7 @@ impl Transition {
                                 start_depot_of_vehicle_2,
                             )
                             .in_meter()
-                            .unwrap_or(MAINT_COUNTER_FOR_INF_DIST)
+                            .unwrap_or(MAX_DISTANCE)
                             as MaintenanceCounter
                     })
                     .sum::<MaintenanceCounter>(),
@@ -449,11 +449,11 @@ impl Transition {
             + network
                 .dead_head_distance_between(end_depot_of_predecessor, tour.start_depot().unwrap())
                 .in_meter()
-                .unwrap_or(MAINT_COUNTER_FOR_INF_DIST) as MaintenanceCounter
+                .unwrap_or(MAX_DISTANCE) as MaintenanceCounter
             + network
                 .dead_head_distance_between(tour.end_depot().unwrap(), start_depot_of_successor)
                 .in_meter()
-                .unwrap_or(MAINT_COUNTER_FOR_INF_DIST) as MaintenanceCounter
+                .unwrap_or(MAX_DISTANCE) as MaintenanceCounter
     }
 
     fn push_vehicle_to_end_of_cluster(
@@ -474,7 +474,7 @@ impl Transition {
                 tour.start_depot().unwrap(),
             )
             .in_meter()
-            .unwrap_or(MAINT_COUNTER_FOR_INF_DIST)
+            .unwrap_or(MAX_DISTANCE)
             as MaintenanceCounter;
         cluster.push(vehicle);
         *maintenance_counter += tour.maintenance_counter() + dist_between_end_depot_to_start_depot;

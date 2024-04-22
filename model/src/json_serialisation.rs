@@ -9,6 +9,7 @@ use time::{DateTime, Duration};
 
 use crate::base_types::{
     DepotIdx, Distance, Idx, LocationIdx, Meter, PassengerCount, VehicleCount, VehicleTypeIdx,
+    MAX_DISTANCE,
 };
 use crate::config::Config;
 use crate::locations::{DeadHeadTrip, Locations};
@@ -201,29 +202,39 @@ fn create_locations(json_input: &JsonInput) -> (Locations, HashMap<IdType, Locat
     }
 
     // add dead head trips
-    let mut warning_printed = false;
+    let mut duration_warning_printed = false;
+    let mut distance_warning_printed = false;
     for (i, origin_json) in json_input.dead_head_trips.indices.iter().enumerate() {
         let origin_station = location_lookup[origin_json];
         let mut destination_map: HashMap<LocationIdx, DeadHeadTrip> = HashMap::new();
         for (j, destination_json) in json_input.dead_head_trips.indices.iter().enumerate() {
             let mut duration = Duration::from_seconds(json_input.dead_head_trips.durations[i][j]);
             if duration > planning_days {
-                if !warning_printed {
+                if !duration_warning_printed {
                     println!(
                         "\x1b[93mwarning:\x1b[0m Some dead head trip durations exceed planning duration of {} day(s). \
                         Taking planning duration instead.",
                         planning_days.in_min().unwrap() / 1440
                     );
-                    warning_printed = true;
+                    duration_warning_printed = true;
                 }
                 duration = planning_days;
             }
+            let mut distance = Distance::from_meter(json_input.dead_head_trips.distances[i][j]);
+            if distance > Distance::from_meter(MAX_DISTANCE) {
+                if !distance_warning_printed {
+                    println!(
+                        "\x1b[93mwarning:\x1b[0m Some dead head trip distances exceed {}m. \
+                        This might be a mistake. Distance reduced to {}m.",
+                        MAX_DISTANCE, MAX_DISTANCE
+                    );
+                    distance_warning_printed = true;
+                }
+                distance = Distance::from_meter(MAX_DISTANCE);
+            }
             destination_map.insert(
                 location_lookup[destination_json],
-                DeadHeadTrip::new(
-                    Distance::from_meter(json_input.dead_head_trips.distances[i][j]),
-                    duration,
-                ),
+                DeadHeadTrip::new(distance, duration),
             );
         }
         dead_head_trips.insert(origin_station, destination_map);
