@@ -111,6 +111,7 @@ impl Neighborhood<ScheduleWithInfo> for SpawnForMaintenanceAndPathExchange {
                 .flat_map(move |seg|
                     // as receiver first take the real Vehicles then the dummies
                     self.real_and_dummy_vehicles(schedule)
+                    // schedule.vehicles_iter_all() // TEMP
                     // skip provider as receiver
                     .filter(move |&u| u != provider)
                     // create the swap

@@ -115,21 +115,21 @@ impl Schedule {
         );
 
         Ok((
-            Schedule {
+            Schedule::new(
                 vehicles,
                 tours,
                 next_period_transitions,
                 train_formations,
                 depot_usage,
-                dummy_tours: self.dummy_tours.clone(),
+                self.dummy_tours.clone(),
+                self.vehicle_counter + 1,
                 vehicle_ids_grouped_and_sorted,
-                dummy_ids_sorted: self.dummy_ids_sorted.clone(),
-                vehicle_counter: self.vehicle_counter + 1,
+                self.dummy_ids_sorted.clone(),
                 unserved_passengers,
                 maintenance_violation,
                 costs,
-                network: self.network.clone(),
-            },
+                self.network.clone(),
+            ),
             vehicle_id,
         ))
     }
@@ -202,21 +202,21 @@ impl Schedule {
             &tours,
         );
 
-        Ok(Schedule {
+        Ok(Schedule::new(
             vehicles,
             tours,
             next_period_transitions,
             train_formations,
             depot_usage,
             dummy_tours,
+            vehicle_counter,
             vehicle_ids_grouped_and_sorted,
             dummy_ids_sorted,
             unserved_passengers,
             maintenance_violation,
             costs,
-            vehicle_counter,
-            network: self.network.clone(),
-        })
+            self.network.clone(),
+        ))
     }
 
     /// Add a path to the tour of a vehicle (dummy or real). If the path causes conflicts, the conflicting nodes of
@@ -304,21 +304,21 @@ impl Schedule {
             &tours,
         );
 
-        Ok(Schedule {
-            vehicles: self.vehicles.clone(),
+        Ok(Schedule::new(
+            self.vehicles.clone(),
             tours,
             next_period_transitions,
             train_formations,
             depot_usage,
-            dummy_tours: self.dummy_tours.clone(),
-            vehicle_ids_grouped_and_sorted: self.vehicle_ids_grouped_and_sorted.clone(),
-            dummy_ids_sorted: self.dummy_ids_sorted.clone(),
+            self.dummy_tours.clone(),
+            self.vehicle_counter,
+            self.vehicle_ids_grouped_and_sorted.clone(),
+            self.dummy_ids_sorted.clone(),
             unserved_passengers,
             maintenance_violation,
             costs,
-            vehicle_counter: self.vehicle_counter,
-            network: self.network.clone(),
-        })
+            self.network.clone(),
+        ))
     }
 
     /// Remove segment from tour of real vehicle.
@@ -393,21 +393,21 @@ impl Schedule {
                     &tours,
                 );
 
-                Ok(Schedule {
+                Ok(Schedule::new(
                     vehicles,
                     tours,
                     next_period_transitions,
                     train_formations,
                     depot_usage,
                     dummy_tours,
+                    vehicle_counter,
                     vehicle_ids_grouped_and_sorted,
                     dummy_ids_sorted,
                     unserved_passengers,
                     maintenance_violation,
                     costs,
-                    vehicle_counter,
-                    network: self.network.clone(),
-                })
+                    self.network.clone(),
+                ))
             }
         }
     }
@@ -474,21 +474,21 @@ impl Schedule {
             &tours,
         );
 
-        Ok(Schedule {
+        Ok(Schedule::new(
             vehicles,
             tours,
             next_period_transitions,
             train_formations,
             depot_usage,
             dummy_tours,
+            self.vehicle_counter,
             vehicle_ids_grouped_and_sorted,
             dummy_ids_sorted,
             unserved_passengers,
             maintenance_violation,
             costs,
-            vehicle_counter: self.vehicle_counter,
-            network: self.network.clone(),
-        })
+            self.network.clone(),
+        ))
     }
 
     /// Remove segment from provider's tour and inserts the nodes into the tour of receiver vehicle.
@@ -593,21 +593,21 @@ impl Schedule {
         );
 
         Ok((
-            Schedule {
+            Schedule::new(
                 vehicles,
                 tours,
                 next_period_transitions,
                 train_formations,
                 depot_usage,
                 dummy_tours,
+                vehicle_counter,
                 vehicle_ids_grouped_and_sorted,
                 dummy_ids_sorted,
                 unserved_passengers,
                 maintenance_violation,
                 costs,
-                vehicle_counter,
-                network: self.network.clone(),
-            },
+                self.network.clone(),
+            ),
             new_dummy_opt,
         ))
     }
@@ -698,21 +698,21 @@ impl Schedule {
             );
         }
 
-        Schedule {
-            vehicles: self.vehicles.clone(),
+        Schedule::new(
+            self.vehicles.clone(),
             tours,
             next_period_transitions,
-            train_formations: self.train_formations.clone(),
+            self.train_formations.clone(),
             depot_usage,
-            dummy_tours: self.dummy_tours.clone(),
-            vehicle_ids_grouped_and_sorted: self.vehicle_ids_grouped_and_sorted.clone(),
-            dummy_ids_sorted: self.dummy_ids_sorted.clone(),
-            vehicle_counter: self.vehicle_counter,
-            unserved_passengers: self.unserved_passengers,
+            self.dummy_tours.clone(),
+            self.vehicle_counter,
+            self.vehicle_ids_grouped_and_sorted.clone(),
+            self.dummy_ids_sorted.clone(),
+            self.unserved_passengers,
             maintenance_violation,
             costs,
-            network: self.network.clone(),
-        }
+            self.network.clone(),
+        )
     }
 
     /// Reassigns the end depots of all vehicles greedily. Capacties of depots are ignored.
@@ -753,21 +753,21 @@ impl Schedule {
             self.network.vehicle_types().iter().collect(), // recompute transition for all vehicle types
         );
 
-        Ok(Schedule {
-            vehicles: self.vehicles.clone(),
+        Ok(Schedule::new(
+            self.vehicles.clone(),
             tours,
             next_period_transitions,
-            train_formations: self.train_formations.clone(),
+            self.train_formations.clone(),
             depot_usage,
-            dummy_tours: self.dummy_tours.clone(),
-            vehicle_ids_grouped_and_sorted: self.vehicle_ids_grouped_and_sorted.clone(),
-            dummy_ids_sorted: self.dummy_ids_sorted.clone(),
-            unserved_passengers: self.unserved_passengers,
+            self.dummy_tours.clone(),
+            self.vehicle_counter,
+            self.vehicle_ids_grouped_and_sorted.clone(),
+            self.dummy_ids_sorted.clone(),
+            self.unserved_passengers,
             maintenance_violation,
             costs,
-            vehicle_counter: self.vehicle_counter + 1,
-            network: self.network.clone(),
-        })
+            self.network.clone(),
+        ))
     }
 
     // TODO write test for this
@@ -786,21 +786,21 @@ impl Schedule {
             vehicle_types.unwrap_or_else(|| self.network.vehicle_types().iter().collect()),
         );
 
-        Schedule {
-            vehicles: self.vehicles.clone(),
-            tours: self.tours.clone(),
+        Schedule::new(
+            self.vehicles.clone(),
+            self.tours.clone(),
             next_period_transitions,
-            train_formations: self.train_formations.clone(),
-            depot_usage: self.depot_usage.clone(),
-            dummy_tours: self.dummy_tours.clone(),
-            vehicle_ids_grouped_and_sorted: self.vehicle_ids_grouped_and_sorted.clone(),
-            dummy_ids_sorted: self.dummy_ids_sorted.clone(),
-            unserved_passengers: self.unserved_passengers,
+            self.train_formations.clone(),
+            self.depot_usage.clone(),
+            self.dummy_tours.clone(),
+            self.vehicle_counter,
+            self.vehicle_ids_grouped_and_sorted.clone(),
+            self.dummy_ids_sorted.clone(),
+            self.unserved_passengers,
             maintenance_violation,
-            costs: self.costs,
-            vehicle_counter: self.vehicle_counter,
-            network: self.network.clone(),
-        }
+            self.costs,
+            self.network.clone(),
+        )
     }
 }
 
@@ -820,21 +820,21 @@ impl Schedule {
         dummy_tours.remove(&dummy);
         dummy_ids_sorted.remove(dummy_ids_sorted.binary_search(&dummy).unwrap());
 
-        Ok(Schedule {
-            vehicles: self.vehicles.clone(),
-            tours: self.tours.clone(),
-            next_period_transitions: self.next_period_transitions.clone(),
-            train_formations: self.train_formations.clone(),
-            depot_usage: self.depot_usage.clone(),
+        Ok(Schedule::new(
+            self.vehicles.clone(),
+            self.tours.clone(),
+            self.next_period_transitions.clone(),
+            self.train_formations.clone(),
+            self.depot_usage.clone(),
             dummy_tours,
-            vehicle_ids_grouped_and_sorted: self.vehicle_ids_grouped_and_sorted.clone(),
+            self.vehicle_counter,
+            self.vehicle_ids_grouped_and_sorted.clone(),
             dummy_ids_sorted,
-            unserved_passengers: self.unserved_passengers,
-            maintenance_violation: self.maintenance_violation,
-            costs: self.costs,
-            vehicle_counter: self.vehicle_counter,
-            network: self.network.clone(),
-        })
+            self.unserved_passengers,
+            self.maintenance_violation,
+            self.costs,
+            self.network.clone(),
+        ))
     }
 
     fn check_receiver_type_compatibility(
@@ -1174,12 +1174,12 @@ impl Schedule {
         tours: &HashMap<VehicleIdx, Tour>,
         vehicle_types: Vec<VehicleTypeIdx>,
     ) {
-        for vt in vehicle_types.iter() {
-            let vehicle_ids = vehicle_ids_grouped_by_type.get(vt).unwrap();
-            let new_transition = Transition::new_fast(vehicle_ids, tours);
+        for vehicle_type in vehicle_types.iter() {
+            let vehicle_ids = vehicle_ids_grouped_by_type.get(vehicle_type).unwrap();
+            let new_transition = Transition::new_fast(vehicle_ids, tours, &self.network);
             *maintenance_violation += new_transition.maintenance_violation();
             let old_transition = transitions
-                .insert(*vt, new_transition)
+                .insert(*vehicle_type, new_transition)
                 .expect("Each vehicle type must be a key in transitions.");
             *maintenance_violation -= old_transition.maintenance_violation();
         }
@@ -1196,37 +1196,47 @@ impl Schedule {
         vehicles: &HashMap<VehicleIdx, Vehicle>,
         tours: &HashMap<VehicleIdx, Tour>,
     ) {
+        // as we update the transitions one by one we need to keep track of the tours that are
+        // updated so far
+        let mut tours_updated_one_by_one: HashMap<&VehicleIdx, &Tour> = self.tours.iter().collect();
+
         for vehicle in changed_vehicles.iter().filter(|v| v.is_real()) {
             let vehicle_type = vehicles
                 .get(vehicle)
                 .unwrap_or_else(|| self.vehicles.get(vehicle).unwrap())
                 .type_id();
-            let new_maintenance_counter = tours
-                .get(vehicle)
-                .map(|t| t.maintenance_counter())
-                .unwrap_or(0);
             let old_transition = transitions.get(&vehicle_type).unwrap();
             let new_transition =
                 match (self.is_vehicle(*vehicle), vehicles.keys().contains(vehicle)) {
                     (true, true) => {
                         // vehicle was a vehicle in the old schedule and will be in the new one
-                        let old_maintenance_counter =
-                            self.tour_of(*vehicle).unwrap().maintenance_counter();
-                        old_transition.update_vehicle(
+                        let new_tour = tours.get(vehicle).unwrap();
+                        let new_transition = old_transition.update_vehicle(
                             *vehicle,
-                            old_maintenance_counter,
-                            new_maintenance_counter,
-                        )
+                            new_tour,
+                            &tours_updated_one_by_one,
+                            self.get_network(),
+                        );
+                        tours_updated_one_by_one.insert(vehicle, new_tour);
+                        new_transition
                     }
                     (false, true) => {
                         // vehicles was newly added
-                        old_transition.add_vehicle_to_own_cycle(*vehicle, new_maintenance_counter)
+                        let new_tour = tours.get(vehicle).unwrap();
+                        let new_transition = old_transition.add_vehicle_to_own_cycle(
+                            *vehicle,
+                            new_tour,
+                            self.get_network(),
+                        );
+                        tours_updated_one_by_one.insert(vehicle, new_tour);
+                        new_transition
                     }
                     (true, false) => {
                         old_transition.remove_vehicle(
                             // vehicles is removed
                             *vehicle,
-                            self.tour_of(*vehicle).unwrap().maintenance_counter(),
+                            &tours_updated_one_by_one,
+                            self.get_network(),
                         )
                     }
                     _ => unreachable!(),

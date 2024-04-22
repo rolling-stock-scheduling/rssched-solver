@@ -22,3 +22,10 @@ TakeAny: 8.9; 1.6; 5.7; 6.8; 4.5 sec ~= 5.5 (-38 %)
 Minimizer: 60 (-32 %)
 TakeFirst: 10.9; 10.4; 10.2  ~= 10.5 (-17 %)
 TakeAny: 3.9; 4.1; 7.4; 9.1; 6.4 ~= 6.2 (-30 %)
+
+
+
+# Runtime tests
+Viv212, Iterations after 100 sec:
+
+135

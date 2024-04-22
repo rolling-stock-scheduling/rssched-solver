@@ -67,8 +67,8 @@ pub struct Schedule {
     // redundant information for faster access
     vehicle_ids_grouped_and_sorted: HashMap<VehicleTypeIdx, Vec<VehicleIdx>>,
     dummy_ids_sorted: Vec<VehicleIdx>,
-    maintenance_violation: MaintenanceCounter,
     unserved_passengers: (PassengerCount, PassengerCount),
+    maintenance_violation: MaintenanceCounter,
     costs: Cost,
 
     network: Arc<Network>,
@@ -138,6 +138,10 @@ impl Schedule {
 
     pub fn maintenance_violation(&self) -> MaintenanceCounter {
         self.maintenance_violation
+    }
+
+    pub fn next_day_transition_of(&self, vehicle_type: VehicleTypeIdx) -> &Transition {
+        self.next_period_transitions.get(&vehicle_type).unwrap()
     }
 
     pub fn train_formation_of(&self, node: NodeIdx) -> &TrainFormation {
@@ -414,7 +418,7 @@ impl Schedule {
                     .vehicles_iter(*vt)
                     .map(|vehicle| (vehicle, self.tour_of(vehicle).unwrap().clone()))
                     .collect();
-                transition.verify_consistency(&tours_of_type);
+                transition.verify_consistency(&tours_of_type, &self.network);
             });
 
         // check unserved passengers
@@ -584,7 +588,7 @@ impl Schedule {
         let next_period_transitions = network
             .vehicle_types()
             .iter()
-            .map(|vt| (vt, Transition::new_fast(&[], &HashMap::new())))
+            .map(|vt| (vt, Transition::new_fast(&[], &HashMap::new(), &network)))
             .collect();
 
         let vehicle_ids_grouped_and_sorted = network
@@ -598,21 +602,21 @@ impl Schedule {
         let unserved_passengers =
             Schedule::compute_unserved_passengers(&network, &train_formations);
 
-        Schedule {
-            vehicles: HashMap::new(),
-            tours: HashMap::new(),
+        Schedule::new(
+            HashMap::new(),
+            HashMap::new(),
             next_period_transitions,
             train_formations,
-            depot_usage: HashMap::new(),
-            dummy_tours: HashMap::new(),
+            HashMap::new(),
+            HashMap::new(),
+            0,
             vehicle_ids_grouped_and_sorted,
-            dummy_ids_sorted: Vec::new(),
+            Vec::new(),
             unserved_passengers,
-            maintenance_violation: 0,
+            0,
             costs,
-            vehicle_counter: 0,
             network,
-        }
+        )
     }
 
     /// initializing a schedule with a given list of tours (in Vec<NodeId> form) for each vehicle
@@ -634,6 +638,43 @@ impl Schedule {
         }
 
         Ok(schedule)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        vehicles: HashMap<VehicleIdx, Vehicle>,
+        tours: HashMap<VehicleIdx, Tour>,
+        next_period_transitions: HashMap<VehicleTypeIdx, Transition>,
+        train_formations: HashMap<NodeIdx, TrainFormation>,
+        depot_usage: DepotUsage,
+        dummy_tours: HashMap<VehicleIdx, Tour>,
+        vehicle_counter: usize,
+        vehicle_ids_grouped_and_sorted: HashMap<VehicleTypeIdx, Vec<VehicleIdx>>,
+        dummy_ids_sorted: Vec<VehicleIdx>,
+        unserved_passengers: (PassengerCount, PassengerCount),
+        maintenance_violation: MaintenanceCounter,
+        costs: Cost,
+        network: Arc<Network>,
+    ) -> Schedule {
+        let schedule = Schedule {
+            vehicles,
+            tours,
+            next_period_transitions,
+            train_formations,
+            depot_usage,
+            dummy_tours,
+            vehicle_counter,
+            vehicle_ids_grouped_and_sorted,
+            dummy_ids_sorted,
+            unserved_passengers,
+            maintenance_violation,
+            costs,
+            network,
+        };
+
+        // schedule.verify_consistency(); // For bug testing
+
+        schedule
     }
 }
 

@@ -31,7 +31,6 @@ impl Swap for SpawnVehicleForMaintenance {
         let occupants = schedule.train_formation_of(self.maintenance_slot).ids();
 
         let mut changed_vehicles = vec![];
-        let mut changed_vehicle_types = vec![];
 
         let first_schedule = if occupants.len() as VehicleCount
             >= schedule
@@ -49,23 +48,22 @@ impl Swap for SpawnVehicleForMaintenance {
                 )?
                 .spawn_vehicle_for_path(self.vehicle_type, vec![self.maintenance_slot])?;
 
-            changed_vehicles.push(last_occupant);
-            changed_vehicle_types.push(schedule.vehicle_type_of(last_occupant).unwrap());
+            if sched.is_vehicle(last_occupant) {
+                changed_vehicles.push(last_occupant);
+            }
             changed_vehicles.push(vehicle);
-            changed_vehicle_types.push(self.vehicle_type);
-            changed_vehicle_types.dedup();
             sched
         } else {
             let (sched, vehicle) =
                 schedule.spawn_vehicle_for_path(self.vehicle_type, vec![self.maintenance_slot])?;
             changed_vehicles.push(vehicle);
-            changed_vehicle_types.push(self.vehicle_type);
             sched
         };
 
-        Ok(first_schedule
-            .improve_depots(Some(changed_vehicles))
-            .recompute_transitions_for(Some(changed_vehicle_types)))
+        Ok(improve_depot_and_recompute_transitions(
+            first_schedule,
+            changed_vehicles,
+        ))
     }
 }
 
@@ -108,11 +106,9 @@ impl Swap for PathExchange {
         let (first_schedule, new_dummy_opt) =
             schedule.override_reassign(self.segment, self.provider, self.receiver)?;
 
-        let mut changed_tours = vec![];
-        let mut changed_vehicle_types = vec![];
+        let mut vehicle_of_changed_tours = vec![];
         if schedule.is_vehicle(self.receiver) {
-            changed_tours.push(self.receiver);
-            changed_vehicle_types.push(schedule.vehicle_type_of(self.receiver).unwrap());
+            vehicle_of_changed_tours.push(self.receiver);
         }
 
         let second_schedule = match (
@@ -133,31 +129,26 @@ impl Swap for PathExchange {
                 let vehicle_type_of_provider = schedule.vehicle_type_of(self.provider).unwrap();
                 let (new_schedule, new_vehicle) = first_schedule
                     .spawn_vehicle_to_replace_dummy_tour(new_dummy, vehicle_type_of_provider)?;
-                changed_tours.push(new_vehicle);
-                changed_vehicle_types.push(vehicle_type_of_provider);
-                changed_vehicle_types.dedup();
+                vehicle_of_changed_tours.push(new_vehicle);
                 new_schedule
             }
-            (Some(new_dummy), provider_is_real, true) => {
+            (Some(new_dummy), _, true) => {
                 // provider still present -> try to fit the full tour of the new dummy into receiver's tour
                 let tour = first_schedule.tour_of(new_dummy).unwrap();
-                changed_tours.push(self.provider);
-                if provider_is_real {
-                    changed_vehicle_types.push(schedule.vehicle_type_of(self.provider).unwrap());
-                    changed_vehicle_types.dedup();
-                }
+                vehicle_of_changed_tours.push(self.provider);
                 let full_tour_segment = Segment::new(tour.first_node(), tour.last_node());
                 first_schedule.fit_reassign(full_tour_segment, new_dummy, self.provider)?
             }
         };
 
-        changed_tours.retain(|&v| schedule.is_vehicle(v));
-        changed_tours.dedup();
+        vehicle_of_changed_tours.retain(|&v| second_schedule.is_vehicle(v));
+        vehicle_of_changed_tours.dedup();
 
         // finally improve the depots of receiver (and provider if still present).
-        Ok(second_schedule
-            .improve_depots(Some(changed_tours))
-            .recompute_transitions_for(Some(changed_vehicle_types)))
+        Ok(improve_depot_and_recompute_transitions(
+            second_schedule,
+            vehicle_of_changed_tours,
+        ))
     }
 }
 
@@ -169,4 +160,39 @@ impl fmt::Display for PathExchange {
             self.segment, self.provider, self.receiver
         )
     }
+}
+
+// assumes that all vehicles are real vehicles in the given schedule
+fn improve_depot_and_recompute_transitions(
+    schedule: Schedule,
+    changed_vehicles: Vec<VehicleIdx>,
+) -> Schedule {
+    let changed_vehicle_types = changed_vehicles
+        .iter()
+        .map(|&v| schedule.vehicle_type_of(v).unwrap())
+        .collect::<Vec<_>>();
+
+    let schedule_with_improved_depots = schedule.improve_depots(Some(changed_vehicles));
+
+    let mut changed_vehicle_types_with_positive_violation = changed_vehicle_types
+        .iter()
+        .filter_map(|&vt| {
+            if schedule_with_improved_depots
+                .next_day_transition_of(vt)
+                .maintenance_violation()
+                > 0
+            {
+                Some(vt)
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+
+    // make vehicle types unique
+    changed_vehicle_types_with_positive_violation.sort();
+    changed_vehicle_types_with_positive_violation.dedup();
+
+    schedule_with_improved_depots
+        .recompute_transitions_for(Some(changed_vehicle_types_with_positive_violation))
 }
