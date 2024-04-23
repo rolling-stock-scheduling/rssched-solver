@@ -146,11 +146,16 @@ impl Transition {
     }
 
     // TODO write test for this function (with multiple vehicles being updated in a raw)
+    // old_tours are the tours of the old schedule, updated_tours are the tours of vehicle that
+    // have already been updated in the current transition. Hence, for determining the tours of the
+    // predecessor and the successor first take the updated_tours and if they are not present, then
+    // take the old_tours.
     pub fn update_vehicle(
         &self,
         vehicle: VehicleIdx,
         new_tour: &Tour,
-        old_tours: &HashMap<&VehicleIdx, &Tour>,
+        updated_tours: &HashMap<VehicleIdx, &Tour>,
+        old_tours: &HashMap<VehicleIdx, Tour>,
         network: &Network,
     ) -> Transition {
         let old_tour = old_tours.get(&vehicle).unwrap();
@@ -169,8 +174,12 @@ impl Transition {
                     .in_meter()
                     .unwrap_or(MAX_DISTANCE) as MaintenanceCounter
         } else {
-            let (end_depot_of_predecessor, start_depot_of_successor) =
-                self.end_depot_of_predecessor_and_start_depot_of_successor(vehicle, old_tours);
+            let (end_depot_of_predecessor, start_depot_of_successor) = self
+                .end_depot_of_predecessor_and_start_depot_of_successor(
+                    vehicle,
+                    updated_tours,
+                    old_tours,
+                );
 
             let maintenance_counter_for_removal = self
                 .maintenance_counter_of_tour_plus_dead_head_trips_before_and_after(
@@ -251,7 +260,8 @@ impl Transition {
     pub fn remove_vehicle(
         &self,
         vehicle: VehicleIdx,
-        old_tours: &HashMap<&VehicleIdx, &Tour>,
+        updated_tours: &HashMap<VehicleIdx, &Tour>,
+        old_tours: &HashMap<VehicleIdx, Tour>,
         network: &Network,
     ) -> Transition {
         let mut cycles = self.cycles.clone();
@@ -272,8 +282,12 @@ impl Transition {
             cycles[*cycle_idx] = TransitionCycle::new(vec![], 0);
             empty_cycles.push(*cycle_idx);
         } else {
-            let (end_depot_of_predecessor, start_depot_of_successor) =
-                self.end_depot_of_predecessor_and_start_depot_of_successor(vehicle, old_tours);
+            let (end_depot_of_predecessor, start_depot_of_successor) = self
+                .end_depot_of_predecessor_and_start_depot_of_successor(
+                    vehicle,
+                    updated_tours,
+                    old_tours,
+                );
 
             let maintenance_counter_for_removal = self
                 .maintenance_counter_of_tour_plus_dead_head_trips_before_and_after(
@@ -361,8 +375,7 @@ impl Transition {
                             tour.start_depot().unwrap(),
                         )
                         .in_meter()
-                        .unwrap_or(MAX_DISTANCE)
-                        as MaintenanceCounter
+                        .unwrap_or(MAX_DISTANCE) as MaintenanceCounter
                 }
                 _ => transition_cycle
                     .cycle
@@ -379,8 +392,7 @@ impl Transition {
                                 start_depot_of_vehicle_2,
                             )
                             .in_meter()
-                            .unwrap_or(MAX_DISTANCE)
-                            as MaintenanceCounter
+                            .unwrap_or(MAX_DISTANCE) as MaintenanceCounter
                     })
                     .sum::<MaintenanceCounter>(),
             };
@@ -408,10 +420,15 @@ impl Transition {
         }
     }
 
+    // as we do multiple transition updates for the same old_schedule, the tours must be updated
+    // one-by-one. To speed up the process, have the old_tours of the old_schedule and the tour
+    // updates are contained in a separate hashmap. So as tours consider first the tours in
+    // updated_tours and if they are not present, then consider the tours in old_tours.
     fn end_depot_of_predecessor_and_start_depot_of_successor(
         &self,
         vehicle: VehicleIdx,
-        old_tours: &HashMap<&VehicleIdx, &Tour>,
+        updated_tours: &HashMap<VehicleIdx, &Tour>,
+        old_tours: &HashMap<VehicleIdx, Tour>,
     ) -> (NodeIdx, NodeIdx) {
         let cycle_idx = self.cycle_lookup.get(&vehicle).unwrap();
 
@@ -433,8 +450,18 @@ impl Transition {
         };
 
         (
-            old_tours.get(predecessor).unwrap().end_depot().unwrap(),
-            old_tours.get(successor).unwrap().start_depot().unwrap(),
+            updated_tours
+                .get(predecessor)
+                .copied()
+                .unwrap_or_else(|| old_tours.get(predecessor).unwrap())
+                .end_depot()
+                .unwrap(),
+            updated_tours
+                .get(successor)
+                .copied()
+                .unwrap_or_else(|| old_tours.get(successor).unwrap())
+                .start_depot()
+                .unwrap(),
         )
     }
 

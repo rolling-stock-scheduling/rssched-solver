@@ -1198,7 +1198,7 @@ impl Schedule {
     ) {
         // as we update the transitions one by one we need to keep track of the tours that are
         // updated so far
-        let mut tours_updated_one_by_one: HashMap<&VehicleIdx, &Tour> = self.tours.iter().collect();
+        let mut tours_updated_one_by_one: HashMap<VehicleIdx, &Tour> = HashMap::new();
 
         for vehicle in changed_vehicles.iter().filter(|v| v.is_real()) {
             let vehicle_type = vehicles
@@ -1215,9 +1215,10 @@ impl Schedule {
                             *vehicle,
                             new_tour,
                             &tours_updated_one_by_one,
+                            &self.tours,
                             self.get_network(),
                         );
-                        tours_updated_one_by_one.insert(vehicle, new_tour);
+                        tours_updated_one_by_one.insert(*vehicle, new_tour);
                         new_transition
                     }
                     (false, true) => {
@@ -1228,7 +1229,7 @@ impl Schedule {
                             new_tour,
                             self.get_network(),
                         );
-                        tours_updated_one_by_one.insert(vehicle, new_tour);
+                        tours_updated_one_by_one.insert(*vehicle, new_tour);
                         new_transition
                     }
                     (true, false) => {
@@ -1236,6 +1237,7 @@ impl Schedule {
                             // vehicles is removed
                             *vehicle,
                             &tours_updated_one_by_one,
+                            &self.tours,
                             self.get_network(),
                         )
                     }
