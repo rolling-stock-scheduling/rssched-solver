@@ -211,14 +211,10 @@ impl Schedule {
     /// Returns the number of passengers that do not fit (first entry) or seated passenger that
     /// cannot sit (second entry) at the given node.
     pub fn unserved_passengers_at(&self, node: NodeIdx) -> (PassengerCount, PassengerCount) {
-        let demand = self.network.passengers_of(node);
-        let capacity = self.train_formation_of(node).capacity();
-
-        let seat_demand = self.network.seated_passengers_of(node);
-        let seat_capacity = self.train_formation_of(node).seats();
-        (
-            demand.saturating_sub(capacity), // return 0 if demand < capacity
-            seat_demand.saturating_sub(seat_capacity), // return 0 if seat_demand < seat_capacity
+        Schedule::compute_unserved_passengers_at_node(
+            &self.network,
+            node,
+            self.train_formations.get(&node).unwrap(),
         )
     }
 
@@ -301,6 +297,33 @@ impl Schedule {
 
     pub fn get_vehicle_types(&self) -> Arc<VehicleTypes> {
         self.network.vehicle_types()
+    }
+
+    // TEMP
+    /// As hitch_hikers we main vehicles on a service trip that are not needed.
+    /// In other words one of the vehicle just uses this service trip to avoid a dead_head_trip
+    /// (normally service trips are cheapter than dead_head_trips as staff must only be payed once).
+    pub fn count_hitch_hikers(&self) -> VehicleCount {
+        self.train_formations
+            .iter()
+            .filter(|(&node, _)| self.network.node(node).is_service())
+            .map(|(&service_node, train_formation)| {
+                let vehicle_type = self.network.vehicle_type_for(service_node);
+                let vehicle_count = train_formation.vehicle_count();
+                let required_vehicle = self
+                    .network
+                    .number_of_vehicles_required_to_serve(vehicle_type, service_node);
+
+                if vehicle_count < required_vehicle {
+                    println!(
+                        "Node {} requires {} vehicles but only {} are available",
+                        service_node, required_vehicle, vehicle_count
+                    );
+                    println!("  Vehicles: {:?}", train_formation.ids());
+                }
+                vehicle_count - required_vehicle
+            })
+            .sum()
     }
 
     pub fn verify_consistency(&self) {
@@ -507,7 +530,7 @@ impl Schedule {
         for depot in self.network.depots_iter() {
             let total_capacity = self.network.total_capacity_of(depot);
             let total_spawned = self.number_of_vehicles_spawned_at(depot);
-            assert!(total_spawned <= total_capacity);
+            assert!(total_spawned <= total_capacity,);
         }
 
         println!("Debug only: Schedule is consistent");

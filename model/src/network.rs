@@ -184,7 +184,7 @@ impl Network {
             .passengers()
             .div_ceil(vehicle_type.capacity())
             .max(service_trip.seated().div_ceil(vehicle_type.seats()))
-            .max(1) // one vehicle is always required
+        // .max(1) // one vehicle is always required
     }
 
     pub fn maximal_formation_count_for(&self, service_trip: NodeIdx) -> Option<VehicleCount> {
@@ -415,7 +415,7 @@ impl Network {
             overflow_depot_id,
             String::from("OVERFLOW_DEPOT"),
             Location::Nowhere,
-            service_trips.keys().count() as VehicleCount,
+            service_trips.values().map(|vec| vec.len()).sum::<usize>() as VehicleCount,
             vehicle_types.iter().map(|vt| (vt, None)).collect(),
         );
         depots.push(overflow_depot);

@@ -1358,9 +1358,8 @@ impl Schedule {
         depot_usage: &DepotUsage,
     ) -> Tour {
         let first_non_depot = tour.first_non_depot().unwrap();
-        let new_start_depot = self
-            .find_best_start_depot_for_spawning(vehicle_type_id, first_non_depot, depot_usage)
-            .unwrap();
+        let new_start_depot =
+            self.find_best_start_depot_for_spawning(vehicle_type_id, first_non_depot, depot_usage);
         let intermediate_tour = if new_start_depot != tour.start_depot().unwrap() {
             tour.replace_start_depot(new_start_depot).unwrap()
         } else {
@@ -1407,14 +1406,12 @@ impl Schedule {
 
         // if path does not start with a depot, insert the nearest available start_depot
         if !self.network.node(first_node).is_depot() {
-            match self.find_best_start_depot_for_spawning(
+            let new_start_depot = self.find_best_start_depot_for_spawning(
                 vehicle_type_id,
                 first_node,
                 &self.depot_usage,
-            ) {
-                Ok(depot) => nodes.insert(0, depot),
-                Err(e) => return Err(e),
-            };
+            );
+            nodes.insert(0, new_start_depot);
         }
 
         // if path does not end with a depot, insert the nearest available end_depot
@@ -1433,7 +1430,7 @@ impl Schedule {
         vehicle_type_id: VehicleTypeIdx,
         first_node: NodeIdx,
         depot_usage: &DepotUsage,
-    ) -> Result<NodeIdx, String> {
+    ) -> NodeIdx {
         let start_location = self.network.node(first_node).start_location();
         let start_depot = self
             .network
@@ -1442,14 +1439,16 @@ impl Schedule {
             .copied()
             .find(|depot| {
                 self.can_depot_spawn_vehicle_custom_usage(*depot, vehicle_type_id, depot_usage)
-            });
-        match start_depot {
-            Some(depot) => Ok(depot),
-            None => Err(format!(
-                "Cannot spawn vehicle of type {} for start_node {}. No start_depot available.",
-                vehicle_type_id, first_node,
-            )),
+            })
+            .expect("There should be at least the overflow depot available.");
+        if start_depot == self.network.overflow_depot_ids().1 {
+            println!(
+                "\x1b[93mwarning:\x1b[0m Tour for vehicle_type {} violates depot constraints at {}. Using overflow depot instead.",
+                self.network.vehicle_types().get(vehicle_type_id).unwrap(),
+                self.network.node(first_node)
+            );
         }
+        start_depot
     }
 
     fn find_best_end_depot_for_despawning(

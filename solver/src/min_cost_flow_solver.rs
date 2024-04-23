@@ -394,13 +394,6 @@ impl MinCostFlowSolver {
         }
         let graph = builder.into_graph();
 
-        /* println!(
-            "cost_overflow_checker: {} Cost::MAX: {} -> {:.4}%",
-            cost_overflow_checker,
-            Cost::MAX,
-            (cost_overflow_checker as f64 / Cost::MAX as f64) * 100.0
-        ); */
-
         let start_time_computing_min_cost_flow = time::Instant::now();
         print!(
             "  2) computing min-cost-flow in network with {} nodes and {} edges",
@@ -418,25 +411,6 @@ impl MinCostFlowSolver {
         )
         .unwrap();
 
-        // for debugging:
-        /* let mut spx = NetworkSimplex::new(&graph);
-        spx.set_balances(|_| 0);
-        spx.set_lowers(|e| edges[&e].lower_bound);
-        spx.set_uppers(|e| edges[&e].upper_bound);
-        spx.set_costs(|e| edges[&e].cost);
-        let flow: Vec<(RsEdge, NetworkNumberType)> = match spx.solve() {
-            SolutionState::Optimal => graph.edges().map(|e| (e, spx.flow(e))).collect(),
-            SolutionState::Unbounded => {
-                panic!("Problem is unbounded");
-            }
-            SolutionState::Infeasible => {
-                panic!("Problem is infeasible");
-            }
-            _ => {
-                panic!("Unknown solution state");
-            }
-        }; */
-
         println!(
             "\r  2) computing min-cost-flow in network with {} nodes and {} edges - \x1b[32mdone ({:0.2}sec)\x1b[0m",
             graph.num_nodes(),
@@ -453,6 +427,7 @@ impl MinCostFlowSolver {
         let mut last_trip_to_tour: HashMap<NodeIdx, Vec<usize>> = HashMap::new();
         // for each service trip or maintenance slot store the tours (as index of tours) that are currently ending there
 
+        let mut print_overflow_depot_warning = false;
         for node in self
             .network
             .nodes_of_vehicle_type_sorted_by_start(vehicle_type)
@@ -502,6 +477,10 @@ impl MinCostFlowSolver {
                         // Flow goes from depot to service trip -> Create new tour
                         let start_depot_node = self.network.get_start_depot_node(pred_depot_id);
 
+                        if start_depot_node == self.network.overflow_depot_ids().1 {
+                            print_overflow_depot_warning = true;
+                        }
+
                         tours.push(vec![start_depot_node, node]);
 
                         // remember the tour for the next service trip
@@ -520,6 +499,12 @@ impl MinCostFlowSolver {
             "\r  3) building schedule - \x1b[32mdone ({:0.2}sec)\x1b[0m",
             time_at_building_schedule.elapsed().as_secs_f32()
         );
+        if print_overflow_depot_warning {
+            println!(
+                "\x1b[93mwarning:\x1b[0m Flow uses overflow depot for vehicle type {}.",
+                vehicle_type
+            );
+        }
         tours
     }
 }

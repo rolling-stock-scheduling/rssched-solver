@@ -3,7 +3,7 @@ mod modifications;
 mod tests;
 use crate::path::Path;
 use crate::segment::Segment;
-use model::base_types::{Cost, Distance, MaintenanceCounter, NodeIdx, MAX_DISTANCE};
+use model::base_types::{Cost, Distance, MaintenanceCounter, NodeIdx, INF_DISTANCE};
 use model::network::nodes::Node;
 use model::network::Network;
 use std::cmp::Ordering;
@@ -95,18 +95,18 @@ impl Tour {
         if self.visits_maintenance {
             self.total_distance()
                 .in_meter()
-                .unwrap_or(MAX_DISTANCE) as MaintenanceCounter
+                .unwrap_or(INF_DISTANCE) as MaintenanceCounter
                 - self
                     .network
                     .config()
                     .maintenance
                     .maximal_distance
                     .in_meter()
-                    .unwrap_or(MAX_DISTANCE) as MaintenanceCounter
+                    .unwrap_or(INF_DISTANCE) as MaintenanceCounter
         } else {
             self.total_distance()
                 .in_meter()
-                .unwrap_or(MAX_DISTANCE) as MaintenanceCounter
+                .unwrap_or(INF_DISTANCE) as MaintenanceCounter
         }
     }
 

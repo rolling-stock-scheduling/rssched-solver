@@ -409,6 +409,8 @@ fn create_service_trips(
         service_trips.insert(vehicle_type, Vec::new());
     }
 
+    let mut warnings_printed = false;
+
     for departure in json_input.departures.iter() {
         let route = json_input
             .routes
@@ -423,18 +425,29 @@ fn create_service_trips(
                 .iter()
                 .find(|segment| segment.id == departure_segment.route_segment)
                 .unwrap();
+            let id = departure_segment.id.clone();
             let origin = locations
                 .get_location(location_lookup[&route_segment.origin])
                 .unwrap();
             let destination = locations
                 .get_location(location_lookup[&route_segment.destination])
                 .unwrap();
-            let distance = Distance::from_meter(route_segment.distance as Meter);
             let departure_time = DateTime::new(&departure_segment.departure);
             let arrival_time = departure_time + Duration::from_seconds(route_segment.duration);
-            let passengers = departure_segment.passengers as PassengerCount;
+            let distance = Distance::from_meter(route_segment.distance as Meter);
+            let mut passengers = departure_segment.passengers as PassengerCount;
             let seated = departure_segment.seated as PassengerCount;
-            let id = departure_segment.id.clone();
+
+            if passengers == 0 {
+                passengers = 1;
+                if !warnings_printed {
+                    println!(
+                    "\x1b[93mwarning:\x1b[0m Some service trips have no passengers. Setting passengers to 1, so that at least one vehicle is needed.",
+                );
+                    warnings_printed = true;
+                }
+            }
+
             let maximal_formation_count = route_segment
                 .maximal_formation_count
                 .map(|x| x as VehicleCount);

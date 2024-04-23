@@ -1,4 +1,4 @@
-use model::base_types::{Distance, MAX_DISTANCE};
+use model::base_types::{Distance, INF_DISTANCE};
 use objective_framework::{BaseValue, Coefficient, Indicator, Level, Objective};
 use solution::Schedule;
 use time::Duration;
@@ -41,7 +41,7 @@ impl Indicator<Schedule> for DummyDistanceIndicator {
                 .map(|d| schedule.tour_of(d).unwrap().total_distance())
                 .sum::<Distance>()
                 .in_meter()
-                .unwrap_or(MAX_DISTANCE) as i64,
+                .unwrap_or(INF_DISTANCE) as i64,
         )
     }
 

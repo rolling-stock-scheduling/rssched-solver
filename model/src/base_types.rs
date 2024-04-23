@@ -92,5 +92,7 @@ pub type VehicleCount = u32;
 pub type PassengerCount = u32;
 pub type Meter = u64;
 pub type Cost = u64;
-pub const MAX_DISTANCE: Meter = 1_000_000;
+pub const INF_DISTANCE: Meter = 10_000_000; // distance for Infinity (used for maintenance counter
+                                            // from the overhead depot)
+pub const MAX_DISTANCE: Meter = 1_000_000; // dead head distances larger than this are reduced to this value
 pub type MaintenanceCounter = i64;

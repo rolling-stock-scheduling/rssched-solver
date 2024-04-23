@@ -90,9 +90,6 @@ impl Neighborhood<ScheduleWithInfo> for SpawnForMaintenanceAndPathExchange {
             self.dummy_and_real_vehicles(schedule).collect()
         };
 
-        // let mut providers: Vec<VehicleIdx> = schedule.vehicles_iter_all().collect();
-        //TEMP
-
         // rotate providers such that start_provider is the first provider
         // e.g. start_provider = v5
         // so v0, v1, v2, v3, v4, v5, v6, v7, v8, v9
@@ -111,7 +108,6 @@ impl Neighborhood<ScheduleWithInfo> for SpawnForMaintenanceAndPathExchange {
                 .flat_map(move |seg|
                     // as receiver first take the real Vehicles then the dummies
                     self.real_and_dummy_vehicles(schedule)
-                    // schedule.vehicles_iter_all() // TEMP
                     // skip provider as receiver
                     .filter(move |&u| u != provider)
                     // create the swap
