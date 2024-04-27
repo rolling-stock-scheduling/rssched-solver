@@ -20,7 +20,7 @@ use crate::base_types::{Distance, Location, LocationIdx};
 /// A DeadHeadMetrics instance can only be created together with the Vec<Distance> of wrapped
 /// stations. Use loactions::create_locations for that. Hence, the indices should always be consistent.
 pub struct Locations {
-    stations: HashMap<LocationIdx, (String, Option<VehicleCount>)>, // values: (external_id, daylimit)
+    stations: HashMap<LocationIdx, (String, Option<VehicleCount>)>, // values: (id, daylimit)
     dead_head_trips: HashMap<LocationIdx, HashMap<LocationIdx, DeadHeadTrip>>,
 }
 
@@ -57,25 +57,22 @@ impl Locations {
 
 // methods
 impl Locations {
-    pub fn get_location(&self, location_id: LocationIdx) -> Result<Location, &'static str> {
+    pub fn get(&self, location_id: LocationIdx) -> Result<Location, &'static str> {
         match self.stations.get(&location_id) {
             Some(_) => Ok(Location::Station(location_id)),
             None => Err("Location Id is invalid."),
         }
     }
 
-    pub fn get_external_id_of_location(&self, location: Location) -> Result<String, &'static str> {
-        match self.stations.get(&location.id()) {
+    pub fn get_id(&self, location: Location) -> Result<String, &'static str> {
+        match self.stations.get(&location.idx()) {
             Some((name, _)) => Ok(name.clone()),
             None => Err("Location Id is invalid."),
         }
     }
 
-    pub fn get_daylimit_of_location(
-        &self,
-        location: Location,
-    ) -> Result<Option<VehicleCount>, &'static str> {
-        match self.stations.get(&location.id()) {
+    pub fn get_daylimit(&self, location: Location) -> Result<Option<VehicleCount>, &'static str> {
+        match self.stations.get(&location.idx()) {
             Some((_, daylimit)) => Ok(*daylimit),
             None => Err("Location Id is invalid."),
         }

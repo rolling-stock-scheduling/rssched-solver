@@ -33,9 +33,9 @@ fn test_load_from_json(path: &str) {
 
     // ASSERT
     let locations = network.locations();
-    let loc0 = locations.get_location(LocationIdx::from(0)).unwrap();
-    let loc2 = locations.get_location(LocationIdx::from(2)).unwrap();
-    let loc3 = locations.get_location(LocationIdx::from(3)).unwrap();
+    let loc0 = locations.get(LocationIdx::from(0)).unwrap();
+    let loc2 = locations.get(LocationIdx::from(2)).unwrap();
+    let loc3 = locations.get(LocationIdx::from(3)).unwrap();
 
     let vt0 = VehicleTypeIdx::from(0);
     let vt1 = VehicleTypeIdx::from(1);
@@ -53,9 +53,9 @@ fn test_load_from_json(path: &str) {
     assert_eq!(loc2, Location::of(LocationIdx::from(2)));
     assert_eq!(loc3, Location::of(LocationIdx::from(3)));
 
-    assert_eq!(locations.get_external_id_of_location(loc0).unwrap(), "Location 0");
-    assert_eq!(locations.get_external_id_of_location(loc2).unwrap(), "Location 2");
-    assert_eq!(locations.get_external_id_of_location(loc3).unwrap(), "Location 3");
+    assert_eq!(locations.get_id(loc0).unwrap(), "Location 0");
+    assert_eq!(locations.get_id(loc2).unwrap(), "Location 2");
+    assert_eq!(locations.get_id(loc3).unwrap(), "Location 3");
 
     assert_eq!(network.all_nodes().count(), 10);
 

@@ -44,6 +44,10 @@ pub struct ServiceTrip {
 }
 
 impl ServiceTrip {
+    pub fn id(&self) -> &String {
+        &self.id
+    }
+
     pub fn vehicle_type(&self) -> VehicleTypeIdx {
         self.vehicle_type
     }
@@ -71,6 +75,10 @@ pub struct MaintenanceSlot {
 }
 
 impl MaintenanceSlot {
+    pub fn id(&self) -> &String {
+        &self.id
+    }
+
     pub fn track_count(&self) -> VehicleCount {
         self.track_count
     }
@@ -158,21 +166,21 @@ impl Node {
         }
     }
 
-    pub(crate) fn as_service_trip(&self) -> &ServiceTrip {
+    pub fn as_service_trip(&self) -> &ServiceTrip {
         match self {
             Node::Service((_, s)) => s,
             _ => panic!("Node is not a service trip"),
         }
     }
 
-    pub(crate) fn as_maintenance(&self) -> &MaintenanceSlot {
+    pub fn as_maintenance_slot(&self) -> &MaintenanceSlot {
         match self {
             Node::Maintenance((_, m)) => m,
             _ => panic!("Node is not a maintenance slot"),
         }
     }
 
-    pub(crate) fn as_depot(&self) -> &DepotNode {
+    pub fn as_depot(&self) -> &DepotNode {
         match self {
             Node::StartDepot((_, d)) => d,
             Node::EndDepot((_, d)) => d,

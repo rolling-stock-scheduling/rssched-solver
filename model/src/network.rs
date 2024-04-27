@@ -103,7 +103,7 @@ impl Network {
     }
 
     pub fn track_count_of_maintenance_slot(&self, maintenance_node: NodeIdx) -> VehicleCount {
-        let maintenance_node = self.node(maintenance_node).as_maintenance();
+        let maintenance_node = self.node(maintenance_node).as_maintenance_slot();
         maintenance_node.track_count()
     }
 
@@ -506,7 +506,7 @@ impl Network {
         if !maintenance_nodes.is_empty() {
             let maintenance_coverage = maintenance_nodes
                 .iter()
-                .map(|&n| nodes.get(&n).unwrap().as_maintenance().track_count())
+                .map(|&n| nodes.get(&n).unwrap().as_maintenance_slot().track_count())
                 .sum::<VehicleCount>() as Meter
                 * config.maintenance.maximal_distance.in_meter().unwrap();
             let total_service_trip_distance = service_nodes

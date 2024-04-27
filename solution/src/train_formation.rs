@@ -25,7 +25,7 @@ impl TrainFormation {
         let mut new_formation = self.formation.clone();
         let pos = new_formation
             .iter()
-            .position(|u| u.id() == old)
+            .position(|u| u.idx() == old)
             .ok_or_else(|| {
                 format!(
                     "vehicle {} was not part of the TrainFormation and cannot be replaced",
@@ -46,7 +46,7 @@ impl TrainFormation {
         let mut new_formation = self.formation.clone();
         let pos = new_formation
             .iter()
-            .position(|u| u.id() == vehicle)
+            .position(|u| u.idx() == vehicle)
             .ok_or_else(|| {
                 format!(
                     "vehicle {} was not part of the TrainFormation and cannot be removed",
@@ -72,7 +72,7 @@ impl TrainFormation {
     }
 
     pub fn ids(&self) -> Vec<VehicleIdx> {
-        self.formation.iter().map(|v| v.id()).collect()
+        self.formation.iter().map(|v| v.idx()).collect()
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &Vehicle> {

@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use model::{
-    base_types::{DepotIdx, NodeIdx, VehicleIdx},
+    base_types::{DepotIdx, NodeIdx, VehicleIdx, VehicleTypeIdx},
     network::{nodes::Node, Network},
 };
 use serde::{Deserialize, Serialize};
@@ -12,43 +12,10 @@ use crate::Schedule;
 #[serde(rename_all = "camelCase")]
 struct ScheduleJson {
     depot_loads: Vec<DepotLoad>,
-    tours: Vec<JsonTour>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-struct JsonTour {
-    vehicle_id: String,
-    vehicle_type: String,
-    start_depot: String,
-    end_depot: String,
-    tour: Vec<JsonTourStop>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-enum JsonTourStop {
-    DeadHeadTrip {
-        origin: String,
-        destination: String,
-        departure_time: String,
-        arrival_time: String,
-    },
-    ServiceTrip {
-        id: String,
-        origin: String,
-        destination: String,
-        departure_time: String,
-        arrival_time: String,
-        // line_id: String,
-        // route_id: String,
-    },
-    Maintenance {
-        id: String,
-        location: String,
-        start_time: String,
-        end_time: String,
-    },
+    fleet: Vec<JsonFleet>,
+    departure_segments: Vec<JsonDepartureSegmentWithFormation>,
+    maintenance_slots: Vec<JsonFleetMaintenanceSlotWithFormation>,
+    dead_head_trips: Vec<JsonFleetDeadHeadTripWithFormation>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -65,20 +32,109 @@ struct Load {
     spawn_count: u32,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct JsonFleet {
+    vehicle_type: String,
+    vehicles: Vec<JsonVehicle>,
+    vehicle_cycles: Vec<Vec<String>>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct JsonVehicle {
+    id: String,
+    start_depot: String,
+    end_depot: String,
+    departure_segments: Vec<JsonFleetDepartureSegment>,
+    maintenance_slots: Vec<JsonFleetMaintenanceSlot>,
+    dead_head_trips: Vec<JsonFleetDeadHeadTrip>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct JsonFleetDepartureSegment {
+    departure_segment: String,
+    origin: String,
+    destination: String,
+    departure: String,
+    arrival: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct JsonFleetMaintenanceSlot {
+    maintenance_slot: String,
+    location: String,
+    start: String,
+    end: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct JsonFleetDeadHeadTrip {
+    id: String,
+    origin: String,
+    destination: String,
+    departure: String,
+    arrival: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct JsonDepartureSegmentWithFormation {
+    departure_segment: String,
+    origin: String,
+    destination: String,
+    departure: String,
+    arrival: String,
+    vehicle_type: String,
+    formation: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct JsonFleetMaintenanceSlotWithFormation {
+    maintenance_slot: String,
+    location: String,
+    start: String,
+    end: String,
+    formation: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct JsonFleetDeadHeadTripWithFormation {
+    id: String,
+    origin: String,
+    destination: String,
+    departure: String,
+    arrival: String,
+    formation: Vec<String>,
+}
+
 pub fn schedule_to_json(schedule: &Schedule) -> serde_json::Value {
+    let mut dead_head_trips: Vec<JsonFleetDeadHeadTripWithFormation> = vec![];
+    let mut fleet = vec![];
+    for vehicle_type in schedule.get_network().vehicle_types().iter() {
+        fleet.push(fleet_to_json(schedule, vehicle_type, &mut dead_head_trips));
+    }
     let schedule_json = ScheduleJson {
-        tours: tours_to_json(schedule),
         depot_loads: depots_usage_to_json(schedule),
+        fleet,
+        departure_segments: departure_segments_to_json(schedule),
+        maintenance_slots: maintenance_slots_to_json(schedule),
+        dead_head_trips,
     };
     serde_json::to_value(schedule_json).unwrap()
 }
 
 fn depots_usage_to_json(schedule: &Schedule) -> Vec<DepotLoad> {
     let mut depot_loads = vec![];
-    for depot_id in schedule.get_network().depots_iter() {
+    for depot_idx in schedule.get_network().depots_iter() {
         depot_loads.push(DepotLoad {
-            depot: depot_id.to_string(),
-            load: depot_usage_to_json(schedule, depot_id),
+            depot: depot_idx.to_string(),
+            load: depot_usage_to_json(schedule, depot_idx),
         });
     }
     depot_loads
@@ -86,12 +142,12 @@ fn depots_usage_to_json(schedule: &Schedule) -> Vec<DepotLoad> {
 
 fn depot_usage_to_json(schedule: &Schedule, depot_id: DepotIdx) -> Vec<Load> {
     let mut loads = vec![];
-    for vehicle_type_id in schedule.get_vehicle_types().iter() {
+    for vehicle_type in schedule.get_vehicle_types().iter() {
         let spawn_count =
-            schedule.number_of_vehicles_of_same_type_spawned_at(depot_id, vehicle_type_id);
+            schedule.number_of_vehicles_of_same_type_spawned_at(depot_id, vehicle_type);
         if spawn_count > 0 {
             loads.push(Load {
-                vehicle_type: vehicle_type_id.to_string(),
+                vehicle_type: vehicle_type.to_string(),
                 spawn_count,
             })
         }
@@ -99,87 +155,197 @@ fn depot_usage_to_json(schedule: &Schedule, depot_id: DepotIdx) -> Vec<Load> {
     loads
 }
 
-fn tours_to_json(schedule: &Schedule) -> Vec<JsonTour> {
-    let mut tours = vec![];
-
-    for vehicle_id in schedule.vehicles_iter_all() {
-        tours.push(tour_to_json(schedule, vehicle_id));
+fn fleet_to_json(
+    schedule: &Schedule,
+    vehicle_type: VehicleTypeIdx,
+    dead_head_trips_with_formation: &mut Vec<JsonFleetDeadHeadTripWithFormation>,
+) -> JsonFleet {
+    let mut vehicles = vec![];
+    for vehicle_id in schedule.vehicles_iter(vehicle_type) {
+        vehicles.push(vehicle_to_json(
+            schedule,
+            vehicle_id,
+            dead_head_trips_with_formation,
+        ));
     }
-    tours
+    let mut vehicle_cycles = vec![];
+    for transtion_cylce in schedule.next_day_transition_of(vehicle_type).cycles_iter() {
+        vehicle_cycles.push(
+            transtion_cylce
+                .iter()
+                .map(|vehicle_id| vehicle_id.to_string())
+                .collect(),
+        );
+    }
+    JsonFleet {
+        vehicle_type: schedule
+            .get_network()
+            .vehicle_types()
+            .get(vehicle_type)
+            .unwrap()
+            .id()
+            .clone(),
+        vehicles,
+        vehicle_cycles,
+    }
 }
 
-fn tour_to_json(schedule: &Schedule, vehicle_id: VehicleIdx) -> JsonTour {
+fn vehicle_to_json(
+    schedule: &Schedule,
+    vehicle_idx: VehicleIdx,
+    dead_head_trips_with_formation: &mut Vec<JsonFleetDeadHeadTripWithFormation>,
+) -> JsonVehicle {
     let network = schedule.get_network();
-    let vehicle_type_id = schedule
-        .vehicle_type_of(vehicle_id)
-        .expect("vehicle not found");
-    let start_depot = schedule.tour_of(vehicle_id).unwrap().first_node();
-    let end_depot = schedule.tour_of(vehicle_id).unwrap().last_node();
-    let mut tour = Vec::new();
-    for (node1_id, node2_id) in schedule
-        .tour_of(vehicle_id)
+    let start_depot_node = schedule.tour_of(vehicle_idx).unwrap().first_node();
+    let start_depot_id = network.get_depot_id(start_depot_node);
+    let start_depot = network.get_depot(start_depot_id);
+    let end_depot_node = schedule.tour_of(vehicle_idx).unwrap().last_node();
+    let end_depot_id = network.get_depot_id(end_depot_node);
+    let end_depot = network.get_depot(end_depot_id);
+    let mut departure_segments = vec![];
+    let mut maintenance_slots = vec![];
+    let mut dead_head_trips = vec![];
+    let mut dead_head_trips_counter = 0;
+    for (node1_idx, node2_idx) in schedule
+        .tour_of(vehicle_idx)
         .unwrap()
         .all_nodes_iter()
         .tuple_windows()
     {
-        if network.node(node1_id).end_location() != network.node(node2_id).start_location() {
+        let node1 = network.node(node1_idx);
+        let node2 = network.node(node2_idx);
+        if network.node(node1_idx).end_location() != node2.start_location() {
             let (departure_time, arrival_time) =
-                schedule_dead_head_trip(node1_id, node2_id, network);
-            let dead_head_trip = JsonTourStop::DeadHeadTrip {
-                origin: network.node(node1_id).end_location().to_string(),
-                destination: network.node(node2_id).start_location().to_string(),
-                departure_time: departure_time.as_iso(),
-                arrival_time: arrival_time.as_iso(),
+                schedule_dead_head_trip(node1_idx, node2_idx, network);
+            let dead_head_trip = JsonFleetDeadHeadTrip {
+                id: "dht_".to_string() + &dead_head_trips_counter.to_string(),
+                origin: network.locations().get_id(node1.end_location()).unwrap(),
+                destination: network.locations().get_id(node2.start_location()).unwrap(),
+                departure: departure_time.as_iso(),
+                arrival: arrival_time.as_iso(),
             };
-            tour.push(dead_head_trip);
+            let dead_head_trip_with_formation = JsonFleetDeadHeadTripWithFormation {
+                id: dead_head_trip.id.clone(),
+                origin: dead_head_trip.origin.clone(),
+                destination: dead_head_trip.destination.clone(),
+                departure: dead_head_trip.departure.clone(),
+                arrival: dead_head_trip.arrival.clone(),
+                formation: vec![vehicle_idx.to_string()],
+            };
+            dead_head_trips_counter += 1;
+            dead_head_trips.push(dead_head_trip);
+            dead_head_trips_with_formation.push(dead_head_trip_with_formation);
         }
-        let node2 = network.node(node2_id);
         match node2 {
-            Node::Service(_) => {
-                let service_trip = JsonTourStop::ServiceTrip {
-                    id: node2.idx().to_string(),
-                    origin: node2.start_location().to_string(),
-                    destination: node2.end_location().to_string(),
-                    departure_time: node2.start_time().as_iso(),
-                    arrival_time: node2.end_time().as_iso(),
+            Node::Service((_, s)) => {
+                let departure_segment = JsonFleetDepartureSegment {
+                    departure_segment: s.id().to_string(),
+                    origin: network.locations().get_id(node2.start_location()).unwrap(),
+                    destination: network.locations().get_id(node2.end_location()).unwrap(),
+                    departure: node2.start_time().as_iso(),
+                    arrival: node2.end_time().as_iso(),
                 };
-                tour.push(service_trip);
+                departure_segments.push(departure_segment);
             }
-            Node::Maintenance(_) => {
-                let maintenance_trip = JsonTourStop::Maintenance {
-                    id: node2.idx().to_string(),
-                    location: node2.start_location().to_string(),
-                    start_time: node2.start_time().as_iso(),
-                    end_time: node2.end_time().as_iso(),
+            Node::Maintenance((_, m)) => {
+                let maintenance_slot = JsonFleetMaintenanceSlot {
+                    maintenance_slot: m.id().clone(),
+                    location: network.locations().get_id(node2.start_location()).unwrap(),
+                    start: node2.start_time().as_iso(),
+                    end: node2.end_time().as_iso(),
                 };
-                tour.push(maintenance_trip);
+                maintenance_slots.push(maintenance_slot);
             }
             _ => {}
         }
     }
-    JsonTour {
-        vehicle_id: vehicle_id.to_string(),
-        vehicle_type: vehicle_type_id.to_string(),
-        start_depot: network.get_depot_id(start_depot).to_string(),
-        end_depot: network.get_depot_id(end_depot).to_string(),
-        tour,
+    JsonVehicle {
+        id: vehicle_idx.to_string(),
+        start_depot: start_depot.id().to_string(),
+        end_depot: end_depot.id().to_string(),
+        departure_segments,
+        maintenance_slots,
+        dead_head_trips,
     }
 }
 
+fn departure_segments_to_json(schedule: &Schedule) -> Vec<JsonDepartureSegmentWithFormation> {
+    let network = schedule.get_network();
+    let mut departure_segments = vec![];
+    for vehicle_type in network.vehicle_types().iter() {
+        for service_trip_node_idx in network.service_nodes(vehicle_type) {
+            let service_trip_node = network.node(service_trip_node_idx);
+            let service_trip = service_trip_node.as_service_trip();
+
+            let formation = schedule.train_formation_of(service_trip_node_idx);
+            let departure_segment = JsonDepartureSegmentWithFormation {
+                departure_segment: service_trip.id().to_string(),
+                origin: network
+                    .locations()
+                    .get_id(service_trip_node.start_location())
+                    .unwrap(),
+                destination: network
+                    .locations()
+                    .get_id(service_trip_node.end_location())
+                    .unwrap(),
+                departure: service_trip_node.start_time().as_iso(),
+                arrival: service_trip_node.end_time().as_iso(),
+                vehicle_type: network
+                    .vehicle_types()
+                    .get(vehicle_type)
+                    .unwrap()
+                    .id()
+                    .clone(),
+                formation: formation
+                    .iter()
+                    .map(|vehicle| vehicle.idx().to_string())
+                    .collect(),
+            };
+            departure_segments.push(departure_segment);
+        }
+    }
+    departure_segments
+}
+
+fn maintenance_slots_to_json(schedule: &Schedule) -> Vec<JsonFleetMaintenanceSlotWithFormation> {
+    let network = schedule.get_network();
+    let mut maintenance_slots = vec![];
+    for maintenance_node_idx in network.maintenance_nodes() {
+        let maintenance_node = network.node(maintenance_node_idx);
+        let maintenance_slot = maintenance_node.as_maintenance_slot();
+        let formation = schedule.train_formation_of(maintenance_node_idx);
+        let maintenance_slot = JsonFleetMaintenanceSlotWithFormation {
+            maintenance_slot: maintenance_slot.id().clone(),
+            location: network
+                .locations()
+                .get_id(maintenance_node.start_location())
+                .unwrap(),
+            start: maintenance_node.start_time().as_iso(),
+            end: maintenance_node.end_time().as_iso(),
+            formation: formation
+                .iter()
+                .map(|vehicle| vehicle.idx().to_string())
+                .collect(),
+        };
+        maintenance_slots.push(maintenance_slot);
+    }
+    maintenance_slots
+}
+
 fn schedule_dead_head_trip(
-    node1_id: NodeIdx,
-    node2_id: NodeIdx,
+    node1_idx: NodeIdx,
+    node2_idx: NodeIdx,
     nw: &Network,
 ) -> (DateTime, DateTime) {
-    let node1 = nw.node(node1_id);
-    let node2 = nw.node(node2_id);
+    let node1 = nw.node(node1_idx);
+    let node2 = nw.node(node2_idx);
     if node1.is_depot() {
         let departure_time =
-            node2.start_time() - nw.minimal_duration_between_nodes(node1_id, node2_id);
+            node2.start_time() - nw.minimal_duration_between_nodes(node1_idx, node2_idx);
         let arrival_time = node2.start_time();
         return (departure_time, arrival_time);
     }
     let departure_time = node1.end_time();
-    let arrival_time = node1.end_time() + nw.minimal_duration_between_nodes(node1_id, node2_id);
+    let arrival_time = node1.end_time() + nw.minimal_duration_between_nodes(node1_idx, node2_idx);
     (departure_time, arrival_time)
 }

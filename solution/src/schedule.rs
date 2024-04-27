@@ -107,7 +107,7 @@ impl Schedule {
     }
 
     pub fn vehicle_type_of(&self, vehicle: VehicleIdx) -> Result<VehicleTypeIdx, String> {
-        Ok(self.get_vehicle(vehicle)?.type_id())
+        Ok(self.get_vehicle(vehicle)?.type_idx())
     }
 
     pub fn is_dummy(&self, vehicle: VehicleIdx) -> bool {
@@ -329,8 +329,8 @@ impl Schedule {
     pub fn verify_consistency(&self) {
         // check vehicles
         for (id, vehicle) in self.vehicles.iter() {
-            assert_eq!(*id, vehicle.id());
-            assert_eq!(self.vehicle_type_of(*id).unwrap(), vehicle.type_id());
+            assert_eq!(*id, vehicle.idx());
+            assert_eq!(self.vehicle_type_of(*id).unwrap(), vehicle.type_idx());
         }
 
         // check vehicles id sets are equal
@@ -502,10 +502,10 @@ impl Schedule {
         for node in self.network.coverable_nodes() {
             let train_formation = self.train_formations.get(&node).unwrap();
             for vehicle in train_formation.iter() {
-                let vehicle_id = vehicle.id();
+                let vehicle_id = vehicle.idx();
                 assert_eq!(
-                    self.vehicles.get(&vehicle_id).unwrap().type_id(),
-                    vehicle.type_id()
+                    self.vehicles.get(&vehicle_id).unwrap().type_idx(),
+                    vehicle.type_idx()
                 );
                 assert!(self
                     .tour_of(vehicle_id)

@@ -1009,7 +1009,7 @@ impl Schedule {
             .unwrap_or_else(|| panic!("Node {} has no train formations.", node));
 
         match receiver_vehicle {
-            Some(receiver_vh) if !self.is_dummy(receiver_vh.id()) => {
+            Some(receiver_vh) if !self.is_dummy(receiver_vh.idx()) => {
                 match provider {
                     Some(prov) if !self.is_dummy(prov) => {
                         // both are real vehicles
@@ -1023,7 +1023,7 @@ impl Schedule {
                         {
                             return Err(format!(
                                 "Cannot add vehicle {} to maintenance node {}. Maintenance slot is already full.",
-                                receiver_vh.id(),
+                                receiver_vh.idx(),
                                 node
                             ));
                         }
@@ -1033,7 +1033,7 @@ impl Schedule {
                                 if old_formation.vehicle_count() >= max_length {
                                     return Err(format!(
                                         "Cannot add vehicle {} to node {}. Formation is full.",
-                                        receiver_vh.id(),
+                                        receiver_vh.idx(),
                                         node
                                     ));
                                 }
@@ -1110,8 +1110,8 @@ impl Schedule {
         vehicle: Vehicle,
         new_start_depot_node: Option<NodeIdx>, // if None, the vehicle is deleted
     ) {
-        let vehicle_type = vehicle.type_id();
-        let vehicle_id = vehicle.id();
+        let vehicle_type = vehicle.type_idx();
+        let vehicle_id = vehicle.idx();
 
         if self.is_vehicle(vehicle_id) {
             let old_depot = self
@@ -1141,8 +1141,8 @@ impl Schedule {
         vehicle: Vehicle,
         new_end_depot_node: Option<NodeIdx>, // if None, the vehicle is deleted
     ) {
-        let vehicle_type = vehicle.type_id();
-        let vehicle_id = vehicle.id();
+        let vehicle_type = vehicle.type_idx();
+        let vehicle_id = vehicle.idx();
 
         if self.is_vehicle(vehicle_id) {
             let old_depot = self
@@ -1204,7 +1204,7 @@ impl Schedule {
             let vehicle_type = vehicles
                 .get(vehicle)
                 .unwrap_or_else(|| self.vehicles.get(vehicle).unwrap())
-                .type_id();
+                .type_idx();
             let old_transition = transitions.get(&vehicle_type).unwrap();
             let new_transition =
                 match (self.is_vehicle(*vehicle), vehicles.keys().contains(vehicle)) {

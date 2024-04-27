@@ -324,6 +324,10 @@ impl Transition {
         }
     }
 
+    pub fn cycles_iter(&self) -> impl Iterator<Item = &TransitionCycle> {
+        self.cycles.iter()
+    }
+
     pub fn maintenance_violation(&self) -> MaintenanceCounter {
         self.total_maintenance_violation
     }
@@ -520,6 +524,10 @@ impl TransitionCycle {
             cycle,
             maintenance_counter,
         }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = VehicleIdx> + '_ {
+        self.cycle.iter().copied()
     }
 }
 

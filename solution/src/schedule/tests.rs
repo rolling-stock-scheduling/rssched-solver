@@ -73,14 +73,14 @@ fn basic_methods_test() {
     assert!(schedule.is_vehicle(veh2));
     assert!(!schedule.is_vehicle(veh3));
 
-    assert_eq!(schedule.get_vehicle(veh0).unwrap().id(), veh0);
-    assert_eq!(schedule.get_vehicle(veh0).unwrap().type_id(), d.vt1);
+    assert_eq!(schedule.get_vehicle(veh0).unwrap().idx(), veh0);
+    assert_eq!(schedule.get_vehicle(veh0).unwrap().type_idx(), d.vt1);
 
-    assert_eq!(schedule.get_vehicle(veh1).unwrap().id(), veh1);
-    assert_eq!(schedule.get_vehicle(veh1).unwrap().type_id(), d.vt2);
+    assert_eq!(schedule.get_vehicle(veh1).unwrap().idx(), veh1);
+    assert_eq!(schedule.get_vehicle(veh1).unwrap().type_idx(), d.vt2);
 
-    assert_eq!(schedule.get_vehicle(veh2).unwrap().id(), veh2);
-    assert_eq!(schedule.get_vehicle(veh2).unwrap().type_id(), d.vt2);
+    assert_eq!(schedule.get_vehicle(veh2).unwrap().idx(), veh2);
+    assert_eq!(schedule.get_vehicle(veh2).unwrap().type_idx(), d.vt2);
 
     assert!(schedule.get_vehicle(veh4).is_err());
 

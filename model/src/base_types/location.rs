@@ -8,15 +8,15 @@ pub enum Location {
 }
 
 impl Location {
-    pub fn id(&self) -> LocationIdx {
+    pub fn idx(&self) -> LocationIdx {
         match self {
             Location::Station(s) => *s,
-            Location::Nowhere => panic!("Location::Nowhere has no id."),
+            Location::Nowhere => panic!("Location::Nowhere has no idx."),
         }
     }
 
-    pub fn of(id: LocationIdx) -> Location {
-        Location::Station(id)
+    pub fn of(idx: LocationIdx) -> Location {
+        Location::Station(idx)
     }
 }
 

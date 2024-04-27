@@ -377,7 +377,7 @@ fn create_depots(
         .enumerate()
         .map(|(idx, depot)| {
             let idx = DepotIdx::from(idx as Idx);
-            let location = loc.get_location(location_lookup[&depot.location]).unwrap();
+            let location = loc.get(location_lookup[&depot.location]).unwrap();
             let capacity: VehicleCount = depot.capacity as VehicleCount;
             let mut allowed_types: HashMap<VehicleTypeIdx, Option<VehicleCount>> = HashMap::new();
             for allowed_type in &depot.allowed_types {
@@ -427,10 +427,10 @@ fn create_service_trips(
                 .unwrap();
             let id = departure_segment.id.clone();
             let origin = locations
-                .get_location(location_lookup[&route_segment.origin])
+                .get(location_lookup[&route_segment.origin])
                 .unwrap();
             let destination = locations
-                .get_location(location_lookup[&route_segment.destination])
+                .get(location_lookup[&route_segment.destination])
                 .unwrap();
             let departure_time = DateTime::new(&departure_segment.departure);
             let arrival_time = departure_time + Duration::from_seconds(route_segment.duration);
@@ -484,7 +484,7 @@ fn create_maintenance_slots(
             .iter()
             .map(|maintenance_slot| {
                 let location = locations
-                    .get_location(location_lookup[&maintenance_slot.location])
+                    .get(location_lookup[&maintenance_slot.location])
                     .unwrap();
                 let start = DateTime::new(&maintenance_slot.start);
                 let end = DateTime::new(&maintenance_slot.end);

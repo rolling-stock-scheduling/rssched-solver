@@ -23,8 +23,8 @@ impl VehicleTypes {
         }
     }
 
-    pub fn get(&self, id: VehicleTypeIdx) -> Option<Arc<VehicleType>> {
-        self.vehicle_types.get(&id).cloned()
+    pub fn get(&self, idx: VehicleTypeIdx) -> Option<Arc<VehicleType>> {
+        self.vehicle_types.get(&idx).cloned()
     }
 
     /// Returns an iterator over all vehicle types, sorted by seat count.

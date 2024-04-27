@@ -23,11 +23,11 @@ impl Vehicle {
         }
     }
 
-    pub fn id(&self) -> VehicleIdx {
+    pub fn idx(&self) -> VehicleIdx {
         self.id
     }
 
-    pub fn type_id(&self) -> VehicleTypeIdx {
+    pub fn type_idx(&self) -> VehicleTypeIdx {
         self.vehicle_type.idx()
     }
 
