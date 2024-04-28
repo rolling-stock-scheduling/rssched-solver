@@ -88,14 +88,14 @@ pub fn build_local_search_solver(network: Arc<Network>) -> LocalSearchSolver<Sch
                 iteration_counter,
                 current_solution.solution().get_print_text()
             );
-            println!(
+            /* println!(
                 // TEMP
                 "number of hitchhikers: {}",
                 current_solution
                     .solution()
                     .get_schedule()
                     .count_hitch_hikers()
-            );
+            ); */
             println!("Objective value:");
             match previous_solution {
                 Some(prev_solution) => {

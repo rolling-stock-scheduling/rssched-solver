@@ -11,6 +11,8 @@ use crate::{
 
 use super::DepotUsage;
 
+// TODO implement benchmarks for the modification, using a small instance and a large instance
+
 impl Schedule {
     pub fn spawn_vehicle_to_replace_dummy_tour(
         &self,
