@@ -57,8 +57,8 @@ impl Network {
         self.config.clone()
     }
 
-    pub fn node(&self, id: NodeIdx) -> &Node {
-        self.nodes.get(&id).unwrap()
+    pub fn node(&self, idx: NodeIdx) -> &Node {
+        self.nodes.get(&idx).unwrap()
     }
 
     /// return the number of nodes in the network.
@@ -420,8 +420,7 @@ impl Network {
         );
         depots.push(overflow_depot);
 
-        let mut idx_counter: Idx =
-            (service_trips.values().flatten().count() + maintenance_slots.len()) as Idx;
+        let mut idx_counter: Idx = 0;
         for depot in depots {
             let depot_idx = depot.idx();
 

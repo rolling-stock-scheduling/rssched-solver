@@ -1,107 +1,100 @@
 {
   "vehicleTypes": [
     {
-      "id": 1,
-      "name": "Vehicle Type 1",
+      "id": "vt1",
       "capacity": 50,
       "seats": 30
     },
     {
-      "id": 2,
-      "name": "Vehicle Type 2",
+      "id": "vt2",
       "capacity": 40,
       "seats": 20
     }
   ],
   "locations": [
     {
-      "id": 1,
-      "name": "Location 1"
+      "id": "loc1"
     },
     {
-      "id": 2,
-      "name": "Location 2"
+      "id": "loc2"
     },
     {
-      "id": 3,
-      "name": "Location 3"
+      "id": "loc3"
     },
     {
-      "id": 4,
-      "name": "Location 4"
+      "id": "loc4"
     },
     {
-      "id": 5,
-      "name": "Location 5"
+      "id": "loc5"
     }
   ],
   "depots": [
     {
-      "id": 1,
-      "location": 1,
+      "id": "depot1",
+      "location": "loc1",
       "capacity": 2,
       "allowedTypes": [
         {
-          "vehicleType": 1,
+          "vehicleType": "vt1",
           "capacity": 2
         },
         {
-          "vehicleType": 2,
+          "vehicleType": "vt2",
           "capacity": 1
         }
       ]
     },
     {
-      "id": 2,
-      "location": 2,
+      "id": "depot2",
+      "location": "loc2",
       "capacity": 5,
       "allowedTypes": [
         {
-          "vehicleType": 1,
+          "vehicleType": "vt1",
           "capacity": 1
         },
         {
-          "vehicleType": 2,
+          "vehicleType": "vt2",
           "capacity": 1
         }
       ]
     },
     {
-      "id": 3,
-      "location": 3,
+      "id": "depot3",
+      "location": "loc3",
       "capacity": 2,
       "allowedTypes": [
         {
-          "vehicleType": 1,
+          "vehicleType": "vt1",
           "capacity": 1
         },
         {
-          "vehicleType": 2,
+          "vehicleType": "vt2",
           "capacity": 1
         }
       ]
     },
     {
-      "id": 4,
-      "location": 4,
+      "id": "depot4",
+      "location": "loc4",
       "capacity": 1,
       "allowedTypes": [
         {
-          "vehicleType": 2
+          "vehicleType": "vt1"
         }
       ]
     },
     {
-      "id": 5,
-      "location": 5,
+      "id": "depot5",
+      "location": "loc5",
       "capacity": 2,
       "allowedTypes": [
         {
-          "vehicleType": 1,
+          "vehicleType": "vt1",
           "capacity": 1
         },
         {
-          "vehicleType": 2,
+          "vehicleType": "vt2",
           "capacity": 1
         }
       ]
@@ -109,112 +102,112 @@
   ],
   "routes": [
     {
-      "id": 12,
-      "name": "Route 1-2",
-      "vehicleType": 1,
+      "id": "route_1-2",
+      "vehicleType": "vt1",
       "segments": [
         {
+          "id": "segment_1-2",
           "order": 0,
-          "origin": 1,
-          "destination": 2,
+          "origin": "loc1",
+          "destination": "loc2",
           "distance": 1000,
           "duration": 1800
         }
       ]
     },
     {
-      "id": 23,
-      "name": "Route 2-3",
-      "vehicleType": 1,
+      "id": "route_2-3",
+      "vehicleType": "vt1",
       "segments": [
         {
+          "id": "segment_2-3",
           "order": 0,
-          "origin": 2,
-          "destination": 3,
+          "origin": "loc2",
+          "destination": "loc3",
           "distance": 2000,
           "duration": 1800
         }
       ]
     },
     {
-      "id": 34,
-      "name": "Route 3",
-      "vehicleType": 1,
+      "id": "route_3-4",
+      "vehicleType": "vt1",
       "segments": [
         {
+          "id": "segment_3-4",
           "order": 0,
-          "origin": 3,
-          "destination": 4,
+          "origin": "loc3",
+          "destination": "loc4",
           "distance": 3000,
           "duration": 1800
         }
       ]
     },
     {
-      "id": 45,
-      "name": "Route 4-5",
-      "vehicleType": 1,
+      "id": "route_4-5",
+      "vehicleType": "vt1",
       "segments": [
         {
+          "id": "segment_4-5",
           "order": 0,
-          "origin": 4,
-          "destination": 5,
+          "origin": "loc4",
+          "destination": "loc5",
           "distance": 4000,
           "duration": 1800
         }
       ]
     },
     {
-      "id": 450,
-      "name": "FastRoute 4-5",
-      "vehicleType": 1,
+      "id": "fastroute_4-5",
+      "vehicleType": "vt1",
       "segments": [
         {
+          "id": "segment_4-5fast",
           "order": 0,
-          "origin": 4,
-          "destination": 5,
+          "origin": "loc4",
+          "destination": "loc5",
           "distance": 4000,
           "duration": 600
         }
       ]
     },
     {
-      "id": 51,
-      "name": "Route 5",
-      "vehicleType": 1,
+      "id": "route_51",
+      "vehicleType": "vt1",
       "segments": [
         {
+          "id": "segment_5-1",
           "order": 0,
-          "origin": 5,
-          "destination": 1,
+          "origin": "loc5",
+          "destination": "loc1",
           "distance": 5000,
           "duration": 1800
         }
       ]
     },
     {
-      "id": 31,
-      "name": "Route 3-1",
-      "vehicleType": 1,
+      "id": "route_3-1",
+      "vehicleType": "vt1",
       "segments": [
         {
+          "id": "segment_3-1",
           "order": 0,
-          "origin": 3,
-          "destination": 1,
+          "origin": "loc3",
+          "destination": "loc1",
           "distance": 6000,
           "duration": 1800
         }
       ]
     },
     {
-      "id": 14,
-      "name": "Route 1-4",
-      "vehicleType": 1,
+      "id": "route_1-4",
+      "vehicleType": "vt1",
       "segments": [
         {
+          "id": "segment_1-4",
           "order": 0,
-          "origin": 1,
-          "destination": 4,
+          "origin": "loc1",
+          "destination": "loc4",
           "distance": 7000,
           "duration": 1800
         }
@@ -223,12 +216,12 @@
   ],
   "departures": [
     {
-      "id": 12,
-      "route": 12,
-      "name": "Trip 1-2",
+      "id": "trip_1-2",
+      "route": "route_1-2",
       "segments": [
         {
-          "order": 0,
+          "id": "dep_segment_1-2",
+          "routeSegment": "segment_1-2",
           "departure": "2020-01-01T06:00:00",
           "passengers": 80,
           "seated": 0
@@ -236,12 +229,12 @@
       ]
     },
     {
-      "id": 23,
-      "route": 23,
-      "name": "Trip 2-3",
+      "id": "trip_2-3",
+      "route": "route_2-3",
       "segments": [
         {
-          "order": 0,
+          "id": "dep_segment_2-3",
+          "routeSegment": "segment_2-3",
           "departure": "2020-01-01T07:00:00",
           "passengers": 80,
           "seated": 0
@@ -249,12 +242,12 @@
       ]
     },
     {
-      "id": 34,
-      "route": 34,
-      "name": "Trip 3-4",
+      "id": "trip_3-4",
+      "route": "route_3-4",
       "segments": [
         {
-          "order": 0,
+          "id": "dep_segment_3-4",
+          "routeSegment": "segment_3-4",
           "departure": "2020-01-01T08:00:00",
           "passengers": 80,
           "seated": 0
@@ -262,12 +255,12 @@
       ]
     },
     {
-      "id": 45,
-      "route": 45,
-      "name": "Trip 4-5",
+      "id": "trip_4-5",
+      "route": "route_4-5",
       "segments": [
         {
-          "order": 0,
+          "id": "dep_segment_4-5",
+          "routeSegment": "segment_4-5",
           "departure": "2020-01-01T09:00:00",
           "passengers": 80,
           "seated": 0
@@ -275,12 +268,12 @@
       ]
     },
     {
-      "id": 450,
-      "route": 450,
-      "name": "Trip 4-5 Fast",
+      "id": "trip_4-5_fast",
+      "route": "fastroute_4-5",
       "segments": [
         {
-          "order": 0,
+          "id": "dep_segment_4-5fast",
+          "routeSegment": "segment_4-5fast",
           "departure": "2020-01-01T09:40:00",
           "passengers": 0,
           "seated": 0
@@ -288,12 +281,12 @@
       ]
     },
     {
-      "id": 51,
-      "route": 51,
-      "name": "Trip 5-1",
+      "id": "trip_51",
+      "route": "route_51",
       "segments": [
         {
-          "order": 0,
+          "id": "dep_segment_5-1",
+          "routeSegment": "segment_5-1",
           "departure": "2020-01-01T10:00:00",
           "passengers": 80,
           "seated": 0
@@ -301,12 +294,12 @@
       ]
     },
     {
-      "id": 31,
-      "route": 31,
-      "name": "Trip 3-1",
+      "id": "trip_3-1",
+      "route": "route_3-1",
       "segments": [
         {
-          "order": 0,
+          "id": "dep_segment_3-1",
+          "routeSegment": "segment_3-1",
           "departure": "2020-01-01T08:00:00",
           "passengers": 80,
           "seated": 0
@@ -314,12 +307,12 @@
       ]
     },
     {
-      "id": 14,
-      "route": 14,
-      "name": "Trip 1-4",
+      "id": "trip_1-4",
+      "route": "route_1-4",
       "segments": [
         {
-          "order": 0,
+          "id": "dep_segment_1-4",
+          "routeSegment": "segment_1-4",
           "departure": "2020-01-01T09:00:00",
           "passengers": 80,
           "seated": 0
@@ -330,11 +323,11 @@
   "maintenanceSlots": [],
   "deadHeadTrips": {
     "indices": [
-      1,
-      2,
-      3,
-      4,
-      5
+      "loc1",
+      "loc2",
+      "loc3",
+      "loc4",
+      "loc5"
     ],
     "durations": [
       [
