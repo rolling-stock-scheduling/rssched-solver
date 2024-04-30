@@ -7,24 +7,24 @@ use model::{
 
 #[derive(Clone, Debug)]
 pub struct Vehicle {
-    id: VehicleIdx,
+    idx: VehicleIdx,
     vehicle_type: Arc<VehicleType>,
 }
 
 impl Vehicle {
     pub(super) fn new(
-        id: VehicleIdx,
-        type_id: VehicleTypeIdx,
+        idx: VehicleIdx,
+        type_idx: VehicleTypeIdx,
         vehicle_types: Arc<VehicleTypes>,
     ) -> Vehicle {
         Vehicle {
-            id,
-            vehicle_type: vehicle_types.get(type_id).unwrap().clone(),
+            idx,
+            vehicle_type: vehicle_types.get(type_idx).unwrap().clone(),
         }
     }
 
     pub fn idx(&self) -> VehicleIdx {
-        self.id
+        self.idx
     }
 
     pub fn type_idx(&self) -> VehicleTypeIdx {
@@ -46,7 +46,7 @@ impl Vehicle {
 
 impl fmt::Display for Vehicle {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}({})", self.id, self.vehicle_type.id())?;
+        write!(f, "{}({})", self.idx, self.vehicle_type.id())?;
         Ok(())
     }
 }

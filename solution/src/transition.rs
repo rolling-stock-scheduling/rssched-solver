@@ -145,6 +145,14 @@ impl Transition {
         }
     }
 
+    pub fn get_successor_of(&self, vehicle: VehicleIdx) -> VehicleIdx {
+        let cycle_idx = self.cycle_lookup.get(&vehicle).unwrap();
+        let cycle = self.cycles.get(*cycle_idx).unwrap();
+        let vehicle_position = cycle.cycle.iter().position(|&v| v == vehicle).unwrap();
+        let successor_position = (vehicle_position + 1) % cycle.cycle.len();
+        cycle.cycle[successor_position]
+    }
+
     // TODO write test for this function (with multiple vehicles being updated in a raw)
     // old_tours are the tours of the old schedule, updated_tours are the tours of vehicle that
     // have already been updated in the current transition. Hence, for determining the tours of the

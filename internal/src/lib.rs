@@ -31,12 +31,12 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
     );
 
     let start_schedule_with_info = ScheduleWithInfo::new(
-        start_schedule.clone(),
+        start_schedule.improve_depots(None),
         None,
         "Result from min cost flow solver".to_string(),
     );
 
-    let final_solution = if network.maintenance_considered() {
+    let solution = if network.maintenance_considered() {
         println!("\nStarting local search:\n");
         println!("Initial objective value:");
         objective.print_objective_value(
@@ -54,14 +54,39 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
         objective.evaluate(start_schedule_with_info.clone())
     };
 
+    // reassign end depots to be consistent with transitions
+    let final_schedule = solution
+        .solution()
+        .get_schedule()
+        .reassign_end_depots_consistent_with_transitions();
+    let final_schedule_with_info = ScheduleWithInfo::new(
+        final_schedule,
+        None,
+        "Final schedule after reassigning end depots".to_string(),
+    );
+    let final_solution = objective.evaluate(final_schedule_with_info);
+
     let end_time = stdtime::Instant::now();
     let runtime_duration = end_time.duration_since(start_time);
 
     // println!("\nfinal schedule (long version):");
     // final_solution.solution().print_tours_long();
 
+    let final_schedule = final_solution.solution().get_schedule();
     println!("\nFinal schedule:");
-    final_solution.solution().get_schedule().print_tours();
+    final_schedule.print_tours();
+
+    let overflow_depot = network.overflow_depot_idxs().0;
+    for vehicle_type in network.vehicle_types().iter() {
+        if final_schedule.number_of_vehicles_of_same_type_spawned_at(overflow_depot, vehicle_type)
+            > 0
+        {
+            println!(
+            "\x1b[93mnote:\x1b[0m vehicle type {} uses the overflow depot. Consider adding more depot capacity for this type.",
+            vehicle_type
+        );
+        }
+    }
 
     // println!("\n\nFinal train formations:");
     // final_solution.solution().print_train_formations();

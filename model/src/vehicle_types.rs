@@ -14,12 +14,12 @@ impl VehicleTypes {
             .map(|vt| (vt.idx, Arc::new(vt)))
             .collect();
 
-        let mut ids_sorted_by_id: Vec<_> = vehicle_types.keys().cloned().collect();
-        ids_sorted_by_id.sort();
+        let mut ids_sorted_by_idx: Vec<_> = vehicle_types.keys().cloned().collect();
+        ids_sorted_by_idx.sort();
 
         VehicleTypes {
             vehicle_types,
-            ids_sorted: ids_sorted_by_id,
+            ids_sorted: ids_sorted_by_idx,
         }
     }
 

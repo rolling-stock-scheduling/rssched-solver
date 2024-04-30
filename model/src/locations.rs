@@ -57,9 +57,9 @@ impl Locations {
 
 // methods
 impl Locations {
-    pub fn get(&self, location_id: LocationIdx) -> Result<Location, &'static str> {
-        match self.stations.get(&location_id) {
-            Some(_) => Ok(Location::Station(location_id)),
+    pub fn get(&self, location_idx: LocationIdx) -> Result<Location, &'static str> {
+        match self.stations.get(&location_idx) {
+            Some(_) => Ok(Location::Station(location_idx)),
             None => Err("Location Id is invalid."),
         }
     }

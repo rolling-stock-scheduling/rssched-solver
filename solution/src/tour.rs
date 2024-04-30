@@ -93,9 +93,7 @@ impl Tour {
     /// maximal distance allowed if the tour visits a maintenance node.
     pub fn maintenance_counter(&self) -> MaintenanceCounter {
         if self.visits_maintenance {
-            self.total_distance()
-                .in_meter()
-                .unwrap_or(INF_DISTANCE) as MaintenanceCounter
+            self.total_distance().in_meter().unwrap_or(INF_DISTANCE) as MaintenanceCounter
                 - self
                     .network
                     .config()
@@ -104,9 +102,7 @@ impl Tour {
                     .in_meter()
                     .unwrap_or(INF_DISTANCE) as MaintenanceCounter
         } else {
-            self.total_distance()
-                .in_meter()
-                .unwrap_or(INF_DISTANCE) as MaintenanceCounter
+            self.total_distance().in_meter().unwrap_or(INF_DISTANCE) as MaintenanceCounter
         }
     }
 
@@ -514,7 +510,11 @@ impl Eq for Tour {}
 impl fmt::Display for Tour {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // write!(f, "{}", self.nodes.iter().map(|n| self.network.node(*n).to_string()).join(" - "))?;
-        write!(f, "{}", self.nodes.iter().join(" - "))?;
+        write!(
+            f,
+            "{}",
+            self.nodes.iter().map(|n| self.network.node(*n)).join(" - ")
+        )?;
         Ok(())
     }
 }

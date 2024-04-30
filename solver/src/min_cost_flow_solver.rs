@@ -477,7 +477,7 @@ impl MinCostFlowSolver {
                         // Flow goes from depot to service trip -> Create new tour
                         let start_depot_node = self.network.get_start_depot_node(pred_depot_id);
 
-                        if start_depot_node == self.network.overflow_depot_ids().1 {
+                        if start_depot_node == self.network.overflow_depot_idxs().1 {
                             print_overflow_depot_warning = true;
                         }
 

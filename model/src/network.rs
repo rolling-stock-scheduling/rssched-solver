@@ -25,7 +25,7 @@ type SortedNodes = BTreeMap<(DateTime, NodeIdx), NodeIdx>;
 pub struct Network {
     nodes: HashMap<NodeIdx, Node>,
     depots: HashMap<DepotIdx, (Depot, NodeIdx, NodeIdx)>, // depot, start_node, end_node
-    overflow_depot_ids: (DepotIdx, NodeIdx, NodeIdx),
+    overflow_depot_idxs: (DepotIdx, NodeIdx, NodeIdx),
 
     // nodes are by default sorted by start_time (ties are broken by end_time then id)
     service_nodes: HashMap<VehicleTypeIdx, Vec<NodeIdx>>,
@@ -124,8 +124,8 @@ impl Network {
     }
 
     /// returns the depot_ids of the overflow depot and its start and end node
-    pub fn overflow_depot_ids(&self) -> (DepotIdx, NodeIdx, NodeIdx) {
-        self.overflow_depot_ids
+    pub fn overflow_depot_idxs(&self) -> (DepotIdx, NodeIdx, NodeIdx) {
+        self.overflow_depot_idxs
     }
 
     /// service and maintenance_nodes
@@ -139,14 +139,14 @@ impl Network {
 
     pub fn capacity_of(
         &self,
-        depot_id: DepotIdx,
-        vehicle_type_id: VehicleTypeIdx,
+        depot_idx: DepotIdx,
+        vehicle_type_idx: VehicleTypeIdx,
     ) -> PassengerCount {
-        self.depots[&depot_id].0.capacity_for(vehicle_type_id)
+        self.depots[&depot_idx].0.capacity_for(vehicle_type_idx)
     }
 
-    pub fn total_capacity_of(&self, depot_id: DepotIdx) -> PassengerCount {
-        self.depots[&depot_id].0.total_capacity()
+    pub fn total_capacity_of(&self, depot_idx: DepotIdx) -> PassengerCount {
+        self.depots[&depot_idx].0.total_capacity()
     }
 
     pub fn vehicle_type_for(&self, service_trip: NodeIdx) -> VehicleTypeIdx {
@@ -200,20 +200,20 @@ impl Network {
         limit_of_type.map(|l| l.min(limit_of_node.unwrap_or(l)))
     }
 
-    pub fn get_depot_id(&self, node_id: NodeIdx) -> DepotIdx {
-        self.node(node_id).as_depot().depot_idx()
+    pub fn get_depot_id(&self, node_idx: NodeIdx) -> DepotIdx {
+        self.node(node_idx).as_depot().depot_idx()
     }
 
-    pub fn get_depot(&self, depot_id: DepotIdx) -> &Depot {
-        &self.depots.get(&depot_id).unwrap().0
+    pub fn get_depot(&self, depot_idx: DepotIdx) -> &Depot {
+        &self.depots.get(&depot_idx).unwrap().0
     }
 
-    pub fn get_start_depot_node(&self, depot_id: DepotIdx) -> NodeIdx {
-        self.depots.get(&depot_id).unwrap().1
+    pub fn get_start_depot_node(&self, depot_idx: DepotIdx) -> NodeIdx {
+        self.depots.get(&depot_idx).unwrap().1
     }
 
-    pub fn get_end_depot_node(&self, depot_id: DepotIdx) -> NodeIdx {
-        self.depots.get(&depot_id).unwrap().2
+    pub fn get_end_depot_node(&self, depot_idx: DepotIdx) -> NodeIdx {
+        self.depots.get(&depot_idx).unwrap().2
     }
 
     pub fn idle_time_between(&self, node1: NodeIdx, node2: NodeIdx) -> Duration {
@@ -597,7 +597,7 @@ impl Network {
         Network {
             nodes,
             depots: depots_lookup,
-            overflow_depot_ids,
+            overflow_depot_idxs: overflow_depot_ids,
             service_nodes,
             maintenance_nodes,
             start_depot_nodes,

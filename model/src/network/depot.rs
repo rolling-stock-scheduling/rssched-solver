@@ -30,8 +30,8 @@ impl Depot {
     }
 
     /// takes the minimum of vehicle specific capacity (None means no limit) and depot capacity
-    pub fn capacity_for(&self, vehicle_type_id: VehicleTypeIdx) -> VehicleCount {
-        match self.allowed_types.get(&vehicle_type_id) {
+    pub fn capacity_for(&self, vehicle_type_idx: VehicleTypeIdx) -> VehicleCount {
+        match self.allowed_types.get(&vehicle_type_idx) {
             Some(Some(capacity)) => VehicleCount::min(*capacity, self.total_capacity),
             Some(None) => self.total_capacity, // no vehicle specific limit
             None => 0,                         // vehicle type not allowed
@@ -42,14 +42,14 @@ impl Depot {
 // static
 impl Depot {
     pub fn new(
-        depot_id: DepotIdx,
+        depot_idx: DepotIdx,
         name: String,
         location: Location,
         total_capacity: VehicleCount,
         allowed_types: HashMap<VehicleTypeIdx, Option<VehicleCount>>,
     ) -> Self {
         Self {
-            idx: depot_id,
+            idx: depot_idx,
             id: name,
             location,
             total_capacity,

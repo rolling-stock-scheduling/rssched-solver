@@ -16,30 +16,30 @@ use super::DepotUsage;
 impl Schedule {
     pub fn spawn_vehicle_to_replace_dummy_tour(
         &self,
-        dummy_id: VehicleIdx,
-        vehicle_type_id: VehicleTypeIdx,
+        dummy_idx: VehicleIdx,
+        vehicle_type_idx: VehicleTypeIdx,
     ) -> Result<(Schedule, VehicleIdx), String> {
         let nodes: Vec<NodeIdx> = self
             .dummy_tours
-            .get(&dummy_id)
+            .get(&dummy_idx)
             .ok_or(format!(
                 "Cannot spawn vehicle to replace dummy tour {}. Dummy tour does not exist.",
-                dummy_id
+                dummy_idx
             ))?
             .all_nodes_iter()
             .collect();
         if nodes.iter().any(|n| {
             !self
                 .network
-                .compatible_with_vehicle_type(*n, vehicle_type_id)
+                .compatible_with_vehicle_type(*n, vehicle_type_idx)
         }) {
             return Err(format!(
                 "Cannot spawn vehicle to replace dummy tour {}. Nodes are not compatible with vehicle type {}.",
-                dummy_id, vehicle_type_id,
+                dummy_idx, vehicle_type_idx,
             ));
         }
-        let intermediate_schedule = self.delete_dummy(dummy_id)?;
-        intermediate_schedule.spawn_vehicle_for_path(vehicle_type_id, nodes)
+        let intermediate_schedule = self.delete_dummy(dummy_idx)?;
+        intermediate_schedule.spawn_vehicle_for_path(vehicle_type_idx, nodes)
     }
 
     /// Spawn new vehicle for the given path.
@@ -57,21 +57,21 @@ impl Schedule {
     /// If a train formation of some node on the path is full, an error is returned.
     pub fn spawn_vehicle_for_path(
         &self,
-        vehicle_type_id: VehicleTypeIdx,
+        vehicle_type_idx: VehicleTypeIdx,
         path_as_vec: Vec<NodeIdx>,
     ) -> Result<(Schedule, VehicleIdx), String> {
         if path_as_vec.iter().any(|n| {
             !self
                 .network
-                .compatible_with_vehicle_type(*n, vehicle_type_id)
+                .compatible_with_vehicle_type(*n, vehicle_type_idx)
         }) {
             return Err(format!(
                 "Cannot spawn vehicle for path {:?}. Nodes are not compatible with vehicle type {}.",
-                path_as_vec, vehicle_type_id,
+                path_as_vec, vehicle_type_idx,
             ));
         }
 
-        let nodes = self.add_suitable_start_and_end_depot_to_path(vehicle_type_id, path_as_vec)?;
+        let nodes = self.add_suitable_start_and_end_depot_to_path(vehicle_type_idx, path_as_vec)?;
 
         let mut vehicles = self.vehicles.clone();
         let mut tours = self.tours.clone();
@@ -85,14 +85,14 @@ impl Schedule {
 
         let vehicle_id = VehicleIdx::vehicle_from(self.vehicle_counter as Idx);
         let tour = Tour::new(nodes, self.network.clone())?;
-        let vehicle = Vehicle::new(vehicle_id, vehicle_type_id, self.network.vehicle_types());
+        let vehicle = Vehicle::new(vehicle_id, vehicle_type_idx, self.network.vehicle_types());
 
         vehicles.insert(vehicle_id, vehicle.clone());
 
-        let position = vehicle_ids_grouped_and_sorted[&vehicle_type_id]
+        let position = vehicle_ids_grouped_and_sorted[&vehicle_type_idx]
             .binary_search(&vehicle_id)
             .unwrap_or_else(|e| e);
-        vehicle_ids_grouped_and_sorted[&vehicle_type_id].insert(position, vehicle_id);
+        vehicle_ids_grouped_and_sorted[&vehicle_type_idx].insert(position, vehicle_id);
 
         self.update_train_formation(
             &mut train_formations,
@@ -139,15 +139,15 @@ impl Schedule {
     /// Delete vehicle (and its tour) from schedule.
     /// # Errors
     /// If the vehicle is not a real vehicle an error is returned.
-    pub fn replace_vehicle_by_dummy(&self, vehicle_id: VehicleIdx) -> Result<Schedule, String> {
-        if !self.is_vehicle(vehicle_id) {
+    pub fn replace_vehicle_by_dummy(&self, vehicle_idx: VehicleIdx) -> Result<Schedule, String> {
+        if !self.is_vehicle(vehicle_idx) {
             return Err(format!(
                 "Cannot delete vehicle {} from schedule.",
-                vehicle_id
+                vehicle_idx
             ));
         }
 
-        let vehicle_type_id = self.vehicle_type_of(vehicle_id)?;
+        let vehicle_type_id = self.vehicle_type_of(vehicle_idx)?;
 
         let mut vehicles = self.vehicles.clone();
         let mut tours = self.tours.clone();
@@ -162,24 +162,24 @@ impl Schedule {
         let mut costs = self.costs;
         let mut vehicle_counter = self.vehicle_counter;
 
-        vehicles.remove(&vehicle_id);
+        vehicles.remove(&vehicle_idx);
 
         let position = vehicle_ids_grouped_and_sorted[&vehicle_type_id]
-            .binary_search(&vehicle_id)
+            .binary_search(&vehicle_idx)
             .unwrap();
         vehicle_ids_grouped_and_sorted[&vehicle_type_id].remove(position);
 
         self.update_train_formation(
             &mut train_formations,
             &mut unserved_passengers,
-            Some(vehicle_id),
+            Some(vehicle_idx),
             None,
-            tours.get(&vehicle_id).unwrap().all_nodes_iter(),
+            tours.get(&vehicle_idx).unwrap().all_nodes_iter(),
         )?;
 
-        let tour = tours.remove(&vehicle_id).unwrap();
+        let tour = tours.remove(&vehicle_idx).unwrap();
 
-        self.update_depot_usage(&mut depot_usage, &vehicles, &tours, vehicle_id);
+        self.update_depot_usage(&mut depot_usage, &vehicles, &tours, vehicle_idx);
 
         costs -= tour.costs();
 
@@ -199,7 +199,7 @@ impl Schedule {
         self.update_transitions_and_violation_fast(
             &mut next_period_transitions,
             &mut maintenance_violation,
-            vec![vehicle_id],
+            vec![vehicle_idx],
             &vehicles,
             &tours,
         );
@@ -228,10 +228,10 @@ impl Schedule {
     /// If a train formation of some node on the path is full, an error is returned.
     pub fn add_path_to_vehicle_tour(
         &self,
-        vehicle_id: VehicleIdx,
+        vehicle_idx: VehicleIdx,
         path: Path,
     ) -> Result<Schedule, String> {
-        if let Ok(vehicle_type_id) = self.vehicle_type_of(vehicle_id) {
+        if let Ok(vehicle_type_id) = self.vehicle_type_of(vehicle_idx) {
             if path.iter().any(|n| {
                 !self
                     .network
@@ -239,7 +239,7 @@ impl Schedule {
             }) {
                 return Err(format!(
                 "Cannot add path {} to vehicle tour {}. Nodes are not compatible with vehicle type {}.",
-                path, vehicle_id, vehicle_type_id,
+                path, vehicle_idx, vehicle_type_id,
             ));
             }
         }
@@ -247,18 +247,18 @@ impl Schedule {
             // path starts with a depot, so we need to ensure that the new depot has capacities
             // available
             let new_start_depot = path.first();
-            let old_start_depot = self.tour_of(vehicle_id).unwrap().start_depot().unwrap();
+            let old_start_depot = self.tour_of(vehicle_idx).unwrap().start_depot().unwrap();
 
             if new_start_depot != old_start_depot
                 && !self.can_depot_spawn_vehicle(
                     new_start_depot,
-                    self.vehicle_type_of(vehicle_id)
+                    self.vehicle_type_of(vehicle_idx)
                         .expect("Vehicle must be real, as it starts with a depot"),
                 )
             {
                 return Err(format!(
                     "Cannot add path {} to vehicle tour {}. New start depot has no capacity available.",
-                    path, vehicle_id
+                    path, vehicle_idx
                 ));
             }
         }
@@ -275,33 +275,33 @@ impl Schedule {
             &mut train_formations,
             &mut unserved_passengers,
             None,
-            Some(self.vehicles.get(&vehicle_id).cloned().unwrap()),
+            Some(self.vehicles.get(&vehicle_idx).cloned().unwrap()),
             path.iter(),
         )?;
 
-        let (new_tour, removed_path_opt) = tours.get(&vehicle_id).unwrap().insert_path(path);
+        let (new_tour, removed_path_opt) = tours.get(&vehicle_idx).unwrap().insert_path(path);
 
         // remove vehicle from train formations for nodes of removed path
         if let Some(removed_path) = removed_path_opt {
             self.update_train_formation(
                 &mut train_formations,
                 &mut unserved_passengers,
-                Some(vehicle_id),
+                Some(vehicle_idx),
                 None,
                 removed_path.iter(),
             )?;
         }
 
-        costs += new_tour.costs() - self.tours.get(&vehicle_id).unwrap().costs();
+        costs += new_tour.costs() - self.tours.get(&vehicle_idx).unwrap().costs();
 
-        tours.insert(vehicle_id, new_tour);
+        tours.insert(vehicle_idx, new_tour);
 
-        self.update_depot_usage(&mut depot_usage, &self.vehicles, &tours, vehicle_id);
+        self.update_depot_usage(&mut depot_usage, &self.vehicles, &tours, vehicle_idx);
 
         self.update_transitions_and_violation_fast(
             &mut next_period_transitions,
             &mut maintenance_violation,
-            vec![vehicle_id],
+            vec![vehicle_idx],
             &self.vehicles,
             &tours,
         );
@@ -332,12 +332,12 @@ impl Schedule {
         // TODO write test for this
         &self,
         segment: Segment,
-        vehicle_id: VehicleIdx,
+        vehicle_idx: VehicleIdx,
     ) -> Result<Schedule, String> {
-        if !self.is_vehicle(vehicle_id) {
+        if !self.is_vehicle(vehicle_idx) {
             return Err(format!(
                 "Cannot remove segment {} from vehicle {}. Vehicle is not a real vehicle.",
-                segment, vehicle_id,
+                segment, vehicle_idx,
             ));
         }
         let vehicles = self.vehicles.clone();
@@ -353,16 +353,16 @@ impl Schedule {
         let mut costs = self.costs;
         let mut vehicle_counter = self.vehicle_counter;
 
-        let tour = self.tour_of(vehicle_id).unwrap();
+        let tour = self.tour_of(vehicle_idx).unwrap();
         let (shrinked_tour, removed_path) = tour.remove(segment)?;
 
         match shrinked_tour {
-            None => self.replace_vehicle_by_dummy(vehicle_id), // segment was the whole tour (except for depots)
+            None => self.replace_vehicle_by_dummy(vehicle_idx), // segment was the whole tour (except for depots)
             Some(new_tour) => {
                 self.update_train_formation(
                     &mut train_formations,
                     &mut unserved_passengers,
-                    Some(vehicle_id),
+                    Some(vehicle_idx),
                     None,
                     removed_path.iter(),
                 )?;
@@ -371,11 +371,11 @@ impl Schedule {
                     &mut tours,
                     &mut dummy_tours,
                     &mut costs,
-                    vehicle_id,
+                    vehicle_idx,
                     new_tour,
                 );
 
-                self.update_depot_usage(&mut depot_usage, &vehicles, &tours, vehicle_id);
+                self.update_depot_usage(&mut depot_usage, &vehicles, &tours, vehicle_idx);
 
                 if let Ok(new_dummy_tour) = Tour::new_dummy(removed_path, self.network.clone()) {
                     self.add_dummy_tour(
@@ -390,7 +390,7 @@ impl Schedule {
                 self.update_transitions_and_violation_fast(
                     &mut next_period_transitions,
                     &mut maintenance_violation,
-                    vec![vehicle_id],
+                    vec![vehicle_idx],
                     &vehicles,
                     &tours,
                 );
@@ -804,6 +804,61 @@ impl Schedule {
             self.network.clone(),
         )
     }
+
+    /// Reassign the end depots such that they are consistent with the transition.
+    pub fn reassign_end_depots_consistent_with_transitions(&self) -> Schedule {
+        let mut tours = self.tours.clone();
+        let mut next_day_transitions = self.next_period_transitions.clone();
+        let mut depot_usage = self.depot_usage.clone();
+        let mut maintenance_violation = self.maintenance_violation;
+        let mut costs = self.costs;
+
+        for vehicle in self.vehicles_iter_all() {
+            let tour = self.tour_of(vehicle).unwrap();
+            let vehicle_type = self.vehicle_type_of(vehicle).unwrap();
+            let next_vehicle = self
+                .next_period_transitions
+                .get(&vehicle_type)
+                .unwrap()
+                .get_successor_of(vehicle);
+            let start_depot_of_next_vehicle =
+                self.tour_of(next_vehicle).unwrap().start_depot().unwrap();
+            let depot_idx = self.network.get_depot_id(start_depot_of_next_vehicle);
+            let new_end_depot = self.network.get_end_depot_node(depot_idx);
+
+            let new_tour = tour.replace_end_depot(new_end_depot).unwrap();
+
+            costs += new_tour.costs() - tour.costs();
+
+            tours.insert(vehicle, new_tour);
+
+            self.update_depot_usage(&mut depot_usage, &self.vehicles, &tours, vehicle);
+        }
+
+        self.update_transitions_and_violation_fast(
+            &mut next_day_transitions,
+            &mut maintenance_violation,
+            self.vehicles_iter_all().collect(),
+            &self.vehicles,
+            &tours,
+        );
+
+        Schedule::new(
+            self.vehicles.clone(),
+            tours,
+            next_day_transitions,
+            self.train_formations.clone(),
+            depot_usage,
+            self.dummy_tours.clone(),
+            self.vehicle_counter,
+            self.vehicle_ids_grouped_and_sorted.clone(),
+            self.dummy_ids_sorted.clone(),
+            self.unserved_passengers,
+            maintenance_violation,
+            costs,
+            self.network.clone(),
+        )
+    }
 }
 
 // private methods
@@ -1069,17 +1124,17 @@ impl Schedule {
         depot_usage: &mut DepotUsage,
         vehicles: &HashMap<VehicleIdx, Vehicle>,
         tours: &HashMap<VehicleIdx, Tour>,
-        vehicle_id: VehicleIdx,
+        vehicle_idx: VehicleIdx,
     ) {
-        match vehicles.get(&vehicle_id) {
+        match vehicles.get(&vehicle_idx) {
             Some(vehicle) => self.update_depot_usage_assuming_no_dummies(
                 depot_usage,
                 vehicle.clone(),
-                tours.get(&vehicle_id),
+                tours.get(&vehicle_idx),
             ),
             None => {
                 // vehicle is dummy in new schedule or is deleted
-                if let Some(vehicle) = self.vehicles.get(&vehicle_id) {
+                if let Some(vehicle) = self.vehicles.get(&vehicle_idx) {
                     self.update_depot_usage_assuming_no_dummies(depot_usage, vehicle.clone(), None)
                 }
             }
@@ -1256,15 +1311,15 @@ impl Schedule {
         &self,
         dummy_tours: &mut HashMap<VehicleIdx, Tour>,
         dummy_ids_sorted: &mut Vec<VehicleIdx>,
-        new_dummy_id: VehicleIdx,
+        new_dummy_idx: VehicleIdx,
         new_dummy_tour: Tour,
     ) {
-        dummy_tours.insert(new_dummy_id, new_dummy_tour);
+        dummy_tours.insert(new_dummy_idx, new_dummy_tour);
         dummy_ids_sorted.insert(
             dummy_ids_sorted
-                .binary_search(&new_dummy_id)
+                .binary_search(&new_dummy_idx)
                 .unwrap_or_else(|e| e),
-            new_dummy_id,
+            new_dummy_idx,
         );
     }
 
@@ -1356,12 +1411,12 @@ impl Schedule {
     fn improve_depots_of_tour(
         &self,
         tour: &Tour,
-        vehicle_type_id: VehicleTypeIdx,
+        vehicle_type_idx: VehicleTypeIdx,
         depot_usage: &DepotUsage,
     ) -> Tour {
         let first_non_depot = tour.first_non_depot().unwrap();
         let new_start_depot =
-            self.find_best_start_depot_for_spawning(vehicle_type_id, first_non_depot, depot_usage);
+            self.find_best_start_depot_for_spawning(vehicle_type_idx, first_non_depot, depot_usage);
         let intermediate_tour = if new_start_depot != tour.start_depot().unwrap() {
             tour.replace_start_depot(new_start_depot).unwrap()
         } else {
@@ -1370,7 +1425,7 @@ impl Schedule {
 
         let last_non_depot = intermediate_tour.last_non_depot().unwrap();
         let new_end_depot = self
-            .find_best_end_depot_for_despawning(vehicle_type_id, last_non_depot)
+            .find_best_end_depot_for_despawning(vehicle_type_idx, last_non_depot)
             .unwrap();
         if new_end_depot != intermediate_tour.end_depot().unwrap() {
             intermediate_tour.replace_end_depot(new_end_depot).unwrap()
@@ -1381,7 +1436,7 @@ impl Schedule {
 
     fn add_suitable_start_and_end_depot_to_path(
         &self,
-        vehicle_type_id: VehicleTypeIdx,
+        vehicle_type_idx: VehicleTypeIdx,
         mut nodes: Vec<NodeIdx>,
     ) -> Result<Vec<NodeIdx>, String> {
         let first_node = *nodes.first().unwrap();
@@ -1389,19 +1444,19 @@ impl Schedule {
 
         // check if depot is available
         if self.network.node(first_node).is_depot()
-            && !self.can_depot_spawn_vehicle(first_node, vehicle_type_id)
+            && !self.can_depot_spawn_vehicle(first_node, vehicle_type_idx)
         {
             // if given depot is not available, use overflow depot
-            let overflow_depot_ids = self.network.overflow_depot_ids();
-            let old_start_depot = std::mem::replace(&mut nodes[0], overflow_depot_ids.1);
+            let overflow_depot_ids = self.network.overflow_depot_idxs();
+            nodes[0] = overflow_depot_ids.1;
             let tour_len = nodes.len();
             let _ = std::mem::replace(&mut nodes[tour_len - 1], overflow_depot_ids.2);
 
-            println!(
+            /* println!(
                 "\x1b[93mwarning:\x1b[0m Tour for {} violates depot constraints at {}. Using overflow depot instead.",
                 self.network.vehicle_types().get(vehicle_type_id).unwrap(),
                 self.network.node(old_start_depot)
-            );
+            ); */
 
             return Ok(nodes);
         }
@@ -1409,7 +1464,7 @@ impl Schedule {
         // if path does not start with a depot, insert the nearest available start_depot
         if !self.network.node(first_node).is_depot() {
             let new_start_depot = self.find_best_start_depot_for_spawning(
-                vehicle_type_id,
+                vehicle_type_idx,
                 first_node,
                 &self.depot_usage,
             );
@@ -1418,7 +1473,7 @@ impl Schedule {
 
         // if path does not end with a depot, insert the nearest available end_depot
         if !self.network.node(last_node).is_depot() {
-            match self.find_best_end_depot_for_despawning(vehicle_type_id, last_node) {
+            match self.find_best_end_depot_for_despawning(vehicle_type_idx, last_node) {
                 Ok(depot) => nodes.push(depot),
                 Err(e) => return Err(e),
             };
@@ -1429,7 +1484,7 @@ impl Schedule {
 
     fn find_best_start_depot_for_spawning(
         &self,
-        vehicle_type_id: VehicleTypeIdx,
+        vehicle_type_idx: VehicleTypeIdx,
         first_node: NodeIdx,
         depot_usage: &DepotUsage,
     ) -> NodeIdx {
@@ -1440,22 +1495,22 @@ impl Schedule {
             .iter()
             .copied()
             .find(|depot| {
-                self.can_depot_spawn_vehicle_custom_usage(*depot, vehicle_type_id, depot_usage)
+                self.can_depot_spawn_vehicle_custom_usage(*depot, vehicle_type_idx, depot_usage)
             })
             .expect("There should be at least the overflow depot available.");
-        if start_depot == self.network.overflow_depot_ids().1 {
+        /* if start_depot == self.network.overflow_depot_ids().1 {
             println!(
                 "\x1b[93mwarning:\x1b[0m Tour for vehicle_type {} violates depot constraints at {}. Using overflow depot instead.",
                 self.network.vehicle_types().get(vehicle_type_id).unwrap(),
                 self.network.node(first_node)
             );
-        }
+        } */
         start_depot
     }
 
     fn find_best_end_depot_for_despawning(
         &self,
-        vehicle_type_id: VehicleTypeIdx,
+        vehicle_type_idx: VehicleTypeIdx,
         last_node: NodeIdx,
     ) -> Result<NodeIdx, String> {
         let end_location = self.network.node(last_node).end_location();
@@ -1468,7 +1523,7 @@ impl Schedule {
             Some(depot) => Ok(depot),
             None => Err(format!(
                 "Cannot de-spawn vehicle of type {} for end_node {}. No end_depot available.",
-                vehicle_type_id, last_node,
+                vehicle_type_idx, last_node,
             )),
         }
     }

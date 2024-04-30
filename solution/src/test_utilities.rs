@@ -71,7 +71,7 @@ pub fn init_test_data() -> TestData {
         depot1: DepotIdx::from(0),
         depot2: DepotIdx::from(1),
         depot3: DepotIdx::from(2),
-        // depot4: DepotId::from(3),
-        // depot5: DepotId::from(4),
+        // depot4: DepotIdx::from(3),
+        // depot5: DepotIdx::from(4),
     }
 }

@@ -140,11 +140,11 @@ fn depots_usage_to_json(schedule: &Schedule) -> Vec<DepotLoad> {
     depot_loads
 }
 
-fn depot_usage_to_json(schedule: &Schedule, depot_id: DepotIdx) -> Vec<Load> {
+fn depot_usage_to_json(schedule: &Schedule, depot_idx: DepotIdx) -> Vec<Load> {
     let mut loads = vec![];
     for vehicle_type in schedule.get_vehicle_types().iter() {
         let spawn_count =
-            schedule.number_of_vehicles_of_same_type_spawned_at(depot_id, vehicle_type);
+            schedule.number_of_vehicles_of_same_type_spawned_at(depot_idx, vehicle_type);
         if spawn_count > 0 {
             loads.push(Load {
                 vehicle_type: vehicle_type.to_string(),

@@ -328,6 +328,6 @@ impl Node {
 
 impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} (idx: {})", self.id(), self.idx())
+        write!(f, "{}", self.id())
     }
 }
