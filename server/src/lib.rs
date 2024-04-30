@@ -23,21 +23,68 @@ pub fn solve_instance(input_data: serde_json::Value) -> serde_json::Value {
 
     let objective = Arc::new(objective::build());
 
-    let min_cost_flow_solver = MinCostFlowSolver::initialize(network.clone());
     println!("Solve with MinCostFlowSolver:");
-    let schedule = min_cost_flow_solver.solve();
-    let schedule_with_info = ScheduleWithInfo::new(schedule, None, "MinCostFlowSolver".to_string());
-
-    let final_solution = objective.evaluate(schedule_with_info);
+    let min_cost_flow_solver = MinCostFlowSolver::initialize(network.clone());
+    let start_schedule = min_cost_flow_solver.solve();
     println!(
-        "MinCostFlowSolver computed optimal schedule (elapsed time: {:0.2}sec)",
+        "MinCostFlowSolver computed schedule (elapsed time: {:0.2}sec)",
         start_time.elapsed().as_secs_f32()
     );
+
+    let start_schedule_with_info = ScheduleWithInfo::new(
+        start_schedule.improve_depots(None),
+        None,
+        "Result from min cost flow solver".to_string(),
+    );
+
+    let solution = if network.maintenance_considered() {
+        println!("\nStarting local search:\n");
+        println!("Initial objective value:");
+        objective.print_objective_value(
+            objective
+                .evaluate(start_schedule_with_info.clone())
+                .objective_value(),
+        );
+        println!();
+
+        let local_search_solver = solver::local_search::build_local_search_solver(network.clone());
+
+        local_search_solver.solve(start_schedule_with_info)
+    } else {
+        println!("\nMaintenance is not considered, returning MinCostFlowSolver solution as final solution");
+        objective.evaluate(start_schedule_with_info.clone())
+    };
+
+    // reassign end depots to be consistent with transitions
+    let final_schedule = solution
+        .solution()
+        .get_schedule()
+        .reassign_end_depots_consistent_with_transitions();
+    let final_schedule_with_info = ScheduleWithInfo::new(
+        final_schedule,
+        None,
+        "Final schedule after reassigning end depots".to_string(),
+    );
+    let final_solution = objective.evaluate(final_schedule_with_info);
 
     let end_time = stdtime::Instant::now();
     let runtime_duration = end_time.duration_since(start_time);
 
-    println!("Objective value:");
+    let final_schedule = final_solution.solution().get_schedule();
+
+    let overflow_depot = network.overflow_depot_idxs().0;
+    for vehicle_type in network.vehicle_types().iter() {
+        if final_schedule.number_of_vehicles_of_same_type_spawned_at(overflow_depot, vehicle_type)
+            > 0
+        {
+            println!(
+            "\x1b[93mnote:\x1b[0m vehicle type {} uses the overflow depot. Consider adding more depot capacity for this type.",
+            vehicle_type
+        );
+        }
+    }
+
+    println!("\nObjective value:");
     objective.print_objective_value(final_solution.objective_value());
 
     println!("Running time: {:0.2}sec", runtime_duration.as_secs_f32());
