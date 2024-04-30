@@ -60,10 +60,10 @@ pub fn create_output_json(
                 .as_secs(),
         );
     serde_json::json!({
-        "info:": {
+        "info": {
             "runningTime": format!("{:0.2}sec", runtime_duration.as_secs_f32()),
             "numberOfThreads": rayon::current_num_threads(),
-            "timestamp(UTC)": today.as_iso(),
+            "timestampUTC": today.as_iso(),
             "hostname": gethostname().into_string().unwrap_or("unknown".to_string()),
         },
         "objectiveValue": json_objective_value,
