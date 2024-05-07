@@ -292,7 +292,7 @@ impl Schedule {
             )?;
         }
 
-        costs += new_tour.costs() - self.tours.get(&vehicle_idx).unwrap().costs();
+        costs = (costs + new_tour.costs()) - self.tours.get(&vehicle_idx).unwrap().costs();
 
         tours.insert(vehicle_idx, new_tour);
 
@@ -657,7 +657,7 @@ impl Schedule {
             let vehicle_type_id = self.vehicle_type_of(*vehicle_id).unwrap();
             let new_tour = self.improve_depots_of_tour(tour, vehicle_type_id, &depot_usage);
 
-            costs += new_tour.costs() - tour.costs();
+            costs = (costs + new_tour.costs()) - tour.costs();
 
             // add vehicle to depot_usage
             depot_usage
@@ -740,7 +740,7 @@ impl Schedule {
 
             let new_tour = tour.replace_end_depot(new_end_depot_node).unwrap();
 
-            costs += new_tour.costs() - tour.costs();
+            costs = (costs + new_tour.costs()) - tour.costs();
 
             tours.insert(vehicle_id, new_tour);
 
@@ -828,7 +828,7 @@ impl Schedule {
 
             let new_tour = tour.replace_end_depot(new_end_depot).unwrap();
 
-            costs += new_tour.costs() - tour.costs();
+            costs = (costs + new_tour.costs()) - tour.costs();
 
             tours.insert(vehicle, new_tour);
 
@@ -1004,7 +1004,7 @@ impl Schedule {
         if self.is_dummy(vehicle) {
             dummy_tours.insert(vehicle, new_tour);
         } else {
-            *costs += new_tour.costs() - tours.get(&vehicle).unwrap().costs();
+            *costs = (*costs + new_tour.costs()) - tours.get(&vehicle).unwrap().costs();
             tours.insert(vehicle, new_tour);
         }
     }
@@ -1301,8 +1301,9 @@ impl Schedule {
                     _ => unreachable!(),
                 };
 
-            *maintenance_violation +=
-                new_transition.maintenance_violation() - old_transition.maintenance_violation();
+            *maintenance_violation = (*maintenance_violation
+                + new_transition.maintenance_violation())
+                - old_transition.maintenance_violation();
             transitions.insert(vehicle_type, new_transition);
         }
     }

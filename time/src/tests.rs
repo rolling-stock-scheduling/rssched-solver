@@ -16,7 +16,7 @@ fn test_from_yyyy_mm_dd_to_days_for_1990() {
     for m in 1..month {
         days += days_of_month(year, m) as u64;
     }
-    days += day as u64 - 1;
+    days = days + day as u64 - 1;
     assert_eq!(
         from_yyyy_mm_dd_to_days(year, month, day),
         days,
@@ -36,7 +36,7 @@ fn test_from_yyyy_mm_dd_to_days_for_2990() {
     for m in 1..month {
         days += days_of_month(year, m) as u64;
     }
-    days += day as u64 - 1;
+    days = days + day as u64 - 1;
     assert_eq!(
         from_yyyy_mm_dd_to_days(year, month, day),
         days,

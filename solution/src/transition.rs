@@ -210,8 +210,9 @@ impl Transition {
 
         let new_cycle = TransitionCycle::new(old_cycle.cycle.clone(), new_maintenance_counter);
 
-        total_maintenance_violation +=
-            new_maintenance_counter.max(0) - old_cycle.maintenance_counter.max(0);
+        total_maintenance_violation = (total_maintenance_violation
+            + new_maintenance_counter.max(0))
+            - old_cycle.maintenance_counter.max(0);
 
         cycles[*cycle_idx] = new_cycle;
 
@@ -316,8 +317,9 @@ impl Transition {
                 + maintenance_counter_for_addition;
             let new_cycle = TransitionCycle::new(new_cycle_vec, new_maintenance_counter);
 
-            total_maintenance_violation +=
-                new_maintenance_counter.max(0) - old_cycle.maintenance_counter.max(0);
+            total_maintenance_violation = (total_maintenance_violation
+                + new_maintenance_counter.max(0))
+                - old_cycle.maintenance_counter.max(0);
 
             cycles[*cycle_idx] = new_cycle;
         }
