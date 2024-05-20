@@ -7,7 +7,6 @@ use super::{improve_depot_and_recompute_transitions, Swap};
 
 /// Forces a maintenance slot to a given vehicle and spawns a new vehicle for the conflict path.
 /// If the maintenance slot is already fully occupied, the last occupant is removed.
-#[derive(Clone)]
 pub struct AddTripForHitchHiking {
     node: NodeIdx,
     vehicle: VehicleIdx,

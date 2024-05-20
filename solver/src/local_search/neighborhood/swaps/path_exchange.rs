@@ -8,7 +8,6 @@ use super::{improve_depot_and_recompute_transitions, Swap};
 /// Removes the path from the provider's tour and insert it into the receiver's tour.
 /// All removed nodes that are removed from receiver's tour (due to conflicts) are tried to insert conflict-free into
 /// the provider's tour.
-#[derive(Clone)]
 pub struct PathExchange {
     segment: Segment,
     provider: VehicleIdx,

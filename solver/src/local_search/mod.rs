@@ -1,4 +1,4 @@
-mod neighborhood;
+pub mod neighborhood;
 use std::sync::Arc;
 use std::time::{self as stdtime, Instant};
 
@@ -7,7 +7,6 @@ use heuristic_framework::local_search::local_improver::{
     TakeAnyParallelRecursion, TakeFirstRecursion,
 };
 use heuristic_framework::local_search::LocalSearchSolver;
-use model::base_types::VehicleIdx;
 use model::network::Network;
 use objective_framework::{EvaluatedSolution, Objective};
 use solution::Schedule;
@@ -15,22 +14,24 @@ use solution::Schedule;
 use neighborhood::SpawnForMaintenanceAndPathExchange;
 use time::Duration;
 
+use self::neighborhood::swaps::SwapInfo;
+
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct ScheduleWithInfo {
     schedule: Schedule,
-    last_provider: Option<VehicleIdx>,
+    last_swap_info: SwapInfo,
     print_text: String,
 }
 
 impl ScheduleWithInfo {
     pub fn new(
         schedule: Schedule,
-        last_provider: Option<VehicleIdx>,
+        last_swap_info: SwapInfo,
         print_text: String,
     ) -> ScheduleWithInfo {
         ScheduleWithInfo {
             schedule,
-            last_provider,
+            last_swap_info,
             print_text,
         }
     }
@@ -39,8 +40,8 @@ impl ScheduleWithInfo {
         &self.schedule
     }
 
-    pub fn get_last_provider(&self) -> Option<VehicleIdx> {
-        self.last_provider
+    pub fn get_last_swap_info(&self) -> SwapInfo {
+        self.last_swap_info
     }
 
     pub fn get_print_text(&self) -> &str {

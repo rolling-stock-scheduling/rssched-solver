@@ -2,10 +2,9 @@ use std::fmt;
 
 use model::base_types::NodeIdx;
 
-#[derive(Debug, Clone, Copy)]
-
 /// A segment is a pair of non-depot node ids that represent a slice of a tour or path.
 /// Depot nodes can cause unexpected behavior.
+#[derive(Copy, Clone)]
 pub struct Segment {
     start: NodeIdx,
     end: NodeIdx,

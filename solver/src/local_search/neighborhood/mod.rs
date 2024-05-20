@@ -8,7 +8,7 @@ use time::Duration;
 
 use std::iter;
 
-use self::swaps::{PathExchange, SpawnVehicleForMaintenance, Swap};
+use self::swaps::{PathExchange, SpawnVehicleForMaintenance, Swap, SwapInfo};
 
 use super::ScheduleWithInfo;
 
@@ -51,10 +51,40 @@ impl Neighborhood<ScheduleWithInfo> for SpawnForMaintenanceAndPathExchange {
         schedule_with_info: &'a ScheduleWithInfo,
         // start_provider: Option<VehicleId>,
     ) -> Box<dyn Iterator<Item = ScheduleWithInfo> + Send + Sync + 'a> {
-        ///////////////////////////////////////////////////////////
-        // first: add maintenance slots (and spawn new vehicles) //
-        ///////////////////////////////////////////////////////////
+        let spawning_iterator = self.spawn_vehicle_for_maintenance_iterator(schedule_with_info);
+        let segment_exchange_iterator = self.segment_exchange_iterator(schedule_with_info);
+        let hitch_hiking_iterator = self.hitch_hiking_iterator(schedule_with_info);
 
+        match schedule_with_info.get_last_swap_info() {
+            SwapInfo::SpawnVehicleForMaintenance(_) => Box::new(
+                spawning_iterator
+                    .chain(segment_exchange_iterator)
+                    .chain(hitch_hiking_iterator),
+            ),
+            SwapInfo::PathExchange(_) => Box::new(
+                segment_exchange_iterator
+                    .chain(hitch_hiking_iterator)
+                    .chain(spawning_iterator),
+            ),
+            SwapInfo::AddTripForHitchHiking(_) => Box::new(
+                hitch_hiking_iterator
+                    .chain(spawning_iterator)
+                    .chain(segment_exchange_iterator),
+            ),
+            SwapInfo::NoSwap => Box::new(
+                spawning_iterator
+                    .chain(segment_exchange_iterator)
+                    .chain(hitch_hiking_iterator),
+            ),
+        }
+    }
+}
+
+impl SpawnForMaintenanceAndPathExchange {
+    pub fn spawn_vehicle_for_maintenance_iterator<'a>(
+        &'a self,
+        schedule_with_info: &'a ScheduleWithInfo,
+    ) -> impl Iterator<Item = ScheduleWithInfo> + Send + Sync + 'a {
         let schedule = schedule_with_info.get_schedule();
 
         let mut maintenance_nodes: Vec<NodeIdx> = self
@@ -71,32 +101,46 @@ impl Neighborhood<ScheduleWithInfo> for SpawnForMaintenanceAndPathExchange {
                 / self.network.track_count_of_maintenance_slot(m)
         });
 
-        let spawning_iterator = maintenance_nodes.into_iter().flat_map(move |maintenance| {
-            schedule.vehicles_iter_all().filter_map(move |receiver| {
-                // vehicle_types.into_iter().filter_map(move |vehicle_type| {
-                let swap = SpawnVehicleForMaintenance::new(maintenance, receiver);
-                match swap.apply(schedule) {
-                    Ok(new_schedule) => Some(ScheduleWithInfo::new(
-                        new_schedule,
-                        None,
-                        format!(
-                            "{} ({})",
-                            swap,
-                            self.network
-                                .vehicle_types()
-                                .get(schedule.vehicle_type_of(receiver).unwrap())
-                                .unwrap(),
-                        ),
-                    )),
-                    Err(_) => None,
-                }
-            })
-        });
+        let mut receivers: Vec<_> = schedule.vehicles_iter_all().collect();
+        if let SwapInfo::SpawnVehicleForMaintenance(last_receiver) =
+            schedule_with_info.get_last_swap_info()
+        {
+            if let Some(position) = receivers.iter().position(|&v| v == last_receiver) {
+                receivers.rotate_left(position);
+            }
+        }
 
-        ///////////////////////////////
-        // second: exchange segments //
-        ///////////////////////////////
+        receivers.into_iter().flat_map(move |receiver| {
+            let maintenance_nodes_clone = maintenance_nodes.clone();
+            maintenance_nodes_clone
+                .into_iter()
+                .filter_map(move |maintenance| {
+                    // vehicle_types.into_iter().filter_map(move |vehicle_type| {
+                    let swap = SpawnVehicleForMaintenance::new(maintenance, receiver);
+                    match swap.apply(schedule) {
+                        Ok(new_schedule) => Some(ScheduleWithInfo::new(
+                            new_schedule,
+                            SwapInfo::SpawnVehicleForMaintenance(receiver),
+                            format!(
+                                "{} ({})",
+                                swap,
+                                self.network
+                                    .vehicle_types()
+                                    .get(schedule.vehicle_type_of(receiver).unwrap())
+                                    .unwrap(),
+                            ),
+                        )),
+                        Err(_) => None,
+                    }
+                })
+        })
+    }
 
+    pub fn segment_exchange_iterator<'a>(
+        &'a self,
+        schedule_with_info: &'a ScheduleWithInfo,
+    ) -> impl Iterator<Item = ScheduleWithInfo> + Send + Sync + 'a {
+        let schedule = schedule_with_info.get_schedule();
         let mut providers: Vec<VehicleIdx> = if self.only_dummy_provider {
             schedule.dummy_iter().collect()
         } else {
@@ -107,49 +151,61 @@ impl Neighborhood<ScheduleWithInfo> for SpawnForMaintenanceAndPathExchange {
         // e.g. start_provider = v5
         // so v0, v1, v2, v3, v4, v5, v6, v7, v8, v9
         // becomes v5, v6, v7, v8, v9, v0, v1, v2, v3, v4
-        if let Some(last_provider) = schedule_with_info.get_last_provider() {
+        if let SwapInfo::PathExchange(last_provider) = schedule_with_info.get_last_swap_info() {
             if let Some(position) = providers.iter().position(|&v| v == last_provider) {
                 providers.rotate_left(position);
             }
         }
 
-        let segment_exchange_iterator =
-            // as provider first take dummies then real Vehicles:
-            providers.into_iter().flat_map(move |provider|
-                // create segment of provider's tour
-                self.segments(provider, schedule)
-                .flat_map(move |seg|
-                    // as receiver first take the real Vehicles then the dummies
-                    self.real_and_dummy_vehicles(schedule)
-                    // skip provider as receiver
-                    .filter(move |&u| u != provider)
-                    // create the swap
-                    .filter_map(move |receiver|{
-                        let swap = PathExchange::new(seg, provider, receiver);
-                        match swap.apply(schedule) {
-                            Ok(new_schedule) => {
-                                Some(ScheduleWithInfo::new(
-                                    new_schedule,
-                                    Some(provider),
-                                    format!(
-                                        "PathExchange {} from {}{} to {}{}",
-                                        seg,
-                                        provider,
-                                        schedule.vehicle_type_of(provider).map(|vt| format!(" ({})", self.network.vehicle_types().get(vt).unwrap())).unwrap_or("".to_string()),
-                                        receiver,
-                                        schedule.vehicle_type_of(receiver).map(|vt| format!(" ({})", self.network.vehicle_types().get(vt).unwrap())).unwrap_or("".to_string()),
-                                    )
-                                ))
-                            }
-                            Err(_) => None,
+        // as provider first take dummies then real Vehicles:
+        providers.into_iter().flat_map(move |provider|
+            // create segment of provider's tour
+            self.segments(provider, schedule)
+            .flat_map(move |seg|
+                // as receiver first take the real Vehicles then the dummies
+                self.real_and_dummy_vehicles(schedule)
+                // skip provider as receiver
+                .filter(move |&u| u != provider)
+                // create the swap
+                .filter_map(move |receiver|{
+                    let swap = PathExchange::new(seg, provider, receiver);
+                    match swap.apply(schedule) {
+                        Ok(new_schedule) => {
+                            Some(ScheduleWithInfo::new(
+                                new_schedule,
+                                SwapInfo::PathExchange(provider),
+                                format!(
+                                    "PathExchange {} from {}{} to {}{}",
+                                    seg,
+                                    provider,
+                                    schedule.vehicle_type_of(provider).map(|vt| format!(" ({})", self.network.vehicle_types().get(vt).unwrap())).unwrap_or("".to_string()),
+                                    receiver,
+                                    schedule.vehicle_type_of(receiver).map(|vt| format!(" ({})", self.network.vehicle_types().get(vt).unwrap())).unwrap_or("".to_string()),
+                                )
+                            ))
                         }
-                    })
-                ));
+                        Err(_) => None,
+                    }
+                })
+            ))
+    }
 
-        //////////////////////////////////////////////////
-        // third: add trips to vehicle for hitch hiking //
-        //////////////////////////////////////////////////
-        let hitch_hiking_iterator = schedule.vehicles_iter_all().flat_map(move |vehicle| {
+    pub fn hitch_hiking_iterator<'a>(
+        &'a self,
+        schedule_with_info: &'a ScheduleWithInfo,
+    ) -> impl Iterator<Item = ScheduleWithInfo> + Send + Sync + 'a {
+        let schedule = schedule_with_info.get_schedule();
+
+        let mut vehicles: Vec<_> = schedule.vehicles_iter_all().collect();
+
+        if let SwapInfo::AddTripForHitchHiking(last_vehicle) =
+            schedule_with_info.get_last_swap_info()
+        {
+            if let Some(position) = vehicles.iter().position(|&v| v == last_vehicle) {
+                vehicles.rotate_left(position);
+            }
+        }
+        vehicles.into_iter().flat_map(move |vehicle| {
             let vehicle_type = schedule.vehicle_type_of(vehicle).unwrap();
             self.network
                 .service_nodes(vehicle_type)
@@ -158,23 +214,15 @@ impl Neighborhood<ScheduleWithInfo> for SpawnForMaintenanceAndPathExchange {
                     match swap.apply(schedule) {
                         Ok(new_schedule) => Some(ScheduleWithInfo::new(
                             new_schedule,
-                            None,
+                            SwapInfo::AddTripForHitchHiking(vehicle),
                             format!("{}", swap),
                         )),
                         Err(_) => None,
                     }
                 })
-        });
-
-        Box::new(
-            spawning_iterator
-                .chain(segment_exchange_iterator)
-                .chain(hitch_hiking_iterator),
-        )
+        })
     }
-}
 
-impl SpawnForMaintenanceAndPathExchange {
     fn segments<'a>(
         &'a self,
         provider: VehicleIdx,

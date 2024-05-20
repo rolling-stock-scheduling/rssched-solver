@@ -15,6 +15,14 @@ pub trait Swap: fmt::Display + Send + Sync {
     fn apply(&self, schedule: &Schedule) -> Result<Schedule, String>;
 }
 
+#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
+pub enum SwapInfo {
+    PathExchange(VehicleIdx),               // last provider
+    AddTripForHitchHiking(VehicleIdx),      // last vehicle
+    SpawnVehicleForMaintenance(VehicleIdx), // last receiver
+    NoSwap,
+}
+
 // assumes that all vehicles are real vehicles in the given schedule
 fn improve_depot_and_recompute_transitions(
     schedule: Schedule,

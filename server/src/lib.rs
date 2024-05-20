@@ -2,6 +2,7 @@ use model::json_serialisation::load_rolling_stock_problem_instance_from_json;
 use objective_framework::EvaluatedSolution;
 use objective_framework::Objective;
 use solution::json_serialisation::schedule_to_json;
+use solver::local_search::neighborhood::swaps::SwapInfo;
 use solver::local_search::ScheduleWithInfo;
 use solver::min_cost_flow_solver::MinCostFlowSolver;
 use solver::objective;
@@ -33,7 +34,7 @@ pub fn solve_instance(input_data: serde_json::Value) -> serde_json::Value {
 
     let start_schedule_with_info = ScheduleWithInfo::new(
         start_schedule.improve_depots(None),
-        None,
+        SwapInfo::NoSwap,
         "Result from min cost flow solver".to_string(),
     );
 
@@ -62,7 +63,7 @@ pub fn solve_instance(input_data: serde_json::Value) -> serde_json::Value {
         .reassign_end_depots_consistent_with_transitions();
     let final_schedule_with_info = ScheduleWithInfo::new(
         final_schedule,
-        None,
+        SwapInfo::NoSwap,
         "Final schedule after reassigning end depots".to_string(),
     );
     let final_solution = objective.evaluate(final_schedule_with_info);
