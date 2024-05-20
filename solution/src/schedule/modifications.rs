@@ -222,7 +222,7 @@ impl Schedule {
     }
 
     /// Add a path to the tour of a vehicle (dummy or real). If the path causes conflicts, the conflicting nodes of
-    /// the old tour are removed.
+    /// the old tour are removed. Return the new schedule and the removed path as Option.
     /// # Errors
     /// If some node on the path is not compatible with the vehicle type (if real vehicle) an error is returned.
     /// If a train formation of some node on the path is full, an error is returned.
@@ -230,7 +230,7 @@ impl Schedule {
         &self,
         vehicle_idx: VehicleIdx,
         path: Path,
-    ) -> Result<Schedule, String> {
+    ) -> Result<(Schedule, Option<Path>), String> {
         if let Ok(vehicle_type_id) = self.vehicle_type_of(vehicle_idx) {
             if path.iter().any(|n| {
                 !self
@@ -282,7 +282,7 @@ impl Schedule {
         let (new_tour, removed_path_opt) = tours.get(&vehicle_idx).unwrap().insert_path(path);
 
         // remove vehicle from train formations for nodes of removed path
-        if let Some(removed_path) = removed_path_opt {
+        if let Some(ref removed_path) = removed_path_opt {
             self.update_train_formation(
                 &mut train_formations,
                 &mut unserved_passengers,
@@ -306,20 +306,23 @@ impl Schedule {
             &tours,
         );
 
-        Ok(Schedule::new(
-            self.vehicles.clone(),
-            tours,
-            next_period_transitions,
-            train_formations,
-            depot_usage,
-            self.dummy_tours.clone(),
-            self.vehicle_counter,
-            self.vehicle_ids_grouped_and_sorted.clone(),
-            self.dummy_ids_sorted.clone(),
-            unserved_passengers,
-            maintenance_violation,
-            costs,
-            self.network.clone(),
+        Ok((
+            Schedule::new(
+                self.vehicles.clone(),
+                tours,
+                next_period_transitions,
+                train_formations,
+                depot_usage,
+                self.dummy_tours.clone(),
+                self.vehicle_counter,
+                self.vehicle_ids_grouped_and_sorted.clone(),
+                self.dummy_ids_sorted.clone(),
+                unserved_passengers,
+                maintenance_violation,
+                costs,
+                self.network.clone(),
+            ),
+            removed_path_opt,
         ))
     }
 
@@ -1273,7 +1276,7 @@ impl Schedule {
                             new_tour,
                             &tours_updated_one_by_one,
                             &self.tours,
-                            self.get_network(),
+                            &self.get_network(),
                         );
                         tours_updated_one_by_one.insert(*vehicle, new_tour);
                         new_transition
@@ -1284,7 +1287,7 @@ impl Schedule {
                         let new_transition = old_transition.add_vehicle_to_own_cycle(
                             *vehicle,
                             new_tour,
-                            self.get_network(),
+                            &self.get_network(),
                         );
                         tours_updated_one_by_one.insert(*vehicle, new_tour);
                         new_transition
@@ -1295,7 +1298,7 @@ impl Schedule {
                             *vehicle,
                             &tours_updated_one_by_one,
                             &self.tours,
-                            self.get_network(),
+                            &self.get_network(),
                         )
                     }
                     _ => unreachable!(),
@@ -1351,7 +1354,7 @@ impl Schedule {
             let sub_segment_start = path.first();
             let (end_pos, sub_segment_end) =
                 match new_tour_receiver.latest_not_reaching_node(sub_segment_start) {
-                    None => (path.len() - 1, path.last()),
+                    None => (path.length() - 1, path.last()),
                     Some(pos) => {
                         // the segment can only be inserted before the blocker
                         let blocker = new_tour_receiver.nth_node(pos).unwrap();

@@ -216,7 +216,7 @@ fn vehicle_to_json(
         let node2 = network.node(node2_idx);
         if network.node(node1_idx).end_location() != node2.start_location() {
             let (departure_time, arrival_time) =
-                schedule_dead_head_trip(node1_idx, node2_idx, network);
+                schedule_dead_head_trip(node1_idx, node2_idx, &network);
             let dead_head_trip = JsonFleetDeadHeadTrip {
                 id: "dht_".to_string() + &dead_head_trips_counter.to_string(),
                 origin: network.locations().get_id(node1.end_location()).unwrap(),

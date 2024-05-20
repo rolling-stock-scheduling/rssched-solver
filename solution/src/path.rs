@@ -60,23 +60,23 @@ impl Path {
 
 // methods
 impl Path {
-    pub(crate) fn iter(&self) -> impl Iterator<Item = NodeIdx> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = NodeIdx> + '_ {
         self.node_sequence.iter().copied()
     }
 
-    pub(crate) fn len(&self) -> usize {
+    pub fn length(&self) -> usize {
         self.node_sequence.len()
     }
 
-    pub(crate) fn first(&self) -> NodeIdx {
+    pub fn first(&self) -> NodeIdx {
         self.node_sequence[0]
     }
 
-    pub(crate) fn last(&self) -> NodeIdx {
+    pub fn last(&self) -> NodeIdx {
         self.node_sequence[self.node_sequence.len() - 1]
     }
 
-    pub(crate) fn consume(self) -> Vec<NodeIdx> {
+    pub fn consume(self) -> Vec<NodeIdx> {
         self.node_sequence
     }
 

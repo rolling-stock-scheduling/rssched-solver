@@ -1,6 +1,6 @@
 pub mod swaps;
 use heuristic_framework::local_search::Neighborhood;
-use model::base_types::VehicleIdx;
+use model::base_types::{NodeIdx, VehicleIdx};
 use model::network::Network;
 use solution::{segment::Segment, Schedule};
 use std::sync::Arc;
@@ -51,34 +51,47 @@ impl Neighborhood<ScheduleWithInfo> for SpawnForMaintenanceAndPathExchange {
         schedule_with_info: &'a ScheduleWithInfo,
         // start_provider: Option<VehicleId>,
     ) -> Box<dyn Iterator<Item = ScheduleWithInfo> + Send + Sync + 'a> {
-        ///////////////////////////////////////////
-        // first: spawn vehicles for maintenance //
-        ///////////////////////////////////////////
+        ///////////////////////////////////////////////////////////
+        // first: add maintenance slots (and spawn new vehicles) //
+        ///////////////////////////////////////////////////////////
 
         let schedule = schedule_with_info.get_schedule();
 
-        // TODO: next neighborhood start with a different maintenance node (for speedup)
-        let spawning_iterator = self
+        let mut maintenance_nodes: Vec<NodeIdx> = self
             .network
             .maintenance_nodes()
-            .flat_map(move |maintenance| {
-                let vehicle_types: Vec<_> = self.network.vehicle_types().iter().collect();
-                vehicle_types.into_iter().filter_map(move |vehicle_type| {
-                    let swap = SpawnVehicleForMaintenance::new(maintenance, vehicle_type);
-                    match swap.apply(schedule) {
-                        Ok(schedule) => Some(ScheduleWithInfo::new(
-                            schedule,
-                            None,
-                            format!(
-                                "Spawned vehicle of type {} for maintenance slot {}",
-                                self.network.vehicle_types().get(vehicle_type).unwrap(),
-                                maintenance
-                            ),
-                        )),
-                        Err(_) => None,
-                    }
-                })
-            });
+            .filter(|&m| {
+                schedule.train_formation_of(m).vehicle_count()
+                    < self.network.track_count_of_maintenance_slot(m)
+            })
+            .collect();
+        // sort maintenance nodes by workload
+        maintenance_nodes.sort_by_key(|&m| {
+            (schedule.train_formation_of(m).vehicle_count() * 10000)
+                / self.network.track_count_of_maintenance_slot(m)
+        });
+
+        let spawning_iterator = maintenance_nodes.into_iter().flat_map(move |maintenance| {
+            schedule.vehicles_iter_all().filter_map(move |receiver| {
+                // vehicle_types.into_iter().filter_map(move |vehicle_type| {
+                let swap = SpawnVehicleForMaintenance::new(maintenance, receiver);
+                match swap.apply(schedule) {
+                    Ok(new_schedule) => Some(ScheduleWithInfo::new(
+                        new_schedule,
+                        None,
+                        format!(
+                            "{} ({})",
+                            swap,
+                            self.network
+                                .vehicle_types()
+                                .get(schedule.vehicle_type_of(receiver).unwrap())
+                                .unwrap(),
+                        ),
+                    )),
+                    Err(_) => None,
+                }
+            })
+        });
 
         ///////////////////////////////
         // second: exchange segments //
@@ -119,13 +132,13 @@ impl Neighborhood<ScheduleWithInfo> for SpawnForMaintenanceAndPathExchange {
                                     new_schedule,
                                     Some(provider),
                                     format!(
-                                        "PathExchange from {}{} to {}{} of segment {}",
+                                        "PathExchange {} from {}{} to {}{}",
+                                        seg,
                                         provider,
                                         schedule.vehicle_type_of(provider).map(|vt| format!(" ({})", self.network.vehicle_types().get(vt).unwrap())).unwrap_or("".to_string()),
                                         receiver,
                                         schedule.vehicle_type_of(receiver).map(|vt| format!(" ({})", self.network.vehicle_types().get(vt).unwrap())).unwrap_or("".to_string()),
-                                        seg
-                                    ) 
+                                    )
                                 ))
                             }
                             Err(_) => None,
@@ -133,9 +146,31 @@ impl Neighborhood<ScheduleWithInfo> for SpawnForMaintenanceAndPathExchange {
                     })
                 ));
 
-                // TODO: Add iterator that inserts a single trip to a vehicle (for hitch-hiking)
+        //////////////////////////////////////////////////
+        // third: add trips to vehicle for hitch hiking //
+        //////////////////////////////////////////////////
+        let hitch_hiking_iterator = schedule.vehicles_iter_all().flat_map(move |vehicle| {
+            let vehicle_type = schedule.vehicle_type_of(vehicle).unwrap();
+            self.network
+                .service_nodes(vehicle_type)
+                .filter_map(move |node| {
+                    let swap = swaps::AddTripForHitchHiking::new(node, vehicle);
+                    match swap.apply(schedule) {
+                        Ok(new_schedule) => Some(ScheduleWithInfo::new(
+                            new_schedule,
+                            None,
+                            format!("{}", swap),
+                        )),
+                        Err(_) => None,
+                    }
+                })
+        });
 
-        Box::new(spawning_iterator.chain(segment_exchange_iterator))
+        Box::new(
+            spawning_iterator
+                .chain(segment_exchange_iterator)
+                .chain(hitch_hiking_iterator),
+        )
     }
 }
 

@@ -291,8 +291,8 @@ impl Schedule {
         }
     }
 
-    pub fn get_network(&self) -> &Network {
-        &self.network
+    pub fn get_network(&self) -> Arc<Network> {
+        self.network.clone()
     }
 
     pub fn get_vehicle_types(&self) -> Arc<VehicleTypes> {
