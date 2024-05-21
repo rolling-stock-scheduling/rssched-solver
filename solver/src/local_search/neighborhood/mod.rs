@@ -12,15 +12,6 @@ use self::swaps::{PathExchange, SpawnVehicleForMaintenance, Swap, SwapInfo};
 
 use super::ScheduleWithInfo;
 
-///////////////////////////////////////////////////////////
-////////////////// LimitedExchanges ///////////////////////
-///////////////////////////////////////////////////////////
-
-/// Creates all PathExchanges where every vehicle is receiver and every other vehicle is provider.
-/// All segments starting and ending at a non-depot node are considered.
-/// The segment time length is smaller than the threshold. (None means unlimite.)
-/// The length of a segment is measured from the start_time of the first node to the end_time of
-/// the last node.
 #[derive(Clone)]
 pub struct SpawnForMaintenanceAndPathExchange {
     segment_length_limit: Option<Duration>,
@@ -49,32 +40,42 @@ impl Neighborhood<ScheduleWithInfo> for SpawnForMaintenanceAndPathExchange {
     fn neighbors_of<'a>(
         &'a self,
         schedule_with_info: &'a ScheduleWithInfo,
-        // start_provider: Option<VehicleId>,
     ) -> Box<dyn Iterator<Item = ScheduleWithInfo> + Send + Sync + 'a> {
         let spawning_iterator = self.spawn_vehicle_for_maintenance_iterator(schedule_with_info);
         let segment_exchange_iterator = self.segment_exchange_iterator(schedule_with_info);
         let hitch_hiking_iterator = self.hitch_hiking_iterator(schedule_with_info);
+        let remove_single_node_iterator = self.remove_single_node_iterator(schedule_with_info);
 
         match schedule_with_info.get_last_swap_info() {
             SwapInfo::SpawnVehicleForMaintenance(_) => Box::new(
                 spawning_iterator
                     .chain(segment_exchange_iterator)
-                    .chain(hitch_hiking_iterator),
+                    .chain(hitch_hiking_iterator)
+                    .chain(remove_single_node_iterator),
             ),
             SwapInfo::PathExchange(_) => Box::new(
                 segment_exchange_iterator
                     .chain(hitch_hiking_iterator)
+                    .chain(remove_single_node_iterator)
                     .chain(spawning_iterator),
             ),
             SwapInfo::AddTripForHitchHiking(_) => Box::new(
                 hitch_hiking_iterator
+                    .chain(remove_single_node_iterator)
                     .chain(spawning_iterator)
                     .chain(segment_exchange_iterator),
+            ),
+            SwapInfo::RemoveSingleNode(_) => Box::new(
+                remove_single_node_iterator
+                    .chain(spawning_iterator)
+                    .chain(segment_exchange_iterator)
+                    .chain(hitch_hiking_iterator),
             ),
             SwapInfo::NoSwap => Box::new(
                 spawning_iterator
                     .chain(segment_exchange_iterator)
-                    .chain(hitch_hiking_iterator),
+                    .chain(hitch_hiking_iterator)
+                    .chain(remove_single_node_iterator),
             ),
         }
     }
@@ -134,6 +135,11 @@ impl SpawnForMaintenanceAndPathExchange {
         })
     }
 
+    /// Creates all PathExchanges where every vehicle is receiver and every other vehicle is provider.
+    /// All segments starting and ending at a non-depot node are considered.
+    /// The segment time length is smaller than the threshold. (None means unlimite.)
+    /// The length of a segment is measured from the start_time of the first node to the end_time of
+    /// the last node.
     pub fn segment_exchange_iterator<'a>(
         &'a self,
         schedule_with_info: &'a ScheduleWithInfo,
@@ -218,6 +224,35 @@ impl SpawnForMaintenanceAndPathExchange {
                         Err(_) => None,
                     }
                 })
+        })
+    }
+
+    pub fn remove_single_node_iterator<'a>(
+        &'a self,
+        schedule_with_info: &'a ScheduleWithInfo,
+    ) -> impl Iterator<Item = ScheduleWithInfo> + Send + Sync + 'a {
+        let schedule = schedule_with_info.get_schedule();
+        let mut vehicles: Vec<_> = schedule.vehicles_iter_all().collect();
+
+        if let SwapInfo::RemoveSingleNode(last_vehicle) = schedule_with_info.get_last_swap_info() {
+            if let Some(position) = vehicles.iter().position(|&v| v == last_vehicle) {
+                vehicles.rotate_left(position);
+            }
+        }
+
+        vehicles.into_iter().flat_map(move |vehicle| {
+            let tour = schedule.tour_of(vehicle).unwrap();
+            tour.all_non_depot_nodes_iter().filter_map(move |node| {
+                let swap = swaps::RemoveSingleNode::new(node, vehicle);
+                match swap.apply(schedule) {
+                    Ok(new_schedule) => Some(ScheduleWithInfo::new(
+                        new_schedule,
+                        SwapInfo::RemoveSingleNode(vehicle),
+                        format!("{}", swap),
+                    )),
+                    Err(_) => None,
+                }
+            })
         })
     }
 

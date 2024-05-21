@@ -265,7 +265,8 @@ impl Transition {
         }
     }
 
-    // TODO write test for this function (with multiple vehicles being removed in a raw)
+    // TODO write test for this function (with multiple vehicles being removed in a raw) and with a
+    // maintenance vehicle removed
     pub fn remove_vehicle(
         &self,
         vehicle: VehicleIdx,

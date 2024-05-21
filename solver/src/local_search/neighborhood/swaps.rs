@@ -1,8 +1,10 @@
 mod add_trip_for_hitch_hiking;
 mod path_exchange;
+mod remove_single_node;
 mod spawn_vehicle_for_maintenance;
 pub use add_trip_for_hitch_hiking::AddTripForHitchHiking;
 pub use path_exchange::PathExchange;
+pub use remove_single_node::RemoveSingleNode;
 pub use spawn_vehicle_for_maintenance::SpawnVehicleForMaintenance;
 
 use std::fmt;
@@ -17,9 +19,10 @@ pub trait Swap: fmt::Display + Send + Sync {
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub enum SwapInfo {
+    SpawnVehicleForMaintenance(VehicleIdx), // last receiver
     PathExchange(VehicleIdx),               // last provider
     AddTripForHitchHiking(VehicleIdx),      // last vehicle
-    SpawnVehicleForMaintenance(VehicleIdx), // last receiver
+    RemoveSingleNode(VehicleIdx),           // last vehicle
     NoSwap,
 }
 

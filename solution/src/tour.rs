@@ -52,6 +52,10 @@ impl Tour {
         self.is_dummy
     }
 
+    pub fn visits_maintenance(&self) -> bool {
+        self.visits_maintenance
+    }
+
     pub fn len(&self) -> usize {
         self.nodes.len()
     }

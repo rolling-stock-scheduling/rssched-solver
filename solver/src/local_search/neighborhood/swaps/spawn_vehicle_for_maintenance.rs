@@ -27,6 +27,13 @@ impl SpawnVehicleForMaintenance {
 
 impl Swap for SpawnVehicleForMaintenance {
     fn apply(&self, schedule: &Schedule) -> Result<Schedule, String> {
+        if schedule.tour_of(self.vehicle).unwrap().visits_maintenance() {
+            return Err(format!(
+                "Vehicle {} already visits maintenance slot",
+                self.vehicle
+            ));
+        }
+
         let occupants = schedule.train_formation_of(self.maintenance_slot).ids();
 
         let mut changed_vehicles = vec![];

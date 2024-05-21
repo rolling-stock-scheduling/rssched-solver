@@ -5,8 +5,7 @@ use solution::{path::Path, Schedule};
 
 use super::{improve_depot_and_recompute_transitions, Swap};
 
-/// Forces a maintenance slot to a given vehicle and spawns a new vehicle for the conflict path.
-/// If the maintenance slot is already fully occupied, the last occupant is removed.
+/// Adds a trip for hitch hiking to a vehicle.
 pub struct AddTripForHitchHiking {
     node: NodeIdx,
     vehicle: VehicleIdx,
@@ -20,6 +19,14 @@ impl AddTripForHitchHiking {
 
 impl Swap for AddTripForHitchHiking {
     fn apply(&self, schedule: &Schedule) -> Result<Schedule, String> {
+        if let Some(max_formation_count) = schedule
+            .get_network()
+            .maximal_formation_count_for(self.node)
+        {
+            if schedule.train_formation_of(self.node).vehicle_count() >= max_formation_count {
+                return Err("node is already fully occupied".to_string());
+            }
+        }
         let (sched, conflict) = schedule.add_path_to_vehicle_tour(
             self.vehicle,
             Path::new_from_single_node(self.node, schedule.get_network()),
