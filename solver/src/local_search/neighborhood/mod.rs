@@ -110,29 +110,27 @@ impl SpawnForMaintenanceAndPathExchange {
             }
         }
 
-        receivers.into_iter().flat_map(move |receiver| {
-            let maintenance_nodes_clone = maintenance_nodes.clone();
-            maintenance_nodes_clone
-                .into_iter()
-                .filter_map(move |maintenance| {
-                    // vehicle_types.into_iter().filter_map(move |vehicle_type| {
-                    let swap = SpawnVehicleForMaintenance::new(maintenance, receiver);
-                    match swap.apply(schedule) {
-                        Ok(new_schedule) => Some(ScheduleWithInfo::new(
-                            new_schedule,
-                            SwapInfo::SpawnVehicleForMaintenance(receiver),
-                            format!(
-                                "{} ({})",
-                                swap,
-                                self.network
-                                    .vehicle_types()
-                                    .get(schedule.vehicle_type_of(receiver).unwrap())
-                                    .unwrap(),
-                            ),
-                        )),
-                        Err(_) => None,
-                    }
-                })
+        maintenance_nodes.into_iter().flat_map(move |maintenance| {
+            let receivers_clone = receivers.clone();
+            receivers_clone.into_iter().filter_map(move |receiver| {
+                // vehicle_types.into_iter().filter_map(move |vehicle_type| {
+                let swap = SpawnVehicleForMaintenance::new(maintenance, receiver);
+                match swap.apply(schedule) {
+                    Ok(new_schedule) => Some(ScheduleWithInfo::new(
+                        new_schedule,
+                        SwapInfo::SpawnVehicleForMaintenance(receiver),
+                        format!(
+                            "{} ({})",
+                            swap,
+                            self.network
+                                .vehicle_types()
+                                .get(schedule.vehicle_type_of(receiver).unwrap())
+                                .unwrap(),
+                        ),
+                    )),
+                    Err(_) => None,
+                }
+            })
         })
     }
 
