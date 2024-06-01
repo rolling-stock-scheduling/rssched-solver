@@ -15,6 +15,7 @@ use crate::{
 fn test_load_from_json_no_null() {
     test_load_from_json("resources/small_test_input.json");
 }
+
 #[test]
 fn test_load_from_json_with_null() {
     test_load_from_json("resources/small_test_input_with_null_values.json");
@@ -34,8 +35,8 @@ fn test_load_from_json(path: &str) {
     // ASSERT
     let locations = network.locations();
     let loc0 = locations.get(LocationIdx::from(0)).unwrap();
-    let loc2 = locations.get(LocationIdx::from(2)).unwrap();
-    let loc3 = locations.get(LocationIdx::from(3)).unwrap();
+    let loc2 = locations.get(LocationIdx::from(1)).unwrap();
+    let loc3 = locations.get(LocationIdx::from(2)).unwrap();
 
     let vt0 = VehicleTypeIdx::from(0);
     let vt1 = VehicleTypeIdx::from(1);
@@ -46,142 +47,141 @@ fn test_load_from_json(path: &str) {
     );
     assert_eq!(
         *vehicle_types.get(vt1).unwrap(),
-        VehicleType::new(vt1, String::from("Vehicle Type 1"), 80, 40, None,)
+        VehicleType::new(vt1, String::from("IR"), 80, 40, None,)
     );
 
     assert_eq!(loc0, Location::of(LocationIdx::from(0)));
-    assert_eq!(loc2, Location::of(LocationIdx::from(2)));
-    assert_eq!(loc3, Location::of(LocationIdx::from(3)));
+    assert_eq!(loc2, Location::of(LocationIdx::from(1)));
+    assert_eq!(loc3, Location::of(LocationIdx::from(2)));
 
-    assert_eq!(locations.get_id(loc0).unwrap(), "Location 0");
-    assert_eq!(locations.get_id(loc2).unwrap(), "Location 2");
-    assert_eq!(locations.get_id(loc3).unwrap(), "Location 3");
+    assert_eq!(locations.get_id(loc0).unwrap(), "ZH");
+    assert_eq!(locations.get_id(loc2).unwrap(), "BN");
+    assert_eq!(locations.get_id(loc3).unwrap(), "LU");
 
-    assert_eq!(network.all_nodes().count(), 10);
+    assert_eq!(network.all_nodes().count(), 12);
+
+    network.all_nodes().for_each(|node| {
+        println!("{:?}", node);
+    });
 
     assert_eq!(
-        *network.node(NodeIdx::start_depot_from(1)),
-        Node::create_start_depot_node(
-            NodeIdx::start_depot_from(1),
-            DepotIdx::from(1),
-            loc0,
-            String::from("Start Depot 1 (at 0)"),
-        )
+        *network.node(NodeIdx::start_depot_from(0)),
+        Node::create_start_depot_node(0, String::from("s_depot_ZH"), DepotIdx::from(0), loc0,)
     );
     assert_eq!(
         *network.node(NodeIdx::end_depot_from(1)),
-        Node::create_end_depot_node(
-            NodeIdx::end_depot_from(1),
-            DepotIdx::from(1),
-            loc0,
-            String::from("End Depot 1 (at 0)"),
-        )
+        Node::create_end_depot_node(1, String::from("e_depot_ZH"), DepotIdx::from(0), loc0,)
     );
     assert_eq!(
-        network.capacity_of(DepotIdx::from(1), VehicleTypeIdx::from(0)),
+        network.capacity_of(DepotIdx::from(0), VehicleTypeIdx::from(0)),
         5
     );
 
     assert_eq!(
-        network.capacity_of(DepotIdx::from(1), VehicleTypeIdx::from(1)),
+        network.capacity_of(DepotIdx::from(0), VehicleTypeIdx::from(1)),
         5
     );
 
     assert_eq!(
         *network.node(NodeIdx::start_depot_from(2)),
-        Node::create_start_depot_node(
-            NodeIdx::start_depot_from(2),
-            DepotIdx::from(2),
-            loc2,
-            String::from("Start Depot 2 (at 2)"),
-        )
+        Node::create_start_depot_node(2, String::from("s_depot_BN"), DepotIdx::from(1), loc2,)
     );
     assert_eq!(
-        *network.node(NodeIdx::end_depot_from(2)),
-        Node::create_end_depot_node(
-            NodeIdx::end_depot_from(2),
-            DepotIdx::from(2),
-            loc2,
-            String::from("End Depot 2 (at 2)"),
-        )
+        *network.node(NodeIdx::end_depot_from(3)),
+        Node::create_end_depot_node(3, String::from("e_depot_BN"), DepotIdx::from(1), loc2,)
     );
     assert_eq!(
-        network.capacity_of(DepotIdx::from(2), VehicleTypeIdx::from(0)),
-        0
-    );
-    assert_eq!(
-        network.capacity_of(DepotIdx::from(2), VehicleTypeIdx::from(1)),
+        network.capacity_of(DepotIdx::from(1), VehicleTypeIdx::from(0)),
         500
     );
-
     assert_eq!(
-        *network.node(NodeIdx::service_from(0, 0)),
-        Node::create_service_trip_node(Node::create_service_trip(
-            NodeIdx::service_from(0, 0),
-            vt1,
-            loc0,
-            loc3,
-            DateTime::new("2023-07-24T12:00:00"),
-            DateTime::new("2023-07-24T12:30:00"),
-            Distance::from_meter(600),
-            50,
-            40,
-            String::from("Trip 0-0"),
-        ))
+        network.capacity_of(DepotIdx::from(1), VehicleTypeIdx::from(1)),
+        0
     );
 
     assert_eq!(
-        *network.node(NodeIdx::service_from(0, 1)),
-        Node::create_service_trip_node(Node::create_service_trip(
-            NodeIdx::service_from(0, 1),
-            vt1,
-            loc3,
-            loc2,
-            DateTime::new("2023-07-24T12:40:00"),
-            DateTime::new("2023-07-24T13:10:00"),
-            Distance::from_meter(400),
-            100,
-            90,
-            String::from("Trip 0-1"),
-        ))
+        *network.node(NodeIdx::service_from(6)),
+        Node::create_service_trip_node(
+            6,
+            Node::create_service_trip(
+                String::from("trip_1a_seg_0"),
+                vt0,
+                loc2,
+                loc3,
+                DateTime::new("2023-07-24T12:00:00"),
+                DateTime::new("2023-07-24T14:00:00"),
+                Distance::from_meter(2000),
+                80,
+                80,
+                None
+            )
+        )
     );
 
     assert_eq!(
-        *network.node(NodeIdx::service_from(2, 0)),
-        Node::create_service_trip_node(Node::create_service_trip(
-            NodeIdx::service_from(2, 0),
-            vt0,
-            loc2,
-            loc3,
-            DateTime::new("2023-07-24T14:00:00"),
-            DateTime::new("2023-07-24T16:00:00"),
-            Distance::from_meter(2000),
-            0,
-            0,
-            String::from("Service Trip 2"),
-        ))
+        *network.node(NodeIdx::service_from(7)),
+        Node::create_service_trip_node(
+            7,
+            Node::create_service_trip(
+                String::from("trip_1b_seg_0"),
+                vt0,
+                loc2,
+                loc3,
+                DateTime::new("2023-07-24T14:00:00"),
+                DateTime::new("2023-07-24T16:00:00"),
+                Distance::from_meter(2000),
+                1,
+                0,
+                None
+            )
+        )
     );
 
     assert_eq!(
-        *network.node(NodeIdx::maintenance_from(0)),
-        Node::create_maintenance_node(Node::create_maintenance(
-            NodeIdx::maintenance_from(0),
-            loc0,
-            DateTime::new("2023-07-24T6:00:00"),
-            DateTime::new("2023-07-24T12:00:00"),
-            String::from("Maintenance Slot 0"),
-        ))
+        *network.node(NodeIdx::service_from(8)),
+        Node::create_service_trip_node(
+            8,
+            Node::create_service_trip(
+                String::from("trip_0_seg_0"),
+                vt1,
+                loc0,
+                loc3,
+                DateTime::new("2023-07-24T12:00:00"),
+                DateTime::new("2023-07-24T12:30:00"),
+                Distance::from_meter(600),
+                50,
+                40,
+                Some(1)
+            )
+        )
     );
 
     assert_eq!(
-        *network.node(NodeIdx::maintenance_from(1)),
-        Node::create_maintenance_node(Node::create_maintenance(
-            NodeIdx::maintenance_from(1),
-            loc0,
-            DateTime::new("2023-07-24T12:00:00"),
-            DateTime::new("2023-07-24T18:00:00"),
-            String::from("Maintenance 1"),
-        ))
+        *network.node(NodeIdx::maintenance_from(10)),
+        Node::create_maintenance_node(
+            10,
+            Node::create_maintenance(
+                String::from("maintenance_slot_0"),
+                loc0,
+                DateTime::new("2023-07-24T6:00:00"),
+                DateTime::new("2023-07-24T12:00:00"),
+                2
+            )
+        )
+    );
+
+    assert_eq!(
+        *network.node(NodeIdx::maintenance_from(11)),
+        Node::create_maintenance_node(
+            11,
+            Node::create_maintenance(
+                String::from("maintenance_slot_1"),
+                loc2,
+                DateTime::new("2023-07-24T12:00:00"),
+                DateTime::new("2023-07-24T18:00:00"),
+                1
+            )
+        )
     );
 
     assert_travel_time(loc0, loc0, 0, locations);

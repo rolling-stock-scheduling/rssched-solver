@@ -299,11 +299,10 @@ impl Schedule {
         self.network.vehicle_types()
     }
 
-    // TEMP
     /// As hitch_hikers we main vehicles on a service trip that are not needed.
     /// In other words one of the vehicle just uses this service trip to avoid a dead_head_trip
     /// (normally service trips are cheapter than dead_head_trips as staff must only be payed once).
-    pub fn count_hitch_hikers(&self) -> VehicleCount {
+    /* pub fn count_hitch_hikers(&self) -> VehicleCount {
         self.train_formations
             .iter()
             .filter(|(&node, _)| self.network.node(node).is_service())
@@ -324,7 +323,7 @@ impl Schedule {
                 vehicle_count - required_vehicle
             })
             .sum()
-    }
+    } */
 
     pub fn verify_consistency(&self) {
         // check vehicles

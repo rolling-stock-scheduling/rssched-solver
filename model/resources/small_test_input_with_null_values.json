@@ -122,7 +122,7 @@
       "route": "route_1",
       "segments": [
         {
-          "id": "trip_1_seg_0",
+          "id": "trip_1a_seg_0",
           "routeSegment": "route_1_seg_0",
           "departure": "2023-07-24T12:00:00",
           "passengers": 80,
@@ -135,7 +135,7 @@
       "route": "route_1",
       "segments": [
         {
-          "id": "trip_1_seg_0",
+          "id": "trip_1b_seg_0",
           "routeSegment": "route_1_seg_0",
           "departure": "2023-07-24T14:00:00",
           "passengers": 0,

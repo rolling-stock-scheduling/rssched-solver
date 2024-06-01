@@ -30,7 +30,7 @@ impl Transition {
         Transition::one_cluster_per_maintenance(vehicles, tours, network)
     }
 
-    // TODO write test for this function
+    // TEST this function
     /// Assigns each vehicle greedily to a cluster with the goal of minimizing the total maintenance violation.
     /// It is assumed that all vehicles are of the same type.
     /// It is assumed that each vehicle has a tour.
@@ -40,7 +40,7 @@ impl Transition {
         tours: &HashMap<VehicleIdx, Tour>,
         network: &Network,
     ) -> Transition {
-        let mut sorted_clusters: Vec<(Vec<VehicleIdx>, MaintenanceCounter)> = Vec::new(); // TODO Use BTreeMap
+        let mut sorted_clusters: Vec<(Vec<VehicleIdx>, MaintenanceCounter)> = Vec::new(); // PERF Use BTreeMap
         let mut sorted_unassigned_vehicles: Vec<VehicleIdx> = Vec::new(); // all none maintenance
                                                                           // vehicles sorted by
                                                                           // maintenance counter in descending order
@@ -153,7 +153,7 @@ impl Transition {
         cycle.cycle[successor_position]
     }
 
-    // TODO write test for this function (with multiple vehicles being updated in a raw)
+    // TEST this function (with multiple vehicles being updated in a raw)
     // old_tours are the tours of the old schedule, updated_tours are the tours of vehicle that
     // have already been updated in the current transition. Hence, for determining the tours of the
     // predecessor and the successor first take the updated_tours and if they are not present, then
@@ -224,7 +224,7 @@ impl Transition {
         }
     }
 
-    // TODO write test for this function
+    // TEST this function
     pub fn add_vehicle_to_own_cycle(
         &self,
         vehicle: VehicleIdx,
@@ -265,7 +265,7 @@ impl Transition {
         }
     }
 
-    // TODO write test for this function (with multiple vehicles being removed in a raw) and with a
+    // TEST for this function (with multiple vehicles being removed in a raw) and with a
     // maintenance vehicle removed
     pub fn remove_vehicle(
         &self,

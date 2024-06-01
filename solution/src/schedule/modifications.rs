@@ -11,8 +11,6 @@ use crate::{
 
 use super::DepotUsage;
 
-// TODO implement benchmarks for the modification, using a small instance and a large instance
-
 impl Schedule {
     pub fn spawn_vehicle_to_replace_dummy_tour(
         &self,
@@ -332,7 +330,7 @@ impl Schedule {
     /// # Errors
     /// If the vehicle is not a real vehicle an error is returned.
     pub fn remove_segment(
-        // TODO write test for this
+        // TEST this
         &self,
         segment: Segment,
         vehicle_idx: VehicleIdx,
@@ -775,7 +773,7 @@ impl Schedule {
         ))
     }
 
-    // TODO write test for this
+    // TEST this
     pub fn recompute_transitions_for(
         &self,
         vehicle_types: Option<Vec<VehicleTypeIdx>>,

@@ -391,7 +391,7 @@ impl Network {
     /// nodes as vec gives the index within the vector.
     pub fn new(
         mut depots: Vec<Depot>,
-        service_trips: HashMap<VehicleTypeIdx, Vec<ServiceTrip>>,
+        mut service_trips: HashMap<VehicleTypeIdx, Vec<ServiceTrip>>,
         maintenance_slots: Vec<MaintenanceSlot>,
         config: Config,
         locations: Locations,
@@ -432,7 +432,7 @@ impl Network {
                 depot.location(),
             );
             let start_node_idx = start_node.idx();
-            nodes.insert(start_node_idx, start_node); // TODO replace by Vec check that idx is correct
+            nodes.insert(start_node_idx, start_node); // PERF replace by Vec check that idx is correct
             start_depot_nodes.push(start_node_idx);
             idx_counter += 1;
 
@@ -440,7 +440,7 @@ impl Network {
             let end_node =
                 Node::create_end_depot_node(idx_counter, end_node_id, depot_idx, depot.location());
             let end_node_idx = end_node.idx();
-            nodes.insert(end_node_idx, end_node); // TODO replace by Vec check that idx is correct
+            nodes.insert(end_node_idx, end_node); // PERF replace by Vec check that idx is correct
             end_depot_nodes.push(end_node_idx);
             idx_counter += 1;
 
@@ -461,7 +461,8 @@ impl Network {
                 .cmp_start_time(nodes.get(&n2).unwrap())
         });
 
-        for (vehicle_type, service_trips_of_type) in service_trips.into_iter() {
+        for vehicle_type in vehicle_types.iter() {
+            let service_trips_of_type = service_trips.remove(&vehicle_type).unwrap();
             let mut trips = Vec::new();
             for service_trip in service_trips_of_type.into_iter() {
                 let service_trip_node = Node::create_service_trip_node(idx_counter, service_trip);

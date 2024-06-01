@@ -65,7 +65,7 @@ impl MinCostFlowSolver {
 
         // split into vehicle types
         let mut tours: HashMap<VehicleTypeIdx, Vec<Vec<NodeIdx>>> = HashMap::new();
-        // TODO: parallelize this
+        // PERF: parallelize this
         for vehicle_type in self.vehicle_types.iter() {
             println!(
                 " solving sub-instance for vehicle type {}",

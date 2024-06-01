@@ -47,7 +47,6 @@ pub trait Neighborhood<S>: Send + Sync {
         current_solution: &'a S,
     ) -> Box<dyn Iterator<Item = S> + Send + Sync + 'a>;
 }
-// TODO two neighborhoods should be chained to a single neighborhood
 
 pub struct LocalSearchSolver<S> {
     neighborhood: Arc<dyn Neighborhood<S>>,
