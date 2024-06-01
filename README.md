@@ -134,9 +134,9 @@ The project is structured into the following sub-projects:
 
 ### model
 
-- model for an rolling stock scheduling instance
+- model for a rolling stock scheduling instance
 
-- provides base types (Ids, Distance, Cost,...), VehicleTypes, Locations, Config, Network, as well as the functionality to (de)serialize from json
+- provides base types (Idx, Distance, Cost,...), VehicleTypes, Locations, Config, Network, as well as the functionality to (de)serialize from json
 
 - see `model/resources/small_test_input.json` for an example input
 
@@ -144,7 +144,7 @@ The project is structured into the following sub-projects:
 
 - VehicleTypes:
   
-  - provides VehicleTypes consisting of a VehicleTypeId, name, seats, capacity, and maximal formation length
+  - provides VehicleTypes consisting of a VehicleTypeIdx, name, seats, capacity, and maximal formation length
 
 - Locations:
   
@@ -196,7 +196,7 @@ The project is structured into the following sub-projects:
 
 - TrainFormation is a ordered list of vehicles, index 0 is supposed to be the front of the formation
 
-- a Vehicle consists of an Id and a vehicle type
+- a Vehicle consists of an Idx and a vehicle type
 
 - Schedules can be serialized into Json objects which are the primary part of the algorithm's output
 
@@ -250,7 +250,7 @@ The project is structured into the following sub-projects:
   
   - there are three local improver implementations which can be chosen
 
-#### solver (work in progress)
+#### solver
 
 - min-cost-circulation algorithm via the rs_graph crate (using the network simplex)
 
@@ -285,8 +285,3 @@ The project is structured into the following sub-projects:
 - has a main which is similar to the /solve function of the server
 
 - here is the place to try test-objectives
-
-#### python_visualization
-
-- a schedule in json-format can be visualized using poetry
-- see the README.md within the python_visualization folder
