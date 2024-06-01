@@ -77,16 +77,16 @@ fn basic_methods_test() {
     assert_eq!(schedule.get_vehicle(veh0).unwrap().type_idx(), d.vt1);
 
     assert_eq!(schedule.get_vehicle(veh1).unwrap().idx(), veh1);
-    assert_eq!(schedule.get_vehicle(veh1).unwrap().type_idx(), d.vt2);
+    assert_eq!(schedule.get_vehicle(veh1).unwrap().type_idx(), d.vt1);
 
     assert_eq!(schedule.get_vehicle(veh2).unwrap().idx(), veh2);
-    assert_eq!(schedule.get_vehicle(veh2).unwrap().type_idx(), d.vt2);
+    assert_eq!(schedule.get_vehicle(veh2).unwrap().type_idx(), d.vt1);
 
     assert!(schedule.get_vehicle(veh4).is_err());
 
     assert_eq!(schedule.vehicle_type_of(veh0).unwrap(), d.vt1);
-    assert_eq!(schedule.vehicle_type_of(veh1).unwrap(), d.vt2);
-    assert_eq!(schedule.vehicle_type_of(veh2).unwrap(), d.vt2);
+    assert_eq!(schedule.vehicle_type_of(veh1).unwrap(), d.vt1);
+    assert_eq!(schedule.vehicle_type_of(veh2).unwrap(), d.vt1);
 
     assert!(!schedule.is_dummy(veh0));
     assert!(!schedule.is_dummy(veh1));
@@ -119,19 +119,19 @@ fn basic_methods_test() {
 
     assert_eq!(
         schedule.number_of_vehicles_of_same_type_spawned_at(d.depot1, d.vt1),
-        1
+        2
     );
     assert_eq!(
         schedule.number_of_vehicles_of_same_type_spawned_at(d.depot1, d.vt2),
-        1
-    );
-    assert_eq!(
-        schedule.number_of_vehicles_of_same_type_spawned_at(d.depot2, d.vt1),
         0
     );
     assert_eq!(
-        schedule.number_of_vehicles_of_same_type_spawned_at(d.depot2, d.vt2),
+        schedule.number_of_vehicles_of_same_type_spawned_at(d.depot2, d.vt1),
         1
+    );
+    assert_eq!(
+        schedule.number_of_vehicles_of_same_type_spawned_at(d.depot2, d.vt2),
+        0
     );
 
     assert_eq!(schedule.depot_balance(d.depot1, d.vt1), 1);
@@ -145,9 +145,9 @@ fn basic_methods_test() {
     assert!(!schedule.can_depot_spawn_vehicle(d.start_depot1, d.vt1));
     assert!(!schedule.can_depot_spawn_vehicle(d.start_depot1, d.vt2));
     assert!(!schedule.can_depot_spawn_vehicle(d.start_depot2, d.vt1));
-    assert!(!schedule.can_depot_spawn_vehicle(d.start_depot2, d.vt2));
-    assert!(!schedule.can_depot_spawn_vehicle(d.start_depot4, d.vt1));
-    assert!(schedule.can_depot_spawn_vehicle(d.start_depot4, d.vt2));
+    assert!(schedule.can_depot_spawn_vehicle(d.start_depot2, d.vt2));
+    assert!(schedule.can_depot_spawn_vehicle(d.start_depot4, d.vt1));
+    assert!(!schedule.can_depot_spawn_vehicle(d.start_depot4, d.vt2));
     assert!(!schedule.can_depot_spawn_vehicle(d.start_depot2, VehicleTypeIdx::from(3)));
 
     assert!(!schedule.reduces_spawning_at_depot_violation(d.vt1, d.depot1));
@@ -160,7 +160,7 @@ fn basic_methods_test() {
     assert!(!schedule.reduces_despawning_at_depot_violation(d.vt1, d.depot2));
     assert!(!schedule.reduces_despawning_at_depot_violation(d.vt2, d.depot2));
 
-    assert_eq!(schedule.unserved_passengers(), (130, 0));
+    assert_eq!(schedule.unserved_passengers(), (121, 0));
 
     assert!(schedule.is_fully_covered(d.trip12));
     assert!(schedule.is_fully_covered(d.trip23));
@@ -186,7 +186,7 @@ fn scheduling_ordering_test() {
     let veh2 = VehicleIdx::vehicle_from(2);
     let schedule_default = default_schedule(&d);
     let schedule_four_vehicles = schedule_default
-        .spawn_vehicle_for_path(d.vt2, vec![d.trip12, d.trip23, d.trip31])
+        .spawn_vehicle_for_path(d.vt1, vec![d.trip12, d.trip23, d.trip31])
         .unwrap()
         .0;
     let schedule_two_vehicles = schedule_default.replace_vehicle_by_dummy(veh2).unwrap();
@@ -197,9 +197,10 @@ fn scheduling_ordering_test() {
                 .unwrap()
                 .unwrap(),
         )
-        .unwrap();
+        .unwrap()
+        .0;
     let schedule_short_tour = schedule_two_vehicles
-        .spawn_vehicle_for_path(d.vt2, vec![d.trip31])
+        .spawn_vehicle_for_path(d.vt1, vec![d.trip31])
         .unwrap()
         .0;
     let schedule_copy = schedule_default.clone();
@@ -303,32 +304,6 @@ fn spawn_vehicle_for_path_without_depots_test() {
 }
 
 #[test]
-fn spawning_too_many_vehicles_gives_err_test() {
-    // ARRANGE
-    let d = init_test_data();
-    let schedule = default_schedule(&d);
-    // depot1 has capacity 1 for vt1 which is occupied by veh0.
-    // depot2 has capacity 0
-    // depot3 has capacity 1
-    // depot4 has capacity 0
-    // depot5 has capacity 1
-    // Hence, we can spawn 2 vehicles of vt1 before an error occurs.
-
-    // ACT
-    let result = schedule
-        .spawn_vehicle_for_path(d.vt1, vec![d.trip12])
-        .unwrap()
-        .0
-        .spawn_vehicle_for_path(d.vt1, vec![d.trip12])
-        .unwrap()
-        .0
-        .spawn_vehicle_for_path(d.vt1, vec![d.trip12]);
-
-    // ASSERT
-    assert!(result.is_err());
-}
-
-#[test]
 fn replace_vehicle_by_dummy_success_test() {
     // ARRANGE
     let d = init_test_data();
@@ -408,7 +383,8 @@ fn add_path_to_vehicle_tour_with_conflict_test() {
                 .unwrap()
                 .unwrap(),
         )
-        .unwrap();
+        .unwrap()
+        .0;
     // trip14 and end_depot1 are removed
 
     // ASSERT
@@ -441,7 +417,8 @@ fn add_path_to_vehicle_tour_with_same_start_depot_test() {
                 .unwrap()
                 .unwrap(),
         )
-        .unwrap();
+        .unwrap()
+        .0;
     // start_depot2 is replaced with start_depot2. So everthing is fine even though start_depot2
     // was full.
 
@@ -465,8 +442,8 @@ fn add_path_to_vehicle_tour_with_same_start_depot_test() {
         .cloned(),
     );
     assert_eq!(
-        new_schedule.number_of_vehicles_of_same_type_spawned_at(d.depot1, d.vt2),
-        1
+        new_schedule.number_of_vehicles_of_same_type_spawned_at(d.depot1, d.vt1),
+        2
     );
 
     new_schedule.verify_consistency();
@@ -540,7 +517,7 @@ fn fit_reassign_with_split_test() {
     // ARRANGE
     let d = init_test_data();
     let schedule = default_schedule(&d)
-        .spawn_vehicle_for_path(d.vt2, vec![d.trip31])
+        .spawn_vehicle_for_path(d.vt1, vec![d.trip31])
         .unwrap()
         .0;
     let veh0 = VehicleIdx::vehicle_from(0);
@@ -580,7 +557,7 @@ fn fit_reassign_move_full_tour_test() {
     // ARRANGE
     let d = init_test_data();
     let schedule = default_schedule(&d)
-        .spawn_vehicle_for_path(d.vt2, vec![d.trip45_fast, d.trip51])
+        .spawn_vehicle_for_path(d.vt1, vec![d.trip45_fast, d.trip51])
         .unwrap()
         .0;
     let veh2 = VehicleIdx::vehicle_from(2);
@@ -617,10 +594,10 @@ fn fit_reassign_fits_but_cannot_be_removed_test() {
     // ARRANGE
     let d = init_test_data();
     let schedule = default_schedule(&d)
-        .spawn_vehicle_for_path(d.vt2, vec![d.trip14, d.trip45_fast, d.trip51])
+        .spawn_vehicle_for_path(d.vt1, vec![d.trip14, d.trip45_fast, d.trip51])
         .unwrap()
         .0
-        .spawn_vehicle_for_path(d.vt2, vec![d.trip34, d.trip51])
+        .spawn_vehicle_for_path(d.vt1, vec![d.trip34, d.trip51])
         .unwrap()
         .0;
     let veh3 = VehicleIdx::vehicle_from(3);
@@ -881,7 +858,7 @@ fn override_reassign_move_full_tour_test() {
     // ARRANGE
     let d = init_test_data();
     let schedule = default_schedule(&d)
-        .spawn_vehicle_for_path(d.vt2, vec![d.trip31])
+        .spawn_vehicle_for_path(d.vt1, vec![d.trip31])
         .unwrap()
         .0;
     let veh0 = VehicleIdx::vehicle_from(0);
@@ -927,10 +904,10 @@ fn override_reassign_fits_but_cannot_be_removed_test() {
     // ARRANGE
     let d = init_test_data();
     let schedule = default_schedule(&d)
-        .spawn_vehicle_for_path(d.vt2, vec![d.trip14, d.trip45_fast, d.trip51])
+        .spawn_vehicle_for_path(d.vt1, vec![d.trip14, d.trip45_fast, d.trip51])
         .unwrap()
         .0
-        .spawn_vehicle_for_path(d.vt2, vec![d.trip34, d.trip51])
+        .spawn_vehicle_for_path(d.vt1, vec![d.trip34, d.trip51])
         .unwrap()
         .0;
     let veh3 = VehicleIdx::vehicle_from(3);
@@ -951,7 +928,7 @@ fn override_reassign_no_new_dummy_test() {
     // ARRANGE
     let d = init_test_data();
     let schedule = default_schedule(&d)
-        .spawn_vehicle_for_path(d.vt2, vec![d.trip45_fast, d.trip51])
+        .spawn_vehicle_for_path(d.vt1, vec![d.trip45_fast, d.trip51])
         .unwrap()
         .0;
     let veh2 = VehicleIdx::vehicle_from(2);
@@ -1282,10 +1259,7 @@ fn improve_depots_test() {
         )
         .unwrap()
         .0
-        .spawn_vehicle_for_path(
-            d.vt1,
-            vec![d.start_depot5, d.trip12, d.trip23, d.end_depot1],
-        )
+        .spawn_vehicle_for_path(d.vt1, vec![d.start_depot5, d.trip23, d.end_depot1])
         .unwrap()
         .0;
     let veh0 = VehicleIdx::vehicle_from(0);
@@ -1293,37 +1267,33 @@ fn improve_depots_test() {
 
     // ACT
     let new_schedule = schedule.improve_depots(Some(vec![veh0]));
-    // veh0 is moved from depot3 to depot1
+    // veh0 is moved from depot3 to depot2
     let new_schedule2 = new_schedule.improve_depots(None);
-    // veh0 is moved from depot3 to depot1
-    // veh1 is moved from depot5 to depot3 (as depot1 is full)
+    // veh0 is moved from depot3 to depot2
+    // veh1 is moved from depot5 to depot1 (as depot2 is full)
 
     // ASSERT
     assert_equal(
         new_schedule.tour_of(veh0).unwrap().all_nodes_iter(),
-        [d.start_depot1, d.trip23, d.trip34, d.end_depot4]
+        [d.start_depot2, d.trip23, d.trip34, d.end_depot4]
             .iter()
             .cloned(),
     );
     assert_equal(
         new_schedule.tour_of(veh1).unwrap().all_nodes_iter(),
-        [d.start_depot5, d.trip12, d.trip23, d.end_depot1]
-            .iter()
-            .cloned(),
+        [d.start_depot5, d.trip23, d.end_depot1].iter().cloned(),
     );
     new_schedule.verify_consistency();
 
     assert_equal(
         new_schedule2.tour_of(veh0).unwrap().all_nodes_iter(),
-        [d.start_depot1, d.trip23, d.trip34, d.end_depot4]
+        [d.start_depot2, d.trip23, d.trip34, d.end_depot4]
             .iter()
             .cloned(),
     );
     assert_equal(
         new_schedule2.tour_of(veh1).unwrap().all_nodes_iter(),
-        [d.start_depot3, d.trip12, d.trip23, d.end_depot3]
-            .iter()
-            .cloned(),
+        [d.start_depot1, d.trip23, d.end_depot3].iter().cloned(),
     );
     new_schedule2.verify_consistency();
 }
@@ -1340,8 +1310,8 @@ fn reassign_end_depots_greedily_test() {
         .unwrap()
         .0
         .spawn_vehicle_for_path(
-            d.vt2,
-            vec![d.start_depot3, d.trip12, d.trip23, d.end_depot1],
+            d.vt1,
+            vec![d.start_depot4, d.trip12, d.trip23, d.end_depot1],
         )
         .unwrap()
         .0;
@@ -1360,7 +1330,7 @@ fn reassign_end_depots_greedily_test() {
     );
     assert_equal(
         new_schedule.tour_of(veh1).unwrap().all_nodes_iter(),
-        [d.start_depot3, d.trip12, d.trip23, d.end_depot3]
+        [d.start_depot4, d.trip12, d.trip23, d.end_depot3]
             .iter()
             .cloned(),
     );
