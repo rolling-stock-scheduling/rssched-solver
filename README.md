@@ -4,6 +4,8 @@ The objectives are to minimize the number of rolling stock units and the travel 
 
 Our optimization approach combines local-search meta-heuristics and the classic network simplex for computing a minimum-cost circulation. Local search improves rolling stock schedules through small, local modifications, such as exchanging adjusting train compositions, or exchanging a sequence of service trips to another rolling stock vehicle. Simultaneously, the optimality of the network simplex ensures minimal overall costs.
 
+![local_search_modification](https://github.com/rolling-stock-scheduling/rssched-solver/assets/71029482/ebd70cde-4b51-4f18-9c8a-9f7d2a127fbc)
+
 # Deployment via Docker
 
 - install the docker engine: https://docs.docker.com/engine/install/
