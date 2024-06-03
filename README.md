@@ -56,7 +56,7 @@ Our optimization approach combines local-search meta-heuristics and the classic 
 
 - send `GET http://localhost:3000/health` to see if the server is running.
 
-- `Insomnia` or `Postman` can send this requests with a GUI.
+- `Insomnia`, `Postman`, or `Bruno` can send this requests with a GUI.
 
 - or `curl`:
   
