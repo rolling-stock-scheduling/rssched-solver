@@ -1,6 +1,5 @@
 #[cfg(test)]
-#[path = "json_serialisation_tests.rs"]
-mod json_serialisation_tests;
+mod tests;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
