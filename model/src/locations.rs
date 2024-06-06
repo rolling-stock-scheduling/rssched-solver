@@ -78,6 +78,10 @@ impl Locations {
         }
     }
 
+    pub fn iter(&self) -> impl Iterator<Item = Location> + '_ {
+        self.stations.keys().map(|idx| Location::Station(*idx))
+    }
+
     pub fn distance(&self, a: Location, b: Location) -> Distance {
         match self.get_dead_head_trip(a, b) {
             Some(d) => d.distance,

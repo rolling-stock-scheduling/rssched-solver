@@ -29,7 +29,7 @@ type DateTimeString = String;
 struct JsonInput {
     vehicle_types: Vec<VehicleType>,
     locations: Vec<Location>,
-    depots: Vec<Depot>,
+    depots: Option<Vec<Depot>>,
     routes: Vec<Route>,
     departures: Vec<Departures>,
     maintenance_slots: Option<Vec<MaintenanceSlots>>,
@@ -130,7 +130,7 @@ struct Parameters {
     forbid_dead_head_trips: Option<bool>,
     day_limit_threshold: Option<Integer>,
     shunting: Shunting,
-    maintenance: Maintenance,
+    maintenance: Option<Maintenance>,
     costs: Costs,
 }
 
@@ -153,7 +153,7 @@ struct Maintenance {
 struct Costs {
     staff: Integer,
     service_trip: Integer,
-    maintenance: Integer,
+    maintenance: Option<Integer>,
     dead_head_trip: Integer,
     idle: Integer,
 }
@@ -323,10 +323,17 @@ fn create_config(json_input: &JsonInput) -> Config {
         Duration::from_seconds(json_input.parameters.shunting.minimal_duration),
         Duration::from_seconds(json_input.parameters.shunting.dead_head_trip_duration),
         Duration::from_seconds(json_input.parameters.shunting.coupling_duration),
-        Distance::from_meter(json_input.parameters.maintenance.maximal_distance),
+        Distance::from_meter(
+            json_input
+                .parameters
+                .maintenance
+                .as_ref()
+                .map(|m| m.maximal_distance)
+                .unwrap_or(0),
+        ),
         json_input.parameters.costs.staff,
         json_input.parameters.costs.service_trip,
-        json_input.parameters.costs.maintenance,
+        json_input.parameters.costs.maintenance.unwrap_or(0),
         json_input.parameters.costs.dead_head_trip,
         json_input.parameters.costs.idle,
     )
@@ -340,12 +347,6 @@ fn create_network(
     location_lookup: HashMap<IdType, LocationIdx>,
     vehicle_type_lookup: HashMap<IdType, VehicleTypeIdx>,
 ) -> Network {
-    let depots = create_depots(
-        json_input,
-        &locations,
-        &location_lookup,
-        &vehicle_type_lookup,
-    );
     let service_trips = create_service_trips(
         json_input,
         &locations,
@@ -353,7 +354,21 @@ fn create_network(
         &location_lookup,
         &vehicle_type_lookup,
     );
+
+    let number_of_service_trips: VehicleCount = service_trips
+        .values()
+        .map(|trips| trips.len() as VehicleCount)
+        .sum();
+    let depots = create_depots(
+        json_input,
+        &locations,
+        &location_lookup,
+        &vehicle_type_lookup,
+        number_of_service_trips,
+    );
+
     let maintenance_slots = create_maintenance_slots(json_input, &locations, &location_lookup);
+
     Network::new(
         depots,
         service_trips,
@@ -369,31 +384,54 @@ fn create_depots(
     loc: &Locations,
     location_lookup: &HashMap<IdType, LocationIdx>,
     vehicle_type_lookup: &HashMap<IdType, VehicleTypeIdx>,
+    vehicle_upper_limit: VehicleCount,
 ) -> Vec<ModelDepot> {
-    json_input
-        .depots
-        .iter()
-        .enumerate()
-        .map(|(idx, depot)| {
-            let idx = DepotIdx::from(idx as Idx);
-            let location = loc.get(location_lookup[&depot.location]).unwrap();
-            let capacity: VehicleCount = depot.capacity as VehicleCount;
-            let mut allowed_types: HashMap<VehicleTypeIdx, Option<VehicleCount>> = HashMap::new();
-            for allowed_type in &depot.allowed_types {
-                allowed_types.insert(
-                    vehicle_type_lookup[&allowed_type.vehicle_type],
-                    allowed_type.capacity.map(|x| x as VehicleCount),
-                );
-            }
-            ModelDepot::new(
-                idx,
-                depot.id.clone(),
-                location,
-                capacity,
-                allowed_types.clone(),
-            )
-        })
-        .collect()
+    match &json_input.depots {
+        None => {
+            // add a depot at every location with unlimited capacity for each type
+            let allowed_vehicle_types: HashMap<VehicleTypeIdx, Option<VehicleCount>> =
+                vehicle_type_lookup
+                    .values()
+                    .map(|vehicle_type_idx| (*vehicle_type_idx, None))
+                    .collect();
+            loc.iter()
+                .enumerate()
+                .map(|(idx, location)| {
+                    ModelDepot::new(
+                        DepotIdx::from(idx as Idx),
+                        format!("depot_{}", loc.get_id(location).unwrap()),
+                        location,
+                        VehicleCount::from(vehicle_upper_limit),
+                        allowed_vehicle_types.clone(),
+                    )
+                })
+                .collect()
+        }
+        Some(depots) => depots
+            .iter()
+            .enumerate()
+            .map(|(idx, depot)| {
+                let idx = DepotIdx::from(idx as Idx);
+                let location = loc.get(location_lookup[&depot.location]).unwrap();
+                let capacity: VehicleCount = depot.capacity as VehicleCount;
+                let mut allowed_types: HashMap<VehicleTypeIdx, Option<VehicleCount>> =
+                    HashMap::new();
+                for allowed_type in &depot.allowed_types {
+                    allowed_types.insert(
+                        vehicle_type_lookup[&allowed_type.vehicle_type],
+                        allowed_type.capacity.map(|x| x as VehicleCount),
+                    );
+                }
+                ModelDepot::new(
+                    idx,
+                    depot.id.clone(),
+                    location,
+                    capacity,
+                    allowed_types.clone(),
+                )
+            })
+            .collect(),
+    }
 }
 
 fn create_service_trips(

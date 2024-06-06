@@ -4,7 +4,8 @@ use std::path::Path;
 
 fn main() {
     // let path = "model/resources/small_test_input.json";
-    let path = "instances/kelheim-v3.0-25pct.scheduler_request.json";
+    // let path = "instances/kelheim-v3.0-25pct.scheduler_request.json";
+    let path = "instances/kelheim-v3.0-25pct.scheduler_request_without_depots.json";
     // let path = "instances/viv_212.scheduler_request.json";
     // let path = "instances/bc_201.scheduler_request.json";
 
