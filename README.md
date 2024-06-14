@@ -6,7 +6,13 @@ Our optimization approach combines local-search meta-heuristics and the classic 
 
 ![local_search_modification](https://github.com/rolling-stock-scheduling/rssched-solver/assets/71029482/ebd70cde-4b51-4f18-9c8a-9f7d2a127fbc)
 
-# Deployment via Docker
+# Usage
+
+In the following, we describe how to use the solver-server with or without docker or how to solve a single instance.
+
+For an instruction how to use the full RSSched project, have a look at this [step-by-step instruction](https://github.com/rolling-stock-scheduling/.github/blob/main/getting_started.md).
+
+## Deployment via Docker
 
 - install the docker engine: https://docs.docker.com/engine/install/
 
@@ -50,7 +56,7 @@ Our optimization approach combines local-search meta-heuristics and the classic 
   docker container rm eth_scheduling_server
   ```
 
-# Server Usage
+## Server Usage
 
 - send `POST http://localhost:3000/solve` with a JSON body containing the input. After solving the solution is returned as JSON.
 
@@ -61,26 +67,24 @@ Our optimization approach combines local-search meta-heuristics and the classic 
 - or `curl`:
   
   ```bash
-  curl -X POST -H "Content-Type: application/json" -d @path/to/input.json http://localhost:3000/solve
+  curl -X POST -H "Content-Type: application/json" -d @your/input.json http://localhost:3000/solve
   ```
 
-# Single Run
-
-- choose the instance in internal/src/main.rs
+## Single Run
 
 - from the main directory, compile and run the program with:
   
   ```bash
-  cargo run --bin=single_run --release
+  cargo run --bin=single_run --release -- your/input_file.json
   ```
 
 - limiting the number of thread:
   
   ```bash
-  RAYON_NUM_THREADS=16 cargo run --bin=single_run --release
+    RAYON_NUM_THREADS=16 cargo run --bin=single_run --release -- your/input_file.json
   ```
 
-# Start Server (without Docker)
+## Start Server (without Docker)
 
 - for the default port of 3000:
   
