@@ -10,7 +10,7 @@ Our optimization approach combines local-search meta-heuristics and the classic 
 
 In the following, we describe how to use the solver-server with or without docker or how to solve a single instance.
 
-For an instruction how to use the full RSSched project, have a look at this [step-by-step instruction](https://github.com/rolling-stock-scheduling/.github/blob/main/getting_started.md).
+To get started with the whole RSSched project, have a look at this [step-by-step instruction](https://github.com/rolling-stock-scheduling/.github/blob/main/getting_started.md).
 
 ## Deployment via Docker
 
