@@ -65,9 +65,12 @@ impl Locations {
     }
 
     pub fn get_id(&self, location: Location) -> Result<String, &'static str> {
-        match self.stations.get(&location.idx()) {
-            Some((name, _)) => Ok(name.clone()),
-            None => Err("Location Id is invalid."),
+        match location {
+            Location::Nowhere => Ok("NOWHERE".to_string()),
+            Location::Station(idx) => match self.stations.get(&idx) {
+                Some((name, _)) => Ok(name.clone()),
+                None => Err("Location Idx is invalid."),
+            },
         }
     }
 

@@ -1491,6 +1491,25 @@ impl Schedule {
         depot_usage: &DepotUsage,
     ) -> NodeIdx {
         let start_location = self.network.node(first_node).start_location();
+        // TEMP
+        println!("start_location: {:?}", start_location);
+        println!(
+            "start_depot: {:?}, capacities: {:?}",
+            self.network
+                .start_depots_sorted_by_distance_to(start_location),
+            self.network
+                .start_depots_sorted_by_distance_to(start_location)
+                .iter()
+                .map(|depot| {
+                    let depot_id = self.network.get_depot_id(*depot);
+                    depot_usage
+                        .get(&(depot_id, vehicle_type_idx))
+                        .unwrap()
+                        .0
+                        .len()
+                })
+                .collect::<Vec<_>>()
+        );
         let start_depot = self
             .network
             .start_depots_sorted_by_distance_to(start_location)

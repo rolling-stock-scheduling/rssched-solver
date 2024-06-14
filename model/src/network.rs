@@ -408,14 +408,27 @@ impl Network {
         let mut latest_datetime = DateTime::Earliest;
 
         // add overflow depot:
-        // its has infinity capacity for all types
+        // its has infinity capacity for all types (i.e., service trips * maximal_formation_count)
         // but it is located Nowhere, i.e. Distance is Infinity to all other locations
+        let number_of_service_nodes = service_trips.values().map(|vec| vec.len()).sum::<usize>();
+        let max_formation_count = vehicle_types
+            .iter()
+            .map(|vt| {
+                vehicle_types
+                    .get(vt)
+                    .unwrap()
+                    .maximal_formation_count()
+                    .unwrap_or(1)
+            })
+            .max()
+            .unwrap_or(1);
+        let overflow_capacity = number_of_service_nodes as VehicleCount * max_formation_count;
         let overflow_depot_id = DepotIdx::from(depots.len() as Idx);
         let overflow_depot = Depot::new(
             overflow_depot_id,
             String::from("OVERFLOW_DEPOT"),
             Location::Nowhere,
-            service_trips.values().map(|vec| vec.len()).sum::<usize>() as VehicleCount,
+            overflow_capacity,
             vehicle_types.iter().map(|vt| (vt, None)).collect(),
         );
         depots.push(overflow_depot);
