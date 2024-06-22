@@ -411,7 +411,7 @@ The project is structured into the following sub-projects:
 
   - for each node the train formation (coupled vehicles)
 
-  - the next day mapping, describing which vehicle of day 1 becomes which vehicle of day 2, when the schedule is repeated
+  - the next day transition, describing which vehicle of day 1 becomes which vehicle of day 2, when the schedule is repeated
 
   - service trips nodes that are not fully covered (= not all passengers are satisfied) are organized in dummy tours
 
@@ -436,6 +436,11 @@ The project is structured into the following sub-projects:
 - TrainFormation is a ordered list of vehicles, index 0 is supposed to be the front of the formation
 
 - a Vehicle consists of an Idx and a vehicle type
+
+- a Transition is vehicle type specific and consists of a list of TransitionCycles
+
+- a TransitionCycle is a list of vehicle Idx, where the first vehicle of the cycle becomes the second vehicle of the
+  cycle on the next day
 
 - Schedules can be serialized into Json objects which are the primary part of the algorithm's output
 
@@ -463,6 +468,23 @@ The project is structured into the following sub-projects:
 
   - override_reassign: given a provider and a receiver vehicle as well as a segment of the provider's tour: insert the segment into the receiver's tour removing all conflicting nodes
 
+- transition modifications:
+
+  - update_vehicle: the tour of a vehicle (and in particular the distance traveled) has changed an can be updated
+
+  - remove a vehicle from a cycle
+
+  - add a vehicle to a cycle
+
+  - move a vehicle from one cycle to another
+
+  - replance a whole cycle
+
+- transition cycle modification
+
+  - 3-opt-move: given a cycle and three indices i, j, k, the cycle is split into three parts and the order of the parts
+    is changed
+
 #### objective framework
 
 - an objective consists of a hierarchy of linear combinations (levels) of indicators of a schedule (called solution)
@@ -481,7 +503,7 @@ The project is structured into the following sub-projects:
 
 - an ObjectiveValue is a Vector of BaseValues which matches the objective hierarchy and implements the Ord trait.
 
-#### heuristic framework (work in progress)
+#### heuristic framework
 
 - a generic solver trait, that each meta-heuristic-solver should implement
 
@@ -500,6 +522,17 @@ The project is structured into the following sub-projects:
   - initializes the local improver
 
   - defines the objective
+
+- local search solver for the next day transition (which is a vehicle routing problem)
+
+  - the neighborhood consists of vehicle exchanges between cycles
+
+  - after each exchange the cycle is optimized by a 3-opt-local-search
+
+  - the objective is to minimize the total maintenance violation (level 1) and the total maintenance counter (level 2),
+    which is basically the dead head trips between end depot and start depot on the next day.
+
+- 3-opt local search for a transition cycle
 
 #### server
 
