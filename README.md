@@ -109,7 +109,7 @@ To get started with the whole RSSched project, have a look at this [step-by-step
 The following JSON structure is used to describe the rolling stock scheduling instance. The input is a JSON object with
 the following fields:
 
-```json
+```
 {
   "vehicleTypes" : [
     {
@@ -219,7 +219,7 @@ For an example input see [`model/resources/small_test_input.json`](model/resourc
 The following JSON structure is used to describe a rolling stock schedule. The output is a JSON object with the
 following fields:
 
-```json
+```
 {
     "info": {
         "runningTime": String // e.g. "0.01s",
