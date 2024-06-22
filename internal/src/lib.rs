@@ -11,7 +11,7 @@ use solver::min_cost_flow_solver::MinCostFlowSolver;
 use solver::objective;
 
 use model::json_serialisation::load_rolling_stock_problem_instance_from_json;
-use solver::transition_local_search::build_transition_local_search_solver;
+use solver::transition_local_search::{build_transition_local_search_solver, TransitionWithInfo};
 
 use std::sync::Arc;
 use std::time as stdtime;
@@ -72,9 +72,15 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
         );
         let transition_local_search_solver =
             build_transition_local_search_solver(schedule, network.clone());
-        let improved_transition = transition_local_search_solver
-            .solve(schedule.next_day_transition_of(vehicle_type).clone());
-        optimized_transitions.insert(vehicle_type, improved_transition.unwrap_solution());
+        let start_transition = TransitionWithInfo::new(
+            schedule.next_day_transition_of(vehicle_type).clone(),
+            "Initial transition".to_string(),
+        );
+        let improved_transition = transition_local_search_solver.solve(start_transition);
+        optimized_transitions.insert(
+            vehicle_type,
+            improved_transition.unwrap_solution().unwrap_transition(),
+        );
     }
     let schedule_with_optimized_transitions =
         schedule.set_next_day_transitions(optimized_transitions);

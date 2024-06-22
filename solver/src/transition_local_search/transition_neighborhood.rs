@@ -4,7 +4,9 @@ use heuristic_framework::local_search::Neighborhood;
 use im::HashMap;
 use itertools::Itertools;
 use model::{base_types::VehicleIdx, network::Network};
-use solution::{tour::Tour, transition::Transition};
+use solution::tour::Tour;
+
+use super::TransitionWithInfo;
 
 pub struct TransitionNeighborhood {
     tours: HashMap<VehicleIdx, Tour>,
@@ -17,13 +19,14 @@ impl TransitionNeighborhood {
     }
 }
 
-impl Neighborhood<Transition> for TransitionNeighborhood {
+impl Neighborhood<TransitionWithInfo> for TransitionNeighborhood {
     fn neighbors_of<'a>(
         &'a self,
-        transition: &'a Transition,
-    ) -> Box<dyn Iterator<Item = Transition> + Send + Sync + 'a> {
+        transition_with_info: &'a TransitionWithInfo,
+    ) -> Box<dyn Iterator<Item = TransitionWithInfo> + Send + Sync + 'a> {
         Box::new(
-            transition
+            transition_with_info
+                .get_transition()
                 .cycles_iter()
                 .enumerate()
                 .combinations(2)
@@ -57,32 +60,57 @@ impl Neighborhood<Transition> for TransitionNeighborhood {
                         second_vehicle_opt,
                     )| {
                         match (first_vehicle_opt, second_vehicle_opt) {
-                            (Some(first_vehicle), Some(second_vehicle)) => transition
-                                .move_vehicle(
+                            (Some(first_vehicle), Some(second_vehicle)) => TransitionWithInfo::new(
+                                transition_with_info
+                                    .get_transition()
+                                    .move_vehicle(
+                                        first_vehicle,
+                                        second_cycle_idx,
+                                        &self.tours,
+                                        &self.network,
+                                    )
+                                    .move_vehicle(
+                                        second_vehicle,
+                                        first_cycle_idx,
+                                        &self.tours,
+                                        &self.network,
+                                    ),
+                                format!(
+                                    "Exchange vehicles: {} from cycle {} with {} from cycle {}",
+                                    first_vehicle,
+                                    first_cycle_idx,
+                                    second_vehicle,
+                                    second_cycle_idx
+                                ),
+                            ),
+                            (Some(first_vehicle), None) => TransitionWithInfo::new(
+                                transition_with_info.get_transition().move_vehicle(
                                     first_vehicle,
                                     second_cycle_idx,
                                     &self.tours,
                                     &self.network,
-                                )
-                                .move_vehicle(
+                                ),
+                                format!(
+                                    "Move vehicle: {} from cycle {} to cycle {}",
+                                    first_vehicle, first_cycle_idx, second_cycle_idx
+                                ),
+                            ),
+                            (None, Some(second_vehicle)) => TransitionWithInfo::new(
+                                transition_with_info.get_transition().move_vehicle(
                                     second_vehicle,
                                     first_cycle_idx,
                                     &self.tours,
                                     &self.network,
                                 ),
-                            (Some(first_vehicle), None) => transition.move_vehicle(
-                                first_vehicle,
-                                second_cycle_idx,
-                                &self.tours,
-                                &self.network,
+                                format!(
+                                    "Move vehicle: {} from cycle {} to cycle {}",
+                                    second_vehicle, second_cycle_idx, first_cycle_idx
+                                ),
                             ),
-                            (None, Some(second_vehicle)) => transition.move_vehicle(
-                                second_vehicle,
-                                first_cycle_idx,
-                                &self.tours,
-                                &self.network,
+                            (None, None) => TransitionWithInfo::new(
+                                transition_with_info.get_transition().clone(),
+                                "No move".to_string(),
                             ),
-                            (None, None) => transition.clone(),
                         }
                     },
                 ),

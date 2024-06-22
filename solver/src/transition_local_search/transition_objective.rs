@@ -1,11 +1,16 @@
 use objective_framework::{BaseValue, Coefficient, Indicator, Level, Objective};
-use solution::transition::Transition;
+
+use super::TransitionWithInfo;
 
 struct MaintenanceViolationIndicator;
 
-impl Indicator<Transition> for MaintenanceViolationIndicator {
-    fn evaluate(&self, transition: &Transition) -> BaseValue {
-        BaseValue::Integer(transition.maintenance_violation())
+impl Indicator<TransitionWithInfo> for MaintenanceViolationIndicator {
+    fn evaluate(&self, transition_with_info: &TransitionWithInfo) -> BaseValue {
+        BaseValue::Integer(
+            transition_with_info
+                .get_transition()
+                .maintenance_violation(),
+        )
     }
 
     fn name(&self) -> String {
@@ -15,9 +20,9 @@ impl Indicator<Transition> for MaintenanceViolationIndicator {
 
 struct MaintenanceCounterIndicator;
 
-impl Indicator<Transition> for MaintenanceCounterIndicator {
-    fn evaluate(&self, transition: &Transition) -> BaseValue {
-        BaseValue::Integer(transition.maintenance_counter())
+impl Indicator<TransitionWithInfo> for MaintenanceCounterIndicator {
+    fn evaluate(&self, transition_with_info: &TransitionWithInfo) -> BaseValue {
+        BaseValue::Integer(transition_with_info.get_transition().maintenance_counter())
     }
 
     fn name(&self) -> String {
@@ -25,7 +30,7 @@ impl Indicator<Transition> for MaintenanceCounterIndicator {
     }
 }
 
-pub fn build() -> Objective<Transition> {
+pub fn build() -> Objective<TransitionWithInfo> {
     let maintenance_violation = Level::new(vec![(
         Coefficient::Integer(1),
         Box::new(MaintenanceViolationIndicator),
