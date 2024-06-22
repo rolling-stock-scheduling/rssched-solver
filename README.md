@@ -308,7 +308,7 @@ following fields:
                 "departure": DateTimeString,
                 "arrival": DateTimeString,
                 "vehicleType": String,
-                "formation": [String, String, ...], // first vehicle in at front, last vehicle at tail
+                "formation": [String, String, ...], // first vehicle is at front, last vehicle at tail
             },
             ...
         ],
@@ -329,7 +329,7 @@ following fields:
                 "destination": String,
                 "departure": DateTimeString,
                 "arrival": DateTimeString
-                "formation": [String, String, ...], // first vehicle in at front, last vehicle at tail
+                "formation": [String, String, ...], // first vehicle is at front, last vehicle at tail
             },
             ...
         ],
