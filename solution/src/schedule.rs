@@ -322,32 +322,6 @@ impl Schedule {
         self.network.vehicle_types()
     }
 
-    /// As hitch_hikers we main vehicles on a service trip that are not needed.
-    /// In other words one of the vehicle just uses this service trip to avoid a dead_head_trip
-    /// (normally service trips are cheapter than dead_head_trips as staff must only be payed once).
-    /* pub fn count_hitch_hikers(&self) -> VehicleCount {
-        self.train_formations
-            .iter()
-            .filter(|(&node, _)| self.network.node(node).is_service())
-            .map(|(&service_node, train_formation)| {
-                let vehicle_type = self.network.vehicle_type_for(service_node);
-                let vehicle_count = train_formation.vehicle_count();
-                let required_vehicle = self
-                    .network
-                    .number_of_vehicles_required_to_serve(vehicle_type, service_node);
-
-                if vehicle_count < required_vehicle {
-                    println!(
-                        "Node {} requires {} vehicles but only {} are available",
-                        service_node, required_vehicle, vehicle_count
-                    );
-                    println!("  Vehicles: {:?}", train_formation.ids());
-                }
-                vehicle_count - required_vehicle
-            })
-            .sum()
-    } */
-
     pub fn verify_consistency(&self) {
         // check vehicles
         for (id, vehicle) in self.vehicles.iter() {

@@ -57,9 +57,7 @@ pub fn build_local_search_solver(network: Arc<Network>) -> LocalSearchSolver<Sch
 
     let neighborhood = Arc::new(SpawnForMaintenanceAndPathExchange::new(
         Some(segment_limit),
-        // None,
         Some(overhead_threshold),
-        // None,
         false,
         network,
     ));
@@ -89,13 +87,6 @@ pub fn build_local_search_solver(network: Arc<Network>) -> LocalSearchSolver<Sch
                 iteration_counter,
                 current_solution.solution().get_print_text()
             );
-            /* println!(
-                "number of hitchhikers: {}",
-                current_solution
-                    .solution()
-                    .get_schedule()
-                    .count_hitch_hikers()
-            ); */
             println!("Objective value:");
             match previous_solution {
                 Some(prev_solution) => {
@@ -123,7 +114,7 @@ pub fn build_local_search_solver(network: Arc<Network>) -> LocalSearchSolver<Sch
     LocalSearchSolver::with_local_improver_and_function(
         neighborhood,
         objective,
-        Some(_take_any),
+        None,
         Some(function_between_steps),
     )
 }
