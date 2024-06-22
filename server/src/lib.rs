@@ -1,11 +1,16 @@
+use im::HashMap;
+use model::base_types::VehicleTypeIdx;
 use model::json_serialisation::load_rolling_stock_problem_instance_from_json;
 use objective_framework::EvaluatedSolution;
 use objective_framework::Objective;
 use solution::json_serialisation::schedule_to_json;
+use solution::transition::Transition;
 use solver::local_search::neighborhood::swaps::SwapInfo;
 use solver::local_search::ScheduleWithInfo;
 use solver::min_cost_flow_solver::MinCostFlowSolver;
 use solver::objective;
+use solver::transition_local_search::build_transition_local_search_solver;
+use solver::transition_local_search::TransitionWithInfo;
 use time::{DateTime, Duration};
 
 use gethostname::gethostname;
@@ -56,7 +61,36 @@ pub fn solve_instance(input_data: serde_json::Value) -> serde_json::Value {
         objective.evaluate(start_schedule_with_info.clone())
     };
 
-    // TODO add transition local search here
+    // optimize transitions
+    println!("\nOptimizing transitions:");
+    let start_time_transition_optimization = stdtime::Instant::now();
+    let mut optimized_transitions: HashMap<VehicleTypeIdx, Transition> = HashMap::new();
+    let schedule = solution.solution().get_schedule();
+    let transition_local_search_solver =
+        build_transition_local_search_solver(schedule, network.clone());
+    for vehicle_type in network.vehicle_types().iter() {
+        println!(
+            "\nOptimizing transitions for vehicle type {}",
+            network.vehicle_types().get(vehicle_type).unwrap()
+        );
+        let start_transition = TransitionWithInfo::new(
+            schedule.next_day_transition_of(vehicle_type).clone(),
+            "Initial transition".to_string(),
+        );
+        let improved_transition = transition_local_search_solver
+            .solve(start_transition)
+            .unwrap_solution()
+            .unwrap_transition();
+
+        optimized_transitions.insert(vehicle_type, improved_transition);
+    }
+    let schedule_with_optimized_transitions =
+        schedule.set_next_day_transitions(optimized_transitions);
+    println!(
+        "Transition optimized (elapsed time: {:0.2}sec)",
+        start_time_transition_optimization.elapsed().as_secs_f32()
+    );
+    schedule_with_optimized_transitions.print_next_day_transitions();
 
     // reassign end depots to be consistent with transitions
     let final_schedule = solution

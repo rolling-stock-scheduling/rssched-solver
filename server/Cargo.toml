@@ -25,3 +25,4 @@ axum = "0.7.3"
 tokio = { version = "1.35.1", features = ["full"]} # web framework
 rayon = "1.5.1" # for parallel iterator
 gethostname = "0.4.3"
+im = "15.0.0" # for lazy copies of data structures
