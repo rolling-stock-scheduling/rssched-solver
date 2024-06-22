@@ -181,7 +181,7 @@ pub fn load_rolling_stock_problem_instance_from_json(
 
 fn create_locations(json_input: &JsonInput) -> (Locations, HashMap<IdType, LocationIdx>) {
     let planning_days = determine_planning_days(json_input);
-    let mut stations: HashMap<LocationIdx, (String, Option<VehicleCount>)> = HashMap::new(); // PERF: use vec instead
+    let mut stations: HashMap<LocationIdx, (String, Option<VehicleCount>)> = HashMap::new(); // PpRF: use vec instead
     let mut dead_head_trips: HashMap<LocationIdx, HashMap<LocationIdx, DeadHeadTrip>> =
         HashMap::new();
 

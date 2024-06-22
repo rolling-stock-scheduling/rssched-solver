@@ -56,6 +56,8 @@ pub fn solve_instance(input_data: serde_json::Value) -> serde_json::Value {
         objective.evaluate(start_schedule_with_info.clone())
     };
 
+    // TODO add transition local search here
+
     // reassign end depots to be consistent with transitions
     let final_schedule = solution
         .solution()

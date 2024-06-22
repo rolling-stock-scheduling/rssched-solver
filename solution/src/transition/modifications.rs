@@ -27,7 +27,7 @@ impl Transition {
         let cycle_idx = self.cycle_lookup.get(&vehicle).unwrap();
         let old_cycle = &mut cycles.get(*cycle_idx).unwrap();
 
-        let new_maintenance_counter = if old_cycle.cycle.len() == 1 {
+        let new_maintenance_counter = if old_cycle.len() == 1 {
             new_tour.maintenance_counter()
                 + network
                     .dead_head_distance_between(
@@ -59,18 +59,18 @@ impl Transition {
                     network,
                 );
 
-            old_cycle.maintenance_counter - maintenance_counter_for_removal
+            old_cycle.maintenance_counter() - maintenance_counter_for_removal
                 + maintenance_counter_for_addition
         };
 
-        let new_cycle = TransitionCycle::new(old_cycle.cycle.clone(), new_maintenance_counter);
+        let new_cycle = TransitionCycle::new(old_cycle.get_vec().clone(), new_maintenance_counter);
 
         let total_maintenance_violation = (self.total_maintenance_violation
             + new_maintenance_counter.max(0))
-            - old_cycle.maintenance_counter.max(0);
+            - old_cycle.maintenance_counter().max(0);
 
         let total_maintenance_counter = (self.total_maintenance_counter + new_maintenance_counter)
-            - old_cycle.maintenance_counter;
+            - old_cycle.maintenance_counter();
 
         cycles[*cycle_idx] = new_cycle;
 
@@ -142,12 +142,7 @@ impl Transition {
 
         let cycle_idx = cycle_lookup.get(&vehicle).unwrap();
         let old_cycle = cycles.get(*cycle_idx).unwrap();
-        let new_cycle_vec: Vec<_> = old_cycle
-            .cycle
-            .iter()
-            .filter(|&&v| v != vehicle)
-            .cloned()
-            .collect();
+        let new_cycle_vec: Vec<_> = old_cycle.iter().filter(|&v| v != vehicle).collect();
         let new_maintenance_counter = if new_cycle_vec.is_empty() {
             empty_cycles.push(*cycle_idx);
             0
@@ -173,17 +168,17 @@ impl Transition {
                 .unwrap_or(INF_DISTANCE)
                 as MaintenanceCounter;
 
-            old_cycle.maintenance_counter - maintenance_counter_for_removal
+            old_cycle.maintenance_counter() - maintenance_counter_for_removal
                 + maintenance_counter_for_addition
         };
         let new_cycle = TransitionCycle::new(new_cycle_vec, new_maintenance_counter);
 
         let total_maintenance_violation = (self.total_maintenance_violation
             + new_maintenance_counter.max(0))
-            - old_cycle.maintenance_counter.max(0);
+            - old_cycle.maintenance_counter().max(0);
 
         let total_maintenance_counter = (self.total_maintenance_counter + new_maintenance_counter)
-            - old_cycle.maintenance_counter;
+            - old_cycle.maintenance_counter();
 
         cycles[*cycle_idx] = new_cycle;
 
@@ -213,12 +208,7 @@ impl Transition {
 
         let old_cycle = cycles.get(new_cycle_idx).unwrap();
 
-        let new_cycle_vec: Vec<_> = old_cycle
-            .cycle
-            .iter()
-            .cloned()
-            .chain(std::iter::once(vehicle))
-            .collect();
+        let new_cycle_vec: Vec<_> = old_cycle.iter().chain(std::iter::once(vehicle)).collect();
 
         let tour_of_vehicle = updated_tours
             .get(&vehicle)
@@ -274,7 +264,7 @@ impl Transition {
                     network,
                 );
 
-            old_cycle.maintenance_counter - maintenance_counter_for_removal
+            old_cycle.maintenance_counter() - maintenance_counter_for_removal
                 + maintenance_counter_for_addtion
         };
 
@@ -282,10 +272,10 @@ impl Transition {
 
         let total_maintenance_violation = (self.total_maintenance_violation
             + new_maintenance_counter.max(0))
-            - old_cycle.maintenance_counter.max(0);
+            - old_cycle.maintenance_counter().max(0);
 
         let total_maintenance_counter = (self.total_maintenance_counter + new_maintenance_counter)
-            - old_cycle.maintenance_counter;
+            - old_cycle.maintenance_counter();
 
         cycles[new_cycle_idx] = new_cycle;
 
@@ -310,6 +300,30 @@ impl Transition {
         let transition = self.remove_vehicle(vehicle, &HashMap::new(), tours, network);
         transition.add_vehicle_at_the_end(vehicle, new_cycle_idx, &HashMap::new(), tours, network)
     }
+
+    pub fn replace_cycle(&self, cycle_idx: CycleIdx, new_cycle: TransitionCycle) -> Transition {
+        let mut cycles = self.cycles.clone();
+
+        let old_cycle = self.cycles.get(cycle_idx).unwrap();
+
+        let total_maintenance_violation = self.total_maintenance_violation
+            + new_cycle.maintenance_counter().max(0)
+            - old_cycle.maintenance_counter().max(0);
+
+        let total_maintenance_counter = self.total_maintenance_counter
+            + new_cycle.maintenance_counter()
+            - old_cycle.maintenance_counter();
+
+        cycles[cycle_idx] = new_cycle;
+
+        Transition {
+            cycles,
+            total_maintenance_violation,
+            total_maintenance_counter,
+            cycle_lookup: self.cycle_lookup.clone(),
+            empty_cycles: self.empty_cycles.clone(),
+        }
+    }
 }
 
 impl Transition {
@@ -326,33 +340,32 @@ impl Transition {
         let cycle_idx = self.cycle_lookup.get(&vehicle).unwrap();
 
         let vehicle_idx = self.cycles[*cycle_idx]
-            .cycle
             .iter()
-            .position(|&v| v == vehicle)
+            .position(|v| v == vehicle)
             .unwrap();
         let predecessor = if vehicle_idx == 0 {
-            self.cycles[*cycle_idx].cycle.last().unwrap()
+            self.cycles[*cycle_idx].last().unwrap()
         } else {
-            self.cycles[*cycle_idx].cycle.get(vehicle_idx - 1).unwrap()
+            self.cycles[*cycle_idx].get(vehicle_idx - 1).unwrap()
         };
 
-        let successor = if vehicle_idx == self.cycles[*cycle_idx].cycle.len() - 1 {
-            self.cycles[*cycle_idx].cycle.first().unwrap()
+        let successor = if vehicle_idx == self.cycles[*cycle_idx].len() - 1 {
+            self.cycles[*cycle_idx].first().unwrap()
         } else {
-            self.cycles[*cycle_idx].cycle.get(vehicle_idx + 1).unwrap()
+            self.cycles[*cycle_idx].get(vehicle_idx + 1).unwrap()
         };
 
         (
             updated_tours
-                .get(predecessor)
+                .get(&predecessor)
                 .copied()
-                .unwrap_or_else(|| old_tours.get(predecessor).unwrap())
+                .unwrap_or_else(|| old_tours.get(&predecessor).unwrap())
                 .end_depot()
                 .unwrap(),
             updated_tours
-                .get(successor)
+                .get(&successor)
                 .copied()
-                .unwrap_or_else(|| old_tours.get(successor).unwrap())
+                .unwrap_or_else(|| old_tours.get(&successor).unwrap())
                 .start_depot()
                 .unwrap(),
         )

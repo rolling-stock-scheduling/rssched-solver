@@ -29,12 +29,13 @@ use search_result::SearchResult::{Improvement, NoImprovement};
 // * time that local search started (Option)
 type FunctionBetweenSteps<S> = Box<
     dyn Fn(
-        u32,
-        &EvaluatedSolution<S>,
-        Option<&EvaluatedSolution<S>>,
-        Arc<Objective<S>>,
-        Option<Instant>,
-    ),
+            u32,
+            &EvaluatedSolution<S>,
+            Option<&EvaluatedSolution<S>>,
+            Arc<Objective<S>>,
+            Option<Instant>,
+        ) + Send
+        + Sync,
 >;
 
 /// A local search neighborhood that provides for each solution a iterator over all neighbors.
@@ -51,7 +52,7 @@ pub trait Neighborhood<S>: Send + Sync {
 pub struct LocalSearchSolver<S> {
     neighborhood: Arc<dyn Neighborhood<S>>,
     objective: Arc<Objective<S>>,
-    local_improver: Option<Box<dyn LocalImprover<S>>>,
+    local_improver: Option<Box<dyn LocalImprover<S> + Send + Sync>>,
     function_between_steps: Option<FunctionBetweenSteps<S>>,
 }
 
@@ -73,7 +74,7 @@ impl<S> LocalSearchSolver<S> {
     pub fn with_local_improver_and_function(
         neighborhood: Arc<dyn Neighborhood<S>>,
         objective: Arc<Objective<S>>,
-        local_improver: Option<Box<dyn LocalImprover<S>>>,
+        local_improver: Option<Box<dyn LocalImprover<S> + Send + Sync>>,
         function_between_steps: Option<FunctionBetweenSteps<S>>,
     ) -> Self {
         Self {
@@ -91,7 +92,7 @@ impl<S> LocalSearchSolver<S> {
         let init_solution = self.objective.evaluate(initial_solution);
 
         // default local improver is Minimizer
-        let minimizer: Box<dyn LocalImprover<S>> = Box::new(Minimizer::new(
+        let minimizer: Box<dyn LocalImprover<S> + Send + Sync> = Box::new(Minimizer::new(
             self.neighborhood.clone(),
             self.objective.clone(),
         ));

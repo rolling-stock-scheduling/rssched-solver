@@ -11,6 +11,7 @@ use solver::min_cost_flow_solver::MinCostFlowSolver;
 use solver::objective;
 
 use model::json_serialisation::load_rolling_stock_problem_instance_from_json;
+use solver::transition_cycle_tsp::TransitionCycleWithInfo;
 use solver::transition_local_search::{build_transition_local_search_solver, TransitionWithInfo};
 
 use std::sync::Arc;
@@ -65,27 +66,28 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
     let start_time_transition_optimization = stdtime::Instant::now();
     let mut optimized_transitions: HashMap<VehicleTypeIdx, Transition> = HashMap::new();
     let schedule = solution.solution().get_schedule();
+    let transition_local_search_solver =
+        build_transition_local_search_solver(schedule, network.clone());
     for vehicle_type in network.vehicle_types().iter() {
         println!(
             "\nOptimizing transitions for vehicle type {}",
             network.vehicle_types().get(vehicle_type).unwrap()
         );
-        let transition_local_search_solver =
-            build_transition_local_search_solver(schedule, network.clone());
         let start_transition = TransitionWithInfo::new(
             schedule.next_day_transition_of(vehicle_type).clone(),
             "Initial transition".to_string(),
         );
-        let improved_transition = transition_local_search_solver.solve(start_transition);
-        optimized_transitions.insert(
-            vehicle_type,
-            improved_transition.unwrap_solution().unwrap_transition(),
-        );
+        let improved_transition = transition_local_search_solver
+            .solve(start_transition)
+            .unwrap_solution()
+            .unwrap_transition();
+
+        optimized_transitions.insert(vehicle_type, improved_transition);
     }
     let schedule_with_optimized_transitions =
         schedule.set_next_day_transitions(optimized_transitions);
     println!(
-        "\nTransition optimized (elapsed time: {:0.2}sec)",
+        "Transition optimized (elapsed time: {:0.2}sec)",
         start_time_transition_optimization.elapsed().as_secs_f32()
     );
     schedule_with_optimized_transitions.print_next_day_transitions();

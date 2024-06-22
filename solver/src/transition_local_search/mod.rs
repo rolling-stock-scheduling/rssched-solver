@@ -8,6 +8,8 @@ use model::network::Network;
 use objective_framework::{EvaluatedSolution, Objective};
 use solution::{transition::Transition, Schedule};
 
+use crate::transition_cycle_tsp;
+
 use self::transition_neighborhood::TransitionNeighborhood;
 
 pub struct TransitionWithInfo {
@@ -40,10 +42,14 @@ pub fn build_transition_local_search_solver(
     schedule: &Schedule,
     network: Arc<Network>,
 ) -> LocalSearchSolver<TransitionWithInfo> {
+    let transition_cycle_tsp_solver =
+        transition_cycle_tsp::build_transition_cycle_tsp_solver(schedule, network.clone());
+
     let objective = Arc::new(transition_objective::build());
 
     let neighborhood = Arc::new(TransitionNeighborhood::new(
         schedule.get_tours().clone(),
+        transition_cycle_tsp_solver,
         network.clone(),
     ));
 

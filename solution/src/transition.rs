@@ -1,4 +1,6 @@
 pub mod modifications;
+pub mod transition_cycle;
+
 use std::collections::HashSet;
 
 use im::HashMap;
@@ -11,6 +13,8 @@ use model::{
 pub type CycleIdx = usize;
 
 use crate::tour::Tour;
+
+use self::transition_cycle::TransitionCycle;
 
 #[derive(Clone)]
 pub struct Transition {
@@ -140,7 +144,7 @@ impl Transition {
         let cycle_lookup = cycles
             .iter()
             .enumerate()
-            .flat_map(|(idx, cycle)| cycle.cycle.iter().map(move |&vehicle| (vehicle, idx)))
+            .flat_map(|(idx, cycle)| cycle.iter().map(move |vehicle| (vehicle, idx)))
             .collect();
 
         Transition {
@@ -155,9 +159,9 @@ impl Transition {
     pub fn get_successor_of(&self, vehicle: VehicleIdx) -> VehicleIdx {
         let cycle_idx = self.cycle_lookup.get(&vehicle).unwrap();
         let cycle = self.cycles.get(*cycle_idx).unwrap();
-        let vehicle_position = cycle.cycle.iter().position(|&v| v == vehicle).unwrap();
-        let successor_position = (vehicle_position + 1) % cycle.cycle.len();
-        cycle.cycle[successor_position]
+        let vehicle_position = cycle.iter().position(|v| v == vehicle).unwrap();
+        let successor_position = (vehicle_position + 1) % cycle.len();
+        cycle.get_vec()[successor_position]
     }
 
     pub fn number_of_cycles(&self) -> usize {
@@ -166,6 +170,10 @@ impl Transition {
 
     pub fn cycles_iter(&self) -> impl Iterator<Item = &TransitionCycle> {
         self.cycles.iter()
+    }
+
+    pub fn get_cycle(&self, cycle_idx: CycleIdx) -> &TransitionCycle {
+        self.cycles.get(cycle_idx).unwrap()
     }
 
     pub fn maintenance_violation(&self) -> MaintenanceCounter {
@@ -178,7 +186,7 @@ impl Transition {
 
     pub fn print(&self) {
         for transition_cycle in self.cycles.iter() {
-            if !transition_cycle.cycle.is_empty() {
+            if !transition_cycle.is_empty() {
                 println!("{}", transition_cycle);
             }
         }
@@ -199,7 +207,7 @@ impl Transition {
         let cycles: Vec<VehicleIdx> = self
             .cycles
             .iter()
-            .flat_map(|transition_cycle| transition_cycle.cycle.iter().cloned())
+            .flat_map(|transition_cycle| transition_cycle.iter())
             .collect();
         assert_eq!(cycles.len(), tours.len());
         let vehicles_from_tours: HashSet<VehicleIdx> = tours.keys().cloned().collect();
@@ -211,16 +219,15 @@ impl Transition {
         let mut computed_total_maintenance_counter = 0;
         for transition_cycle in self.cycles.iter() {
             let mut computed_maintenance_counter: MaintenanceCounter = transition_cycle
-                .cycle
                 .iter()
-                .map(|&vehicle_id| tours.get(&vehicle_id).unwrap().maintenance_counter())
+                .map(|vehicle_id| tours.get(&vehicle_id).unwrap().maintenance_counter())
                 .sum();
 
-            let dead_head_distance_between_depots = match transition_cycle.cycle.len() {
+            let dead_head_distance_between_depots = match transition_cycle.len() {
                 0 => 0,
                 1 => {
-                    let vehicle = transition_cycle.cycle.first().unwrap();
-                    let tour = tours.get(vehicle).unwrap();
+                    let vehicle = transition_cycle.first().unwrap();
+                    let tour = tours.get(&vehicle).unwrap();
                     network
                         .dead_head_distance_between(
                             tour.end_depot().unwrap(),
@@ -230,7 +237,7 @@ impl Transition {
                         .unwrap_or(INF_DISTANCE) as MaintenanceCounter
                 }
                 _ => transition_cycle
-                    .cycle
+                    .get_vec()
                     .iter()
                     .circular_tuple_windows()
                     .map(|(vehicle_1, vehicle_2)| {
@@ -252,7 +259,7 @@ impl Transition {
 
             assert_eq!(
                 computed_maintenance_counter,
-                transition_cycle.maintenance_counter,
+                transition_cycle.maintenance_counter(),
             );
             computed_total_maintenance_violation += computed_maintenance_counter.max(0);
             computed_total_maintenance_counter += computed_maintenance_counter;
@@ -268,12 +275,12 @@ impl Transition {
 
         // verify cycle lookup
         for (vehicle, cycle_idx) in self.cycle_lookup.iter() {
-            assert!(self.cycles[*cycle_idx].cycle.contains(vehicle));
+            assert!(self.cycles[*cycle_idx].get_vec().contains(vehicle));
         }
 
         // verify empty cycles
         for empty_cycle_idx in self.empty_cycles.iter() {
-            assert!(self.cycles[*empty_cycle_idx].cycle.is_empty());
+            assert!(self.cycles[*empty_cycle_idx].is_empty());
         }
     }
 
@@ -299,43 +306,5 @@ impl Transition {
             as MaintenanceCounter;
         cluster.push(vehicle);
         *maintenance_counter += tour.maintenance_counter() + dist_between_end_depot_to_start_depot;
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct TransitionCycle {
-    cycle: Vec<VehicleIdx>,
-    maintenance_counter: MaintenanceCounter,
-}
-
-impl TransitionCycle {
-    pub fn new(cycle: Vec<VehicleIdx>, maintenance_counter: MaintenanceCounter) -> TransitionCycle {
-        TransitionCycle {
-            cycle,
-            maintenance_counter,
-        }
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = VehicleIdx> + '_ {
-        self.cycle.iter().copied()
-    }
-
-    pub fn get_vec(&self) -> &Vec<VehicleIdx> {
-        &self.cycle
-    }
-}
-
-impl std::fmt::Display for TransitionCycle {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "Cycle: ({}), counter: {}",
-            self.cycle
-                .iter()
-                .map(|&idx| format!("{}", idx.idx()))
-                .collect::<Vec<String>>()
-                .join(", "),
-            self.maintenance_counter
-        )
     }
 }
