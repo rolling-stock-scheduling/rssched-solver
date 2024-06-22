@@ -56,7 +56,7 @@ impl Tour {
         self.visits_maintenance
     }
 
-    pub fn len(&self) -> usize {
+    pub fn length(&self) -> usize {
         self.nodes.len()
     }
 
@@ -204,10 +204,10 @@ impl Tour {
             self.network.node(self.last_node()).end_time()
         } else {
             self.network
-                .node(self.nth_node(self.len() - 2).unwrap())
+                .node(self.nth_node(self.length() - 2).unwrap())
                 .end_time()
                 + self.network.dead_head_time_between(
-                    self.nth_node(self.len() - 2).unwrap(),
+                    self.nth_node(self.length() - 2).unwrap(),
                     self.last_node(),
                 )
         }

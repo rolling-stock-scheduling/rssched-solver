@@ -32,12 +32,12 @@ impl Neighborhood<Transition> for TransitionNeighborhood {
                     let (second_cycle_idx, second_cycle) = combination[1];
                     first_cycle
                         .iter()
-                        .map(move |v| Some(v))
+                        .map(Some)
                         .chain(std::iter::once(None)) // add none for no vehicle
                         .flat_map(move |first_vehicle_opt| {
                             second_cycle
                                 .iter()
-                                .map(move |v| Some(v))
+                                .map(Some)
                                 .chain(std::iter::once(None)) // add nonce for no vehicle
                                 .map(move |second_vehicle_opt| {
                                     (

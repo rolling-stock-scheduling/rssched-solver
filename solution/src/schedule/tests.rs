@@ -55,9 +55,9 @@ fn basic_methods_test() {
     assert_eq!(schedule.number_of_dummy_tours(), 0);
     assert!(schedule.dummy_iter().next().is_none());
 
-    assert_eq!(schedule.tour_of(veh0).unwrap().len(), 7);
-    assert_eq!(schedule.tour_of(veh1).unwrap().len(), 4);
-    assert_eq!(schedule.tour_of(veh2).unwrap().len(), 5);
+    assert_eq!(schedule.tour_of(veh0).unwrap().length(), 7);
+    assert_eq!(schedule.tour_of(veh1).unwrap().length(), 4);
+    assert_eq!(schedule.tour_of(veh2).unwrap().length(), 5);
 
     assert_eq!(
         schedule.train_formation_of(d.trip12).ids(),
