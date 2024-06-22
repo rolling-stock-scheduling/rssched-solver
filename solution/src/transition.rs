@@ -1,11 +1,14 @@
+pub mod modifications;
 use std::collections::HashSet;
 
 use im::HashMap;
 use itertools::Itertools;
 use model::{
-    base_types::{MaintenanceCounter, NodeIdx, VehicleIdx, INF_DISTANCE},
+    base_types::{MaintenanceCounter, VehicleIdx, INF_DISTANCE},
     network::Network,
 };
+
+pub type CycleIdx = usize;
 
 use crate::tour::Tour;
 
@@ -13,12 +16,13 @@ use crate::tour::Tour;
 pub struct Transition {
     cycles: Vec<TransitionCycle>,
     total_maintenance_violation: MaintenanceCounter,
+    total_maintenance_counter: MaintenanceCounter,
 
-    cycle_lookup: HashMap<VehicleIdx, usize>,
-    empty_cycles: Vec<usize>, // as the indices need to stay as they are, sometimes a cycle become
-                              // empty but it cannot be removed.
-                              // New vehicles can use these empty cycles instead of creating a new
-                              // one.
+    cycle_lookup: HashMap<VehicleIdx, CycleIdx>,
+    empty_cycles: Vec<CycleIdx>, // as the indices need to stay as they are, sometimes a cycle become
+                                 // empty but it cannot be removed.
+                                 // New vehicles can use these empty cycles instead of creating a new
+                                 // one.
 }
 
 impl Transition {
@@ -105,6 +109,7 @@ impl Transition {
         }
 
         let mut total_maintenance_violation = 0;
+        let mut total_maintenance_counter = 0;
         let cycles: Vec<_> = sorted_clusters
             .into_iter()
             .map(|(vehicles, mut maintenance_counter)| {
@@ -127,6 +132,7 @@ impl Transition {
                 maintenance_counter += last_end_depot_to_first_start_depot;
 
                 total_maintenance_violation += maintenance_counter.max(0);
+                total_maintenance_counter += maintenance_counter;
                 TransitionCycle::new(vehicles, maintenance_counter)
             })
             .collect();
@@ -140,6 +146,7 @@ impl Transition {
         Transition {
             cycles,
             total_maintenance_violation,
+            total_maintenance_counter,
             cycle_lookup,
             empty_cycles: Vec::new(),
         }
@@ -153,186 +160,8 @@ impl Transition {
         cycle.cycle[successor_position]
     }
 
-    // TEST this function (with multiple vehicles being updated in a raw)
-    // old_tours are the tours of the old schedule, updated_tours are the tours of vehicle that
-    // have already been updated in the current transition. Hence, for determining the tours of the
-    // predecessor and the successor first take the updated_tours and if they are not present, then
-    // take the old_tours.
-    pub fn update_vehicle(
-        &self,
-        vehicle: VehicleIdx,
-        new_tour: &Tour,
-        updated_tours: &HashMap<VehicleIdx, &Tour>,
-        old_tours: &HashMap<VehicleIdx, Tour>,
-        network: &Network,
-    ) -> Transition {
-        let old_tour = old_tours.get(&vehicle).unwrap();
-        let mut cycles = self.cycles.clone();
-        let cycle_idx = self.cycle_lookup.get(&vehicle).unwrap();
-        let old_cycle = &mut cycles.get(*cycle_idx).unwrap();
-        let mut total_maintenance_violation = self.total_maintenance_violation;
-
-        let new_maintenance_counter = if old_cycle.cycle.len() == 1 {
-            new_tour.maintenance_counter()
-                + network
-                    .dead_head_distance_between(
-                        new_tour.end_depot().unwrap(),
-                        new_tour.start_depot().unwrap(),
-                    )
-                    .in_meter()
-                    .unwrap_or(INF_DISTANCE) as MaintenanceCounter
-        } else {
-            let (end_depot_of_predecessor, start_depot_of_successor) = self
-                .end_depot_of_predecessor_and_start_depot_of_successor(
-                    vehicle,
-                    updated_tours,
-                    old_tours,
-                );
-
-            let maintenance_counter_for_removal = self
-                .maintenance_counter_of_tour_plus_dead_head_trips_before_and_after(
-                    old_tour,
-                    end_depot_of_predecessor,
-                    start_depot_of_successor,
-                    network,
-                );
-            let maintenance_counter_for_addition = self
-                .maintenance_counter_of_tour_plus_dead_head_trips_before_and_after(
-                    new_tour,
-                    end_depot_of_predecessor,
-                    start_depot_of_successor,
-                    network,
-                );
-
-            old_cycle.maintenance_counter - maintenance_counter_for_removal
-                + maintenance_counter_for_addition
-        };
-
-        let new_cycle = TransitionCycle::new(old_cycle.cycle.clone(), new_maintenance_counter);
-
-        total_maintenance_violation = (total_maintenance_violation
-            + new_maintenance_counter.max(0))
-            - old_cycle.maintenance_counter.max(0);
-
-        cycles[*cycle_idx] = new_cycle;
-
-        Transition {
-            cycles,
-            total_maintenance_violation,
-            cycle_lookup: self.cycle_lookup.clone(),
-            empty_cycles: self.empty_cycles.clone(),
-        }
-    }
-
-    // TEST this function
-    pub fn add_vehicle_to_own_cycle(
-        &self,
-        vehicle: VehicleIdx,
-        new_tour: &Tour,
-        network: &Network,
-    ) -> Transition {
-        let mut cycles = self.cycles.clone();
-        let mut total_maintenance_violation = self.total_maintenance_violation;
-        let mut cycle_lookup = self.cycle_lookup.clone();
-        let mut empty_cycles = self.empty_cycles.clone();
-
-        let maintenance_counter_of_tour = new_tour.maintenance_counter()
-            + network
-                .dead_head_distance_between(
-                    new_tour.end_depot().unwrap(),
-                    new_tour.start_depot().unwrap(),
-                )
-                .in_meter()
-                .unwrap_or(INF_DISTANCE) as MaintenanceCounter;
-
-        let new_cycle = TransitionCycle::new(vec![vehicle], maintenance_counter_of_tour);
-        total_maintenance_violation += maintenance_counter_of_tour.max(0);
-
-        if empty_cycles.is_empty() {
-            cycles.push(new_cycle);
-            cycle_lookup.insert(vehicle, cycles.len() - 1);
-        } else {
-            let empty_cycle_idx = empty_cycles.pop().unwrap();
-            cycles[empty_cycle_idx] = new_cycle;
-            cycle_lookup.insert(vehicle, empty_cycle_idx);
-        }
-
-        Transition {
-            cycles,
-            total_maintenance_violation,
-            cycle_lookup,
-            empty_cycles,
-        }
-    }
-
-    // TEST for this function (with multiple vehicles being removed in a raw) and with a
-    // maintenance vehicle removed
-    pub fn remove_vehicle(
-        &self,
-        vehicle: VehicleIdx,
-        updated_tours: &HashMap<VehicleIdx, &Tour>,
-        old_tours: &HashMap<VehicleIdx, Tour>,
-        network: &Network,
-    ) -> Transition {
-        let mut cycles = self.cycles.clone();
-        let mut total_maintenance_violation = self.total_maintenance_violation;
-        let mut cycle_lookup = self.cycle_lookup.clone();
-        let mut empty_cycles = self.empty_cycles.clone();
-
-        let cycle_idx = cycle_lookup.get(&vehicle).unwrap();
-        let old_cycle = cycles.get(*cycle_idx).unwrap();
-        let new_cycle_vec: Vec<_> = old_cycle
-            .cycle
-            .iter()
-            .filter(|&&v| v != vehicle)
-            .cloned()
-            .collect();
-        if new_cycle_vec.is_empty() {
-            total_maintenance_violation -= old_cycle.maintenance_counter.max(0);
-            cycles[*cycle_idx] = TransitionCycle::new(vec![], 0);
-            empty_cycles.push(*cycle_idx);
-        } else {
-            let (end_depot_of_predecessor, start_depot_of_successor) = self
-                .end_depot_of_predecessor_and_start_depot_of_successor(
-                    vehicle,
-                    updated_tours,
-                    old_tours,
-                );
-
-            let maintenance_counter_for_removal = self
-                .maintenance_counter_of_tour_plus_dead_head_trips_before_and_after(
-                    old_tours.get(&vehicle).unwrap(),
-                    end_depot_of_predecessor,
-                    start_depot_of_successor,
-                    network,
-                );
-
-            let maintenance_counter_for_addition = network
-                .dead_head_distance_between(end_depot_of_predecessor, start_depot_of_successor)
-                .in_meter()
-                .unwrap_or(INF_DISTANCE)
-                as MaintenanceCounter;
-
-            let new_maintenance_counter = old_cycle.maintenance_counter
-                - maintenance_counter_for_removal
-                + maintenance_counter_for_addition;
-            let new_cycle = TransitionCycle::new(new_cycle_vec, new_maintenance_counter);
-
-            total_maintenance_violation = (total_maintenance_violation
-                + new_maintenance_counter.max(0))
-                - old_cycle.maintenance_counter.max(0);
-
-            cycles[*cycle_idx] = new_cycle;
-        }
-
-        cycle_lookup.remove(&vehicle);
-
-        Transition {
-            cycles,
-            total_maintenance_violation,
-            cycle_lookup,
-            empty_cycles,
-        }
+    pub fn number_of_cycles(&self) -> usize {
+        self.cycles.len()
     }
 
     pub fn cycles_iter(&self) -> impl Iterator<Item = &TransitionCycle> {
@@ -343,13 +172,20 @@ impl Transition {
         self.total_maintenance_violation
     }
 
+    pub fn maintenance_counter(&self) -> MaintenanceCounter {
+        self.total_maintenance_counter
+    }
+
     pub fn print(&self) {
-        println!("Transition:");
         for transition_cycle in self.cycles.iter() {
             if !transition_cycle.cycle.is_empty() {
                 println!("{}", transition_cycle);
             }
         }
+        println!(
+            "Total maintenance counter: {}",
+            self.total_maintenance_counter
+        );
         println!(
             "Total maintenance violation: {}",
             self.total_maintenance_violation
@@ -357,7 +193,7 @@ impl Transition {
     }
 
     /// Verifies that the transition is consistent with the tours.
-    /// Note that the tours must be the tours of this vehicle type group.
+    /// Note that the tours must be exactly the tours of this vehicle type group.
     pub fn verify_consistency(&self, tours: &HashMap<VehicleIdx, Tour>, network: &Network) {
         // each vehicle is present in exactly one cycle
         let cycles: Vec<VehicleIdx> = self
@@ -370,8 +206,9 @@ impl Transition {
         let vehicles_from_cycles: HashSet<VehicleIdx> = cycles.iter().cloned().collect();
         assert_eq!(vehicles_from_tours, vehicles_from_cycles);
 
-        // verify maintenance violations
+        // verify maintenance counter and violations
         let mut computed_total_maintenance_violation = 0;
+        let mut computed_total_maintenance_counter = 0;
         for transition_cycle in self.cycles.iter() {
             let mut computed_maintenance_counter: MaintenanceCounter = transition_cycle
                 .cycle
@@ -418,10 +255,15 @@ impl Transition {
                 transition_cycle.maintenance_counter,
             );
             computed_total_maintenance_violation += computed_maintenance_counter.max(0);
+            computed_total_maintenance_counter += computed_maintenance_counter;
         }
         assert_eq!(
             computed_total_maintenance_violation,
             self.total_maintenance_violation
+        );
+        assert_eq!(
+            computed_total_maintenance_counter,
+            self.total_maintenance_counter
         );
 
         // verify cycle lookup
@@ -433,69 +275,6 @@ impl Transition {
         for empty_cycle_idx in self.empty_cycles.iter() {
             assert!(self.cycles[*empty_cycle_idx].cycle.is_empty());
         }
-    }
-
-    // as we do multiple transition updates for the same old_schedule, the tours must be updated
-    // one-by-one. To speed up the process, have the old_tours of the old_schedule and the tour
-    // updates are contained in a separate hashmap. So as tours consider first the tours in
-    // updated_tours and if they are not present, then consider the tours in old_tours.
-    fn end_depot_of_predecessor_and_start_depot_of_successor(
-        &self,
-        vehicle: VehicleIdx,
-        updated_tours: &HashMap<VehicleIdx, &Tour>,
-        old_tours: &HashMap<VehicleIdx, Tour>,
-    ) -> (NodeIdx, NodeIdx) {
-        let cycle_idx = self.cycle_lookup.get(&vehicle).unwrap();
-
-        let vehicle_idx = self.cycles[*cycle_idx]
-            .cycle
-            .iter()
-            .position(|&v| v == vehicle)
-            .unwrap();
-        let predecessor = if vehicle_idx == 0 {
-            self.cycles[*cycle_idx].cycle.last().unwrap()
-        } else {
-            self.cycles[*cycle_idx].cycle.get(vehicle_idx - 1).unwrap()
-        };
-
-        let successor = if vehicle_idx == self.cycles[*cycle_idx].cycle.len() - 1 {
-            self.cycles[*cycle_idx].cycle.first().unwrap()
-        } else {
-            self.cycles[*cycle_idx].cycle.get(vehicle_idx + 1).unwrap()
-        };
-
-        (
-            updated_tours
-                .get(predecessor)
-                .copied()
-                .unwrap_or_else(|| old_tours.get(predecessor).unwrap())
-                .end_depot()
-                .unwrap(),
-            updated_tours
-                .get(successor)
-                .copied()
-                .unwrap_or_else(|| old_tours.get(successor).unwrap())
-                .start_depot()
-                .unwrap(),
-        )
-    }
-
-    fn maintenance_counter_of_tour_plus_dead_head_trips_before_and_after(
-        &self,
-        tour: &Tour,
-        end_depot_of_predecessor: NodeIdx,
-        start_depot_of_successor: NodeIdx,
-        network: &Network,
-    ) -> MaintenanceCounter {
-        tour.maintenance_counter()
-            + network
-                .dead_head_distance_between(end_depot_of_predecessor, tour.start_depot().unwrap())
-                .in_meter()
-                .unwrap_or(INF_DISTANCE) as MaintenanceCounter
-            + network
-                .dead_head_distance_between(tour.end_depot().unwrap(), start_depot_of_successor)
-                .in_meter()
-                .unwrap_or(INF_DISTANCE) as MaintenanceCounter
     }
 
     fn push_vehicle_to_end_of_cluster(
@@ -540,19 +319,23 @@ impl TransitionCycle {
     pub fn iter(&self) -> impl Iterator<Item = VehicleIdx> + '_ {
         self.cycle.iter().copied()
     }
+
+    pub fn get_vec(&self) -> &Vec<VehicleIdx> {
+        &self.cycle
+    }
 }
 
 impl std::fmt::Display for TransitionCycle {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "Cycle: ({}), Maintenance violation: {}",
+            "Cycle: ({}), counter: {}",
             self.cycle
                 .iter()
                 .map(|&idx| format!("{}", idx.idx()))
                 .collect::<Vec<String>>()
                 .join(", "),
-            self.maintenance_counter.max(0)
+            self.maintenance_counter
         )
     }
 }

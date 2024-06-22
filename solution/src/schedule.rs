@@ -136,12 +136,25 @@ impl Schedule {
         }
     }
 
+    pub fn get_tours(&self) -> &HashMap<VehicleIdx, Tour> {
+        &self.tours
+    }
+
     pub fn maintenance_violation(&self) -> MaintenanceCounter {
         self.maintenance_violation
     }
 
     pub fn next_day_transition_of(&self, vehicle_type: VehicleTypeIdx) -> &Transition {
         self.next_period_transitions.get(&vehicle_type).unwrap()
+    }
+
+    pub fn set_next_day_transitions(
+        &self,
+        transitions: HashMap<VehicleTypeIdx, Transition>,
+    ) -> Self {
+        let mut new_schedule = self.clone();
+        new_schedule.next_period_transitions = transitions;
+        new_schedule
     }
 
     pub fn train_formation_of(&self, node: NodeIdx) -> &TrainFormation {
@@ -288,6 +301,16 @@ impl Schedule {
     pub fn print_train_formations(&self) {
         for node in self.network.coverable_nodes() {
             println!("{}: {}", node, self.train_formations.get(&node).unwrap());
+        }
+    }
+
+    pub fn print_next_day_transitions(&self) {
+        for (vehicle_type, transition) in self.next_period_transitions.iter() {
+            println!(
+                "\nNextDayTransitions for {}:",
+                self.network.vehicle_types().get(*vehicle_type).unwrap()
+            );
+            transition.print();
         }
     }
 

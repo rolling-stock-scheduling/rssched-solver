@@ -1,12 +1,17 @@
 #![allow(unused_imports)]
 mod test_objective;
 
+use im::HashMap;
+use model::base_types::VehicleTypeIdx;
+use model::vehicle_types::VehicleType;
+use solution::transition::Transition;
 use solver::local_search::neighborhood::swaps::SwapInfo;
 use solver::local_search::ScheduleWithInfo;
 use solver::min_cost_flow_solver::MinCostFlowSolver;
 use solver::objective;
 
 use model::json_serialisation::load_rolling_stock_problem_instance_from_json;
+use solver::transition_local_search::build_transition_local_search_solver;
 
 use std::sync::Arc;
 use std::time as stdtime;
@@ -55,11 +60,33 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
         objective.evaluate(start_schedule_with_info.clone())
     };
 
+    // optimize transitions
+    println!("\nOptimizing transitions:");
+    let start_time_transition_optimization = stdtime::Instant::now();
+    let mut optimized_transitions: HashMap<VehicleTypeIdx, Transition> = HashMap::new();
+    let schedule = solution.solution().get_schedule();
+    for vehicle_type in network.vehicle_types().iter() {
+        println!(
+            "\nOptimizing transitions for vehicle type {}",
+            network.vehicle_types().get(vehicle_type).unwrap()
+        );
+        let transition_local_search_solver =
+            build_transition_local_search_solver(schedule, network.clone());
+        let improved_transition = transition_local_search_solver
+            .solve(schedule.next_day_transition_of(vehicle_type).clone());
+        optimized_transitions.insert(vehicle_type, improved_transition.unwrap_solution());
+    }
+    let schedule_with_optimized_transitions =
+        schedule.set_next_day_transitions(optimized_transitions);
+    println!(
+        "\nTransition optimized (elapsed time: {:0.2}sec)",
+        start_time_transition_optimization.elapsed().as_secs_f32()
+    );
+    schedule_with_optimized_transitions.print_next_day_transitions();
+
     // reassign end depots to be consistent with transitions
-    let final_schedule = solution
-        .solution()
-        .get_schedule()
-        .reassign_end_depots_consistent_with_transitions();
+    let final_schedule =
+        schedule_with_optimized_transitions.reassign_end_depots_consistent_with_transitions();
     let final_schedule_with_info = ScheduleWithInfo::new(
         final_schedule,
         SwapInfo::NoSwap,

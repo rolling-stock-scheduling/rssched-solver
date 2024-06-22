@@ -21,4 +21,8 @@ impl<S> EvaluatedSolution<S> {
     pub fn objective_value(&self) -> &ObjectiveValue {
         &self.objective_value
     }
+
+    pub fn unwrap_solution(self) -> S {
+        self.solution
+    }
 }

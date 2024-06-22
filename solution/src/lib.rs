@@ -3,7 +3,7 @@ pub mod path;
 mod schedule;
 pub mod segment;
 pub mod test_utilities;
-mod tour;
+pub mod tour;
 mod train_formation;
 pub mod transition;
 mod vehicle;

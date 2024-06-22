@@ -23,3 +23,4 @@ solver = { path = "../solver" }
 server = { path = "../server" }
 rayon = "1.5.1" # for parallel iterator
 serde_json = { version = "1.0", features = ["preserve_order"]} # for reading json-files
+im = "15.0.0" # for lazy copies of data structures
