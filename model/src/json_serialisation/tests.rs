@@ -208,7 +208,6 @@ fn test_load_from_json(path: &str) {
     assert_eq!(config.day_limit_threshold, Duration::from_seconds(300));
     assert_eq!(config.shunting.minimal, Duration::from_seconds(120));
     assert_eq!(config.shunting.dead_head_trip, Duration::from_seconds(300));
-    assert_eq!(config.shunting.coupling, Duration::from_seconds(600));
     assert_eq!(
         config.maintenance.maximal_distance,
         Distance::from_meter(30000000)

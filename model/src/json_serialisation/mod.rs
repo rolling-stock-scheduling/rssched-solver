@@ -139,7 +139,6 @@ struct Parameters {
 struct Shunting {
     minimal_duration: Integer,
     dead_head_trip_duration: Integer,
-    coupling_duration: Integer,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -322,7 +321,6 @@ fn create_config(json_input: &JsonInput) -> Config {
         Duration::from_seconds(json_input.parameters.day_limit_threshold.unwrap_or(0)),
         Duration::from_seconds(json_input.parameters.shunting.minimal_duration),
         Duration::from_seconds(json_input.parameters.shunting.dead_head_trip_duration),
-        Duration::from_seconds(json_input.parameters.shunting.coupling_duration),
         Distance::from_meter(
             json_input
                 .parameters

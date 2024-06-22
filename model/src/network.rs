@@ -248,7 +248,7 @@ impl Network {
     // TODO connected by a route service trip can always be reached
 
     /// returns True iff node1 can reach node2
-    /// but alswats False from start depot to start depot and end depot to end depot
+    /// but always False from start depot to start depot and end depot to end depot
     pub fn can_reach(&self, node1: NodeIdx, node2: NodeIdx) -> bool {
         let n1 = self.nodes.get(&node1).unwrap();
         let n2 = self.nodes.get(&node2).unwrap();
@@ -327,18 +327,12 @@ impl Network {
         n1: &Node,
         n2: &Node,
     ) -> Duration {
-        if let Node::Service(_) = n1 {
-            if let Node::Service(_) = n2 {
-                // both nodes are service trips
-
-                self.config.shunting.minimal
-            } else {
-                // n2 is no service trip
-                Duration::ZERO
-            }
-        } else {
-            // n1 is no service trip
-            Duration::ZERO
+        match (n1, n2) {
+            (Node::Service(_), Node::Service(_)) => self.config.shunting.minimal,
+            (Node::Service(_), Node::Maintenance(_)) => self.config.shunting.minimal,
+            (Node::Maintenance(_), Node::Service(_)) => self.config.shunting.minimal,
+            (Node::Maintenance(_), Node::Maintenance(_)) => self.config.shunting.minimal,
+            _ => Duration::ZERO,
         }
     }
 

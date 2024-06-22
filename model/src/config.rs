@@ -13,7 +13,6 @@ pub struct Config {
 pub struct ShuntingConfig {
     pub minimal: Duration,
     pub dead_head_trip: Duration,
-    pub coupling: Duration,
 }
 
 pub struct MaintenanceConfig {
@@ -35,7 +34,6 @@ impl Config {
         day_limit_threshold: Duration,
         shunting_minimal: Duration,
         shunting_dead_head_trip: Duration,
-        shunting_coupling: Duration,
         maintenance_maximal_distance: Distance,
         costs_staff: Cost,
         costs_service_trip: Cost,
@@ -49,7 +47,6 @@ impl Config {
             shunting: ShuntingConfig {
                 minimal: shunting_minimal,
                 dead_head_trip: shunting_dead_head_trip,
-                coupling: shunting_coupling,
             },
             maintenance: MaintenanceConfig {
                 maximal_distance: maintenance_maximal_distance,

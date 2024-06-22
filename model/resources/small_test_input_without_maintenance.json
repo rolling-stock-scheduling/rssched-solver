@@ -186,8 +186,7 @@
     "dayLimitThreshold": 300,
     "shunting": {
       "minimalDuration": 120,
-      "deadHeadTripDuration": 300,
-      "couplingDuration": 600
+      "deadHeadTripDuration": 300
     },
     "maintenance": {
       "maximalDistance": 30000000
