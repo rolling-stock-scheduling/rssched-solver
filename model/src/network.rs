@@ -265,6 +265,10 @@ impl Network {
             return true;
         }
 
+        if self.config.forbid_dead_head_trip && n1.end_location() != n2.start_location() {
+            return false;
+        }
+
         n1.end_time() + self.minimal_duration_between_nodes_as_ref(n1, n2) <= n2.start_time()
     }
 
