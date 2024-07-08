@@ -1,5 +1,5 @@
 use crate::local_search::ScheduleWithInfo;
-use objective_framework::{BaseValue, Coefficient, Indicator, Level, Objective};
+use rapid_solve::objective::{BaseValue, Coefficient, Indicator, LinearCombination, Objective};
 
 /// Sum over all service trips: max{0, passengers - capacity} + max{0, seated_passengers - seats}
 struct UnservedPassengersIndicator;
@@ -55,22 +55,22 @@ impl Indicator<ScheduleWithInfo> for CostsIndicator {
 }
 
 pub fn build() -> Objective<ScheduleWithInfo> {
-    let maintenance_violation = Level::new(vec![(
+    let maintenance_violation = LinearCombination::new(vec![(
         Coefficient::Integer(1),
         Box::new(MaintenanceViolationIndicator),
     )]);
 
-    let unserved_passengers = Level::new(vec![(
+    let unserved_passengers = LinearCombination::new(vec![(
         Coefficient::Integer(1),
         Box::new(UnservedPassengersIndicator),
     )]);
 
-    let vehicle_count = Level::new(vec![(
+    let vehicle_count = LinearCombination::new(vec![(
         Coefficient::Integer(1),
         Box::new(VehicleCountIndicator),
     )]);
 
-    let costs = Level::new(vec![(Coefficient::Integer(1), Box::new(CostsIndicator))]);
+    let costs = LinearCombination::new(vec![(Coefficient::Integer(1), Box::new(CostsIndicator))]);
 
     Objective::new(vec![
         unserved_passengers,

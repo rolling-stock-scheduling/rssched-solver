@@ -11,9 +11,9 @@ path = "src/lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-time = { path = "../time" }
 model = { path = "../model" }
-heuristic_framework = { path = "../heuristic_framework" }
+rapid_time = { version = "0.1.2"} # for datetime and duration
+rapid_solve = { version = "0.1.4"} # for hierarical_objective and local_search_solver
 im = "15.0.0" # for lazy copies of data structures
 itertools = "0.10"
 serde = { version = "1.0", features = ["derive"] } # for reading json-files

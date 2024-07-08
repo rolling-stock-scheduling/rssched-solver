@@ -1,8 +1,5 @@
 [workspace]
 members = [
-    "time",
-    "objective_framework",
-    "heuristic_framework",
     "model",
     "solution",
     "solver",

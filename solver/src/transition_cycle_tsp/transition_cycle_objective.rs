@@ -1,4 +1,4 @@
-use objective_framework::{BaseValue, Coefficient, Indicator, Level, Objective};
+use rapid_solve::objective::{BaseValue, Coefficient, Indicator, LinearCombination, Objective};
 
 use super::TransitionCycleWithInfo;
 
@@ -15,7 +15,7 @@ impl Indicator<TransitionCycleWithInfo> for MaintenanceCounterIndicator {
 }
 
 pub fn build() -> Objective<TransitionCycleWithInfo> {
-    let maintenance_counter = Level::new(vec![(
+    let maintenance_counter = LinearCombination::new(vec![(
         Coefficient::Integer(1),
         Box::new(MaintenanceCounterIndicator),
     )]);

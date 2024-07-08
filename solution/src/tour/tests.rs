@@ -1,6 +1,6 @@
 use itertools::assert_equal;
 use model::base_types::Distance;
-use time::{DateTime, Duration};
+use rapid_time::{DateTime, Duration};
 
 use crate::{
     path::Path,

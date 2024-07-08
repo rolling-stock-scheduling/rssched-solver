@@ -8,7 +8,7 @@ use model::network::nodes::Node;
 use model::network::Network;
 use std::cmp::Ordering;
 use std::fmt;
-use time::{DateTime, Duration};
+use rapid_time::{DateTime, Duration};
 
 use itertools::Itertools;
 

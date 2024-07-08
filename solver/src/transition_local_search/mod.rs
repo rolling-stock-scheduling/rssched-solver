@@ -3,9 +3,9 @@ mod transition_objective;
 use std::time as stdtime;
 use std::{sync::Arc, time::Instant};
 
-use heuristic_framework::local_search::LocalSearchSolver;
 use model::network::Network;
-use objective_framework::{EvaluatedSolution, Objective};
+use rapid_solve::heuristics::local_search::LocalSearchSolver;
+use rapid_solve::objective::{EvaluatedSolution, Objective};
 use solution::{transition::Transition, Schedule};
 
 use crate::transition_cycle_tsp;
@@ -58,7 +58,9 @@ pub fn build_transition_local_search_solver(
          current_solution: &EvaluatedSolution<TransitionWithInfo>,
          previous_solution: Option<&EvaluatedSolution<TransitionWithInfo>>,
          objective: Arc<Objective<TransitionWithInfo>>,
-         start_time: Option<Instant>| {
+         start_time: Option<Instant>,
+         _: Option<stdtime::Duration>,
+         _: Option<u32>| {
             println!(
                 "Iteration {} - Swap: {}",
                 iteration_counter,
@@ -88,10 +90,12 @@ pub fn build_transition_local_search_solver(
         },
     );
 
-    LocalSearchSolver::with_local_improver_and_function(
+    LocalSearchSolver::with_options(
         neighborhood,
         objective,
         None,
         Some(function_between_steps),
+        None,
+        None,
     )
 }

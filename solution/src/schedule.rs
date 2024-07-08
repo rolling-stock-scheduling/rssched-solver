@@ -675,7 +675,7 @@ impl Schedule {
         costs: Cost,
         network: Arc<Network>,
     ) -> Schedule {
-        let schedule = Schedule {
+        Schedule {
             vehicles,
             tours,
             next_period_transitions,
@@ -689,11 +689,7 @@ impl Schedule {
             maintenance_violation,
             costs,
             network,
-        };
-
-        // schedule.verify_consistency(); // For bug testing
-
-        schedule
+        }
     }
 }
 

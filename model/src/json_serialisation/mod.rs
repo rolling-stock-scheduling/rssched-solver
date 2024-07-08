@@ -4,7 +4,7 @@ mod tests;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use time::{DateTime, Duration};
+use rapid_time::{DateTime, Duration};
 
 use crate::base_types::{
     DepotIdx, Distance, Idx, LocationIdx, Meter, PassengerCount, VehicleCount, VehicleTypeIdx,

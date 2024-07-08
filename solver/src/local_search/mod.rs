@@ -3,18 +3,15 @@ use std::sync::Arc;
 use std::time::{self as stdtime, Instant};
 
 use crate::objective;
-use heuristic_framework::local_search::local_improver::{
-    TakeAnyParallelRecursion, TakeFirstRecursion,
-};
-use heuristic_framework::local_search::LocalSearchSolver;
 use model::network::Network;
-use objective_framework::{EvaluatedSolution, Objective};
+use rapid_solve::heuristics::parallel_local_search::ParallelLocalSearchSolver;
+use rapid_solve::objective::{EvaluatedSolution, Objective};
 use solution::Schedule;
 
-use neighborhood::SpawnForMaintenanceAndPathExchange;
-use time::Duration;
+use rapid_time::Duration;
 
 use self::neighborhood::swaps::SwapInfo;
+use self::neighborhood::RSSchedParallelNeighborhood;
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct ScheduleWithInfo {
@@ -49,31 +46,18 @@ impl ScheduleWithInfo {
     }
 }
 
-pub fn build_local_search_solver(network: Arc<Network>) -> LocalSearchSolver<ScheduleWithInfo> {
+pub fn build_local_search_solver(
+    network: Arc<Network>,
+) -> ParallelLocalSearchSolver<ScheduleWithInfo> {
     let objective = Arc::new(objective::build());
 
     let segment_limit = Duration::new("3:00:00");
     let overhead_threshold = Duration::new("0:10:00"); // tours of real-vehicle-providers are not splitted at nodes under these duration
 
-    let neighborhood = Arc::new(SpawnForMaintenanceAndPathExchange::new(
+    let neighborhood = Arc::new(RSSchedParallelNeighborhood::new(
         Some(segment_limit),
         Some(overhead_threshold),
-        false,
         network,
-    ));
-
-    let _take_first = Box::new(TakeFirstRecursion::new(
-        0,
-        Some(0),
-        neighborhood.clone(),
-        objective.clone(),
-    ));
-
-    let _take_any = Box::new(TakeAnyParallelRecursion::new(
-        0,
-        Some(0),
-        neighborhood.clone(),
-        objective.clone(),
     ));
 
     let function_between_steps = Box::new(
@@ -81,7 +65,9 @@ pub fn build_local_search_solver(network: Arc<Network>) -> LocalSearchSolver<Sch
          current_solution: &EvaluatedSolution<ScheduleWithInfo>,
          previous_solution: Option<&EvaluatedSolution<ScheduleWithInfo>>,
          objective: Arc<Objective<ScheduleWithInfo>>,
-         start_time: Option<Instant>| {
+         start_time: Option<Instant>,
+         _: Option<stdtime::Duration>,
+         _: Option<u32>| {
             println!(
                 "Iteration {} - Swap: {}",
                 iteration_counter,
@@ -111,10 +97,12 @@ pub fn build_local_search_solver(network: Arc<Network>) -> LocalSearchSolver<Sch
         },
     );
 
-    LocalSearchSolver::with_local_improver_and_function(
+    ParallelLocalSearchSolver::with_options(
         neighborhood,
         objective,
         None,
         Some(function_between_steps),
+        None,
+        None,
     )
 }

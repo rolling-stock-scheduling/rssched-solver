@@ -7,12 +7,9 @@ WORKDIR /app
 # Copy the code into the container
 COPY internal/ internal/
 COPY model/ model/
-COPY objective_framework/ objective_framework/
-COPY heuristic_framework/ heuristic_framework/
 COPY server/ server/
 COPY solution/ solution/
 COPY solver/ solver/
-COPY time/ time/
 COPY Cargo.toml Cargo.toml
 
 # Compile the Rust code

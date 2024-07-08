@@ -3,8 +3,8 @@ pub mod transition_cycle_objective;
 
 use std::sync::Arc;
 
-use heuristic_framework::local_search::LocalSearchSolver;
 use model::network::Network;
+use rapid_solve::heuristics::local_search::LocalSearchSolver;
 use solution::{transition::transition_cycle::TransitionCycle, Schedule};
 
 use self::transition_cycle_neighborhood::TransitionCycleNeighborhood;
@@ -43,10 +43,12 @@ pub fn build_transition_cycle_tsp_solver(
         network.clone(),
     ));
 
-    LocalSearchSolver::with_local_improver_and_function(
+    LocalSearchSolver::with_options(
         neighborhood,
         objective,
         None,
-        Some(Box::new(|_, _, _, _, _| {})), // no output
+        Some(Box::new(|_, _, _, _, _, _, _| {})), // no output
+        None,
+        None,
     )
 }

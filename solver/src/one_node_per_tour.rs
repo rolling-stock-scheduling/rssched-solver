@@ -1,5 +1,5 @@
 use model::network::Network;
-use objective_framework::{EvaluatedSolution, Objective};
+use rapid_solve::objective::{EvaluatedSolution, Objective};
 use solution::Schedule;
 use std::sync::Arc;
 

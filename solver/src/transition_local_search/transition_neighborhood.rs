@@ -1,9 +1,11 @@
 use std::sync::Arc;
 
-use heuristic_framework::local_search::{LocalSearchSolver, Neighborhood};
 use im::HashMap;
 use itertools::Itertools;
 use model::{base_types::VehicleIdx, network::Network};
+use rapid_solve::heuristics::common::Neighborhood;
+use rapid_solve::heuristics::local_search::LocalSearchSolver;
+use rapid_solve::heuristics::Solver;
 use solution::tour::Tour;
 
 use crate::transition_cycle_tsp::TransitionCycleWithInfo;
@@ -147,7 +149,7 @@ impl Neighborhood<TransitionWithInfo> for TransitionNeighborhood {
                         let improved_cycle = self
                             .cycle_tsp_solver
                             .solve(start_cycle)
-                            .unwrap_solution()
+                            .unwrap()
                             .unwrap_cycle();
                         new_transition = new_transition.replace_cycle(cycle_idx, improved_cycle);
                     });

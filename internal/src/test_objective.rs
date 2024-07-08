@@ -1,7 +1,7 @@
 use model::base_types::{Distance, INF_DISTANCE};
-use objective_framework::{BaseValue, Coefficient, Indicator, Level, Objective};
+use rapid_solve::objective::{BaseValue, Coefficient, Indicator, LinearCombination, Objective};
 use solution::Schedule;
-use time::Duration;
+use rapid_time::Duration;
 
 struct NumberOfUnservedPassengersIndicator;
 
@@ -138,42 +138,42 @@ impl Indicator<Schedule> for ServiceTimeSquaredIndicator {
 }
 
 pub fn _build() -> Objective<Schedule> {
-    let _usefull_service_time = Level::new(vec![(
+    let _usefull_service_time = LinearCombination::new(vec![(
         Coefficient::Integer(-1),
         Box::new(ServiceTimeSquaredIndicator),
     )]);
 
-    let _dummy_level = Level::new(vec![(
+    let _dummy_level = LinearCombination::new(vec![(
         Coefficient::Integer(1),
         Box::new(NumberOfDummiesIndicator),
     )]);
 
-    let _dummy_distance_level = Level::new(vec![(
+    let _dummy_distance_level = LinearCombination::new(vec![(
         Coefficient::Integer(1),
         Box::new(DummyDistanceIndicator),
     )]);
 
-    let _dummy_duration_level = Level::new(vec![(
+    let _dummy_duration_level = LinearCombination::new(vec![(
         Coefficient::Integer(1),
         Box::new(DummyDurationIndicator),
     )]);
 
-    let _overhead_duration_level = Level::new(vec![(
+    let _overhead_duration_level = LinearCombination::new(vec![(
         Coefficient::Integer(1),
         Box::new(OverheadDurationIndicator),
     )]);
 
-    let _unserved_passengers_level = Level::new(vec![(
+    let _unserved_passengers_level = LinearCombination::new(vec![(
         Coefficient::Integer(1),
         Box::new(NumberOfUnservedPassengersIndicator),
     )]);
 
-    let _vehicle_count_level = Level::new(vec![(
+    let _vehicle_count_level = LinearCombination::new(vec![(
         Coefficient::Integer(1),
         Box::new(NumberOfVehiclesIndicator),
     )]);
 
-    let _cost_level = Level::new(vec![(Coefficient::Integer(1), Box::new(CostsIndicator))]);
+    let _cost_level = LinearCombination::new(vec![(Coefficient::Integer(1), Box::new(CostsIndicator))]);
 
     Objective::new(vec![
         // _dummy_level,

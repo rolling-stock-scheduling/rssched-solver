@@ -4,7 +4,7 @@ use model::{
     network::{nodes::Node, Network},
 };
 use serde::{Deserialize, Serialize};
-use time::DateTime;
+use rapid_time::DateTime;
 
 use crate::Schedule;
 

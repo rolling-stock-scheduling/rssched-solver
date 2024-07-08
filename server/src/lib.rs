@@ -1,8 +1,10 @@
 use im::HashMap;
 use model::base_types::VehicleTypeIdx;
 use model::json_serialisation::load_rolling_stock_problem_instance_from_json;
-use objective_framework::EvaluatedSolution;
-use objective_framework::Objective;
+use rapid_solve::heuristics::Solver;
+use rapid_solve::objective::EvaluatedSolution;
+use rapid_solve::objective::Objective;
+use rapid_time::{DateTime, Duration};
 use solution::json_serialisation::schedule_to_json;
 use solution::transition::Transition;
 use solver::local_search::neighborhood::swaps::SwapInfo;
@@ -11,7 +13,6 @@ use solver::min_cost_flow_solver::MinCostFlowSolver;
 use solver::objective;
 use solver::transition_local_search::build_transition_local_search_solver;
 use solver::transition_local_search::TransitionWithInfo;
-use time::{DateTime, Duration};
 
 use gethostname::gethostname;
 use std::sync::Arc;
@@ -79,7 +80,7 @@ pub fn solve_instance(input_data: serde_json::Value) -> serde_json::Value {
         );
         let improved_transition = transition_local_search_solver
             .solve(start_transition)
-            .unwrap_solution()
+            .unwrap()
             .unwrap_transition();
 
         optimized_transitions.insert(vehicle_type, improved_transition);

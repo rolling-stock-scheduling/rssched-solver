@@ -1,4 +1,4 @@
-use time::Duration;
+use rapid_time::Duration;
 
 use crate::base_types::{Cost, Distance};
 

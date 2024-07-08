@@ -15,14 +15,14 @@ path = "src/main.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-time = { path = "../time" }
 model = { path = "../model" }
 solution = { path = "../solution" }
-objective_framework = { path = "../objective_framework" }
 solver = { path = "../solver" }
 serde_json = { version = "1.0", features = ["preserve_order"]} # for reading json-files
 axum = "0.7.3"
 tokio = { version = "1.35.1", features = ["full"]} # web framework
 rayon = "1.5.1" # for parallel iterator
 gethostname = "0.4.3"
+rapid_time = { version = "0.1.2"} # for datetime and duration
+rapid_solve = { version = "0.1.4"} # for hierarical_objective and local_search_solver
 im = "15.0.0" # for lazy copies of data structures

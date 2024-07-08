@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use heuristic_framework::local_search::Neighborhood;
 use im::HashMap;
 use model::{base_types::VehicleIdx, network::Network};
+use rapid_solve::heuristics::common::Neighborhood;
 use solution::tour::Tour;
 
 use super::TransitionCycleWithInfo;

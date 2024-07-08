@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use time::Duration;
+use rapid_time::Duration;
 
 use crate::base_types::VehicleCount;
 use crate::base_types::{Distance, Location, LocationIdx};

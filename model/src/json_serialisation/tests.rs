@@ -1,6 +1,6 @@
 use std::{fs::File, io::Read};
 
-use time::{DateTime, Duration};
+use rapid_time::{DateTime, Duration};
 
 use crate::{
     base_types::{DepotIdx, Distance, Location, LocationIdx, NodeIdx, VehicleTypeIdx},

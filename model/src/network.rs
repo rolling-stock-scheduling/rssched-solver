@@ -4,7 +4,7 @@ pub mod nodes;
 use depot::Depot;
 use nodes::Node;
 use nodes::{MaintenanceSlot, ServiceTrip};
-use time::{DateTime, Duration};
+use rapid_time::{DateTime, Duration};
 
 use crate::base_types::{
     DepotIdx, Distance, Idx, Location, Meter, NodeIdx, PassengerCount, VehicleCount, VehicleTypeIdx,

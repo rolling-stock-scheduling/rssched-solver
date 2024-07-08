@@ -345,32 +345,6 @@ following fields:
 
 The project is structured into the following sub-projects:
 
-### time
-
-- provides the types DateTime and Duration
-
-- DateTime:
-
-  - represents a point in time including year, month, day, hour, minute, second
-
-  - enriched by Earliest (- infinity) and Latest (+ infinity)
-
-  - integer based, whole seconds is the smallest unit
-
-- Duration:
-
-  - represents non-negative time duration represented by hours, minutes, seconds
-
-  - enriched by Infinity
-
-- basic calculations:
-
-  - DateTime - DateTime = Duration
-
-  - DateTime + Duration = DateTime
-
-  - ...
-
 ### model
 
 - model for a rolling stock scheduling instance
@@ -484,32 +458,6 @@ The project is structured into the following sub-projects:
 
   - 3-opt-move: given a cycle and three indices i, j, k, the cycle is split into three parts and the order of the parts
     is changed
-
-#### objective framework
-
-- an objective consists of a hierarchy of linear combinations (levels) of indicators of a schedule (called solution)
-
-- to define a new objective first define all indicators for a given schedule (e.g. number of unserved passenger, total dead head distance, ...) by implementing the Indicator<Schedule> trait, which needs an evaluate and a name function
-
-- the evaluate method must return a BaseValue, which could be Integer, Float or Duration
-
-- linear combine multiple indicators to a level by choosing Coefficients (integer or float)
-
-- each level must be either Integer, Float or Duration and the indicators cannot be mixed within the same level
-
-- multiple levels form an hierarchical Objective, the first level is the most important one, ties are broken by the second level and so forth
-
-- given an Objective instance, a solution (schedule) can be evaluated. This method consumes the schedule and returns an EvaluatedSolution object which consists of the schedule and an ObjectiveValue
-
-- an ObjectiveValue is a Vector of BaseValues which matches the objective hierarchy and implements the Ord trait.
-
-#### heuristic framework
-
-- a generic solver trait, that each meta-heuristic-solver should implement
-
-- local search framework (independent of the rolling stock scheduling problem)
-
-  - there are three local improver implementations which can be chosen
 
 #### solver
 

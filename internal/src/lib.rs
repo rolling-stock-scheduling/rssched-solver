@@ -4,6 +4,7 @@ mod test_objective;
 use im::HashMap;
 use model::base_types::VehicleTypeIdx;
 use model::vehicle_types::VehicleType;
+use rapid_solve::heuristics::Solver;
 use solution::transition::Transition;
 use solver::local_search::neighborhood::swaps::SwapInfo;
 use solver::local_search::ScheduleWithInfo;
@@ -79,7 +80,7 @@ pub fn run(input_data: serde_json::Value) -> serde_json::Value {
         );
         let improved_transition = transition_local_search_solver
             .solve(start_transition)
-            .unwrap_solution()
+            .unwrap()
             .unwrap_transition();
 
         optimized_transitions.insert(vehicle_type, improved_transition);
