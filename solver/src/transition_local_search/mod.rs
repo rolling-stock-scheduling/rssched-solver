@@ -4,7 +4,7 @@ use std::time as stdtime;
 use std::{sync::Arc, time::Instant};
 
 use model::network::Network;
-use rapid_solve::heuristics::local_search::LocalSearchSolver;
+use rapid_solve::heuristics::parallel_local_search::ParallelLocalSearchSolver;
 use rapid_solve::objective::{EvaluatedSolution, Objective};
 use solution::{transition::Transition, Schedule};
 
@@ -41,7 +41,7 @@ impl TransitionWithInfo {
 pub fn build_transition_local_search_solver(
     schedule: &Schedule,
     network: Arc<Network>,
-) -> LocalSearchSolver<TransitionWithInfo> {
+) -> ParallelLocalSearchSolver<TransitionWithInfo> {
     let transition_cycle_tsp_solver =
         transition_cycle_tsp::build_transition_cycle_tsp_solver(schedule, network.clone());
 
@@ -90,7 +90,7 @@ pub fn build_transition_local_search_solver(
         },
     );
 
-    LocalSearchSolver::with_options(
+    ParallelLocalSearchSolver::with_options(
         neighborhood,
         objective,
         None,

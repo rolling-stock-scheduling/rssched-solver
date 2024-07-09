@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use im::HashMap;
-use itertools::Itertools;
 use model::{base_types::VehicleIdx, network::Network};
-use rapid_solve::heuristics::common::Neighborhood;
+use rapid_solve::heuristics::common::ParallelNeighborhood;
 use rapid_solve::heuristics::local_search::LocalSearchSolver;
 use rapid_solve::heuristics::Solver;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use solution::tour::Tour;
 
 use crate::transition_cycle_tsp::TransitionCycleWithInfo;
@@ -32,29 +32,46 @@ impl TransitionNeighborhood {
     }
 }
 
-impl Neighborhood<TransitionWithInfo> for TransitionNeighborhood {
+impl ParallelNeighborhood<TransitionWithInfo> for TransitionNeighborhood {
     fn neighbors_of<'a>(
         &'a self,
         transition_with_info: &'a TransitionWithInfo,
-    ) -> Box<dyn Iterator<Item = TransitionWithInfo> + Send + Sync + 'a> {
+    ) -> impl ParallelIterator<Item = TransitionWithInfo> + 'a {
         let transition = transition_with_info.get_transition();
         // first create a iterator over cycle pairs and all vehicles of these cycles
-        let indices_iter = transition
-            .cycles_iter()
-            .enumerate()
-            .combinations(2)
-            .flat_map(move |combination| {
-                let (first_cycle_idx, first_cycle) = combination[0];
-                let (second_cycle_idx, second_cycle) = combination[1];
-                first_cycle
+        let first_cycles: Vec<_> = transition.cycles_iter().enumerate().collect();
+        let cycle_combinations =
+            first_cycles
+                .into_par_iter()
+                .flat_map(|(first_cycle_idx, first_cycle)| {
+                    let second_cycles: Vec<_> = transition
+                        .cycles_iter()
+                        .enumerate()
+                        .skip(first_cycle_idx + 1)
+                        .collect();
+                    second_cycles
+                        .into_par_iter()
+                        .map(move |(second_cycle_idx, second_cycle)| {
+                            (first_cycle_idx, first_cycle, second_cycle_idx, second_cycle)
+                        })
+                });
+        let indices_iter = cycle_combinations.flat_map(
+            move |(first_cycle_idx, first_cycle, second_cycle_idx, second_cycle)| {
+                let vehicles_first_cycle: Vec<_> = first_cycle
                     .iter()
                     .map(Some)
-                    .chain(std::iter::once(None)) // add none for no vehicle
+                    .chain(std::iter::once(None))
+                    .collect(); // add none for no vehicle
+                vehicles_first_cycle
+                    .into_par_iter()
                     .flat_map(move |first_vehicle_opt| {
-                        second_cycle
+                        let vehicles_second_cycle: Vec<_> = second_cycle
                             .iter()
                             .map(Some)
-                            .chain(std::iter::once(None)) // add nonce for no vehicle
+                            .chain(std::iter::once(None))
+                            .collect(); // add none for no vehicle
+                        vehicles_second_cycle
+                            .into_par_iter()
                             .map(move |second_vehicle_opt| {
                                 (
                                     first_cycle_idx,
@@ -64,7 +81,8 @@ impl Neighborhood<TransitionWithInfo> for TransitionNeighborhood {
                                 )
                             })
                     })
-            });
+            },
+        );
 
         // apply the exchange of vehicles and create a string for the swap
         let swap_iter =
@@ -136,7 +154,7 @@ impl Neighborhood<TransitionWithInfo> for TransitionNeighborhood {
             );
 
         // apply the tsp solver to the two modified cycles
-        Box::new(swap_iter.map(
+        swap_iter.map(
             |(first_cycle_idx, second_cycle_idx, mut new_transition, description)| {
                 vec![first_cycle_idx, second_cycle_idx]
                     .into_iter()
@@ -156,6 +174,6 @@ impl Neighborhood<TransitionWithInfo> for TransitionNeighborhood {
 
                 TransitionWithInfo::new(new_transition, description)
             },
-        ))
+        )
     }
 }
