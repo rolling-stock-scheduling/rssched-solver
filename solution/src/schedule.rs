@@ -431,11 +431,11 @@ impl Schedule {
             // check depots usage
             let vehicle_type = self.vehicle_type_of(*vehicle).unwrap();
 
-            let start_depot = self.network.get_depot_id(tour.start_depot().unwrap());
+            let start_depot = self.network.get_depot_idx(tour.start_depot().unwrap());
             let (spawned, _) = self.depot_usage.get(&(start_depot, vehicle_type)).unwrap();
             assert!(spawned.contains(vehicle));
 
-            let end_depot = self.network.get_depot_id(tour.end_depot().unwrap());
+            let end_depot = self.network.get_depot_idx(tour.end_depot().unwrap());
             let (_, despawned) = self.depot_usage.get(&(end_depot, vehicle_type)).unwrap();
             assert!(despawned.contains(vehicle));
 
@@ -492,7 +492,7 @@ impl Schedule {
                 assert_eq!(self.vehicle_type_of(*vehicle).unwrap(), *vehicle_type);
                 assert_eq!(
                     self.network
-                        .get_depot_id(self.tour_of(*vehicle).unwrap().start_depot().unwrap()),
+                        .get_depot_idx(self.tour_of(*vehicle).unwrap().start_depot().unwrap()),
                     *depot
                 );
             }
@@ -501,7 +501,7 @@ impl Schedule {
                 assert_eq!(self.vehicle_type_of(*vehicle).unwrap(), *vehicle_type);
                 assert_eq!(
                     self.network
-                        .get_depot_id(self.tour_of(*vehicle).unwrap().end_depot().unwrap()),
+                        .get_depot_idx(self.tour_of(*vehicle).unwrap().end_depot().unwrap()),
                     *depot
                 );
             }
@@ -714,7 +714,7 @@ impl Schedule {
         vehicle_type: VehicleTypeIdx,
         depot_usage: &DepotUsage,
     ) -> bool {
-        let depot = self.network.get_depot_id(start_depot);
+        let depot = self.network.get_depot_idx(start_depot);
         let capacity_for_type = self.network.capacity_of(depot, vehicle_type);
 
         if capacity_for_type == 0 {

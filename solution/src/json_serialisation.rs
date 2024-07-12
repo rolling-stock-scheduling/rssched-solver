@@ -16,8 +16,8 @@ use model::{
     base_types::{DepotIdx, NodeIdx, VehicleIdx, VehicleTypeIdx},
     network::{nodes::Node, Network},
 };
-use serde::{Deserialize, Serialize};
 use rapid_time::DateTime;
+use serde::{Deserialize, Serialize};
 
 use crate::Schedule;
 
@@ -144,9 +144,11 @@ pub fn schedule_to_json(schedule: &Schedule) -> serde_json::Value {
 
 fn depots_usage_to_json(schedule: &Schedule) -> Vec<DepotLoad> {
     let mut depot_loads = vec![];
-    for depot_idx in schedule.get_network().depots_iter() {
+    let network = schedule.get_network();
+    for depot_idx in network.depots_iter() {
+        let depot = network.get_depot(depot_idx);
         depot_loads.push(DepotLoad {
-            depot: depot_idx.to_string(),
+            depot: depot.id().to_string(),
             load: depot_usage_to_json(schedule, depot_idx),
         });
     }
@@ -155,12 +157,18 @@ fn depots_usage_to_json(schedule: &Schedule) -> Vec<DepotLoad> {
 
 fn depot_usage_to_json(schedule: &Schedule, depot_idx: DepotIdx) -> Vec<Load> {
     let mut loads = vec![];
+    let network = schedule.get_network();
     for vehicle_type in schedule.get_vehicle_types().iter() {
         let spawn_count =
             schedule.number_of_vehicles_of_same_type_spawned_at(depot_idx, vehicle_type);
         if spawn_count > 0 {
             loads.push(Load {
-                vehicle_type: vehicle_type.to_string(),
+                vehicle_type: network
+                    .vehicle_types()
+                    .get(vehicle_type)
+                    .unwrap()
+                    .id()
+                    .clone(),
                 spawn_count,
             })
         }
@@ -174,10 +182,10 @@ fn fleet_to_json(
     dead_head_trips_with_formation: &mut Vec<JsonFleetDeadHeadTripWithFormation>,
 ) -> JsonFleet {
     let mut vehicles = vec![];
-    for vehicle_id in schedule.vehicles_iter(vehicle_type) {
+    for vehicle_idx in schedule.vehicles_iter(vehicle_type) {
         vehicles.push(vehicle_to_json(
             schedule,
-            vehicle_id,
+            vehicle_idx,
             dead_head_trips_with_formation,
         ));
     }
@@ -210,10 +218,10 @@ fn vehicle_to_json(
 ) -> JsonVehicle {
     let network = schedule.get_network();
     let start_depot_node = schedule.tour_of(vehicle_idx).unwrap().first_node();
-    let start_depot_id = network.get_depot_id(start_depot_node);
+    let start_depot_id = network.get_depot_idx(start_depot_node);
     let start_depot = network.get_depot(start_depot_id);
     let end_depot_node = schedule.tour_of(vehicle_idx).unwrap().last_node();
-    let end_depot_id = network.get_depot_id(end_depot_node);
+    let end_depot_id = network.get_depot_idx(end_depot_node);
     let end_depot = network.get_depot(end_depot_id);
     let mut departure_segments = vec![];
     let mut maintenance_slots = vec![];

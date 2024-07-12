@@ -168,7 +168,7 @@ impl RSSchedParallelNeighborhood {
     pub fn hitch_hiking_iterator<'a>(
         &'a self,
         schedule_with_info: &'a ScheduleWithInfo,
-    ) -> impl ParallelIterator<Item = ScheduleWithInfo> + Send + Sync + 'a {
+    ) -> impl ParallelIterator<Item = ScheduleWithInfo> + 'a {
         let schedule = schedule_with_info.get_schedule();
 
         let vehicles: Vec<_> = schedule.vehicles_iter_all().collect();
@@ -193,7 +193,7 @@ impl RSSchedParallelNeighborhood {
     pub fn remove_single_node_iterator<'a>(
         &'a self,
         schedule_with_info: &'a ScheduleWithInfo,
-    ) -> impl ParallelIterator<Item = ScheduleWithInfo> + Send + Sync + 'a {
+    ) -> impl ParallelIterator<Item = ScheduleWithInfo> + 'a {
         let schedule = schedule_with_info.get_schedule();
         let vehicles: Vec<_> = schedule.vehicles_iter_all().collect();
 

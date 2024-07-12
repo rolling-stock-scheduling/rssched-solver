@@ -11,12 +11,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-#![allow(unused_imports)]
-mod test_objective;
-
 use im::HashMap;
 use model::base_types::VehicleTypeIdx;
-use model::vehicle_types::VehicleType;
 use rapid_solve::heuristics::Solver;
 use solution::transition::Transition;
 use solver::local_search::neighborhood::swaps::SwapInfo;
@@ -25,7 +21,6 @@ use solver::min_cost_flow_solver::MinCostFlowSolver;
 use solver::objective;
 
 use model::json_serialisation::load_rolling_stock_problem_instance_from_json;
-use solver::transition_cycle_tsp::TransitionCycleWithInfo;
 use solver::transition_local_search::{build_transition_local_search_solver, TransitionWithInfo};
 
 use std::sync::Arc;

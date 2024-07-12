@@ -213,7 +213,7 @@ impl Network {
         limit_of_type.map(|l| l.min(limit_of_node.unwrap_or(l)))
     }
 
-    pub fn get_depot_id(&self, node_idx: NodeIdx) -> DepotIdx {
+    pub fn get_depot_idx(&self, node_idx: NodeIdx) -> DepotIdx {
         self.node(node_idx).as_depot().depot_idx()
     }
 

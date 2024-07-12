@@ -648,7 +648,7 @@ impl Schedule {
             let old_tour = self.tour_of(*vehicle_id).unwrap();
             depot_usage
                 .get_mut(&(
-                    self.network.get_depot_id(old_tour.start_depot().unwrap()),
+                    self.network.get_depot_idx(old_tour.start_depot().unwrap()),
                     vehicle_type_id,
                 ))
                 .unwrap()
@@ -657,7 +657,7 @@ impl Schedule {
                 .unwrap();
             depot_usage
                 .get_mut(&(
-                    self.network.get_depot_id(old_tour.end_depot().unwrap()),
+                    self.network.get_depot_idx(old_tour.end_depot().unwrap()),
                     vehicle_type_id,
                 ))
                 .unwrap()
@@ -676,7 +676,7 @@ impl Schedule {
             // add vehicle to depot_usage
             depot_usage
                 .entry((
-                    self.network.get_depot_id(new_tour.start_depot().unwrap()),
+                    self.network.get_depot_idx(new_tour.start_depot().unwrap()),
                     vehicle_type_id,
                 ))
                 .or_insert((HashSet::new(), HashSet::new()))
@@ -684,7 +684,7 @@ impl Schedule {
                 .insert(*vehicle_id);
             depot_usage
                 .entry((
-                    self.network.get_depot_id(new_tour.end_depot().unwrap()),
+                    self.network.get_depot_idx(new_tour.end_depot().unwrap()),
                     vehicle_type_id,
                 ))
                 .or_insert((HashSet::new(), HashSet::new()))
@@ -837,7 +837,7 @@ impl Schedule {
                 .get_successor_of(vehicle);
             let start_depot_of_next_vehicle =
                 self.tour_of(next_vehicle).unwrap().start_depot().unwrap();
-            let depot_idx = self.network.get_depot_id(start_depot_of_next_vehicle);
+            let depot_idx = self.network.get_depot_idx(start_depot_of_next_vehicle);
             let new_end_depot = self.network.get_end_depot_node(depot_idx);
 
             let new_tour = tour.replace_end_depot(new_end_depot).unwrap();
@@ -1187,7 +1187,7 @@ impl Schedule {
         if self.is_vehicle(vehicle_id) {
             let old_depot = self
                 .network
-                .get_depot_id(self.tour_of(vehicle_id).unwrap().start_depot().unwrap());
+                .get_depot_idx(self.tour_of(vehicle_id).unwrap().start_depot().unwrap());
             depot_usage
                 .entry((old_depot, vehicle_type))
                 .or_insert((HashSet::new(), HashSet::new()))
@@ -1197,7 +1197,7 @@ impl Schedule {
         }
 
         if let Some(start_depot_node) = new_start_depot_node {
-            let new_depot = self.network.get_depot_id(start_depot_node);
+            let new_depot = self.network.get_depot_idx(start_depot_node);
             depot_usage
                 .entry((new_depot, vehicle_type))
                 .or_insert((HashSet::new(), HashSet::new()))
@@ -1218,7 +1218,7 @@ impl Schedule {
         if self.is_vehicle(vehicle_id) {
             let old_depot = self
                 .network
-                .get_depot_id(self.tour_of(vehicle_id).unwrap().end_depot().unwrap());
+                .get_depot_idx(self.tour_of(vehicle_id).unwrap().end_depot().unwrap());
             depot_usage
                 .entry((old_depot, vehicle_type))
                 .or_insert((HashSet::new(), HashSet::new()))
@@ -1228,7 +1228,7 @@ impl Schedule {
         }
 
         if let Some(end_depot_node) = new_end_depot_node {
-            let new_depot = self.network.get_depot_id(end_depot_node);
+            let new_depot = self.network.get_depot_idx(end_depot_node);
             depot_usage
                 .entry((new_depot, vehicle_type))
                 .or_insert((HashSet::new(), HashSet::new()))

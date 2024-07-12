@@ -164,7 +164,7 @@ impl MinCostFlowSolver {
                     .or_insert(0);
                 *entry += 1;
 
-                *priority += priority_increment[&vehicle_type];
+                *priority += priority_increment[vehicle_type];
 
                 if priority_counter.iter().all(|(_, p)| *p >= 1.0) {
                     break;
